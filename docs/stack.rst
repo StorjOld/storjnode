@@ -3,31 +3,35 @@ storj protocol stack
 ====================
 
 
-+---------------+---------------+---------------+
-|               | Dispatcher    |               |
-| Contract DB   +---------------+               |
-|               | Validation    | Configuration |
-+---------------+---------------+               |
-| Serialization                 |               |
-+-------------------------------+               |
-| Firewall                      |               |
-+-------------------------------+               |
-| Throttle                      |               |
-+-------------------------------+               |
-| Communication                 |               |
-+-------------------------------+---------------+
++--------+---------------+---------------+---------------+
+|        |               | Dispatcher    |               |
+| Wallet | Contract DB   +---------------+               |
+|        |               | Validation    | Configuration |
++--------+---------------+---------------+               |
+| Serialization                          |               |
++----------------------------------------+               |
+| Firewall                               |               |
++----------------------------------------+               |
+| Throttle                               |               |
++----------------------------------------+               |
+| Communication                          |               |
++----------------------------------------+---------------+
 
 
 Configuration
 =============
 
-Each layer will be supplied a configuration object where it obtains its configuration values. This will allow intelligent high level clients to control the low level protocol inner working.
+Each layer will be supplied a configuration object where it obtains its
+configuration values. This will allow intelligent high level clients to control
+the low level protocol inner working.
 
 
 Communication
 =============
 
-This is the lowest layer in the Storj protocol stack. Initially IRC/DCC will be used to bootstrap the communication layer, but may be replaced at a later stage if it proves insufficient.
+This is the lowest layer in the Storj protocol stack. Initially IRC/DCC will
+be used to bootstrap the communication layer, but may be replaced at a later
+stage if it proves insufficient.
 
 Responsibilities:
 
@@ -55,10 +59,12 @@ Restricts network IO to configured bandwidth limits.
 Firewall
 ========
 
-The firewall layer is responsible for security and makes sure everything is properly encrypted and authenticated. Almost everything is encrypted in storj anything that requires authentication but fails is immediately dropped.
+The firewall layer is responsible for security and makes sure everything is
+properly encrypted and authenticated. Almost everything is encrypted in storj
+anything that requires authentication but fails is immediately dropped.
 
  * Broadcasts: Unencrypted as they need to be public by design.
- * Node messaging: Asymmetrically encrypted so only the receiving party can decrypt. 
+ * Node messaging: Asymmetrically encrypted so only the receiving party can decrypt.
  * Node discovery: Establishes an encrypted authenticated communication channel between nodes.
  * Data transfer: Asymmetrically or symmetrically encrypted so the storing node cannot view the data.
 
@@ -74,7 +80,8 @@ Convert byte data into internal representation.
 Validation
 ==========
 
-Messages and data are validated according to the storj protocol specification. Anything that is invalid is immediately dropped. 
+Messages and data are validated according to the storj protocol specification.
+Anything that is invalid is immediately dropped.
 
 
 Dispatcher
@@ -87,3 +94,9 @@ Contract DB
 ===========
 
 A key value storage of current contracts the node is involved with, required by validation module.
+
+
+Wallet
+======
+
+A simple block chain interface required for contract validation.
