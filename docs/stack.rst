@@ -7,7 +7,7 @@ storj protocol stack
 | Dispatcher    |        |               |               |
 +---------------+ Wallet | Contract DB   |               |
 | Validation    |        |               | Configuration |
-+--------+---------------+---------------+               |
++---------------+--------+---------------+               |
 | Serialization                          |               |
 +----------------------------------------+               |
 | Firewall                               |               |
