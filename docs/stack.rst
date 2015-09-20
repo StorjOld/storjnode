@@ -3,17 +3,17 @@ storj protocol stack
 ====================
 
 
-+---------------+---------------+
-| Dispatcher    |               |
-+---------------+               |
-| Validation    | Configuration |
-+---------------+               |
-| Firewall      |               |
-+---------------+               |
-| Throttle      |               |
-+---------------+               |
-| Communication |               |
-+---------------+---------------+
++---------------+---------------+---------------+
+|               | Dispatcher    |               |
+| Contract DB   +---------------+               |
+|               | Validation    | Configuration |
++---------------+---------------+               |
+| Firewall                      |               |
++-------------------------------+               |
+| Throttle                      |               |
++-------------------------------+               |
+| Communication                 |               |
++-------------------------------+---------------+
 
 
 Configuration
@@ -73,3 +73,9 @@ Dispatcher
 ==========
 
 The dispatcher is responsible for handling incoming/outgoing messages/data and routing them to the appropriate modules.
+
+
+Contract DB
+===========
+
+A key value storage of current contracts the node is involved with, required by validation module.
