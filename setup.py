@@ -5,8 +5,11 @@
 from setuptools import setup, find_packages
 
 exec(open('storjnode/version.py').read())  # load __version__
-DOWNLOAD_BASEURL = "https://pypi.python.org/packages/3.4/d/storjnode/"
-DOWNLOAD_URL = DOWNLOAD_BASEURL + "storjnode-%s-py2.py3-none-any.whl" % __version__  # NOQA
+DOWNLOAD_URL = "%(baseurl)s/%(name)s/%(name)s-%(version)s-py2.py3-none-any.whl" % {
+    'baseurl': "https://pypi.python.org/packages/3.4/s",
+    'name': 'storjnode',
+    'version': __version__  # NOQA
+}
 
 
 setup(
