@@ -8,6 +8,8 @@ storj protocol stack
 | Contract DB   +---------------+               |
 |               | Validation    | Configuration |
 +---------------+---------------+               |
+| Serialization                 |               |
++-------------------------------+               |
 | Firewall                      |               |
 +-------------------------------+               |
 | Throttle                      |               |
@@ -61,6 +63,12 @@ The firewall layer is responsible for security and makes sure everything is prop
  * Data transfer: Asymmetrically or symmetrically encrypted so the storing node cannot view the data.
 
 Additional filters such as black/white lists may be provided by high level clients.
+
+
+Serialization
+=============
+
+Convert byte data into internal representation.
 
 
 Validation
