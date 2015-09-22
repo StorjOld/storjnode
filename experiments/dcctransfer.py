@@ -1,5 +1,7 @@
 #! /usr/bin/env python
 
+# Opjective: transfer a file via DCC
+
 
 import shutil
 import hashlib
