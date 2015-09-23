@@ -26,6 +26,7 @@ import irc.client
 
 
 LOG_FORMAT = "%(levelname)s %(name)s %(lineno)d: %(message)s"
+BOB_CHANNEL = "#19PqWiGFUivXb9ESCoZAowpoEkaodj5dFt"
 
 
 # network setup
@@ -36,9 +37,6 @@ PORT = 6667
 # setup logger
 logging.basicConfig(format=LOG_FORMAT, level=logging.INFO)
 logger = logging.getLogger("findpeer")
-
-
-BOB_CHANNEL = "#19PqWiGFUivXb9ESCoZAowpoEkaodj5dFt"
 
 
 def generate_nick():
@@ -55,7 +53,7 @@ class BaseClient(irc.client.SimpleIRCClient):
         logger.info("{0} disconnected! {1}".format(
             self.__class__.__name__, event.arguments[0]
         ))
-        sys.exit(0)
+        sys.exit(-1)
 
     def on_welcome(self, connection, event):
         logger.info("{0} joining {1}".format(
@@ -64,17 +62,25 @@ class BaseClient(irc.client.SimpleIRCClient):
         connection.join(BOB_CHANNEL)
 
     def on_dcc_disconnect(self, connection, event):
+        logger.info("{0} dcc disconnected! {1}".format(
+            self.__class__.__name__, event.arguments[0]
+        ))
         self.connection.quit()
+        sys.exit(-1)
 
 
 class AliceClient(BaseClient):
+
+    def on_join(self, connection, event):
+        self.send_syn(connection, event)
 
     def send_syn(self, connection, event):
         logger.info("Alice sending syn")
         connection.privmsg(BOB_CHANNEL, "alicessyn")
 
-    def on_join(self, connection, event):
-        self.send_syn(connection, event)
+    def send_ack(self, connection, event):
+        logger.info("Alice sending ack")
+        self.dcc.privmsg("alicesack")
 
     def on_ctcp(self, connection, event):
         payload = event.arguments[1]
@@ -84,21 +90,31 @@ class AliceClient(BaseClient):
             return
         logger.info("Alice recieved bob syn-ack")
 
-        #peer_address = irc.client.ip_numstr_to_quad(peer_address)
-        #peer_port = int(peer_port)
-        #self.dcc = self.dcc_connect(peer_address, peer_port, "raw")
+        # setup dcc
+        peer_address = irc.client.ip_numstr_to_quad(peer_address)
+        peer_port = int(peer_port)
+        self.dcc = self.dcc_connect(peer_address, peer_port)
+
+        self.send_ack(connection, event)
 
 
 class BobClient(BaseClient):
 
+    def on_dccmsg(self, connection, event):
+        if event.arguments[0] != b"alicesack":
+            return
+        logger.info("Bob recieved alice ack")
+        logger.info("Peers discovery successfull and dcc channel established!")
+        sys.exit(0)
+
     def send_syn_ack(self, connection, event):
         logger.info("Bob sending syn-ack")
-        dcc = self.dcc_listen()
+        self.dcc = self.dcc_listen()
         msg_parts = map(str, (
             'CHAT',
             "bobssynack",
-            irc.client.ip_quad_to_numstr(dcc.localaddress),
-            dcc.localport
+            irc.client.ip_quad_to_numstr(self.dcc.localaddress),
+            self.dcc.localport
         ))
         msg = subprocess.list2cmdline(msg_parts)
         connection.ctcp("DCC", event.source.nick, msg)
@@ -125,6 +141,7 @@ def start_client(client_class):
 
 
 def main():
+
     # start bob
     def bob_main():
         start_client(BobClient)
