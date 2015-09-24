@@ -59,7 +59,8 @@ class Network(object):
         try:
             logmsg = "Connecting to {host}:{port} as {nick}."
             log.info(logmsg.format(host=host, port=port, nick=nick))
-            self._connection = self._client_reactor.server().connect(host, port, nick)
+            server = self._client_reactor.server()
+            self._connection = server.connect(host, port, nick)
             log.info("Connection established!")
         except irc.client.ServerConnectionError:
             logmsg = "Connecting to {host}:{port} as {nick}."
@@ -93,7 +94,7 @@ class Network(object):
             self._client_stop = True
             self._client_thread.join()
             self._client_thread = None
-        
+
         # close connection
         if self._connection is not None:
             self._connection.close()
