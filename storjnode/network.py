@@ -5,6 +5,9 @@ import irc.client
 from threading import Thread
 
 
+log = logging.getLogger(__name__)
+
+
 def _generate_nick():
     # randomish to avoid collision, does not need to be strong randomness
     chars = string.ascii_lowercase + string.ascii_uppercase
@@ -22,7 +25,6 @@ class ServerConnectionError(NetworkException):
 class Network(object):
 
     def __init__(self, initial_relaynodes):
-        self._log = logging.getLogger(__name__)
         self._server_list = initial_relaynodes[:]  # never modify original
         self._client = irc.client.Reactor()
         self._client_thread = None
@@ -35,7 +37,7 @@ class Network(object):
         return server_list
 
     def start(self):
-        self._log.info("Starting network module.")
+        log.info("Starting network module!")
 
         # try to connect to servers in a random order until successful
         # TODO weight according to capacity, ping time
@@ -45,7 +47,7 @@ class Network(object):
             if self._connection is not None:
                 break
         if self._connection is None:
-            self._log.error("Couldn't connect to network!")
+            log.error("Couldn't connect to network!")
             raise ServerConnectionError()
 
         self._add_handlers()
@@ -53,16 +55,17 @@ class Network(object):
         # start irc client process thread
         self._client_thread = Thread(target=self._client.process_forever)
         self._client_thread.start()
+        log.info("Network module started!")
 
     def _connect(self, host, port, nick):
         try:
             logmsg = "Connecting to {host}:{port} as {nick}."
-            self._log.info(logmsg.format(host=host, port=port, nick=nick))
+            log.info(logmsg.format(host=host, port=port, nick=nick))
             self._connection = self._client.server().connect(host, port, nick)
-            self._log.info("Connection established!")
+            log.info("Connection established!")
         except irc.client.ServerConnectionError:
             logmsg = "Connecting to {host}:{port} as {nick}."
-            self._log.warning(logmsg.format(host=host, port=port, nick=nick))
+            log.warning(logmsg.format(host=host, port=port, nick=nick))
 
     def connected(self):
         return (self._connection is not None and
@@ -73,7 +76,13 @@ class Network(object):
         self.start()
 
     def stop(self):
-        pass  # FIXME implement
+        log.info("Stopping network module!")
+        # TODO close connection
+        # TODO send client stop signal
+        #self._client_thread.join()
+        #self._client_thread = None
+        #self._connection = None
+        log.info("Network module stopped!")
 
     def _add_handlers(self):
         pass  # TODO add connection handlers
