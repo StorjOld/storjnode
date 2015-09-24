@@ -11,15 +11,15 @@ def _generate_nick():
     return ''.join(random.choice(chars) for _ in range(12))
 
 
-class CommunicationException(Exception):
+class NetworkException(Exception):
     pass
 
 
-class ServerConnectionError(CommunicationException):
+class ServerConnectionError(NetworkException):
     pass
 
 
-class Communication(object):
+class Network(object):
 
     def __init__(self, initial_relaynodes):
         self._log = logging.getLogger(__name__)
@@ -35,7 +35,7 @@ class Communication(object):
         return server_list
 
     def start(self):
-        self._log.info("Starting communication module.")
+        self._log.info("Starting network module.")
 
         # try to connect to servers in a random order until successful
         # TODO weight according to capacity, ping time

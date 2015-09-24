@@ -1,5 +1,5 @@
 import unittest
-from storjnode.communication import Communication
+from storjnode.network import Network
 
 
 # get initial setup
@@ -16,9 +16,10 @@ class TestConnection(unittest.TestCase):
         pass
 
     def test_connects(self):
-        communication = Communication([("irc.quakenet.org", 6667)])
-        communication.start()
-        self.assertTrue(communication.connected())
+        initial_relaynodes = [("irc.quakenet.org", 6667)]
+        network = Network(initial_relaynodes)
+        network.start()
+        self.assertTrue(network.connected())
 
 
 if __name__ == "__main__":

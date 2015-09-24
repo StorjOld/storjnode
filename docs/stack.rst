@@ -14,7 +14,7 @@ storj protocol stack
 +----------------------------------------+               |
 | Throttle                               |               |
 +----------------------------------------+               |
-| Communication                          |               |
+| Network                                |               |
 +----------------------------------------+---------------+
 
 
@@ -26,12 +26,12 @@ configuration values. This will allow intelligent high level clients to control
 the low level protocol inner working.
 
 
-Communication
-=============
+Network
+=======
 
 This is the lowest layer in the Storj protocol stack. Initially IRC/DCC will
-be used to bootstrap the communication layer, but may be replaced at a later
-stage if it proves insufficient.
+be used to bootstrap the network layer, but may be replaced at a later stage
+if it proves insufficient.
 
 Responsibilities:
 
