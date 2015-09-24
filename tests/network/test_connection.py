@@ -2,25 +2,39 @@ import unittest
 from storjnode.network import Network
 
 
-# get initial setup
-SERVER = "irc.quakenet.org"  # FIXME get from config
-PORT = 6667  # FIXME get from config
+INITIAL_RELAYNODES = [("irc.quakenet.org", 6667)]  # FIXME use own network
 
 
 class TestConnection(unittest.TestCase):
 
-    def setUp(self):
-        pass
-
-    def tearDown(self):
-        pass
-
     def test_connects(self):
-        initial_relaynodes = [("irc.quakenet.org", 6667)]
-        network = Network(initial_relaynodes)
-        network.start()
-        self.assertTrue(network.connected())
+        # connect
+        self.network = Network(INITIAL_RELAYNODES)
+        self.network.start()
 
+        # is connected
+        self.assertTrue(self.network.connected())
+
+        # disconnect
+        self.network.stop()
+        self.assertFalse(self.network.connected())
+
+    def test_restart(self):
+        # connect
+        self.network = Network(INITIAL_RELAYNODES)
+        self.network.start()
+
+        # is connected
+        self.assertTrue(self.network.connected())
+
+        self.network.restart()
+
+        # is connected again
+        self.assertTrue(self.network.connected())
+
+        # disconnect
+        self.network.stop()
+        self.assertFalse(self.network.connected())
 
 if __name__ == "__main__":
     unittest.main()

@@ -26,10 +26,10 @@ class Network(object):
 
     def __init__(self, initial_relaynodes):
         self._server_list = initial_relaynodes[:]  # never modify original
-        self._client = irc.client.Reactor()
+        self._client_reactor = irc.client.Reactor()
         self._client_thread = None
+        self._client_stop = True
         self._connection = None  # connection to storj irc network
-        self._peer_connections = {}  # { 'address': (state, dcc_connection) }
 
     def get_current_relaynodes(self):
         server_list = self._server_list[:]  # make a copy
@@ -53,15 +53,23 @@ class Network(object):
         self._add_handlers()
 
         # start irc client process thread
-        self._client_thread = Thread(target=self._client.process_forever)
+        self._client_stop = False
+        self._client_thread = Thread(target=self._client_thread_loop)
         self._client_thread.start()
         log.info("Network module started!")
+
+    def _client_thread_loop(self):
+        # This loop should specifically *not* be mutex-locked.
+        # Otherwise no other thread would ever be able to change
+        # the shared state of a Reactor object running this function.
+        while not self._client_stop:
+            self._client_reactor.process_once(timeout=0.2)
 
     def _connect(self, host, port, nick):
         try:
             logmsg = "Connecting to {host}:{port} as {nick}."
             log.info(logmsg.format(host=host, port=port, nick=nick))
-            self._connection = self._client.server().connect(host, port, nick)
+            self._connection = self._client_reactor.server().connect(host, port, nick)
             log.info("Connection established!")
         except irc.client.ServerConnectionError:
             logmsg = "Connecting to {host}:{port} as {nick}."
@@ -77,11 +85,18 @@ class Network(object):
 
     def stop(self):
         log.info("Stopping network module!")
-        # TODO close connection
-        # TODO send client stop signal
-        #self._client_thread.join()
-        #self._client_thread = None
-        #self._connection = None
+
+        # stop client
+        if self._client_thread is not None:
+            self._client_stop = True
+            self._client_thread.join()
+            self._client_thread = None
+        
+        # close connection
+        if self._connection is not None:
+            self._connection.close()
+            self._connection = None
+
         log.info("Network module stopped!")
 
     def _add_handlers(self):
