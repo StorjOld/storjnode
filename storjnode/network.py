@@ -36,36 +36,26 @@ class Network(object):
         # TODO order by something
         return server_list
 
-    def start(self):
+    def connect(self):
         log.info("Starting network module!")
+        self._find_relay_node()
+        self._add_handlers()
+        self._start_client()
+        log.info("Network module started!")
 
+    def _find_relay_node(self):
         # try to connect to servers in a random order until successful
         # TODO weight according to capacity, ping time
         random.shuffle(self._server_list)
         for host, port in self._server_list:
-            self._connect(host, port, _generate_nick())
+            self._connect_to_relaynode(host, port, _generate_nick())
             if self._connection is not None:
                 break
         if self._connection is None:
             log.error("Couldn't connect to network!")
             raise ServerConnectionError()
 
-        self._add_handlers()
-
-        # start irc client process thread
-        self._client_stop = False
-        self._client_thread = Thread(target=self._client_thread_loop)
-        self._client_thread.start()
-        log.info("Network module started!")
-
-    def _client_thread_loop(self):
-        # This loop should specifically *not* be mutex-locked.
-        # Otherwise no other thread would ever be able to change
-        # the shared state of a Reactor object running this function.
-        while not self._client_stop:
-            self._client_reactor.process_once(timeout=0.2)
-
-    def _connect(self, host, port, nick):
+    def _connect_to_relaynode(self, host, port, nick):
         try:
             logmsg = "Connecting to {host}:{port} as {nick}."
             log.info(logmsg.format(host=host, port=port, nick=nick))
@@ -75,15 +65,27 @@ class Network(object):
             logmsg = "Connecting to {host}:{port} as {nick}."
             log.warning(logmsg.format(host=host, port=port, nick=nick))
 
+    def _start_client(self):
+        self._client_stop = False
+        self._client_thread = Thread(target=self._client_thread_loop)
+        self._client_thread.start()
+
+    def _client_thread_loop(self):
+        # This loop should specifically *not* be mutex-locked.
+        # Otherwise no other thread would ever be able to change
+        # the shared state of a Reactor object running this function.
+        while not self._client_stop:
+            self._client_reactor.process_once(timeout=0.2)
+
     def connected(self):
         return (self._connection is not None and
                 self._client_thread is not None)
 
-    def restart(self):
-        self.stop()
-        self.start()
+    def reconnect(self):
+        self.disconnect()
+        self.connect()
 
-    def stop(self):
+    def disconnect(self):
         log.info("Stopping network module!")
 
         # stop client
