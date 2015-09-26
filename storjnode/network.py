@@ -49,7 +49,7 @@ def _make_message(node_address, message_type, message_data):
     })
 
 
-def _read_message(encoded_message):
+def _parse_message(encoded_message):
     try:
         message = _decode_message(encoded_message)
         assert("type" in message)
@@ -69,8 +69,8 @@ def _make_syn(node_address):
     return _make_message(node_address, "syn", "")
 
 
-def _read_syn(encoded_message):
-    message = _read_message(encoded_message)
+def _parse_syn(encoded_message):
+    message = _parse_message(encoded_message)
     return message if message["type"] == "syn" else None
 
 
@@ -78,8 +78,8 @@ def _make_synack(node_address):
     return _make_message(node_address, "synack", "")
 
 
-def _read_synack(encoded_message):
-    message = _read_message(encoded_message)
+def _parse_synack(encoded_message):
+    message = _parse_message(encoded_message)
     return message if message["type"] == "synack" else None
 
 
@@ -87,8 +87,8 @@ def _make_ack(node_address):
     return _make_message(node_address, "ack", "")
 
 
-def _read_ack(encoded_message):
-    message = _read_message(encoded_message)
+def _parse_ack(encoded_message):
+    message = _parse_message(encoded_message)
     return message if message["type"] == "ack" else None
 
 
@@ -220,6 +220,9 @@ class Network(object):
     # NODE CONNECTIONS #
     ####################
 
+    def node_connected(self, node_address):
+        return self.node_connection_state(node_address) == CONNECTED
+
     def node_connection_state(self, node_address):
         if node_address in self._dcc_connections:
             return self._dcc_connections[node_address]["STATE"]
@@ -270,7 +273,7 @@ class Network(object):
         if event.target != self._channel:
             return
 
-        syn = _read_syn(event.arguments[0])
+        syn = _parse_syn(event.arguments[0])
         if syn is not None:
             self._on_syn(connection, event, syn)
 
@@ -311,7 +314,7 @@ class Network(object):
         payload = event.arguments[1]
         parts = shlex.split(payload)
         command, synack_data, peer_address, peer_port = parts
-        synack = _read_synack(synack_data)
+        synack = _parse_synack(synack_data)
         if command != "CHAT" or synack is None:
             return
         node_address = synack["node"]
@@ -343,7 +346,7 @@ class Network(object):
     def _on_dccmsg(self, connection, event):
 
         # get data
-        ack = _read_ack(event.arguments[0].decode("ascii"))
+        ack = _parse_ack(event.arguments[0].decode("ascii"))
         if ack is None:
             return
         node_address = ack["node"]

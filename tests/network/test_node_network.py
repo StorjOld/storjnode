@@ -10,28 +10,40 @@ from storjnode import network
 INITIAL_RELAYNODES = [("irc.quakenet.org", 6667)]  # FIXME use own network
 ALICE_ADDRESS = "1F3SedVWR2em2hpSbCfM8WsgjTSCkGWE8i"
 BOB_ADDRESS = "13i3511DwugmktybXJhkMj4nhaFvXJ7uhX"
+CHARLIE_ADDRESS = "1A3JkxMoZDqJ4nLvMWc3L7EXokEyKGzfEA"
 
 
-class TestNodeConnection(unittest.TestCase):
+class TestNodeNetwork(unittest.TestCase):
 
     def setUp(self):
         self.alice = network.Network(INITIAL_RELAYNODES, ALICE_ADDRESS)
         self.alice.connect()
         self.bob = network.Network(INITIAL_RELAYNODES, BOB_ADDRESS)
         self.bob.connect()
+        self.charlie = network.Network(INITIAL_RELAYNODES, CHARLIE_ADDRESS)
+        self.charlie.connect()
         time.sleep(5)
 
     def tearDown(self):
         self.alice.disconnect()
         self.bob.disconnect()
+        self.charlie.disconnect()
 
     def test_connects(self):
+
+        # connect all nodes to each other
         self.alice.connect_to_node(BOB_ADDRESS)
-        time.sleep(30)
-        alice_connected = self.alice.node_connection_state(BOB_ADDRESS)
-        self.assertEqual(alice_connected, network.CONNECTED)
-        bob_connected = self.bob.node_connection_state(ALICE_ADDRESS)
-        self.assertEqual(bob_connected, network.CONNECTED)
+        self.bob.connect_to_node(CHARLIE_ADDRESS)
+        self.charlie.connect_to_node(ALICE_ADDRESS)
+
+        time.sleep(15)
+
+        self.assertTrue(self.alice.node_connected(BOB_ADDRESS))
+        self.assertTrue(self.bob.node_connected(ALICE_ADDRESS))
+        self.assertTrue(self.bob.node_connected(CHARLIE_ADDRESS))
+        self.assertTrue(self.charlie.node_connected(BOB_ADDRESS))
+        self.assertTrue(self.charlie.node_connected(ALICE_ADDRESS))
+        self.assertTrue(self.alice.node_connected(CHARLIE_ADDRESS))
 
 
 if __name__ == "__main__":
