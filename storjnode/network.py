@@ -1,17 +1,111 @@
 import random
 import string
+import json
+import subprocess
 import logging
 import irc.client
+import base64
 from threading import Thread
 
 
 log = logging.getLogger(__name__)
 
 
-def _generate_nick():
+CONNECTED = "CONNECTED"
+CONNECTING = "CONNECTING"
+DISCONNECTED = "DISCONNECTED"
+
+
+def generate_nick():
     # randomish to avoid collision, does not need to be strong randomness
     chars = string.ascii_lowercase + string.ascii_uppercase
     return ''.join(random.choice(chars) for _ in range(12))
+
+
+def _encode_message(message):
+    return base64.b64encode(json.dumps(message).encode("ascii"))
+
+
+def _decode_message(message_data):
+    return json.loads(base64.b64decode(message_data))
+
+
+def _make_syn(node_address):
+    return _encode_message({
+        "type": "syn",
+        "node": node_address,
+        "date": "TODO",  # TODO add date
+        "sig": "TODO"  # TODO add sig of "{node} {date}"
+    })
+
+
+def _read_syn(syn_data):
+    try:
+        syn = _decode_message(syn_data)
+
+        # validate message type
+        if syn["type"] != "syn":
+            return None
+
+        # TODO validate date
+        # TODO validate sig
+        return syn
+
+    except Exception as e:
+        log.warning("Error reading syn data! {0}".format(repr(e)))
+        return None
+
+
+def _make_synack(node_address):
+    return _encode_message({
+        "type": "synack",
+        "node": node_address,
+        "date": "TODO",  # TODO add date
+        "sig": "TODO"  # TODO add sig of "{node} {date}"
+    })
+
+
+def _read_synack(synack_data):
+    try:
+        synack = _decode_message(synack_data)
+
+        # validate message type
+        if synack["type"] != "synack":
+            return None
+
+        # TODO validate date
+        # TODO validate sig
+        return synack
+
+    except Exception as e:
+        log.warning("Error reading synack data! {0}".format(repr(e)))
+        return None
+
+
+def _make_ack(node_address):
+    return _encode_message({
+        "type": "ack",
+        "node": node_address,
+        "date": "TODO",  # TODO add date
+        "sig": "TODO"  # TODO add sig of "{node} {date}"
+    })
+
+
+def _read_ack(ack_data):
+    try:
+        ack = _decode_message(ack_data)
+
+        # validate message type
+        if ack["type"] != "ack":
+            return None
+
+        # TODO validate date
+        # TODO validate sig
+        return ack
+
+    except Exception as e:
+        log.warning("Error reading synack data! {0}".format(repr(e)))
+        return None
 
 
 class NetworkException(Exception):
@@ -24,17 +118,21 @@ class ServerConnectionError(NetworkException):
 
 class Network(object):
 
-    def __init__(self, initial_relaynodes):
+    def __init__(self, initial_relaynodes, node_address):
         self._server_list = initial_relaynodes[:]  # never modify original
+        self._address = node_address
+        self._channel = "#{address}".format(address=self._address)
         self._client_reactor = irc.client.Reactor()
         self._client_thread = None
         self._client_stop = True
         self._connection = None  # connection to storj irc network
 
-    def get_current_relaynodes(self):
-        server_list = self._server_list[:]  # make a copy
-        # TODO order by something
-        return server_list
+        # FIXME mutex all _dcc_connections access
+        self._dcc_connections = {}  # {address: {"STATE": X}, ...}
+
+    ######################
+    # NETWORK CONNECTION #
+    ######################
 
     def connect(self):
         log.info("Starting network module!")
@@ -48,7 +146,7 @@ class Network(object):
         # TODO weight according to capacity, ping time
         random.shuffle(self._server_list)
         for host, port in self._server_list:
-            self._connect_to_relaynode(host, port, _generate_nick())
+            self._connect_to_relaynode(host, port, generate_nick())
             if self._connection is not None:
                 break
         if self._connection is None:
@@ -63,8 +161,14 @@ class Network(object):
             self._connection = server.connect(host, port, nick)
             log.info("Connection established!")
         except irc.client.ServerConnectionError:
-            logmsg = "Connecting to {host}:{port} as {nick}."
+            logmsg = "Failed to connect to {host}:{port} as {nick}."
             log.warning(logmsg.format(host=host, port=port, nick=nick))
+
+    def _add_handlers(self):
+        self._connection.add_global_handler("welcome", self._on_connect)
+        self._connection.add_global_handler("pubmsg", self._on_pubmsg)
+        self._connection.add_global_handler("ctcp", self._on_ctcp)
+        self._connection.add_global_handler("dccmsg", self._on_dccmsg)
 
     def _start_client(self):
         self._client_stop = False
@@ -102,35 +206,150 @@ class Network(object):
 
         log.info("Network module stopped!")
 
-    def _add_handlers(self):
-        pass  # TODO add connection handlers
+    def _on_connect(self, connection, event):
+        # join own channel
+        # TODO only if config allows incoming connections
+        connection.join(self._channel)
 
-    def send_syn(self, msg):
-        pass
+    ####################
+    # NODE CONNECTIONS #
+    ####################
 
-    def on_syn(self, msg):
-        pass
+    def node_connection_state(self, node_address):
+        if node_address in self._dcc_connections:
+            return self._dcc_connections[node_address]["STATE"]
+        return DISCONNECTED
 
-    def send_synack(self, msg):
-        pass
+    def node_dissconnect(self, node_address):
+        if node_address in self._dcc_connections:
+            del self._dcc_connections[node_address]
 
-    def on_synack(self, msg):
-        pass
+    ###########################
+    # REQUEST NODE CONNECTION #
+    ###########################
 
-    def send_ack(self, msg):
-        pass
+    def connect_to_node(self, node_address):
+        log.info("Requesting connection to node {0}.".format(node_address))
 
-    def on_ack(self, msg):
-        pass
+        # check for existing connection
+        if self.node_connection_state(node_address) != DISCONNECTED:
+            log.warning("Existing connection to {0}.".format(node_address))
+            return
 
-    def send_msg(self, msg):
-        pass
+        # send connection request
+        self._send_syn(node_address)
 
-    def on_msg(self, msg):
-        pass
+        # update connection state
+        self._dcc_connections[node_address] = { "STATE": CONNECTING }
 
-    def send_data(self, data):
-        pass
+    def _send_syn(self, node_address):
+        node_channel = "#{address}".format(address=node_address)
+        self._connection.join(node_channel)  # node checks own channel for syns
+        self._connection.privmsg(node_channel, _make_syn(self._address))
+        self._connection.part([node_channel])  # leave to reduce traffic
 
-    def on_data(self, data):
-        pass
+    ##########################
+    # ACCEPT NODE CONNECTION #
+    ##########################
+
+    def _on_pubmsg(self, connection, event):
+
+        # Ignore messages from other node channels.
+        # We may be trying to send a syn in another channel along with others.
+        if event.target != self._channel:
+            return
+
+        syn = _read_syn(event.arguments[0])
+        if syn is not None:
+            self._on_syn(connection, event, syn)
+
+    def _on_syn(self, connection, event, syn):
+        log.info("Received syn from {node}".format(**syn))
+
+        # check for existing connection
+        if self.node_connection_state(node_address) != DISCONNECTED:
+            log.warning("Existing connection to {node}.".format(**syn))
+            return
+
+        # accept connection
+        self._send_synack(connection, event, syn)
+
+        # update connection state
+        self._dcc_connections[node_address] = { "STATE": CONNECTING }
+
+    def _send_synack(self, connection, event, syn):
+        log.info("Sending synack to {node}.".format(**syn))
+        self.dcc = self.dcc_listen()
+        msg_parts = map(str, (
+            'CHAT',
+            _make_synack(self._address),
+            irc.client.ip_quad_to_numstr(self.dcc.localaddress),
+            self.dcc.localport
+        ))
+        msg = subprocess.list2cmdline(msg_parts)
+        connection.ctcp("DCC", event.source.nick, msg)
+
+    ############################################
+    # ACKNOWLEDGE AND COMPLETE NODE CONNECTION #
+    ############################################
+
+    def _on_ctcp(self, connection, event):
+
+        # get data 
+        payload = event.arguments[1]
+        parts = shlex.split(payload)
+        command, synack_data, peer_address, peer_port = parts
+        synack = _read_synack(synack_data)
+        if command != "CHAT" or synack is None:
+            return
+        node_address = synack["node"]
+        log.info("Received synack from {0}".format(node_address))
+
+        # check for existing connection
+        if self.node_connection_state(node_address) != CONNECTING:
+            log.warning("Invalid state for {0}.".format(node_address))
+            self.node_dissconnect(node_address)
+            return
+
+        # setup dcc
+        peer_address = irc.client.ip_numstr_to_quad(peer_address)
+        peer_port = int(peer_port)
+        self.dcc = self.dcc_connect(peer_address, peer_port)
+
+        # acknowledge connection
+        log.info("Sending ack to {node}".format(**synack))
+        self.dcc.privmsg(_make_synack(self._address))
+
+        # update connection state
+        self._dcc_connections[node_address] = { "STATE": CONNECTED }
+
+    #####################################
+    # COMPLETE ACCEPTED NODE CONNECTION #
+    #####################################
+
+    def _on_dccmsg(self, connection, event):
+
+        # get data 
+        ack = _read_synack(event.arguments[0])
+        if ack is None: 
+            return
+        node_address = ack["node"]
+        log.info("Received ack from {0}".format(node_address))
+
+        # check current connection state
+        if self.node_connection_state(node_address) != CONNECTING:
+            log.warning("Invalid state for {0}.".format(node_address))
+            self.node_dissconnect(node_address)
+            return
+
+        # update connection state
+        self._dcc_connections[node_address] = { "STATE": CONNECTED }
+
+    ##################
+    # RELAY NODE MAP #
+    ##################
+
+    def get_current_relaynodes(self):
+        server_list = self._server_list[:]  # make a copy
+        # TODO order by something
+        return server_list

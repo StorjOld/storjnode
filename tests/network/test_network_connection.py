@@ -3,13 +3,14 @@ from storjnode.network import Network
 
 
 INITIAL_RELAYNODES = [("irc.quakenet.org", 6667)]  # FIXME use own network
+NODE_ADDRESS = "19PqWiGFUivXb9ESCoZAowpoEkaodj5dFt"
 
 
-class TestConnection(unittest.TestCase):
+class TestNetworkConnection(unittest.TestCase):
 
     def test_connects(self):
         # connect
-        self.network = Network(INITIAL_RELAYNODES)
+        self.network = Network(INITIAL_RELAYNODES, NODE_ADDRESS)
         self.network.connect()
 
         # is connected
@@ -21,7 +22,7 @@ class TestConnection(unittest.TestCase):
 
     def test_restart(self):
         # connect
-        self.network = Network(INITIAL_RELAYNODES)
+        self.network = Network(INITIAL_RELAYNODES, NODE_ADDRESS)
         self.network.connect()
 
         # test reconnect
