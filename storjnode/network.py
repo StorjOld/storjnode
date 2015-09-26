@@ -1,5 +1,6 @@
 import random
 import string
+import shlex
 import json
 import subprocess
 import logging
@@ -23,11 +24,19 @@ def generate_nick():
 
 
 def _encode_message(message):
-    return base64.b64encode(json.dumps(message).encode("ascii"))
+    json_str = json.dumps(message)
+    json_data = json_str.encode("ascii")
+    base64_data = base64.b64encode(json_data)
+    base64_str = base64_data.decode("ascii")
+    return base64_str
 
 
-def _decode_message(message_data):
-    return json.loads(base64.b64decode(message_data))
+def _decode_message(base64_str):
+    base64_data = base64_str.encode("ascii")
+    json_data = base64.b64decode(base64_data)
+    json_str = json_data.decode("ascii")
+    message = json.loads(json_str)
+    return message
 
 
 def _make_syn(node_address):
@@ -112,7 +121,7 @@ class NetworkException(Exception):
     pass
 
 
-class ServerConnectionError(NetworkException):
+class ConnectionError(NetworkException):
     pass
 
 
@@ -151,7 +160,7 @@ class Network(object):
                 break
         if self._connection is None:
             log.error("Couldn't connect to network!")
-            raise ServerConnectionError()
+            raise ConnectionError()
 
     def _connect_to_relaynode(self, host, port, nick):
         try:
@@ -165,10 +174,30 @@ class Network(object):
             log.warning(logmsg.format(host=host, port=port, nick=nick))
 
     def _add_handlers(self):
-        self._connection.add_global_handler("welcome", self._on_connect)
-        self._connection.add_global_handler("pubmsg", self._on_pubmsg)
-        self._connection.add_global_handler("ctcp", self._on_ctcp)
-        self._connection.add_global_handler("dccmsg", self._on_dccmsg)
+        c = self._connection
+        c.add_global_handler("welcome", self._on_connect)
+        c.add_global_handler("pubmsg", self._on_pubmsg)
+        c.add_global_handler("ctcp", self._on_ctcp)
+        c.add_global_handler("dccmsg", self._on_dccmsg)
+        c.add_global_handler("disconnect", self._on_disconnect)
+        c.add_global_handler("nicknameinuse", self._on_nicknameinuse)
+        c.add_global_handler("dcc_disconnect", self._on_dcc_disconnect)
+
+    def _on_nicknameinuse(self, connection, event):
+        connection.nick(generate_nick())  # retry in case of miracle
+
+    def _on_disconnect(self, connection, event):
+        log.info("{0} disconnected! {1}".format(
+            self.__class__.__name__, event.arguments[0]
+        ))
+        #raise ConnectionError()
+
+    def _on_dcc_disconnect(self, connection, event):
+        log.info("{0} dcc disconnected! {1}".format(
+            self.__class__.__name__, event.arguments[0]
+        ))
+        self.connection.quit()
+        #raise ConnectionError()
 
     def _start_client(self):
         self._client_stop = False
@@ -209,6 +238,7 @@ class Network(object):
     def _on_connect(self, connection, event):
         # join own channel
         # TODO only if config allows incoming connections
+        log.info("Connecting to own channel {0}.".format(self._channel))
         connection.join(self._channel)
 
     ####################
@@ -240,12 +270,18 @@ class Network(object):
         self._send_syn(node_address)
 
         # update connection state
-        self._dcc_connections[node_address] = { "STATE": CONNECTING }
+        self._dcc_connections[node_address] = {"STATE": CONNECTING}
 
     def _send_syn(self, node_address):
         node_channel = "#{address}".format(address=node_address)
+
+        log.info("Connetcion to node channel {0}".format(node_channel))
         self._connection.join(node_channel)  # node checks own channel for syns
+
+        log.info("Sending syn to channel {0}".format(node_channel))
         self._connection.privmsg(node_channel, _make_syn(self._address))
+
+        log.info("Disconneting from node channel {0}".format(node_channel))
         self._connection.part([node_channel])  # leave to reduce traffic
 
     ##########################
@@ -267,7 +303,7 @@ class Network(object):
         log.info("Received syn from {node}".format(**syn))
 
         # check for existing connection
-        if self.node_connection_state(node_address) != DISCONNECTED:
+        if self.node_connection_state(syn["node"]) != DISCONNECTED:
             log.warning("Existing connection to {node}.".format(**syn))
             return
 
@@ -275,11 +311,12 @@ class Network(object):
         self._send_synack(connection, event, syn)
 
         # update connection state
-        self._dcc_connections[node_address] = { "STATE": CONNECTING }
+        self._dcc_connections[syn["node"]] = {"STATE": CONNECTING}
 
     def _send_synack(self, connection, event, syn):
         log.info("Sending synack to {node}.".format(**syn))
-        self.dcc = self.dcc_listen()
+        self.dcc = self._client_reactor.dcc("chat")
+        self.dcc.listen()
         msg_parts = map(str, (
             'CHAT',
             _make_synack(self._address),
@@ -295,7 +332,7 @@ class Network(object):
 
     def _on_ctcp(self, connection, event):
 
-        # get data 
+        # get data
         payload = event.arguments[1]
         parts = shlex.split(payload)
         command, synack_data, peer_address, peer_port = parts
@@ -314,14 +351,15 @@ class Network(object):
         # setup dcc
         peer_address = irc.client.ip_numstr_to_quad(peer_address)
         peer_port = int(peer_port)
-        self.dcc = self.dcc_connect(peer_address, peer_port)
+        self.dcc = self._client_reactor.dcc("chat")
+        self.dcc.connect(peer_address, peer_port)
 
         # acknowledge connection
         log.info("Sending ack to {node}".format(**synack))
-        self.dcc.privmsg(_make_synack(self._address))
+        self.dcc.privmsg(_make_ack(self._address))
 
         # update connection state
-        self._dcc_connections[node_address] = { "STATE": CONNECTED }
+        self._dcc_connections[node_address] = {"STATE": CONNECTED}
 
     #####################################
     # COMPLETE ACCEPTED NODE CONNECTION #
@@ -329,9 +367,9 @@ class Network(object):
 
     def _on_dccmsg(self, connection, event):
 
-        # get data 
-        ack = _read_synack(event.arguments[0])
-        if ack is None: 
+        # get data
+        ack = _read_ack(event.arguments[0].decode("ascii"))
+        if ack is None:
             return
         node_address = ack["node"]
         log.info("Received ack from {0}".format(node_address))
@@ -343,7 +381,7 @@ class Network(object):
             return
 
         # update connection state
-        self._dcc_connections[node_address] = { "STATE": CONNECTED }
+        self._dcc_connections[node_address] = {"STATE": CONNECTED}
 
     ##################
     # RELAY NODE MAP #
