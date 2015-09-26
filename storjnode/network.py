@@ -39,82 +39,57 @@ def _decode_message(base64_str):
     return message
 
 
-def _make_syn(node_address):
+def _make_message(node_address, message_type, message_data):
     return _encode_message({
-        "type": "syn",
+        "type": message_type,
         "node": node_address,
         "date": "TODO",  # TODO add date
-        "sig": "TODO"  # TODO add sig of "{node} {date}"
+        "data": message_data,
+        "sig": "TODO"  # TODO add sig of "{type} {node} {date} {data}"
     })
 
 
-def _read_syn(syn_data):
+def _read_message(encoded_message):
     try:
-        syn = _decode_message(syn_data)
-
-        # validate message type
-        if syn["type"] != "syn":
-            return None
-
+        message = _decode_message(encoded_message)
+        assert("type" in message)
+        assert("node" in message)
+        assert("date" in message)
+        assert("data" in message)
+        assert("sig" in message)
         # TODO validate date
         # TODO validate sig
-        return syn
-
+        return message
     except Exception as e:
-        log.warning("Error reading syn data! {0}".format(repr(e)))
+        log.warning("Error reading message! {0}".format(repr(e)))
         return None
+
+
+def _make_syn(node_address):
+    return _make_message(node_address, "syn", "")
+
+
+def _read_syn(encoded_message):
+    message = _read_message(encoded_message)
+    return message if message["type"] == "syn" else None
 
 
 def _make_synack(node_address):
-    return _encode_message({
-        "type": "synack",
-        "node": node_address,
-        "date": "TODO",  # TODO add date
-        "sig": "TODO"  # TODO add sig of "{node} {date}"
-    })
+    return _make_message(node_address, "synack", "")
 
 
-def _read_synack(synack_data):
-    try:
-        synack = _decode_message(synack_data)
-
-        # validate message type
-        if synack["type"] != "synack":
-            return None
-
-        # TODO validate date
-        # TODO validate sig
-        return synack
-
-    except Exception as e:
-        log.warning("Error reading synack data! {0}".format(repr(e)))
-        return None
+def _read_synack(encoded_message):
+    message = _read_message(encoded_message)
+    return message if message["type"] == "synack" else None
 
 
 def _make_ack(node_address):
-    return _encode_message({
-        "type": "ack",
-        "node": node_address,
-        "date": "TODO",  # TODO add date
-        "sig": "TODO"  # TODO add sig of "{node} {date}"
-    })
+    return _make_message(node_address, "ack", "")
 
 
-def _read_ack(ack_data):
-    try:
-        ack = _decode_message(ack_data)
-
-        # validate message type
-        if ack["type"] != "ack":
-            return None
-
-        # TODO validate date
-        # TODO validate sig
-        return ack
-
-    except Exception as e:
-        log.warning("Error reading synack data! {0}".format(repr(e)))
-        return None
+def _read_ack(encoded_message):
+    message = _read_message(encoded_message)
+    return message if message["type"] == "ack" else None
 
 
 class NetworkException(Exception):
