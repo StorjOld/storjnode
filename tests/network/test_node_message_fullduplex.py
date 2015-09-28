@@ -12,7 +12,7 @@ ALICE_ADDRESS = "1F3SedVWR2em2hpSbCfM8WsgjTSCkGWE8i"
 BOB_ADDRESS = "13i3511DwugmktybXJhkMj4nhaFvXJ7uhX"
 
 
-class TestNodeMessage(unittest.TestCase):
+class TestNodeMessageFullDuplex(unittest.TestCase):
 
     def setUp(self):
         self.alice = network.Network(INITIAL_RELAYNODES, ALICE_ADDRESS)
@@ -49,7 +49,7 @@ class TestNodeMessage(unittest.TestCase):
         self.alice.send_message(BOB_ADDRESS, "test", "alices_test_data")
         self.bob.send_message(ALICE_ADDRESS, "test", "bobs_test_data")
         
-        time.sleep(15)  # allow time to send
+        time.sleep(2)  # allow time to send
 
         self.assertTrue(received["alice"])
         self.assertTrue(received["bob"])
