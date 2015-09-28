@@ -39,10 +39,10 @@ def _decode_message(base64_str):
     return message
 
 
-def _make_message(node_address, message_type, message_data):
+def _make_message(sender_address, message_type, message_data):
     return _encode_message({
         "type": message_type,
-        "node": node_address,
+        "node": sender_address,
         "date": "TODO",  # TODO add date
         "data": message_data,
         "sig": "TODO"  # TODO add sig of "{type} {node} {date} {data}"
@@ -65,8 +65,8 @@ def _parse_message(encoded_message):
         return None
 
 
-def _make_syn(node_address):
-    return _make_message(node_address, "syn", "")
+def _make_syn(sender_address):
+    return _make_message(sender_address, "syn", "")
 
 
 def _parse_syn(encoded_message):
@@ -74,8 +74,8 @@ def _parse_syn(encoded_message):
     return message if message["type"] == "syn" else None
 
 
-def _make_synack(node_address):
-    return _make_message(node_address, "synack", "")
+def _make_synack(sender_address):
+    return _make_message(sender_address, "synack", "")
 
 
 def _parse_synack(encoded_message):
@@ -83,13 +83,8 @@ def _parse_synack(encoded_message):
     return message if message["type"] == "synack" else None
 
 
-def _make_ack(node_address):
-    return _make_message(node_address, "ack", "")
-
-
-def _parse_ack(encoded_message):
-    message = _parse_message(encoded_message)
-    return message if message["type"] == "ack" else None
+def _make_ack(sender_address):
+    return _make_message(sender_address, "ack", "")
 
 
 class NetworkException(Exception):
@@ -112,7 +107,10 @@ class Network(object):
         self._connection = None  # connection to storj irc network
 
         # FIXME mutex all _dcc_connections access
+        # FIXME isolate by moving to NodeConnectionsManager
         self._dcc_connections = {}  # {address: {"STATE": X}, ...}
+
+        self._message_handlers = []
 
     ######################
     # NETWORK CONNECTION #
@@ -173,6 +171,13 @@ class Network(object):
         ))
         self.connection.quit()
         #raise ConnectionError()
+
+    def _on_dccmsg(self, connection, event):
+        message = _parse_message(event.arguments[0].decode("ascii"))
+        if message is not None and message["type"] == "ack":
+            self._on_ack(connection, event, message)
+        if message is not None:
+            self._on_message(connection, event, message)
 
     def _start_client(self):
         self._client_stop = False
@@ -343,23 +348,38 @@ class Network(object):
     # COMPLETE ACCEPTED NODE CONNECTION #
     #####################################
 
-    def _on_dccmsg(self, connection, event):
-
-        # get data
-        ack = _parse_ack(event.arguments[0].decode("ascii"))
-        if ack is None:
-            return
-        node_address = ack["node"]
-        log.info("Received ack from {0}".format(node_address))
+    def _on_ack(self, connection, event, ack):
+        log.info("Received ack from {0}".format(ack["node"]))
 
         # check current connection state
-        if self.node_connection_state(node_address) != CONNECTING:
-            log.warning("Invalid state for {0}.".format(node_address))
-            self.node_dissconnect(node_address)
+        if self.node_connection_state(ack["node"]) != CONNECTING:
+            log.warning("Invalid state for {0}.".format(ack["node"]))
+            self.node_dissconnect(ack["node"])
             return
 
         # update connection state
-        self._dcc_connections[node_address] = {"STATE": CONNECTED}
+        self._dcc_connections[ack["node"]] = {"STATE": CONNECTED}
+
+    #############
+    # MESSAGING #
+    #############
+
+    def add_message_handler(self, handler):
+        if handler not in self._message_handlers:
+            self._message_handlers.append(handler)
+
+    def remove_message_handler(self, handler):
+        if handler in self._message_handlers:
+            self._message_handlers.remove(handler)
+
+    def send_message(self, node_address, msg_type, msg_data):
+        log.info("Sending message to {0}".format(node_address))
+        self.dcc.privmsg(_make_message(self._address, msg_type, msg_data))
+
+    def _on_message(self, connection, event, message):
+        log.info("Received message from {0}".format(message["node"]))
+        for handler in self._message_handlers:
+            handler(message)
 
     ##################
     # RELAY NODE MAP #
