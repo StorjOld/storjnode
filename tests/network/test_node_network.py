@@ -22,7 +22,7 @@ class TestNodeNetwork(unittest.TestCase):
         self.bob.connect()
         self.charlie = network.Network(INITIAL_RELAYNODES, CHARLIE_ADDRESS)
         self.charlie.connect()
-        time.sleep(10)
+        time.sleep(15)
 
     def tearDown(self):
         self.alice.disconnect()
@@ -36,7 +36,7 @@ class TestNodeNetwork(unittest.TestCase):
         self.bob.connect_to_node(CHARLIE_ADDRESS)
         self.charlie.connect_to_node(ALICE_ADDRESS)
 
-        time.sleep(20)
+        time.sleep(30)
 
         # check that nodes are connected to each other
         self.assertTrue(self.alice.node_connected(BOB_ADDRESS))
