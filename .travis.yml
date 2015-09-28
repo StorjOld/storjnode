@@ -11,6 +11,7 @@ install:
 
 # run tests, e.g. python setup.py test
 script:
+    - python -m irc.server < /dev/null &>/dev/null &
   - coverage run --source="storjcore" setup.py test
 
 # run coverage

@@ -7,7 +7,7 @@ import unittest
 from storjnode import network
 
 
-INITIAL_RELAYNODES = [("irc.quakenet.org", 6667)]  # FIXME use own network
+INITIAL_RELAYNODES = [("127.0.0.1", 6667)]
 ALICE_ADDRESS = "1F3SedVWR2em2hpSbCfM8WsgjTSCkGWE8i"
 BOB_ADDRESS = "13i3511DwugmktybXJhkMj4nhaFvXJ7uhX"
 
