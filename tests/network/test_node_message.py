@@ -19,7 +19,7 @@ class TestNodeMessage(unittest.TestCase):
         self.alice.connect()
         self.bob = network.Network(INITIAL_RELAYNODES, BOB_ADDRESS)
         self.bob.connect()
-        time.sleep(15)
+        time.sleep(2)
 
     def tearDown(self):
         self.alice.disconnect()
@@ -27,7 +27,7 @@ class TestNodeMessage(unittest.TestCase):
 
     def test_connects(self):
         self.alice.connect_to_node(BOB_ADDRESS)
-        time.sleep(30)  # allow time to connect
+        time.sleep(2)  # allow time to connect
 
         received = {"alice": False, "bob": False}
 
