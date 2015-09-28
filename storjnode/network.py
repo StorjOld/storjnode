@@ -253,7 +253,10 @@ class Network(object):
         self._send_syn(node_address)
 
         # update connection state
-        self._dcc_connections[node_address] = {"STATE": CONNECTING}
+        self._dcc_connections[node_address] = {
+            "STATE": CONNECTING,
+            "dcc": None
+        }
 
     def _send_syn(self, node_address):
         node_channel = "#{address}".format(address=node_address)
@@ -291,23 +294,24 @@ class Network(object):
             return
 
         # accept connection
-        self._send_synack(connection, event, syn)
+        dcc = self._send_synack(connection, event, syn)
 
         # update connection state
-        self._dcc_connections[syn["node"]] = {"STATE": CONNECTING}
+        self._dcc_connections[syn["node"]] = {"STATE": CONNECTING, "dcc": dcc}
 
     def _send_synack(self, connection, event, syn):
         log.info("Sending synack to {node}.".format(**syn))
-        self.dcc = self._client_reactor.dcc("chat")
-        self.dcc.listen()
+        dcc = self._client_reactor.dcc("chat")
+        dcc.listen()
         msg_parts = map(str, (
             'CHAT',
             _make_synack(self._address),
-            irc.client.ip_quad_to_numstr(self.dcc.localaddress),
-            self.dcc.localport
+            irc.client.ip_quad_to_numstr(dcc.localaddress),
+            dcc.localport
         ))
         msg = subprocess.list2cmdline(msg_parts)
         connection.ctcp("DCC", event.source.nick, msg)
+        return dcc
 
     ############################################
     # ACKNOWLEDGE AND COMPLETE NODE CONNECTION #
@@ -334,15 +338,15 @@ class Network(object):
         # setup dcc
         peer_address = irc.client.ip_numstr_to_quad(peer_address)
         peer_port = int(peer_port)
-        self.dcc = self._client_reactor.dcc("chat")
-        self.dcc.connect(peer_address, peer_port)
+        dcc = self._client_reactor.dcc("chat")
+        dcc.connect(peer_address, peer_port)
 
         # acknowledge connection
         log.info("Sending ack to {node}".format(**synack))
-        self.dcc.privmsg(_make_ack(self._address))
+        dcc.privmsg(_make_ack(self._address))
 
         # update connection state
-        self._dcc_connections[node_address] = {"STATE": CONNECTED}
+        self._dcc_connections[node_address] = {"STATE": CONNECTED, "dcc": dcc}
 
     #####################################
     # COMPLETE ACCEPTED NODE CONNECTION #
@@ -358,7 +362,7 @@ class Network(object):
             return
 
         # update connection state
-        self._dcc_connections[ack["node"]] = {"STATE": CONNECTED}
+        self._dcc_connections[ack["node"]]["STATE"] = CONNECTED
 
     #############
     # MESSAGING #
@@ -374,7 +378,8 @@ class Network(object):
 
     def send_message(self, node_address, msg_type, msg_data):
         log.info("Sending message to {0}".format(node_address))
-        self.dcc.privmsg(_make_message(self._address, msg_type, msg_data))
+        dcc = self._dcc_connections[node_address]["dcc"]
+        dcc.privmsg(_make_message(self._address, msg_type, msg_data))
 
     def _on_message(self, connection, event, message):
         log.info("Received message from {0}".format(message["node"]))
