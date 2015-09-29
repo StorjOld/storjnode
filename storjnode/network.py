@@ -111,6 +111,7 @@ class Network(object):
         self._dcc_connections = {}  # {address: {"STATE": X}, ...}
 
         self._message_handlers = []
+        self._data_handlers = []
 
     ######################
     # NETWORK CONNECTION #
@@ -235,6 +236,9 @@ class Network(object):
 
     def node_dissconnect(self, node_address):
         if node_address in self._dcc_connections:
+            dcc = self._dcc_connections[node_address]["dcc"]
+            if dcc is not None:
+                dcc.disconnect()
             del self._dcc_connections[node_address]
 
     ###########################
@@ -301,7 +305,7 @@ class Network(object):
 
     def _send_synack(self, connection, event, syn):
         log.info("Sending synack to {node}.".format(**syn))
-        dcc = self._client_reactor.dcc("chat")
+        dcc = self._client_reactor.dcc("raw")
         dcc.listen()
         msg_parts = map(str, (
             'CHAT',
@@ -338,7 +342,7 @@ class Network(object):
         # setup dcc
         peer_address = irc.client.ip_numstr_to_quad(peer_address)
         peer_port = int(peer_port)
-        dcc = self._client_reactor.dcc("chat")
+        dcc = self._client_reactor.dcc("raw")
         dcc.connect(peer_address, peer_port)
 
         # acknowledge connection
@@ -385,6 +389,28 @@ class Network(object):
         log.info("Received message from {0}".format(message["node"]))
         for handler in self._message_handlers:
             handler(message)
+
+    ########
+    # DATA #
+    ########
+
+    def add_data_handler(self, handler):
+        if handler not in self._data_handlers:
+            self._data_handlers.append(handler)
+
+    def remove_data_handler(self, handler):
+        if handler in self._data_handlers:
+            self._data_handlers.remove(handler)
+
+    def send_data(self, node_address, fobj):
+        log.info("Sending data to {0}".format(node_address))
+        dcc = self._dcc_connections[node_address]["dcc"]
+        dcc.privmsg(_make_data(self._address, msg_type, msg_data))
+
+    def _on_data(self, connection, event, data):
+        log.info("Received data from {0}".format(data["node"]))
+        for handler in self._data_handlers:
+            handler(data)
 
     ##################
     # RELAY NODE MAP #
