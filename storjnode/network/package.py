@@ -42,10 +42,6 @@ def _address_bytes_from_wif(address):
     pass  # TODO implement
 
 
-def _address_bytes_to_address(address_bytes):
-    pass  # TODO implement
-
-
 def _unixtimestamp_as_bytes():
     unixtime = 0  # FIXME actually get unixtime
     return num_to_bytes(PACKAGE_BYTES_UNIXTIME, unixtime)
@@ -70,8 +66,10 @@ def parse(package):
 
     # check size
     if len(package) < PACKAGE_MIN_SIZE:
+        log.warning("Parse error: Package to small!")
         return None
     if len(package) > PACKAGE_MAX_SIZE:
+        log.warning("Parse error: Package to large!")
         return None
     package_stack = package[:]  # copy it
 
@@ -79,13 +77,13 @@ def parse(package):
     package_type = package_stack[:PACKAGE_BYTES_TYPE]
     package_stack = package_stack[PACKAGE_BYTES_TYPE:]  # pop type
     if package_type not in PACKAGE_TYPES:
+        log.warning("Parse error: Invalid package type!")
         return None
 
     # parse address
     address_bytes = package_stack[:PACKAGE_BYTES_BTCADDRESS]
     package_stack = package_stack[PACKAGE_BYTES_BTCADDRESS:]  # pop address
-    # FIXME validate address and check if its equal to the connection address
-    address = _address_bytes_to_address(address_bytes)
+    address = address_bytes  # FIXME actually convert
 
     # get timestamp
     unixtime_bytes = package_stack[:PACKAGE_BYTES_UNIXTIME]
@@ -97,11 +95,12 @@ def parse(package):
     package_stack = package_stack[PACKAGE_BYTES_DATASIZE:]  # pop data size
     data_size = num_from_bytes(PACKAGE_BYTES_DATASIZE, data_size_bytes)
     if len(package_stack) != (data_size + PACKAGE_BYTES_SIGNATURE):
+        log.warning("Parse error: Invalid data size!")
         return None
 
     # get data and signature
     data_bytes = package_stack[:data_size]
-    signature = package_stack[PACKAGE_BYTES_DATASIZE:]  # pop data
+    signature = package_stack[data_size:]  # pop data
 
     return {
         "type": package_type,
