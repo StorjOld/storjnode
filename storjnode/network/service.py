@@ -16,64 +16,12 @@ except ImportError:
 log = logging.getLogger(__name__)
 
 
-# PACKAGE TYPES
-#
-# SYN:
-#   1 byte    type == b'0'
-#   ? bytes   btcaddress
-#   ? bytes   unixtimestamp
-#   65 bytes  signature
-#
-# SYN-ACK:
-#   1 byte    type == b'1'
-#   ? bytes   btcaddress
-#   ? bytes   unixtimestamp
-#   65 bytes  signature
-#
-# ACK:
-#   1 byte    type == b'2'
-#   ? bytes   btcaddress
-#   ? bytes   unixtimestamp
-#   65 bytes  signature
-#
-# MSG:
-#   1 byte    type == b'3'
-#   ? bytes   btcaddress
-#   ? bytes   unixtimestamp
-#   4 bytes   msglen
-#   x bytes   msgdata
-#   65 bytes  signature
-
-
-PACKAGE_TYPES = [b'0', b'1', b'2', b'3']
-PACKAGE_TYPE_SYN = PACKAGE_TYPES[0]
-PACKAGE_TYPE_SYNACK = PACKAGE_TYPES[1]
-PACKAGE_TYPE_ACK = PACKAGE_TYPES[2]
-PACKAGE_TYPE_MSG = PACKAGE_TYPES[3]
-
-
-def _address_bytes_from_wif(address):
-    pass  # TODO implement
-
-
-def _unixtimestamp_as_bytes():
-    pass  # TODO implement
-
-
-def _sign(signing_wif, data):
+class NetworkException(Exception):
     pass
 
 
-def _make_package(package_type, signing_wif, msg_data=None):
-    raw_address = _address_bytes_from_wif(signing_wif)
-    unixtimestamp = _unixtimestamp_as_bytes()
-    data = package_type + raw_address + unixtimestamp
-    if msg_data is not None:
-        msglen = ""  # TODO
-        msgdata = ""  # TODO
-        data = data + msglen + msgdata
-    signature = _sign(signing_wif, data)
-    return data + signature
+class ConnectionError(NetworkException):
+    pass
 
 
 def _encode_message(message):
@@ -145,21 +93,13 @@ CONNECTING = "CONNECTING"
 DISCONNECTED = "DISCONNECTED"
 
 
-class NetworkException(Exception):
-    pass
-
-
-class ConnectionError(NetworkException):
-    pass
-
-
 def _generate_nick():
     # randomish to avoid collision, does not need to be strong randomness
     chars = string.ascii_lowercase + string.ascii_uppercase
     return ''.join(random.choice(chars) for _ in range(12))
 
 
-class Network(object):
+class Service(object):
 
     def __init__(self, initial_relaynodes, node_address):
         self._server_list = initial_relaynodes[:]  # never modify original
