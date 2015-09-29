@@ -37,28 +37,6 @@ class TestNodeMessageMultaple(unittest.TestCase):
 
         time.sleep(2)  # allow time to connect
 
-        received = {"alice": 0, "bob": 0, "charlie": 0}
-
-        def alice_handler(message):
-            self.assertEqual(message["type"], "test")
-            received["alice"] = received["alice"] + 1
-
-        def bob_handler(message):
-            self.assertEqual(message["type"], "test")
-            self.assertEqual(message["node"], ALICE_ADDRESS)
-            self.assertEqual(message["data"], "alice_to_bob")
-            received["bob"] = received["bob"] + 1
-
-        def charlie_handler(message):
-            self.assertEqual(message["type"], "test")
-            self.assertEqual(message["node"], ALICE_ADDRESS)
-            self.assertEqual(message["data"], "alice_to_charlie")
-            received["charlie"] = received["charlie"] + 1
-
-        self.alice.add_message_handler(alice_handler)
-        self.bob.add_message_handler(bob_handler)
-        self.charlie.add_message_handler(charlie_handler)
-
         self.alice.send_message(BOB_ADDRESS, "test", "alice_to_bob")
         self.alice.send_message(CHARLIE_ADDRESS, "test", "alice_to_charlie")
         self.bob.send_message(ALICE_ADDRESS, "test", "bob_to_alice")
@@ -66,9 +44,9 @@ class TestNodeMessageMultaple(unittest.TestCase):
         
         time.sleep(2)  # allow time to send
 
-        self.assertEqual(received["alice"], 2)
-        self.assertEqual(received["bob"], 1)
-        self.assertEqual(received["charlie"], 1)
+        self.assertEqual(len(self.alice.get_messages_received()), 2)
+        self.assertEqual(len(self.bob.get_messages_received()), 1)
+        self.assertEqual(len(self.charlie.get_messages_received()), 1)
 
 
 if __name__ == "__main__":

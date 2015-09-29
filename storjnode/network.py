@@ -6,6 +6,7 @@ import subprocess
 import logging
 import irc.client
 import base64
+from Queue import Queue
 from threading import Thread
 
 
@@ -17,7 +18,7 @@ CONNECTING = "CONNECTING"
 DISCONNECTED = "DISCONNECTED"
 
 
-def generate_nick():
+def _generate_nick():
     # randomish to avoid collision, does not need to be strong randomness
     chars = string.ascii_lowercase + string.ascii_uppercase
     return ''.join(random.choice(chars) for _ in range(12))
@@ -106,12 +107,9 @@ class Network(object):
         self._client_stop = True
         self._connection = None  # connection to storj irc network
 
-        # FIXME mutex all _dcc_connections access
-        # FIXME isolate by moving to NodeConnectionsManager
         self._dcc_connections = {}  # {address: {"STATE": X}, ...}
-
-        self._message_handlers = []
-        self._data_handlers = []
+        self._message_received_queue = Queue()
+        self._data_received_queue = Queue()
 
     ######################
     # NETWORK CONNECTION #
@@ -129,7 +127,7 @@ class Network(object):
         # TODO weight according to capacity, ping time
         random.shuffle(self._server_list)
         for host, port in self._server_list:
-            self._connect_to_relaynode(host, port, generate_nick())
+            self._connect_to_relaynode(host, port, _generate_nick())
             if self._connection is not None:
                 break
         if self._connection is None:
@@ -158,7 +156,7 @@ class Network(object):
         c.add_global_handler("dcc_disconnect", self._on_dcc_disconnect)
 
     def _on_nicknameinuse(self, connection, event):
-        connection.nick(generate_nick())  # retry in case of miracle
+        connection.nick(_generate_nick())  # retry in case of miracle
 
     def _on_disconnect(self, connection, event):
         log.info("{0} disconnected! {1}".format(
@@ -178,7 +176,8 @@ class Network(object):
         if message is not None and message["type"] == "ack":
             self._on_ack(connection, event, message)
         if message is not None:
-            self._on_message(connection, event, message)
+            log.info("Received message from {0}".format(message["node"]))
+            self._message_received_queue.put(message)
 
     def _start_client(self):
         self._client_stop = False
@@ -372,45 +371,31 @@ class Network(object):
     # MESSAGING #
     #############
 
-    def add_message_handler(self, handler):
-        if handler not in self._message_handlers:
-            self._message_handlers.append(handler)
-
-    def remove_message_handler(self, handler):
-        if handler in self._message_handlers:
-            self._message_handlers.remove(handler)
-
     def send_message(self, node_address, msg_type, msg_data):
         log.info("Sending message to {0}".format(node_address))
         dcc = self._dcc_connections[node_address]["dcc"]
         dcc.privmsg(_make_message(self._address, msg_type, msg_data))
 
-    def _on_message(self, connection, event, message):
-        log.info("Received message from {0}".format(message["node"]))
-        for handler in self._message_handlers:
-            handler(message)
+    def get_messages_received(self):
+        messages = []
+        while not self._message_received_queue.empty():
+            massages.append(self._message_received_queue.get())
+        return messages
 
     ########
     # DATA #
     ########
 
-    def add_data_handler(self, handler):
-        if handler not in self._data_handlers:
-            self._data_handlers.append(handler)
-
-    def remove_data_handler(self, handler):
-        if handler in self._data_handlers:
-            self._data_handlers.remove(handler)
-
     def send_data(self, node_address, fobj):
         log.info("Sending data to {0}".format(node_address))
-        dcc = self._dcc_connections[node_address]["dcc"]
-        dcc.privmsg(_make_data(self._address, msg_type, msg_data))
+        #dcc = self._dcc_connections[node_address]["dcc"]
+        # FIXME dcc.privmsg(_make_data(self._address, msg_type, msg_data))
 
-    def _on_data(self, connection, event, data):
-        log.info("Received data from {0}".format(data["node"]))
-        for handler in self._data_handlers:
-            handler(data)
+    def get_data_received(self):
+        data = []
+        while not self._data_received_queue.empty():
+            data.append(self._data_received_queue.get())
+        return data
 
     ##################
     # RELAY NODE MAP #
