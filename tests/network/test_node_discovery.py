@@ -1,6 +1,7 @@
 import logging
-LOG_FORMAT = "%(levelname)s %(name)s %(lineno)d: %(message)s"                                                  
-logging.basicConfig(format=LOG_FORMAT, level=logging.INFO)   
+LOG_FORMAT = "%(levelname)s %(name)s %(lineno)d: %(message)s"
+logging.basicConfig(format=LOG_FORMAT, level=logging.INFO)
+
 
 import time
 import unittest

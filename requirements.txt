@@ -1,1 +1,2 @@
 irc
+btctxstore == 4.5.0

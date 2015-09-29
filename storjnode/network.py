@@ -6,22 +6,74 @@ import subprocess
 import logging
 import irc.client
 import base64
-from Queue import Queue
 from threading import Thread
+try:
+    from Queue import Queue  # py2
+except ImportError:
+    from queue import Queue  # py3
 
 
 log = logging.getLogger(__name__)
 
 
-CONNECTED = "CONNECTED"
-CONNECTING = "CONNECTING"
-DISCONNECTED = "DISCONNECTED"
+# PACKAGE TYPES
+#
+# SYN:
+#   1 byte    type == b'0'
+#   ? bytes   btcaddress
+#   ? bytes   unixtimestamp
+#   65 bytes  signature
+#
+# SYN-ACK:
+#   1 byte    type == b'1'
+#   ? bytes   btcaddress
+#   ? bytes   unixtimestamp
+#   65 bytes  signature
+#
+# ACK:
+#   1 byte    type == b'2'
+#   ? bytes   btcaddress
+#   ? bytes   unixtimestamp
+#   65 bytes  signature
+#
+# MSG:
+#   1 byte    type == b'3'
+#   ? bytes   btcaddress
+#   ? bytes   unixtimestamp
+#   4 bytes   msglen
+#   x bytes   msgdata
+#   65 bytes  signature
 
 
-def _generate_nick():
-    # randomish to avoid collision, does not need to be strong randomness
-    chars = string.ascii_lowercase + string.ascii_uppercase
-    return ''.join(random.choice(chars) for _ in range(12))
+PACKAGE_TYPES = [b'0', b'1', b'2', b'3']
+PACKAGE_TYPE_SYN = PACKAGE_TYPES[0]
+PACKAGE_TYPE_SYNACK = PACKAGE_TYPES[1]
+PACKAGE_TYPE_ACK = PACKAGE_TYPES[2]
+PACKAGE_TYPE_MSG = PACKAGE_TYPES[3]
+
+
+def _address_bytes_from_wif(address):
+    pass  # TODO implement
+
+
+def _unixtimestamp_as_bytes():
+    pass  # TODO implement
+
+
+def _sign(signing_wif, data):
+    pass
+
+
+def _make_package(package_type, signing_wif, msg_data=None):
+    raw_address = _address_bytes_from_wif(signing_wif)
+    unixtimestamp = _unixtimestamp_as_bytes()
+    data = package_type + raw_address + unixtimestamp
+    if msg_data is not None:
+        msglen = ""  # TODO
+        msgdata = ""  # TODO
+        data = data + msglen + msgdata
+    signature = _sign(signing_wif, data)
+    return data + signature
 
 
 def _encode_message(message):
@@ -88,12 +140,23 @@ def _make_ack(sender_address):
     return _make_message(sender_address, "ack", "")
 
 
+CONNECTED = "CONNECTED"
+CONNECTING = "CONNECTING"
+DISCONNECTED = "DISCONNECTED"
+
+
 class NetworkException(Exception):
     pass
 
 
 class ConnectionError(NetworkException):
     pass
+
+
+def _generate_nick():
+    # randomish to avoid collision, does not need to be strong randomness
+    chars = string.ascii_lowercase + string.ascii_uppercase
+    return ''.join(random.choice(chars) for _ in range(12))
 
 
 class Network(object):
@@ -162,6 +225,7 @@ class Network(object):
         log.info("{0} disconnected! {1}".format(
             self.__class__.__name__, event.arguments[0]
         ))
+        # FIXME what is the best thing to do here, just reconnect?
         #raise ConnectionError()
 
     def _on_dcc_disconnect(self, connection, event):
@@ -169,13 +233,14 @@ class Network(object):
             self.__class__.__name__, event.arguments[0]
         ))
         self.connection.quit()
+        # FIXME remove from _dcc_connections
         #raise ConnectionError()
 
     def _on_dccmsg(self, connection, event):
         message = _parse_message(event.arguments[0].decode("ascii"))
         if message is not None and message["type"] == "ack":
             self._on_ack(connection, event, message)
-        if message is not None:
+        elif message is not None:
             log.info("Received message from {0}".format(message["node"]))
             self._message_received_queue.put(message)
 
@@ -379,23 +444,8 @@ class Network(object):
     def get_messages_received(self):
         messages = []
         while not self._message_received_queue.empty():
-            massages.append(self._message_received_queue.get())
+            messages.append(self._message_received_queue.get())
         return messages
-
-    ########
-    # DATA #
-    ########
-
-    def send_data(self, node_address, fobj):
-        log.info("Sending data to {0}".format(node_address))
-        #dcc = self._dcc_connections[node_address]["dcc"]
-        # FIXME dcc.privmsg(_make_data(self._address, msg_type, msg_data))
-
-    def get_data_received(self):
-        data = []
-        while not self._data_received_queue.empty():
-            data.append(self._data_received_queue.get())
-        return data
 
     ##################
     # RELAY NODE MAP #

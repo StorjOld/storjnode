@@ -1,6 +1,6 @@
 import logging
-LOG_FORMAT = "%(levelname)s %(name)s %(lineno)d: %(message)s"                                                  
-logging.basicConfig(format=LOG_FORMAT, level=logging.INFO)   
+LOG_FORMAT = "%(levelname)s %(name)s %(lineno)d: %(message)s"
+logging.basicConfig(format=LOG_FORMAT, level=logging.INFO)
 
 import time
 import unittest
@@ -31,11 +31,16 @@ class TestNodeMessageFullDuplex(unittest.TestCase):
 
         self.alice.send_message(BOB_ADDRESS, "test", "alices_test_data")
         self.bob.send_message(ALICE_ADDRESS, "test", "bobs_test_data")
-        
+
         time.sleep(2)  # allow time to send
 
-        self.assertTrue(len(self.alice.get_messages_received()) == 1)
-        self.assertTrue(len(self.bob.get_messages_received()) == 1
+        messages = self.alice.get_messages_received()
+        print("ALICE MESSAGES:", messages)
+        self.assertEqual(len(messages), 1)
+
+        messages = self.bob.get_messages_received()
+        print("BOB MESSAGES:", messages)
+        self.assertEqual(len(messages), 1)
 
 
 if __name__ == "__main__":
