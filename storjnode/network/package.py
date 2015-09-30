@@ -1,7 +1,7 @@
 """
 NETWORK BINARY PACKAGE FORMAT
 1  byte    package type
-21 bytes   sender btcaddress
+21 bytes   sending node btcaddress
 8  bytes   unix timestamp
 2  bytes   data size
 x  bytes   data bytes
@@ -50,6 +50,7 @@ class MaxPackageDataExceeded(Exception):
 
 
 def _create(package_type, wif, data=b"", testnet=False):
+    assert(isinstance(data, bytes))
     if len(data) > MAX_DATA_SIZE:
         msg = "{0} > {1}".format(len(data), MAX_DATA_SIZE)
         raise MaxPackageDataExceeded(msg)
@@ -79,7 +80,8 @@ def data(wif, data, testnet=False):
     return _create(_TYPE_DATA, wif, data=data, testnet=testnet)
 
 
-def parse(package_bytes, dcc_address, expire_time, testnet=False):
+def parse(package_bytes, expire_time, testnet=False):
+    assert(isinstance(package_bytes, bytes))
 
     # check size
     if len(package_bytes) < _MIN_SIZE:
@@ -101,11 +103,7 @@ def parse(package_bytes, dcc_address, expire_time, testnet=False):
     address_bytes = stack[:_BYTES_BTCADDRESS]
     stack = stack[_BYTES_BTCADDRESS:]  # pop address
     address = b2a_hashed_base58(address_bytes)
-    if address != dcc_address:
-        logmsg = "Invalid package: Signing address {0} != dcc address {1}!"
-        _log.warning(logmsg.format(address, dcc_address))
-        return None
-    # TODO check if address is valid, even if dcc_address was validated before
+    # FIXME check if valid bitcoin address!!!
 
     # get timestamp
     unixtime_bytes = stack[:_BYTES_UNIXTIME]
@@ -144,4 +142,4 @@ def parse(package_bytes, dcc_address, expire_time, testnet=False):
         _log.warning("Invalid package: Bad signature!")
         return None
 
-    return {"type": _TYPE_NAMES[package_type], "data": data}
+    return {"type": _TYPE_NAMES[package_type], "data": data, "node": address}

@@ -1,5 +1,6 @@
 import random
 import string
+import btctxstore
 import shlex
 import json
 import subprocess
@@ -7,6 +8,7 @@ import logging
 import irc.client
 import base64
 from threading import Thread
+from storjnode.network import package
 try:
     from Queue import Queue  # py2
 except ImportError:
@@ -24,73 +26,17 @@ class ConnectionError(NetworkException):
     pass
 
 
-def _encode_message(message):
-    json_str = json.dumps(message)
-    json_data = json_str.encode("ascii")
-    base64_data = base64.b64encode(json_data)
-    base64_str = base64_data.decode("ascii")
-    return base64_str
-
-
-def _decode_message(base64_str):
-    base64_data = base64_str.encode("ascii")
-    json_data = base64.b64decode(base64_data)
-    json_str = json_data.decode("ascii")
-    message = json.loads(json_str)
-    return message
-
-
-def _make_message(sender_address, message_type, message_data):
-    return _encode_message({
-        "type": message_type,
-        "node": sender_address,
-        "date": "TODO",  # TODO add date
-        "data": message_data,
-        "sig": "TODO"  # TODO add sig of "{type} {node} {date} {data}"
-    })
-
-
-def _parse_message(encoded_message):
-    try:
-        message = _decode_message(encoded_message)
-        assert("type" in message)
-        assert("node" in message)
-        assert("date" in message)
-        assert("data" in message)
-        assert("sig" in message)
-        # TODO validate date
-        # TODO validate sig
-        return message
-    except Exception as e:
-        log.warning("Error reading message! {0}".format(repr(e)))
-        return None
-
-
-def _make_syn(sender_address):
-    return _make_message(sender_address, "syn", "")
-
-
-def _parse_syn(encoded_message):
-    message = _parse_message(encoded_message)
-    return message if message["type"] == "syn" else None
-
-
-def _make_synack(sender_address):
-    return _make_message(sender_address, "synack", "")
-
-
-def _parse_synack(encoded_message):
-    message = _parse_message(encoded_message)
-    return message if message["type"] == "synack" else None
-
-
-def _make_ack(sender_address):
-    return _make_message(sender_address, "ack", "")
-
-
 CONNECTED = "CONNECTED"
 CONNECTING = "CONNECTING"
 DISCONNECTED = "DISCONNECTED"
+
+
+def _encode_data(data):
+    return base64.b64encode(data).decode("ascii")
+
+
+def _decode_data(base64_str):
+    return base64.b64decode(base64_str.encode("ascii"))
 
 
 def _generate_nick():
@@ -101,9 +47,13 @@ def _generate_nick():
 
 class Service(object):
 
-    def __init__(self, initial_relaynodes, node_address):
+    def __init__(self, initial_relaynodes, wif, testnet=False):
+        self._btctxstore = btctxstore.BtcTxStore(testnet=testnet)
+        self._expiretime = 1337  # FIXME get from config
+        self._testnet = testnet
         self._server_list = initial_relaynodes[:]  # never modify original
-        self._address = node_address
+        self._wif = wif
+        self._address = self._btctxstore.get_address(self._wif)
         self._channel = "#{address}".format(address=self._address)
         self._client_reactor = irc.client.Reactor()
         self._client_thread = None
@@ -111,8 +61,7 @@ class Service(object):
         self._connection = None  # connection to storj irc network
 
         self._dcc_connections = {}  # {address: {"STATE": X}, ...}
-        self._message_received_queue = Queue()
-        self._data_received_queue = Queue()
+        self._package_received_queue = Queue()
 
     ######################
     # NETWORK CONNECTION #
@@ -177,12 +126,14 @@ class Service(object):
         #raise ConnectionError()
 
     def _on_dccmsg(self, connection, event):
-        message = _parse_message(event.arguments[0].decode("ascii"))
-        if message is not None and message["type"] == "ack":
-            self._on_ack(connection, event, message)
-        elif message is not None:
-            log.info("Received message from {0}".format(message["node"]))
-            self._message_received_queue.put(message)
+        packagedata = _decode_data(event.arguments[0].decode("ascii"))
+        parsed = package.parse(packagedata, self._expiretime, self._testnet)
+
+        if parsed is not None and parsed["type"] == "ACK":
+            self._on_ack(connection, event, parsed)
+        elif parsed is not None:
+            log.info("Received package from {0}".format(parsed["node"]))
+            self._package_received_queue.put(parsed)
 
     def _start_client(self):
         self._client_stop = False
@@ -273,7 +224,8 @@ class Service(object):
         self._connection.join(node_channel)  # node checks own channel for syns
 
         log.info("Sending syn to channel {0}".format(node_channel))
-        self._connection.privmsg(node_channel, _make_syn(self._address))
+        syn = package.syn(self._wif, testnet=self._testnet)
+        self._connection.privmsg(node_channel, _encode_data(syn))
 
         log.info("Disconneting from node channel {0}".format(node_channel))
         self._connection.part([node_channel])  # leave to reduce traffic
@@ -289,9 +241,11 @@ class Service(object):
         if event.target != self._channel:
             return
 
-        syn = _parse_syn(event.arguments[0])
-        if syn is not None:
-            self._on_syn(connection, event, syn)
+        packagedata = _decode_data(event.arguments[0])
+        parsed = package.parse(packagedata, self._expiretime,
+                               self._testnet)
+        if parsed is not None and parsed["type"] == "SYN":
+            self._on_syn(connection, event, parsed)
 
     def _on_syn(self, connection, event, syn):
         log.info("Received syn from {node}".format(**syn))
@@ -313,7 +267,7 @@ class Service(object):
         dcc.listen()
         msg_parts = map(str, (
             'CHAT',
-            _make_synack(self._address),
+            _encode_data(package.synack(self._wif, testnet=self._testnet)),
             irc.client.ip_quad_to_numstr(dcc.localaddress),
             dcc.localport
         ))
@@ -331,16 +285,22 @@ class Service(object):
         payload = event.arguments[1]
         parts = shlex.split(payload)
         command, synack_data, peer_address, peer_port = parts
-        synack = _parse_synack(synack_data)
-        if command != "CHAT" or synack is None:
+        if command != "CHAT":
             return
-        node_address = synack["node"]
-        log.info("Received synack from {0}".format(node_address))
+        
+        # get synack package
+        synack_data = _decode_data(synack_data)
+        parsed = package.parse(synack_data, self._expiretime, self._testnet)
+        if parsed is None or parsed["type"] != "SYNACK":
+            return
+        
+        node = parsed["node"]
+        log.info("Received synack from {0}".format(node))
 
         # check for existing connection
-        if self.node_connection_state(node_address) != CONNECTING:
-            log.warning("Invalid state for {0}.".format(node_address))
-            self.node_dissconnect(node_address)
+        if self.node_connection_state(node) != CONNECTING:
+            log.warning("Invalid state for {0}.".format(node))
+            self.node_dissconnect(node)
             return
 
         # setup dcc
@@ -350,11 +310,11 @@ class Service(object):
         dcc.connect(peer_address, peer_port)
 
         # acknowledge connection
-        log.info("Sending ack to {node}".format(**synack))
-        dcc.privmsg(_make_ack(self._address))
+        log.info("Sending ack to {0}".format(node))
+        dcc.privmsg(_encode_data(package.ack(self._wif, testnet=self._testnet)))
 
         # update connection state
-        self._dcc_connections[node_address] = {"STATE": CONNECTED, "dcc": dcc}
+        self._dcc_connections[node] = {"STATE": CONNECTED, "dcc": dcc}
 
     #####################################
     # COMPLETE ACCEPTED NODE CONNECTION #
@@ -379,12 +339,12 @@ class Service(object):
     def send_message(self, node_address, msg_type, msg_data):
         log.info("Sending message to {0}".format(node_address))
         dcc = self._dcc_connections[node_address]["dcc"]
-        dcc.privmsg(_make_message(self._address, msg_type, msg_data))
+        dcc.privmsg(_encode_data(package.data(self._wif, msg_data, testnet=self._testnet)))
 
     def get_messages_received(self):
         messages = []
-        while not self._message_received_queue.empty():
-            messages.append(self._message_received_queue.get())
+        while not self._package_received_queue.empty():
+            messages.append(self._package_received_queue.get())
         return messages
 
     ##################

@@ -4,25 +4,31 @@ logging.basicConfig(format=LOG_FORMAT, level=logging.INFO)
 
 import time
 import unittest
+import btctxstore
 from storjnode import network
 
 
 INITIAL_RELAYNODES = [("127.0.0.1", 6667)]
-ALICE_ADDRESS = "1F3SedVWR2em2hpSbCfM8WsgjTSCkGWE8i"
-BOB_ADDRESS = "13i3511DwugmktybXJhkMj4nhaFvXJ7uhX"
-CHARLIE_ADDRESS = "1A3JkxMoZDqJ4nLvMWc3L7EXokEyKGzfEA"
 
 
 class TestNodeNetwork(unittest.TestCase):
 
     def setUp(self):
-        self.alice = network.Network(INITIAL_RELAYNODES, ALICE_ADDRESS)
+        self.btctxstore = btctxstore.BtcTxStore()
+        self.alice_wif = self.btctxstore.create_key()
+        self.alice_address = self.btctxstore.get_address(self.alice_wif)
+        self.bob_wif = self.btctxstore.create_key()
+        self.bob_address = self.btctxstore.get_address(self.bob_wif)
+        self.charlie_wif = self.btctxstore.create_key()
+        self.charlie_address = self.btctxstore.get_address(self.charlie_wif)
+
+        self.alice = network.Network(INITIAL_RELAYNODES, self.alice_wif)
         self.alice.connect()
-        self.bob = network.Network(INITIAL_RELAYNODES, BOB_ADDRESS)
+        self.bob = network.Network(INITIAL_RELAYNODES, self.bob_wif)
         self.bob.connect()
-        self.charlie = network.Network(INITIAL_RELAYNODES, CHARLIE_ADDRESS)
+        self.charlie = network.Network(INITIAL_RELAYNODES, self.charlie_wif)
         self.charlie.connect()
-        time.sleep(2)
+        time.sleep(10)
 
     def tearDown(self):
         self.alice.disconnect()
@@ -32,19 +38,19 @@ class TestNodeNetwork(unittest.TestCase):
     def test_connects(self):
 
         # connect all nodes to each other
-        self.alice.connect_to_node(BOB_ADDRESS)
-        self.bob.connect_to_node(CHARLIE_ADDRESS)
-        self.charlie.connect_to_node(ALICE_ADDRESS)
+        self.alice.connect_to_node(self.bob_address)
+        self.bob.connect_to_node(self.charlie_address)
+        self.charlie.connect_to_node(self.alice_address)
 
-        time.sleep(2)
+        time.sleep(10)
 
         # check that nodes are connected to each other
-        self.assertTrue(self.alice.node_connected(BOB_ADDRESS))
-        self.assertTrue(self.bob.node_connected(ALICE_ADDRESS))
-        self.assertTrue(self.bob.node_connected(CHARLIE_ADDRESS))
-        self.assertTrue(self.charlie.node_connected(BOB_ADDRESS))
-        self.assertTrue(self.charlie.node_connected(ALICE_ADDRESS))
-        self.assertTrue(self.alice.node_connected(CHARLIE_ADDRESS))
+        self.assertTrue(self.alice.node_connected(self.bob_address))
+        self.assertTrue(self.bob.node_connected(self.alice_address))
+        self.assertTrue(self.bob.node_connected(self.charlie_address))
+        self.assertTrue(self.charlie.node_connected(self.bob_address))
+        self.assertTrue(self.charlie.node_connected(self.alice_address))
+        self.assertTrue(self.alice.node_connected(self.charlie_address))
 
 
 if __name__ == "__main__":

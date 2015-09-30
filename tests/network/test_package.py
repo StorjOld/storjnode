@@ -7,10 +7,8 @@ import time
 import unittest
 from btctxstore import BtcTxStore
 from storjnode.network import package
-from pycoin.encoding import b2a_hashed_base58
 from pycoin.encoding import a2b_hashed_base58
 from btctxstore.common import num_to_bytes
-from btctxstore.common import num_from_bytes
 
 
 class TestNetworkPackageParse(unittest.TestCase):
@@ -21,51 +19,40 @@ class TestNetworkPackageParse(unittest.TestCase):
         self.address = self.btctxstore.get_address(self.wif)
 
     def test_parse_normal(self):
-        package_bytes = package._create(package._TYPE_DATA, self.wif, 
+        package_bytes = package._create(package._TYPE_DATA, self.wif,
                                         b"F483", self.btctxstore.testnet)
-        self.assertTrue(package_bytes != None)
+        self.assertTrue(package_bytes is not None)
 
-        parsed = package.parse(package_bytes, self.address, 2, 
-                               self.btctxstore.testnet)
-        self.assertTrue(parsed != None)
+        parsed = package.parse(package_bytes, 2, self.btctxstore.testnet)
+
+        self.assertEqual(parsed, {
+            "type": "DATA", "data": b"F483", "node": self.address
+        })
 
     def test_ignores_nondata_package_with_data(self):
-        package_bytes = package._create(package._TYPE_DATA, self.wif, 
+        package_bytes = package._create(package._TYPE_DATA, self.wif,
                                         b"F483", self.btctxstore.testnet)
-        self.assertTrue(package_bytes != None)
+        self.assertTrue(package_bytes is not None)
         package_bytes = b'0' + package_bytes[1:]  # hack type
 
-        parsed = package.parse(package_bytes, self.address, 2, 
-                               self.btctxstore.testnet)
-        self.assertEqual(parsed, None)
-
-
-    def test_ignores_dcc_address_mismatch(self):
-        package_bytes = package._create(package._TYPE_DATA, self.wif, 
-                                        b"F483", self.btctxstore.testnet)
-        self.assertTrue(package_bytes != None)
-
-        address = self.btctxstore.get_address(self.btctxstore.create_key())
-        parsed = package.parse(package_bytes, address, 2, 
-                               self.btctxstore.testnet)
+        parsed = package.parse(package_bytes, 2, self.btctxstore.testnet)
         self.assertEqual(parsed, None)
 
     def test_ignores_stale_package(self):
-        package_bytes = package._create(package._TYPE_DATA, self.wif, 
+        package_bytes = package._create(package._TYPE_DATA, self.wif,
                                         b"F483", self.btctxstore.testnet)
-        self.assertTrue(package_bytes != None)
+        self.assertTrue(package_bytes is not None)
         time.sleep(2)
 
-        parsed = package.parse(package_bytes, self.address, 1, 
-                               self.btctxstore.testnet)
+        parsed = package.parse(package_bytes, 1, self.btctxstore.testnet)
         self.assertEqual(parsed, None)
 
     def test_ignores_package_to_small(self):
-        result = package.parse(b"", None, 2)
+        result = package.parse(b"", 2)
         self.assertEqual(None, result)
 
     def test_ignores_package_to_large(self):
-        result = package.parse(b"X" * 8193, None, 2)
+        result = package.parse(b"X" * 8193, 2)
         self.assertEqual(None, result)
 
     def test_ignores_incorrect_type(self):
@@ -76,7 +63,7 @@ class TestNetworkPackageParse(unittest.TestCase):
         pdata = b"F483"
         psig = b"X" * 65
         packagedata = ptype + paddress + punixtime + pdata_size + pdata + psig
-        result = package.parse(packagedata, paddress, 2)
+        result = package.parse(packagedata, 2)
         expected = None
         self.assertEqual(expected, result)
 
@@ -88,7 +75,7 @@ class TestNetworkPackageParse(unittest.TestCase):
         pdata = b"F483"
         psig = b"X" * 65
         packagedata = ptype + paddress + punixtime + pdata_size + pdata + psig
-        result = package.parse(packagedata, self.address, 2)
+        result = package.parse(packagedata, 2)
         expected = None
         self.assertEqual(expected, result)
 
@@ -100,7 +87,7 @@ class TestNetworkPackageParse(unittest.TestCase):
         pdata = b"F483"
         psig = b"X" * 65
         packagedata = ptype + paddress + punixtime + pdata_size + pdata + psig
-        result = package.parse(packagedata, self.address, 2)
+        result = package.parse(packagedata, 2)
         expected = None
         self.assertEqual(expected, result)
 
@@ -112,7 +99,7 @@ class TestNetworkPackageParse(unittest.TestCase):
         pdata = b"F483"
         psig = b"X" * 65
         packagedata = ptype + paddress + punixtime + pdata_size + pdata + psig
-        result = package.parse(packagedata, self.address, 2)
+        result = package.parse(packagedata, 2)
         expected = None
         self.assertEqual(expected, result)
 
@@ -126,35 +113,40 @@ class TestNetworkPackageCreate(unittest.TestCase):
 
     def test_syn(self):
         synpackage = package.syn(self.wif, self.btctxstore.testnet)
-        result = package.parse(synpackage, self.address, 2,
-                               self.btctxstore.testnet)
-        self.assertEqual(result, {"type": "SYN", "data": b""})
+        result = package.parse(synpackage, 2, self.btctxstore.testnet)
+        self.assertEqual(result, {
+            "type": "SYN", "data": b"", "node": self.address
+        })
 
     def test_synack(self):
         synackpackage = package.synack(self.wif, self.btctxstore.testnet)
-        result = package.parse(synackpackage, self.address, 2,
-                               self.btctxstore.testnet)
-        self.assertEqual(result, {"type": "SYNACK", "data": b""})
+        result = package.parse(synackpackage, 2, self.btctxstore.testnet)
+        self.assertEqual(result, {
+            "type": "SYNACK", "data": b"", "node": self.address
+        })
 
     def test_ack(self):
         ackpackage = package.ack(self.wif, self.btctxstore.testnet)
-        result = package.parse(ackpackage, self.address, 2,
-                               self.btctxstore.testnet)
-        self.assertEqual(result, {"type": "ACK", "data": b""})
+        result = package.parse(ackpackage, 2, self.btctxstore.testnet)
+        self.assertEqual(result, {
+            "type": "ACK", "data": b"", "node": self.address
+        })
 
     def test_data(self):
         datapackage = package.data(self.wif, b"F483", self.btctxstore.testnet)
-        result = package.parse(datapackage, self.address, 2,
-                               self.btctxstore.testnet)
-        self.assertEqual(result, {"type": "DATA", "data": b"F483"})
+        result = package.parse(datapackage, 2, self.btctxstore.testnet)
+        self.assertEqual(result, {
+            "type": "DATA", "data": b"F483", "node": self.address
+        })
 
     def test_max_data_accepted(self):
         data_bytes = b"X" * package.MAX_DATA_SIZE
         datapackage = package.data(self.wif, data_bytes,
                                    self.btctxstore.testnet)
-        result = package.parse(datapackage, self.address, 2,
-                               self.btctxstore.testnet)
-        self.assertEqual(result, {"type": "DATA", "data": data_bytes})
+        result = package.parse(datapackage, 2, self.btctxstore.testnet)
+        self.assertEqual(result, {
+            "type": "DATA", "data": data_bytes, "node": self.address
+        })
 
     def test_checks_max_data_exceeded(self):
         def callback():

@@ -1,16 +1,21 @@
 import unittest
+import btctxstore
 from storjnode.network import Network
 
 
 INITIAL_RELAYNODES = [("127.0.0.1", 6667)]
-NODE_ADDRESS = "19PqWiGFUivXb9ESCoZAowpoEkaodj5dFt"
 
 
 class TestNetworkConnection(unittest.TestCase):
 
+    def setUp(self):
+        self.btctxstore = btctxstore.BtcTxStore()
+        self.wif = self.btctxstore.create_key()
+        self.address = self.btctxstore.get_address(self.wif)
+
     def test_connects(self):
         # connect
-        self.network = Network(INITIAL_RELAYNODES, NODE_ADDRESS)
+        self.network = Network(INITIAL_RELAYNODES, self.wif)
         self.network.connect()
 
         # is connected
@@ -22,7 +27,7 @@ class TestNetworkConnection(unittest.TestCase):
 
     def test_restart(self):
         # connect
-        self.network = Network(INITIAL_RELAYNODES, NODE_ADDRESS)
+        self.network = Network(INITIAL_RELAYNODES, self.wif)
         self.network.connect()
 
         # test reconnect
