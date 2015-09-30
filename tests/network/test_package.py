@@ -20,8 +20,8 @@ class TestNetworkPackageParse(unittest.TestCase):
         self.address = self.btctxstore.get_address(self.wif)
 
     def test_parse_normal(self):
-        package_bytes = package.make(package.PACKAGE_TYPE_DATA, self.wif, 
-                                     b"F483", self.btctxstore.testnet)
+        package_bytes = package._make(package._TYPE_DATA, self.wif, 
+                                      b"F483", self.btctxstore.testnet)
         self.assertTrue(package_bytes != None)
 
         parsed = package.parse(package_bytes, self.address, 2, 
@@ -49,7 +49,7 @@ class TestNetworkPackageParse(unittest.TestCase):
         self.assertEqual(expected, result)
 
     def test_ignores_size_to_small(self):
-        ptype = package.PACKAGE_TYPE_DATA
+        ptype = package._TYPE_DATA
         paddress = b"addraddraddraddraddr"  # shitty btc addr
         punixtime = (chr(0) * 7 + chr(3)).encode("ascii")
         pdata_size = (chr(0) + chr(3)).encode("ascii")
@@ -61,7 +61,7 @@ class TestNetworkPackageParse(unittest.TestCase):
         self.assertEqual(expected, result)
 
     def test_ignores_size_to_large(self):
-        ptype = package.PACKAGE_TYPE_DATA
+        ptype = package._TYPE_DATA
         paddress = b"addraddraddraddraddra"  # shitty btc addr
         punixtime = (chr(0) * 7 + chr(3)).encode("ascii")
         pdata_size = (chr(0) + chr(5)).encode("ascii")

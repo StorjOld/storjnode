@@ -17,90 +17,119 @@ from btctxstore.common import num_to_bytes
 from btctxstore.common import num_from_bytes
 
 
-log = logging.getLogger(__name__)
+_log = logging.getLogger(__name__)
 
 
-PACKAGE_TYPES = [b'0', b'1', b'2', b'3']
-PACKAGE_TYPE_NAMES = ["SYN", "SYNACK", "ACK", "DATA"]
-PACKAGE_TYPE_SYN = PACKAGE_TYPES[0]
-PACKAGE_TYPE_SYNACK = PACKAGE_TYPES[1]
-PACKAGE_TYPE_ACK = PACKAGE_TYPES[2]
-PACKAGE_TYPE_DATA = PACKAGE_TYPES[3]
+_TYPES = [b'0', b'1', b'2', b'3']
+_TYPE_NAMES = {
+    b'0': "SYN",
+    b'1': "SYNACK",
+    b'2': "ACK",
+    b'3': "DATA"
+}
+_TYPE_SYN = _TYPES[0]
+_TYPE_SYNACK = _TYPES[1]
+_TYPE_ACK = _TYPES[2]
+_TYPE_DATA = _TYPES[3]
 
-PACKAGE_BYTES_TYPE = 1
-PACKAGE_BYTES_BTCADDRESS = 21
-PACKAGE_BYTES_UNIXTIME = 8
-PACKAGE_BYTES_DATASIZE = 2
-PACKAGE_BYTES_SIGNATURE = 65
+_BYTES_TYPE = 1
+_BYTES_BTCADDRESS = 21
+_BYTES_UNIXTIME = 8
+_BYTES_DATASIZE = 2
+_BYTES_SIGNATURE = 65
 
-PACKAGE_MAX_SIZE = 8192  # FIXME is this true?
-PACKAGE_MAX_DATA_SIZE = (PACKAGE_MAX_SIZE - PACKAGE_BYTES_TYPE
-                         - PACKAGE_BYTES_BTCADDRESS - PACKAGE_BYTES_UNIXTIME
-                         - PACKAGE_BYTES_DATASIZE - PACKAGE_BYTES_SIGNATURE)
-PACKAGE_MIN_SIZE = (PACKAGE_BYTES_TYPE + PACKAGE_BYTES_BTCADDRESS
-                    + PACKAGE_BYTES_UNIXTIME + PACKAGE_BYTES_DATASIZE
-                    + PACKAGE_BYTES_SIGNATURE)
+_MAX_SIZE = 8192
+_MAX_DATA_SIZE = (_MAX_SIZE - _BYTES_TYPE - _BYTES_BTCADDRESS -
+                  _BYTES_UNIXTIME - _BYTES_DATASIZE - _BYTES_SIGNATURE)
+_MIN_SIZE = (_BYTES_TYPE + _BYTES_BTCADDRESS + _BYTES_UNIXTIME +
+             _BYTES_DATASIZE + _BYTES_SIGNATURE)
 
 
-def make(package_type, signing_wif, data_bytes=b"", testnet=False):
-    key = btctxstore.deserialize.key(testnet, signing_wif)
+class MaxPackageDataExceeded(Exception):
+    pass
+
+
+def _make(package_type, wif, data_bytes=b"", testnet=False):
+    key = btctxstore.deserialize.key(testnet, wif)
     package = package_type
     package += a2b_hashed_base58(key.address())
-    package += num_to_bytes(PACKAGE_BYTES_UNIXTIME, int(time.time()))
-    package += num_to_bytes(PACKAGE_BYTES_DATASIZE, len(data_bytes))
+    package += num_to_bytes(_BYTES_UNIXTIME, int(time.time()))
+    package += num_to_bytes(_BYTES_DATASIZE, len(data_bytes))
     package += data_bytes
     package += btctxstore.control.sign_data(testnet, package, key)
     return package
 
 
+def syn(wif, testnet=False):
+    return _make(_TYPE_SYN, wif, testnet=testnet)
+
+
+def synack(wif, testnet=False):
+    return _make(_TYPE_SYNACK, wif, testnet=testnet)
+
+
+def ack(wif, testnet=False):
+    return _make(_TYPE_ACK, wif, testnet=testnet)
+
+
+def data(wif, data, testnet=False):
+    if len(data) > _MAX_DATA_SIZE:
+        msg = "{0} > {1}".format(len(data), _MAX_DATA_SIZE)
+        raise MaxPackageDataExceeded(msg)
+    return _make(_TYPE_DATA, wif, data_bytes=data, testnet=testnet)
+
+
 def parse(package_bytes, dcc_address, expire_time, testnet=False):
 
     # check size
-    if len(package_bytes) < PACKAGE_MIN_SIZE:
-        log.warning("Invalid package: Package to small!")
+    if len(package_bytes) < _MIN_SIZE:
+        _log.warning("Invalid package: Package to small!")
         return None
-    if len(package_bytes) > PACKAGE_MAX_SIZE:
-        log.warning("Invalid package: Package to large!")
+    if len(package_bytes) > _MAX_SIZE:
+        _log.warning("Invalid package: Package to large!")
         return None
     stack = package_bytes[:]  # copy and use like a stack
 
     # parse type
-    package_type = stack[:PACKAGE_BYTES_TYPE]
-    stack = stack[PACKAGE_BYTES_TYPE:]  # pop type
-    if package_type not in PACKAGE_TYPES:
-        log.warning("Invalid package: Invalid package type!")
+    package_type = stack[:_BYTES_TYPE]
+    stack = stack[_BYTES_TYPE:]  # pop type
+    if package_type not in _TYPES:
+        _log.warning("Invalid package: Bad type!")
         return None
 
     # parse address
-    address_bytes = stack[:PACKAGE_BYTES_BTCADDRESS]
-    stack = stack[PACKAGE_BYTES_BTCADDRESS:]  # pop address
+    address_bytes = stack[:_BYTES_BTCADDRESS]
+    stack = stack[_BYTES_BTCADDRESS:]  # pop address
     address = b2a_hashed_base58(address_bytes)
     if address != dcc_address:
-        logmsg = "Invalid package: Package address {0} != dcc address {1}!"
-        log.warning(logmsg.format(address, dcc_address))
+        logmsg = "Invalid package: Signing address {0} != dcc address {1}!"
+        _log.warning(logmsg.format(address, dcc_address))
         return None
+    # TODO check if address is valid, even if dcc_address was validated before
 
     # get timestamp
-    unixtime_bytes = stack[:PACKAGE_BYTES_UNIXTIME]
-    stack = stack[PACKAGE_BYTES_UNIXTIME:]  # pop unixtime
-    package_unixtime = num_from_bytes(PACKAGE_BYTES_UNIXTIME, unixtime_bytes)
+    unixtime_bytes = stack[:_BYTES_UNIXTIME]
+    stack = stack[_BYTES_UNIXTIME:]  # pop unixtime
+    package_unixtime = num_from_bytes(_BYTES_UNIXTIME, unixtime_bytes)
     current_unixtime = int(time.time())
     time_delta = current_unixtime - package_unixtime
     if abs(time_delta) > expire_time:
         logmsg = "Invalid package: Stale package abs({0}) > {1}!"
-        log.warning(logmsg.format(time_delta, expire_time))
+        _log.warning(logmsg.format(time_delta, expire_time))
         return None
 
     # get data size
-    data_size_bytes = stack[:PACKAGE_BYTES_DATASIZE]
-    stack = stack[PACKAGE_BYTES_DATASIZE:]  # pop data size
-    data_size = num_from_bytes(PACKAGE_BYTES_DATASIZE, data_size_bytes)
-    if len(stack) != (data_size + PACKAGE_BYTES_SIGNATURE):
-        log.warning("Invalid package: Invalid data size {0}!".format(data_size))
+    data_size_bytes = stack[:_BYTES_DATASIZE]
+    stack = stack[_BYTES_DATASIZE:]  # pop data size
+    data_size = num_from_bytes(_BYTES_DATASIZE, data_size_bytes)
+    expected_data_size = len(stack) - _BYTES_SIGNATURE
+    if data_size != expected_data_size:
+        logmsg = "Invalid package: Invalid data size! Got {0} expected {1}"
+        _log.warning(logmsg.format(data_size, expected_data_size))
         return None
-    if data_size > 0 and package_type != PACKAGE_TYPE_DATA:
-        logmsg = "Invalid package: {0}bytes data for non data package!"
-        log.warning(logmsg.format(data_size))
+    if data_size > 0 and package_type != _TYPE_DATA:
+        logmsg = "Invalid package: Got {0}bytes of data for non data package!"
+        _log.warning(logmsg.format(data_size))
         return None
 
     # get data
@@ -108,18 +137,11 @@ def parse(package_bytes, dcc_address, expire_time, testnet=False):
     stack = stack[data_size:]  # pop data
 
     # verify signature
-    sig = package_bytes[-PACKAGE_BYTES_SIGNATURE:] # signature data
-    signed = package_bytes[:-PACKAGE_BYTES_SIGNATURE]  # signed data
+    sig = package_bytes[-_BYTES_SIGNATURE:]  # signature data
+    signed = package_bytes[:-_BYTES_SIGNATURE]  # signed data
     assert(sig == stack)  # only signature should be left on the stack
     if not btctxstore.control.verify_signature(testnet, address, sig, signed):
-        log.warning("Invalid package: bad signature!")
+        _log.warning("Invalid package: Bad signature!")
         return None
 
-    return {
-        "type": package_type,
-        "address": address,
-        "unixtime": package_unixtime,
-        "data": data_bytes,
-        "signature": sig
-    }
-
+    return {"type": _TYPE_NAMES[package_type], "data": data_bytes}
