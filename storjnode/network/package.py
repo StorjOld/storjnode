@@ -49,34 +49,34 @@ class MaxPackageDataExceeded(Exception):
     pass
 
 
-def _make(package_type, wif, data_bytes=b"", testnet=False):
+def _create(package_type, wif, data=b"", testnet=False):
+    if len(data) > _MAX_DATA_SIZE:
+        msg = "{0} > {1}".format(len(data), _MAX_DATA_SIZE)
+        raise MaxPackageDataExceeded(msg)
     key = btctxstore.deserialize.key(testnet, wif)
     package = package_type
     package += a2b_hashed_base58(key.address())
     package += num_to_bytes(_BYTES_UNIXTIME, int(time.time()))
-    package += num_to_bytes(_BYTES_DATASIZE, len(data_bytes))
-    package += data_bytes
+    package += num_to_bytes(_BYTES_DATASIZE, len(data))
+    package += data
     package += btctxstore.control.sign_data(testnet, package, key)
     return package
 
 
 def syn(wif, testnet=False):
-    return _make(_TYPE_SYN, wif, testnet=testnet)
+    return _create(_TYPE_SYN, wif, testnet=testnet)
 
 
 def synack(wif, testnet=False):
-    return _make(_TYPE_SYNACK, wif, testnet=testnet)
+    return _create(_TYPE_SYNACK, wif, testnet=testnet)
 
 
 def ack(wif, testnet=False):
-    return _make(_TYPE_ACK, wif, testnet=testnet)
+    return _create(_TYPE_ACK, wif, testnet=testnet)
 
 
 def data(wif, data, testnet=False):
-    if len(data) > _MAX_DATA_SIZE:
-        msg = "{0} > {1}".format(len(data), _MAX_DATA_SIZE)
-        raise MaxPackageDataExceeded(msg)
-    return _make(_TYPE_DATA, wif, data_bytes=data, testnet=testnet)
+    return _create(_TYPE_DATA, wif, data=data, testnet=testnet)
 
 
 def parse(package_bytes, dcc_address, expire_time, testnet=False):
@@ -133,7 +133,7 @@ def parse(package_bytes, dcc_address, expire_time, testnet=False):
         return None
 
     # get data
-    data_bytes = stack[:data_size]
+    data = stack[:data_size]
     stack = stack[data_size:]  # pop data
 
     # verify signature
@@ -144,4 +144,4 @@ def parse(package_bytes, dcc_address, expire_time, testnet=False):
         _log.warning("Invalid package: Bad signature!")
         return None
 
-    return {"type": _TYPE_NAMES[package_type], "data": data_bytes}
+    return {"type": _TYPE_NAMES[package_type], "data": data}

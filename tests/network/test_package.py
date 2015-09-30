@@ -20,8 +20,8 @@ class TestNetworkPackageParse(unittest.TestCase):
         self.address = self.btctxstore.get_address(self.wif)
 
     def test_parse_normal(self):
-        package_bytes = package._make(package._TYPE_DATA, self.wif, 
-                                      b"F483", self.btctxstore.testnet)
+        package_bytes = package._create(package._TYPE_DATA, self.wif, 
+                                        b"F483", self.btctxstore.testnet)
         self.assertTrue(package_bytes != None)
 
         parsed = package.parse(package_bytes, self.address, 2, 
@@ -71,6 +71,38 @@ class TestNetworkPackageParse(unittest.TestCase):
         result = package.parse(packagedata, paddress, 2)
         expected = None
         self.assertEqual(expected, result)
+
+
+class TestNetworkPackageCreate(unittest.TestCase):
+
+    def setUp(self):
+        self.btctxstore = BtcTxStore()
+        self.wif = self.btctxstore.create_key()
+        self.address = self.btctxstore.get_address(self.wif)
+
+    def test_syn(self):
+        synpackage = package.syn(self.wif, self.btctxstore.testnet)
+        result = package.parse(synpackage, self.address, 2,
+                               self.btctxstore.testnet)
+        self.assertEqual(result, {"type": "SYN", "data": b""})
+
+    def test_synack(self):
+        synackpackage = package.synack(self.wif, self.btctxstore.testnet)
+        result = package.parse(synackpackage, self.address, 2,
+                               self.btctxstore.testnet)
+        self.assertEqual(result, {"type": "SYNACK", "data": b""})
+
+    def test_ack(self):
+        ackpackage = package.ack(self.wif, self.btctxstore.testnet)
+        result = package.parse(ackpackage, self.address, 2,
+                               self.btctxstore.testnet)
+        self.assertEqual(result, {"type": "ACK", "data": b""})
+
+    def test_data(self):
+        datapackage = package.data(self.wif, b"F483", self.btctxstore.testnet)
+        result = package.parse(datapackage, self.address, 2,
+                               self.btctxstore.testnet)
+        self.assertEqual(result, {"type": "DATA", "data": b"F483"})
 
 
 if __name__ == "__main__":
