@@ -29,6 +29,27 @@ class TestNetworkPackageParse(unittest.TestCase):
                                self.btctxstore.testnet)
         self.assertTrue(parsed != None)
 
+    def test_ignores_nondata_package_with_data(self):
+        package_bytes = package._create(package._TYPE_DATA, self.wif, 
+                                        b"F483", self.btctxstore.testnet)
+        self.assertTrue(package_bytes != None)
+        package_bytes = b'0' + package_bytes[1:]  # hack type
+
+        parsed = package.parse(package_bytes, self.address, 2, 
+                               self.btctxstore.testnet)
+        self.assertEqual(parsed, None)
+
+
+    def test_ignores_dcc_address_mismatch(self):
+        package_bytes = package._create(package._TYPE_DATA, self.wif, 
+                                        b"F483", self.btctxstore.testnet)
+        self.assertTrue(package_bytes != None)
+
+        address = self.btctxstore.get_address(self.btctxstore.create_key())
+        parsed = package.parse(package_bytes, address, 2, 
+                               self.btctxstore.testnet)
+        self.assertEqual(parsed, None)
+
     def test_ignores_stale_package(self):
         package_bytes = package._create(package._TYPE_DATA, self.wif, 
                                         b"F483", self.btctxstore.testnet)
