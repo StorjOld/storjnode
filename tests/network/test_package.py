@@ -3,13 +3,14 @@ LOG_FORMAT = "%(levelname)s %(name)s %(lineno)d: %(message)s"
 logging.basicConfig(format=LOG_FORMAT, level=logging.DEBUG)
 
 
+import time
 import unittest
 from btctxstore import BtcTxStore
 from storjnode.network import package
 from pycoin.encoding import b2a_hashed_base58
 from pycoin.encoding import a2b_hashed_base58
-
-
+from btctxstore.common import num_to_bytes
+from btctxstore.common import num_from_bytes
 
 
 class TestNetworkPackageParse(unittest.TestCase):
@@ -28,6 +29,16 @@ class TestNetworkPackageParse(unittest.TestCase):
                                self.btctxstore.testnet)
         self.assertTrue(parsed != None)
 
+    def test_ignores_stale_package(self):
+        package_bytes = package._create(package._TYPE_DATA, self.wif, 
+                                        b"F483", self.btctxstore.testnet)
+        self.assertTrue(package_bytes != None)
+        time.sleep(2)
+
+        parsed = package.parse(package_bytes, self.address, 1, 
+                               self.btctxstore.testnet)
+        self.assertEqual(parsed, None)
+
     def test_ignores_package_to_small(self):
         result = package.parse(b"", None, 2)
         self.assertEqual(None, result)
@@ -39,7 +50,7 @@ class TestNetworkPackageParse(unittest.TestCase):
     def test_ignores_incorrect_type(self):
         ptype = b"X"
         paddress = b"addraddraddraddraddr"  # shitty btc addr
-        punixtime = (chr(0) * 7 + chr(3)).encode("ascii")
+        punixtime = num_to_bytes(package._BYTES_UNIXTIME, int(time.time()))
         pdata_size = (chr(0) + chr(4)).encode("ascii")
         pdata = b"F483"
         psig = b"X" * 65
@@ -50,25 +61,37 @@ class TestNetworkPackageParse(unittest.TestCase):
 
     def test_ignores_size_to_small(self):
         ptype = package._TYPE_DATA
-        paddress = b"addraddraddraddraddr"  # shitty btc addr
-        punixtime = (chr(0) * 7 + chr(3)).encode("ascii")
+        paddress = a2b_hashed_base58(self.address)
+        punixtime = num_to_bytes(package._BYTES_UNIXTIME, int(time.time()))
         pdata_size = (chr(0) + chr(3)).encode("ascii")
         pdata = b"F483"
         psig = b"X" * 65
         packagedata = ptype + paddress + punixtime + pdata_size + pdata + psig
-        result = package.parse(packagedata, paddress, 2)
+        result = package.parse(packagedata, self.address, 2)
         expected = None
         self.assertEqual(expected, result)
 
     def test_ignores_size_to_large(self):
         ptype = package._TYPE_DATA
-        paddress = b"addraddraddraddraddra"  # shitty btc addr
-        punixtime = (chr(0) * 7 + chr(3)).encode("ascii")
+        paddress = a2b_hashed_base58(self.address)
+        punixtime = num_to_bytes(package._BYTES_UNIXTIME, int(time.time()))
         pdata_size = (chr(0) + chr(5)).encode("ascii")
         pdata = b"F483"
         psig = b"X" * 65
         packagedata = ptype + paddress + punixtime + pdata_size + pdata + psig
-        result = package.parse(packagedata, paddress, 2)
+        result = package.parse(packagedata, self.address, 2)
+        expected = None
+        self.assertEqual(expected, result)
+
+    def test_ignores_bad_signature(self):
+        ptype = package._TYPE_DATA
+        paddress = a2b_hashed_base58(self.address)
+        punixtime = num_to_bytes(package._BYTES_UNIXTIME, int(time.time()))
+        pdata_size = (chr(0) + chr(4)).encode("ascii")
+        pdata = b"F483"
+        psig = b"X" * 65
+        packagedata = ptype + paddress + punixtime + pdata_size + pdata + psig
+        result = package.parse(packagedata, self.address, 2)
         expected = None
         self.assertEqual(expected, result)
 
