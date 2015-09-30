@@ -104,6 +104,20 @@ class TestNetworkPackageCreate(unittest.TestCase):
                                self.btctxstore.testnet)
         self.assertEqual(result, {"type": "DATA", "data": b"F483"})
 
+    def test_max_data_accepted(self):
+        data_bytes = b"X" * package.MAX_DATA_SIZE
+        datapackage = package.data(self.wif, data_bytes,
+                                   self.btctxstore.testnet)
+        result = package.parse(datapackage, self.address, 2,
+                               self.btctxstore.testnet)
+        self.assertEqual(result, {"type": "DATA", "data": data_bytes})
+
+    def test_checks_max_data_exceeded(self):
+        def callback():
+            data_bytes = b"X" * (package.MAX_DATA_SIZE + 1)
+            package.data(self.wif, data_bytes, self.btctxstore.testnet)
+        self.assertRaises(package.MaxPackageDataExceeded, callback)
+
 
 if __name__ == "__main__":
     unittest.main()

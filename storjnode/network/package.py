@@ -39,8 +39,8 @@ _BYTES_DATASIZE = 2
 _BYTES_SIGNATURE = 65
 
 _MAX_SIZE = 8192
-_MAX_DATA_SIZE = (_MAX_SIZE - _BYTES_TYPE - _BYTES_BTCADDRESS -
-                  _BYTES_UNIXTIME - _BYTES_DATASIZE - _BYTES_SIGNATURE)
+MAX_DATA_SIZE = (_MAX_SIZE - _BYTES_TYPE - _BYTES_BTCADDRESS -
+                 _BYTES_UNIXTIME - _BYTES_DATASIZE - _BYTES_SIGNATURE)
 _MIN_SIZE = (_BYTES_TYPE + _BYTES_BTCADDRESS + _BYTES_UNIXTIME +
              _BYTES_DATASIZE + _BYTES_SIGNATURE)
 
@@ -50,8 +50,8 @@ class MaxPackageDataExceeded(Exception):
 
 
 def _create(package_type, wif, data=b"", testnet=False):
-    if len(data) > _MAX_DATA_SIZE:
-        msg = "{0} > {1}".format(len(data), _MAX_DATA_SIZE)
+    if len(data) > MAX_DATA_SIZE:
+        msg = "{0} > {1}".format(len(data), MAX_DATA_SIZE)
         raise MaxPackageDataExceeded(msg)
     key = btctxstore.deserialize.key(testnet, wif)
     package = package_type
