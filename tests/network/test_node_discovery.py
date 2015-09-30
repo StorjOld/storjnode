@@ -24,15 +24,15 @@ class TestNodeDiscovery(unittest.TestCase):
         self.alice.connect()
         self.bob = network.Network(INITIAL_RELAYNODES, self.bob_wif)
         self.bob.connect()
-        time.sleep(10)
+        time.sleep(15)
 
     def tearDown(self):
         self.alice.disconnect()
         self.bob.disconnect()
 
     def test_connects(self):
-        self.alice.connect_to_node(self.bob_address)
-        time.sleep(10)
+        self.alice.node_connect(self.bob_address)
+        time.sleep(15)
         self.assertTrue(self.alice.node_connected(self.bob_address))
         self.assertTrue(self.bob.node_connected(self.alice_address))
 

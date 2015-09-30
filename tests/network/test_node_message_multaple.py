@@ -28,7 +28,7 @@ class TestNodeMessageMultaple(unittest.TestCase):
         self.bob.connect()
         self.charlie = network.Network(INITIAL_RELAYNODES, self.charlie_wif)
         self.charlie.connect()
-        time.sleep(10)
+        time.sleep(15)
 
     def tearDown(self):
         self.alice.disconnect()
@@ -38,21 +38,21 @@ class TestNodeMessageMultaple(unittest.TestCase):
     def test_connects(self):
 
         # connect nodes to each other
-        self.alice.connect_to_node(self.bob_address)
-        self.alice.connect_to_node(self.charlie_address)
+        self.alice.node_connect(self.bob_address)
+        self.alice.node_connect(self.charlie_address)
 
-        time.sleep(10)  # allow time to connect
+        time.sleep(15)  # allow time to connect
 
-        self.alice.send_message(self.bob_address, "test", b"alice_to_bob")
-        self.alice.send_message(self.charlie_address, "test", b"alice_to_charlie")
-        self.bob.send_message(self.alice_address, "test", b"bob_to_alice")
-        self.charlie.send_message(self.alice_address, "test", b"charlie_to_alice")
+        self.alice.send(self.bob_address, b"alice_to_bob")
+        self.alice.send(self.charlie_address, b"alice_to_charlie")
+        self.bob.send(self.alice_address, b"bob_to_alice")
+        self.charlie.send(self.alice_address, b"charlie_to_alice")
         
-        time.sleep(10)  # allow time to send
+        time.sleep(15)  # allow time to send
 
-        self.assertEqual(len(self.alice.get_messages_received()), 2)
-        self.assertEqual(len(self.bob.get_messages_received()), 1)
-        self.assertEqual(len(self.charlie.get_messages_received()), 1)
+        self.assertEqual(len(self.alice.received()), 2)
+        self.assertEqual(len(self.bob.received()), 1)
+        self.assertEqual(len(self.charlie.received()), 1)
 
 
 if __name__ == "__main__":

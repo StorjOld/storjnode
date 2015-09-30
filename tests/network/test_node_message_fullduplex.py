@@ -24,27 +24,27 @@ class TestNodeMessageFullDuplex(unittest.TestCase):
         self.alice.connect()
         self.bob = network.Network(INITIAL_RELAYNODES, self.bob_wif)
         self.bob.connect()
-        time.sleep(10)
+        time.sleep(15)
 
     def tearDown(self):
         self.alice.disconnect()
         self.bob.disconnect()
 
     def test_connects(self):
-        self.alice.connect_to_node(self.bob_address)
+        self.alice.node_connect(self.bob_address)
 
-        time.sleep(10)  # allow time to connect
+        time.sleep(15)  # allow time to connect
 
-        self.alice.send_message(self.bob_address, "test", b"alices_test_data")
-        self.bob.send_message(self.alice_address, "test", b"bobs_test_data")
+        self.alice.send(self.bob_address, b"alices_test_data")
+        self.bob.send(self.alice_address, b"bobs_test_data")
 
-        time.sleep(10)  # allow time to send
+        time.sleep(15)  # allow time to send
 
-        messages = self.alice.get_messages_received()
-        self.assertEqual(len(messages), 1)
+        expected_alice = {self.bob_address: b"bobs_test_data"}
+        self.assertEqual(expected_alice, self.alice.received())
 
-        messages = self.bob.get_messages_received()
-        self.assertEqual(len(messages), 1)
+        expected_bob = {self.alice_address: b"alices_test_data"}
+        self.assertEqual(expected_bob, self.bob.received())
 
 
 if __name__ == "__main__":

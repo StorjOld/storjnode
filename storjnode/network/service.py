@@ -130,7 +130,7 @@ class Service(object):
 
         if parsed is not None and parsed["type"] == "ACK":
             self._on_ack(connection, event, parsed)
-        elif parsed is not None:
+        elif parsed is not None and parsed["type"] == "DATA":
             log.info("Received package from {0}".format(parsed["node"]))
             self._package_received_queue.put(parsed)
 
@@ -199,7 +199,7 @@ class Service(object):
     # REQUEST NODE CONNECTION #
     ###########################
 
-    def connect_to_node(self, node_address):
+    def node_connect(self, node_address):
         log.info("Requesting connection to node {0}.".format(node_address))
 
         # check for existing connection
@@ -336,17 +336,21 @@ class Service(object):
     # MESSAGING #
     #############
 
-    def send_message(self, node_address, msg_type, msg_data):
-        log.info("Sending message to {0}".format(node_address))
+    def send(self, node_address, msg_data):
+        log.info("Sending data to {0}".format(node_address))
         dcc = self._dcc_connections[node_address]["dcc"]
         dcc.privmsg(_encode_data(package.data(self._wif, msg_data,
                                               testnet=self._testnet)))
 
-    def get_messages_received(self):
-        messages = []
+    def received(self):
+        result = {}
         while not self._package_received_queue.empty():
-            messages.append(self._package_received_queue.get())
-        return messages
+            package = self._package_received_queue.get()
+            node = package["node"]
+            newdata = package["data"]
+            alldata = result.get(node, None)
+            result[node] = newdata if alldata is None else alldata + newdata
+        return result
 
     ##################
     # RELAY NODE MAP #
