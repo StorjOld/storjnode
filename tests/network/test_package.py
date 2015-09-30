@@ -33,10 +33,18 @@ class TestNetworkPackageParse(unittest.TestCase):
         package_bytes = package._create(package._TYPE_DATA, self.wif,
                                         b"F483", self.btctxstore.testnet)
         self.assertTrue(package_bytes is not None)
-        package_bytes = b'0' + package_bytes[1:]  # hack type
-
-        parsed = package.parse(package_bytes, 2, self.btctxstore.testnet)
+        hacked_bytes = b'0' + package_bytes[1:]  # hack type
+        parsed = package.parse(hacked_bytes, 2, self.btctxstore.testnet)
         self.assertEqual(parsed, None)
+
+    def test_ignores_invalid_address(self):
+        package_bytes = package._create(package._TYPE_DATA, self.wif,
+                                        b"F483", self.btctxstore.testnet)
+        self.assertTrue(package_bytes is not None)
+        hacked_bytes = b'0X' + package_bytes[2:]  # hack type
+        parsed = package.parse(hacked_bytes, 2, self.btctxstore.testnet)
+        self.assertEqual(parsed, None)
+
 
     def test_ignores_stale_package(self):
         package_bytes = package._create(package._TYPE_DATA, self.wif,
