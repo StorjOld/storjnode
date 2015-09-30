@@ -103,7 +103,10 @@ def parse(package_bytes, expire_time, testnet=False):
     address_bytes = stack[:_BYTES_BTCADDRESS]
     stack = stack[_BYTES_BTCADDRESS:]  # pop address
     address = b2a_hashed_base58(address_bytes)
-    # FIXME check if valid bitcoin address!!!
+    if not btctxstore.BtcTxStore(testnet=testnet).validate_address(address):
+        logmsg = "Invalid package: Invalid node address {0}!"
+        _log.warning(logmsg.format(address))
+        return None
 
     # get timestamp
     unixtime_bytes = stack[:_BYTES_UNIXTIME]

@@ -2,7 +2,6 @@ import random
 import string
 import btctxstore
 import shlex
-import json
 import subprocess
 import logging
 import irc.client
@@ -287,13 +286,13 @@ class Service(object):
         command, synack_data, peer_address, peer_port = parts
         if command != "CHAT":
             return
-        
+
         # get synack package
         synack_data = _decode_data(synack_data)
         parsed = package.parse(synack_data, self._expiretime, self._testnet)
         if parsed is None or parsed["type"] != "SYNACK":
             return
-        
+
         node = parsed["node"]
         log.info("Received synack from {0}".format(node))
 
@@ -311,7 +310,8 @@ class Service(object):
 
         # acknowledge connection
         log.info("Sending ack to {0}".format(node))
-        dcc.privmsg(_encode_data(package.ack(self._wif, testnet=self._testnet)))
+        dcc.privmsg(_encode_data(package.ack(self._wif,
+                                             testnet=self._testnet)))
 
         # update connection state
         self._dcc_connections[node] = {"STATE": CONNECTED, "dcc": dcc}
@@ -339,7 +339,8 @@ class Service(object):
     def send_message(self, node_address, msg_type, msg_data):
         log.info("Sending message to {0}".format(node_address))
         dcc = self._dcc_connections[node_address]["dcc"]
-        dcc.privmsg(_encode_data(package.data(self._wif, msg_data, testnet=self._testnet)))
+        dcc.privmsg(_encode_data(package.data(self._wif, msg_data,
+                                              testnet=self._testnet)))
 
     def get_messages_received(self):
         messages = []
