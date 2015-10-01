@@ -1,3 +1,8 @@
+import logging
+LOG_FORMAT = "%(levelname)s %(name)s %(lineno)d: %(message)s"
+logging.basicConfig(format=LOG_FORMAT, level=logging.INFO)
+
+
 import time
 import unittest
 import btctxstore
@@ -30,7 +35,7 @@ class TestSplitsLargeData(unittest.TestCase):
 
         self.alice.node_send(self.bob_address, large_file)
 
-        time.sleep(60)  # allow time to connect and send
+        time.sleep(15)  # allow time to connect and send
 
         expected_bob = {self.alice_address: large_file}
         self.assertEqual(expected_bob, self.bob.node_received())

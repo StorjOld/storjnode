@@ -130,7 +130,7 @@ class Service(object):
         #raise ConnectionError()
 
     def _on_dccmsg(self, connection, event):
-        packagedata = _decode(event.arguments[0].decode("ascii"))
+        packagedata = event.arguments[0]
         parsed = package.parse(packagedata, self._expiretime, self._testnet)
 
         if parsed is not None and parsed["type"] == "ACK":
@@ -158,7 +158,7 @@ class Service(object):
         for chunk in btctxstore.common.chunks(data, package.MAX_DATA_SIZE):
             packagedchunk = package.data(self._wif, chunk,
                                          testnet=self._testnet)
-            dcc.privmsg(_encode(packagedchunk))
+            dcc.send_bytes(packagedchunk)
         _log.info("Sent %sbytes of data to %s", len(data), node)
 
     def _sender_thread_loop(self):
@@ -334,7 +334,7 @@ class Service(object):
 
         # acknowledge connection
         _log.info("Sending ack to %s", node)
-        dcc.privmsg(_encode(package.ack(self._wif, testnet=self._testnet)))
+        dcc.send_bytes(package.ack(self._wif, testnet=self._testnet))
 
         # update connection state
         self._dcc_connections[node] = {"state": CONNECTED, "dcc": dcc}
