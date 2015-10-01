@@ -26,14 +26,14 @@ class TestConcatsSmallData(unittest.TestCase):
         self.bob.disconnect()
 
     def test_connects(self):
-        self.alice.send(self.bob_address, b"foo")
-        self.alice.send(self.bob_address, b"bar")
-        self.alice.send(self.bob_address, b"baz")
+        self.alice.node_send(self.bob_address, b"foo")
+        self.alice.node_send(self.bob_address, b"bar")
+        self.alice.node_send(self.bob_address, b"baz")
 
         time.sleep(20)  # allow time to connect and send
 
         expected_bob = {self.alice_address: b"foobarbaz"}
-        self.assertEqual(expected_bob, self.bob.received())
+        self.assertEqual(expected_bob, self.bob.node_received())
 
 
 if __name__ == "__main__":

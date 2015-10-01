@@ -33,22 +33,22 @@ class TestTransferNetwork(unittest.TestCase):
 
     def test_connects(self):
 
-        self.alice.send(self.bob_address, b"alice_to_bob")
-        self.alice.send(self.charlie_address, b"alice_to_charlie")
-
+        self.alice.node_send(self.bob_address, b"alice_to_bob")
+        self.alice.node_send(self.charlie_address, b"alice_to_charlie")
         time.sleep(15)  # other test is responsable for simultainous connect
-
-        self.bob.send(self.alice_address, b"bob_to_alice")
-
+        self.bob.node_send(self.alice_address, b"bob_to_alice")
         time.sleep(15)  # other test is responsable for simultainous connect
-
-        self.charlie.send(self.alice_address, b"charlie_to_alice")
-
+        self.charlie.node_send(self.alice_address, b"charlie_to_alice")
         time.sleep(15)  # allow time to connect and send
 
-        self.assertEqual(len(self.alice.received()), 2)
-        self.assertEqual(len(self.bob.received()), 1)
-        self.assertEqual(len(self.charlie.received()), 1)
+        self.assertEqual(len(self.alice.node_received()), 2)
+        self.assertEqual(len(self.bob.node_received()), 1)
+        self.assertEqual(len(self.charlie.node_received()), 1)
+
+        alice_connections = set([self.bob_address, self.charlie_address])
+        self.assertEqual(alice_connections, set(self.alice.nodes_connected()))
+        self.assertEqual([self.alice_address], self.bob.nodes_connected())
+        self.assertEqual([self.alice_address], self.charlie.nodes_connected())
 
 
 if __name__ == "__main__":

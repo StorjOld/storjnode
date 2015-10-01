@@ -56,9 +56,9 @@ class Service(object):
         self._wif = wif
 
         # syn listen channel
-        self._address = self._btctxstore.get_address(self._wif)
+        address = self._btctxstore.get_address(self._wif)
         self._server_list = initial_relaynodes[:]  # never modify original
-        self._channel = "#{address}".format(address=self._address)
+        self._channel = "#{address}".format(address=address)
 
         # reactor
         self._reactor = irc.client.Reactor()
@@ -76,10 +76,6 @@ class Service(object):
         # io queues
         self._received_queue = Queue()
         self._outgoing_queues = {}  # {address: Queue, ...}
-
-    ######################
-    # NETWORK CONNECTION #
-    ######################
 
     def connect(self):
         _log.info("Starting network service!")
@@ -223,10 +219,6 @@ class Service(object):
         _log.info("Connecting to own channel %s", self._channel)
         connection.join(self._channel)
 
-    ####################
-    # NODE CONNECTIONS #
-    ####################
-
     def _node_state(self, node):
         if node in self._dcc_connections:
             return self._dcc_connections[node]["state"]
@@ -238,10 +230,6 @@ class Service(object):
             if dcc is not None:
                 dcc.disconnect()
             del self._dcc_connections[node]
-
-    ###########################
-    # REQUEST NODE CONNECTION #
-    ###########################
 
     def _node_connect(self, node):
         _log.info("Requesting connection to node %s", node)
@@ -273,10 +261,6 @@ class Service(object):
         _log.info("Disconneting from node channel %s", node_channel)
         self._connection.part([node_channel])  # leave to reduce traffic
 
-    ##########################
-    # ACCEPT NODE CONNECTION #
-    ##########################
-
     def _on_pubmsg(self, connection, event):
 
         # Ignore messages from other node channels.
@@ -285,8 +269,7 @@ class Service(object):
             return
 
         packagedata = _decode(event.arguments[0])
-        parsed = package.parse(packagedata, self._expiretime,
-                               self._testnet)
+        parsed = package.parse(packagedata, self._expiretime, self._testnet)
         if parsed is not None and parsed["type"] == "SYN":
             self._on_syn(connection, event, parsed)
 
@@ -318,10 +301,6 @@ class Service(object):
         msg = subprocess.list2cmdline(msg_parts)
         connection.ctcp("DCC", event.source.nick, msg)
         return dcc
-
-    ############################################
-    # ACKNOWLEDGE AND COMPLETE NODE CONNECTION #
-    ############################################
 
     def _on_ctcp(self, connection, event):
 
@@ -360,10 +339,6 @@ class Service(object):
         # update connection state
         self._dcc_connections[node] = {"state": CONNECTED, "dcc": dcc}
 
-    #####################################
-    # COMPLETE ACCEPTED NODE CONNECTION #
-    #####################################
-
     def _on_ack(self, connection, event, ack):
         _log.info("Received ack from %s", ack["node"])
 
@@ -376,20 +351,16 @@ class Service(object):
         # update connection state
         self._dcc_connections[ack["node"]]["state"] = CONNECTED
 
-    ######
-    # IO #
-    ######
-
-    def send(self, node_address, data):
-        # TODO assert address valid
+    def node_send(self, node_address, data):
         assert(isinstance(data, bytes))
+        assert(self._btctxstore.validate_address(node_address))
         queue = self._outgoing_queues.get(node_address)
         if queue is None:
             self._outgoing_queues[node_address] = queue = Queue()
         queue.put(data)
         _log.info("Queued %sbytes to send %s", len(data), node_address)
 
-    def received(self):
+    def node_received(self):
         result = {}
         while not self._received_queue.empty():
             package = self._received_queue.get()
@@ -399,9 +370,12 @@ class Service(object):
             result[node] = newdata if prevdata is None else prevdata + newdata
         return result
 
-    ##################
-    # RELAY NODE MAP #
-    ##################
+    def nodes_connected(self):
+        nodes = []
+        for node, status in self._dcc_connections.items():
+            if status["state"] == CONNECTED:
+                nodes.append(node)
+        return nodes
 
     def get_current_relaynodes(self):
         server_list = self._server_list[:]  # make a copy
