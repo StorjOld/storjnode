@@ -163,9 +163,12 @@ class Service(object):
 
     def _send_data(self, node, data):
         # FIXME split package.MAX_DATA_SIZE chunks per package
+
         dcc = self._dcc_connections[node]["dcc"]
-        dcc.privmsg(_encode(package.data(self._wif, data,
-                            testnet=self._testnet)))
+        for chunk in btctxstore.common.chunks(data, package.MAX_DATA_SIZE):
+            packagedchunk = package.data(self._wif, chunk,
+                                         testnet=self._testnet)
+            dcc.privmsg(_encode(packagedchunk))
         logmsg = "Sent {total}bytes of data to {node}"
         log.info(logmsg.format(total=len(data), node=node))
 

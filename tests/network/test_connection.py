@@ -6,7 +6,7 @@ from storjnode.network import Network
 INITIAL_RELAYNODES = [("127.0.0.1", 6667)]
 
 
-class TestNetworkConnection(unittest.TestCase):
+class TestConnection(unittest.TestCase):
 
     def setUp(self):
         self.btctxstore = btctxstore.BtcTxStore()

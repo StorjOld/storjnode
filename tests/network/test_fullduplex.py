@@ -12,7 +12,7 @@ from storjnode import network
 INITIAL_RELAYNODES = [("127.0.0.1", 6667)]
 
 
-class TestNodeTransferFullDuplex(unittest.TestCase):
+class TestFullDuplex(unittest.TestCase):
 
     def setUp(self):
         self.btctxstore = btctxstore.BtcTxStore()
