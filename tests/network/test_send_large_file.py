@@ -31,7 +31,7 @@ class TestSendLargeFile(unittest.TestCase):
 
         self.alice.node_send(self.bob_address, large_file)
 
-        time.sleep(120)  # allow time to connect and send
+        time.sleep(60 * 3)  # allow time to connect and send
 
         # check size
         received = self.bob.node_received()[self.alice_address]
