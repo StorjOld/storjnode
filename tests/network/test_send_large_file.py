@@ -1,3 +1,4 @@
+import hashlib
 import time
 import unittest
 import btctxstore
@@ -7,7 +8,7 @@ from storjnode import network
 INITIAL_RELAYNODES = [("127.0.0.1", 6667)]
 
 
-class TestSplitsLargeData(unittest.TestCase):
+class TestSendLargeFile(unittest.TestCase):
 
     def setUp(self):
         self.btctxstore = btctxstore.BtcTxStore()
@@ -26,14 +27,20 @@ class TestSplitsLargeData(unittest.TestCase):
         self.bob.disconnect()
 
     def test_connects(self):
-        large_file = b"X" * (network.package.MAX_DATA_SIZE * 2)
+        large_file = b"X" * (1024 * 1024)  # 1M
 
         self.alice.node_send(self.bob_address, large_file)
 
-        time.sleep(15)  # allow time to connect and send
+        time.sleep(120)  # allow time to connect and send
 
-        expected_bob = {self.alice_address: large_file}
-        self.assertEqual(expected_bob, self.bob.node_received())
+        # check size
+        received = self.bob.node_received()[self.alice_address]
+        self.assertEqual(len(received), len(large_file))
+
+        # check hash
+        received_hash = hashlib.sha256(received).digest()
+        large_file_hash = hashlib.sha256(large_file).digest()
+        self.assertEqual(received_hash, large_file_hash)
 
 
 if __name__ == "__main__":
