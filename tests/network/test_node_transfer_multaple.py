@@ -37,18 +37,18 @@ class TestNodeTransferMultaple(unittest.TestCase):
 
     def test_connects(self):
 
-        # connect nodes to each other
-        self.alice.node_connect(self.bob_address)
-        self.alice.node_connect(self.charlie_address)
-
-        time.sleep(15)  # allow time to connect
-
         self.alice.send(self.bob_address, b"alice_to_bob")
         self.alice.send(self.charlie_address, b"alice_to_charlie")
+
+        time.sleep(15)  # other test is responsable for simultainous connect
+
         self.bob.send(self.alice_address, b"bob_to_alice")
+
+        time.sleep(15)  # other test is responsable for simultainous connect
+
         self.charlie.send(self.alice_address, b"charlie_to_alice")
         
-        time.sleep(15)  # allow time to send
+        time.sleep(15)  # allow time to connect and send
 
         self.assertEqual(len(self.alice.received()), 2)
         self.assertEqual(len(self.bob.received()), 1)

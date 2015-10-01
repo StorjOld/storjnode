@@ -31,19 +31,18 @@ class TestNodeTransferFullDuplex(unittest.TestCase):
         self.bob.disconnect()
 
     def test_connects(self):
-        self.alice.node_connect(self.bob_address)
+        self.alice.send(self.bob_address, b"alice")
 
-        time.sleep(15)  # allow time to connect
+        time.sleep(15)  # other test is responsable for simultainous connect
 
-        self.alice.send(self.bob_address, b"alices_test_data")
-        self.bob.send(self.alice_address, b"bobs_test_data")
+        self.bob.send(self.alice_address, b"bob")
 
-        time.sleep(15)  # allow time to send
+        time.sleep(15)  # allow time to connect and send
 
-        expected_alice = {self.bob_address: b"bobs_test_data"}
+        expected_alice = {self.bob_address: b"bob"}
         self.assertEqual(expected_alice, self.alice.received())
 
-        expected_bob = {self.alice_address: b"alices_test_data"}
+        expected_bob = {self.alice_address: b"alice"}
         self.assertEqual(expected_bob, self.bob.received())
 
 

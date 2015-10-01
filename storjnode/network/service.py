@@ -1,4 +1,5 @@
 import random
+import time
 import string
 import btctxstore
 import shlex
@@ -30,11 +31,11 @@ CONNECTING = "CONNECTING"
 DISCONNECTED = "DISCONNECTED"
 
 
-def _encode_data(data):
+def _encode(data):
     return base64.b64encode(data).decode("ascii")
 
 
-def _decode_data(base64_str):
+def _decode(base64_str):
     return base64.b64decode(base64_str.encode("ascii"))
 
 
@@ -46,32 +47,46 @@ def _generate_nick():
 
 class Service(object):
 
-    def __init__(self, initial_relaynodes, wif, testnet=False):
+    def __init__(self, initial_relaynodes, wif, testnet=False, expiretime=20):
         self._btctxstore = btctxstore.BtcTxStore(testnet=testnet)
-        self._expiretime = 1337  # FIXME get from config
-        self._testnet = testnet
-        self._server_list = initial_relaynodes[:]  # never modify original
-        self._wif = wif
-        self._address = self._btctxstore.get_address(self._wif)
-        self._channel = "#{address}".format(address=self._address)
-        self._client_reactor = irc.client.Reactor()
-        self._client_thread = None
-        self._client_stop = True
-        self._connection = None  # connection to storj irc network
 
-        self._dcc_connections = {}  # {address: {"STATE": X}, ...}
-        self._package_received_queue = Queue()
+        # package settings
+        self._expiretime = expiretime
+        self._testnet = testnet
+        self._wif = wif
+
+        # syn listen channel
+        self._address = self._btctxstore.get_address(self._wif)
+        self._server_list = initial_relaynodes[:]  # never modify original
+        self._channel = "#{address}".format(address=self._address)
+
+        # reactor
+        self._reactor = irc.client.Reactor()
+        self._reactor_thread = None
+        self._reactor_stop = True
+
+        # sender
+        self._sender_thread = None
+        self._sender_stop = True
+
+        # connections
+        self._connection = None  # connection to storj irc network
+        self._dcc_connections = {}  # {address: {"state": X, "dcc": Y}, ...}
+
+        # io queues
+        self._received_queue = Queue()
+        self._outgoing_queues = {}  # {address: Queue, ...}
 
     ######################
     # NETWORK CONNECTION #
     ######################
 
     def connect(self):
-        log.info("Starting network module!")
+        log.info("Starting network service!")
         self._find_relay_node()
         self._add_handlers()
-        self._start_client()
-        log.info("Network module started!")
+        self._start_threads()
+        log.info("Network service started!")
 
     def _find_relay_node(self):
         # try to connect to servers in a random order until successful
@@ -89,7 +104,7 @@ class Service(object):
         try:
             logmsg = "Connecting to {host}:{port} as {nick}."
             log.info(logmsg.format(host=host, port=port, nick=nick))
-            server = self._client_reactor.server()
+            server = self._reactor.server()
             self._connection = server.connect(host, port, nick)
             log.info("Connection established!")
         except irc.client.ServerConnectionError:
@@ -125,50 +140,86 @@ class Service(object):
         #raise ConnectionError()
 
     def _on_dccmsg(self, connection, event):
-        packagedata = _decode_data(event.arguments[0].decode("ascii"))
+        packagedata = _decode(event.arguments[0].decode("ascii"))
         parsed = package.parse(packagedata, self._expiretime, self._testnet)
 
         if parsed is not None and parsed["type"] == "ACK":
             self._on_ack(connection, event, parsed)
         elif parsed is not None and parsed["type"] == "DATA":
             log.info("Received package from {0}".format(parsed["node"]))
-            self._package_received_queue.put(parsed)
+            self._received_queue.put(parsed)
 
-    def _start_client(self):
-        self._client_stop = False
-        self._client_thread = Thread(target=self._client_thread_loop)
-        self._client_thread.start()
+    def _start_threads(self):
 
-    def _client_thread_loop(self):
+        # start reactor
+        self._reactor_stop = False
+        self._reactor_thread = Thread(target=self._reactor_thread_loop)
+        self._reactor_thread.start()
+
+        # start sender
+        self._sender_stop = False
+        self._sender_thread = Thread(target=self._sender_thread_loop)
+        self._sender_thread.start()
+
+    def _send_data(self, node, data):
+        # FIXME split package.MAX_DATA_SIZE chunks per package
+        dcc = self._dcc_connections[node]["dcc"]
+        dcc.privmsg(_encode(package.data(self._wif, data,
+                            testnet=self._testnet)))
+        logmsg = "Sent {total}bytes of data to {node}"
+        log.info(logmsg.format(total=len(data), node=node))
+
+    def _sender_thread_loop(self):
+        while not self._sender_stop:  # thread loop
+            for node, queue in self._outgoing_queues.copy().items():
+                if self._node_state(node) == CONNECTING:
+                    pass  # wait until connected
+                elif self._node_state(node) == DISCONNECTED:
+                    self._node_connect(node)  # and wait until connected
+                else:  # process send queue
+                    data = b""
+                    while not queue.empty():  # concat queued data
+                        data = data + queue.get()
+                    if len(data) > 0:
+                        self._send_data(node, data)
+            time.sleep(0.2)  # sleep a little to not hog the cpu
+
+    def _reactor_thread_loop(self):
         # This loop should specifically *not* be mutex-locked.
         # Otherwise no other thread would ever be able to change
         # the shared state of a Reactor object running this function.
-        while not self._client_stop:
-            self._client_reactor.process_once(timeout=0.2)
+        while not self._reactor_stop:
+            self._reactor.process_once(timeout=0.2)
 
     def connected(self):
         return (self._connection is not None and
-                self._client_thread is not None)
+                self._reactor_thread is not None)
 
     def reconnect(self):
         self.disconnect()
         self.connect()
 
     def disconnect(self):
-        log.info("Stopping network module!")
+        log.info("Stopping network service!")
 
-        # stop client
-        if self._client_thread is not None:
-            self._client_stop = True
-            self._client_thread.join()
-            self._client_thread = None
+        # stop reactor
+        if self._reactor_thread is not None:
+            self._reactor_stop = True
+            self._reactor_thread.join()
+            self._reactor_thread = None
+
+        # stop sender
+        if self._sender_thread is not None:
+            self._sender_stop = True
+            self._sender_thread.join()
+            self._sender_thread = None
 
         # close connection
         if self._connection is not None:
             self._connection.close()
             self._connection = None
 
-        log.info("Network module stopped!")
+        log.info("Network service stopped!")
 
     def _on_connect(self, connection, event):
         # join own channel
@@ -180,51 +231,48 @@ class Service(object):
     # NODE CONNECTIONS #
     ####################
 
-    def node_connected(self, node_address):
-        return self.node_connection_state(node_address) == CONNECTED
-
-    def node_connection_state(self, node_address):
-        if node_address in self._dcc_connections:
-            return self._dcc_connections[node_address]["STATE"]
+    def _node_state(self, node):
+        if node in self._dcc_connections:
+            return self._dcc_connections[node]["state"]
         return DISCONNECTED
 
-    def node_dissconnect(self, node_address):
-        if node_address in self._dcc_connections:
-            dcc = self._dcc_connections[node_address]["dcc"]
+    def _disconnect_node(self, node):
+        if node in self._dcc_connections:
+            dcc = self._dcc_connections[node]["dcc"]
             if dcc is not None:
                 dcc.disconnect()
-            del self._dcc_connections[node_address]
+            del self._dcc_connections[node]
 
     ###########################
     # REQUEST NODE CONNECTION #
     ###########################
 
-    def node_connect(self, node_address):
-        log.info("Requesting connection to node {0}.".format(node_address))
+    def _node_connect(self, node):
+        log.info("Requesting connection to node {0}.".format(node))
 
         # check for existing connection
-        if self.node_connection_state(node_address) != DISCONNECTED:
-            log.warning("Existing connection to {0}.".format(node_address))
+        if self._node_state(node) != DISCONNECTED:
+            log.warning("Existing connection to {0}.".format(node))
             return
 
         # send connection request
-        self._send_syn(node_address)
+        self._send_syn(node)
 
         # update connection state
-        self._dcc_connections[node_address] = {
-            "STATE": CONNECTING,
+        self._dcc_connections[node] = {
+            "state": CONNECTING,
             "dcc": None
         }
 
-    def _send_syn(self, node_address):
-        node_channel = "#{address}".format(address=node_address)
+    def _send_syn(self, node):
+        node_channel = "#{address}".format(address=node)
 
         log.info("Connetcion to node channel {0}".format(node_channel))
         self._connection.join(node_channel)  # node checks own channel for syns
 
         log.info("Sending syn to channel {0}".format(node_channel))
         syn = package.syn(self._wif, testnet=self._testnet)
-        self._connection.privmsg(node_channel, _encode_data(syn))
+        self._connection.privmsg(node_channel, _encode(syn))
 
         log.info("Disconneting from node channel {0}".format(node_channel))
         self._connection.part([node_channel])  # leave to reduce traffic
@@ -240,7 +288,7 @@ class Service(object):
         if event.target != self._channel:
             return
 
-        packagedata = _decode_data(event.arguments[0])
+        packagedata = _decode(event.arguments[0])
         parsed = package.parse(packagedata, self._expiretime,
                                self._testnet)
         if parsed is not None and parsed["type"] == "SYN":
@@ -250,23 +298,25 @@ class Service(object):
         log.info("Received syn from {node}".format(**syn))
 
         # check for existing connection
-        if self.node_connection_state(syn["node"]) != DISCONNECTED:
-            log.warning("Existing connection to {node}.".format(**syn))
+        state = self._node_state(syn["node"])
+        if state != DISCONNECTED:
+            logmsg = "Existing connection to {node}: {state}."
+            log.warning(logmsg.format(node=syn["node"], state=state))
             return
 
         # accept connection
         dcc = self._send_synack(connection, event, syn)
 
         # update connection state
-        self._dcc_connections[syn["node"]] = {"STATE": CONNECTING, "dcc": dcc}
+        self._dcc_connections[syn["node"]] = {"state": CONNECTING, "dcc": dcc}
 
     def _send_synack(self, connection, event, syn):
         log.info("Sending synack to {node}.".format(**syn))
-        dcc = self._client_reactor.dcc("raw")
+        dcc = self._reactor.dcc("raw")
         dcc.listen()
         msg_parts = map(str, (
             'CHAT',
-            _encode_data(package.synack(self._wif, testnet=self._testnet)),
+            _encode(package.synack(self._wif, testnet=self._testnet)),
             irc.client.ip_quad_to_numstr(dcc.localaddress),
             dcc.localport
         ))
@@ -288,7 +338,7 @@ class Service(object):
             return
 
         # get synack package
-        synack_data = _decode_data(synack_data)
+        synack_data = _decode(synack_data)
         parsed = package.parse(synack_data, self._expiretime, self._testnet)
         if parsed is None or parsed["type"] != "SYNACK":
             return
@@ -297,24 +347,23 @@ class Service(object):
         log.info("Received synack from {0}".format(node))
 
         # check for existing connection
-        if self.node_connection_state(node) != CONNECTING:
+        if self._node_state(node) != CONNECTING:
             log.warning("Invalid state for {0}.".format(node))
-            self.node_dissconnect(node)
+            self._disconnect_node(node)
             return
 
         # setup dcc
         peer_address = irc.client.ip_numstr_to_quad(peer_address)
         peer_port = int(peer_port)
-        dcc = self._client_reactor.dcc("raw")
+        dcc = self._reactor.dcc("raw")
         dcc.connect(peer_address, peer_port)
 
         # acknowledge connection
         log.info("Sending ack to {0}".format(node))
-        dcc.privmsg(_encode_data(package.ack(self._wif,
-                                             testnet=self._testnet)))
+        dcc.privmsg(_encode(package.ack(self._wif, testnet=self._testnet)))
 
         # update connection state
-        self._dcc_connections[node] = {"STATE": CONNECTED, "dcc": dcc}
+        self._dcc_connections[node] = {"state": CONNECTED, "dcc": dcc}
 
     #####################################
     # COMPLETE ACCEPTED NODE CONNECTION #
@@ -324,32 +373,41 @@ class Service(object):
         log.info("Received ack from {0}".format(ack["node"]))
 
         # check current connection state
-        if self.node_connection_state(ack["node"]) != CONNECTING:
+        if self._node_state(ack["node"]) != CONNECTING:
             log.warning("Invalid state for {0}.".format(ack["node"]))
             self.node_dissconnect(ack["node"])
             return
 
         # update connection state
-        self._dcc_connections[ack["node"]]["STATE"] = CONNECTED
+        self._dcc_connections[ack["node"]]["state"] = CONNECTED
 
-    #############
-    # MESSAGING #
-    #############
+    ######
+    # IO #
+    ######
 
-    def send(self, node_address, msg_data):
-        log.info("Sending data to {0}".format(node_address))
-        dcc = self._dcc_connections[node_address]["dcc"]
-        dcc.privmsg(_encode_data(package.data(self._wif, msg_data,
-                                              testnet=self._testnet)))
+    def send(self, node_address, data):
+        # TODO assert address valid
+        assert(isinstance(data, bytes))
+
+        # get outgoing queue
+        queue = self._outgoing_queues.get(node_address)
+        if queue is None:
+            self._outgoing_queues[node_address] = queue = Queue()
+
+        # queue packages
+        queue.put(data)
+
+        logmsg = "Queued {total}bytes to send {node}"
+        log.info(logmsg.format(total=len(data), node=node_address))
 
     def received(self):
         result = {}
-        while not self._package_received_queue.empty():
-            package = self._package_received_queue.get()
+        while not self._received_queue.empty():
+            package = self._received_queue.get()
             node = package["node"]
             newdata = package["data"]
-            alldata = result.get(node, None)
-            result[node] = newdata if alldata is None else alldata + newdata
+            prevdata = result.get(node, None)
+            result[node] = newdata if prevdata is None else prevdata + newdata
         return result
 
     ##################
