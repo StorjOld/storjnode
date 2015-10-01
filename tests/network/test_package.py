@@ -1,8 +1,3 @@
-import logging
-LOG_FORMAT = "%(levelname)s %(name)s %(lineno)d: %(message)s"
-logging.basicConfig(format=LOG_FORMAT, level=logging.DEBUG)
-
-
 import time
 import unittest
 from btctxstore import BtcTxStore
@@ -11,7 +6,7 @@ from pycoin.encoding import a2b_hashed_base58
 from btctxstore.common import num_to_bytes
 
 
-class TestNetworkPackageParse(unittest.TestCase):
+class TestPackage(unittest.TestCase):
 
     def setUp(self):
         self.btctxstore = BtcTxStore()
@@ -42,7 +37,6 @@ class TestNetworkPackageParse(unittest.TestCase):
         hacked_bytes = b'0X' + package_bytes[2:]  # hack type
         parsed = package.parse(hacked_bytes, 10, self.btctxstore.testnet)
         self.assertEqual(parsed, None)
-
 
     def test_ignores_stale_package(self):
         package_bytes = package._create(package._TYPE_DATA, self.wif,

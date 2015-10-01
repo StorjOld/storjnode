@@ -1,7 +1,3 @@
-import logging
-LOG_FORMAT = "%(levelname)s %(name)s %(lineno)d: %(message)s"                                                  
-logging.basicConfig(format=LOG_FORMAT, level=logging.INFO)   
-
 import time
 import unittest
 import btctxstore
@@ -11,7 +7,7 @@ from storjnode import network
 INITIAL_RELAYNODES = [("127.0.0.1", 6667)]
 
 
-class TestNodeTransferMultaple(unittest.TestCase):
+class TestTransferNetwork(unittest.TestCase):
 
     def setUp(self):
         self.btctxstore = btctxstore.BtcTxStore()
@@ -22,11 +18,11 @@ class TestNodeTransferMultaple(unittest.TestCase):
         self.charlie_wif = self.btctxstore.create_key()
         self.charlie_address = self.btctxstore.get_address(self.charlie_wif)
 
-        self.alice = network.Network(INITIAL_RELAYNODES, self.alice_wif)
+        self.alice = network.Service(INITIAL_RELAYNODES, self.alice_wif)
         self.alice.connect()
-        self.bob = network.Network(INITIAL_RELAYNODES, self.bob_wif)
+        self.bob = network.Service(INITIAL_RELAYNODES, self.bob_wif)
         self.bob.connect()
-        self.charlie = network.Network(INITIAL_RELAYNODES, self.charlie_wif)
+        self.charlie = network.Service(INITIAL_RELAYNODES, self.charlie_wif)
         self.charlie.connect()
         time.sleep(15)
 
@@ -47,7 +43,7 @@ class TestNodeTransferMultaple(unittest.TestCase):
         time.sleep(15)  # other test is responsable for simultainous connect
 
         self.charlie.send(self.alice_address, b"charlie_to_alice")
-        
+
         time.sleep(15)  # allow time to connect and send
 
         self.assertEqual(len(self.alice.received()), 2)

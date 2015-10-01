@@ -1,9 +1,4 @@
-import logging
-LOG_FORMAT = "%(levelname)s %(name)s %(lineno)d: %(message)s"
-logging.basicConfig(format=LOG_FORMAT, level=logging.INFO)
-
 import time
-import btctxstore
 import unittest
 import btctxstore
 from storjnode import network
@@ -20,9 +15,9 @@ class TestFullDuplex(unittest.TestCase):
         self.alice_address = self.btctxstore.get_address(self.alice_wif)
         self.bob_wif = self.btctxstore.create_key()
         self.bob_address = self.btctxstore.get_address(self.bob_wif)
-        self.alice = network.Network(INITIAL_RELAYNODES, self.alice_wif)
+        self.alice = network.Service(INITIAL_RELAYNODES, self.alice_wif)
         self.alice.connect()
-        self.bob = network.Network(INITIAL_RELAYNODES, self.bob_wif)
+        self.bob = network.Service(INITIAL_RELAYNODES, self.bob_wif)
         self.bob.connect()
         time.sleep(15)
 

@@ -1,6 +1,6 @@
 import unittest
 import btctxstore
-from storjnode.network import Network
+from storjnode.network import Service
 
 
 INITIAL_RELAYNODES = [("127.0.0.1", 6667)]
@@ -15,29 +15,29 @@ class TestConnection(unittest.TestCase):
 
     def test_connects(self):
         # connect
-        self.network = Network(INITIAL_RELAYNODES, self.wif)
-        self.network.connect()
+        self.service = Service(INITIAL_RELAYNODES, self.wif)
+        self.service.connect()
 
         # is connected
-        self.assertTrue(self.network.connected())
+        self.assertTrue(self.service.connected())
 
         # disconnect
-        self.network.disconnect()
-        self.assertFalse(self.network.connected())
+        self.service.disconnect()
+        self.assertFalse(self.service.connected())
 
     def test_restart(self):
         # connect
-        self.network = Network(INITIAL_RELAYNODES, self.wif)
-        self.network.connect()
+        self.service = Service(INITIAL_RELAYNODES, self.wif)
+        self.service.connect()
 
         # test reconnect
-        self.assertTrue(self.network.connected()) # is connected
-        self.network.reconnect()
-        self.assertTrue(self.network.connected()) # is connected again
+        self.assertTrue(self.service.connected())  # is connected
+        self.service.reconnect()
+        self.assertTrue(self.service.connected())  # is connected again
 
         # disconnect
-        self.network.disconnect()
-        self.assertFalse(self.network.connected())
+        self.service.disconnect()
+        self.assertFalse(self.service.connected())
 
 
 if __name__ == "__main__":

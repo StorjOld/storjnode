@@ -1,1 +1,1 @@
-from . service import Service as Network
+from . service import Service

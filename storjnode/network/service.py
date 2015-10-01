@@ -15,7 +15,12 @@ except ImportError:
     from queue import Queue  # py3
 
 
-log = logging.getLogger(__name__)
+_log = logging.getLogger(__name__)
+
+
+CONNECTED = "CONNECTED"
+CONNECTING = "CONNECTING"
+DISCONNECTED = "DISCONNECTED"
 
 
 class NetworkException(Exception):
@@ -24,11 +29,6 @@ class NetworkException(Exception):
 
 class ConnectionError(NetworkException):
     pass
-
-
-CONNECTED = "CONNECTED"
-CONNECTING = "CONNECTING"
-DISCONNECTED = "DISCONNECTED"
 
 
 def _encode(data):
@@ -82,11 +82,11 @@ class Service(object):
     ######################
 
     def connect(self):
-        log.info("Starting network service!")
+        _log.info("Starting network service!")
         self._find_relay_node()
         self._add_handlers()
         self._start_threads()
-        log.info("Network service started!")
+        _log.info("Network service started!")
 
     def _find_relay_node(self):
         # try to connect to servers in a random order until successful
@@ -97,19 +97,17 @@ class Service(object):
             if self._connection is not None:
                 break
         if self._connection is None:
-            log.error("Couldn't connect to network!")
+            _log.error("Couldn't connect to network!")
             raise ConnectionError()
 
     def _connect_to_relaynode(self, host, port, nick):
         try:
-            logmsg = "Connecting to {host}:{port} as {nick}."
-            log.info(logmsg.format(host=host, port=port, nick=nick))
+            _log.info("Connecting to %s:%s as %s.", host, port, nick)
             server = self._reactor.server()
             self._connection = server.connect(host, port, nick)
-            log.info("Connection established!")
+            _log.info("Connection established!")
         except irc.client.ServerConnectionError:
-            logmsg = "Failed to connect to {host}:{port} as {nick}."
-            log.warning(logmsg.format(host=host, port=port, nick=nick))
+            _log.warning("Failed connecting to %s:%s as %s", host, port, nick)
 
     def _add_handlers(self):
         c = self._connection
@@ -125,16 +123,12 @@ class Service(object):
         connection.nick(_generate_nick())  # retry in case of miracle
 
     def _on_disconnect(self, connection, event):
-        log.info("{0} disconnected! {1}".format(
-            self.__class__.__name__, event.arguments[0]
-        ))
+        _log.info("Disconnected! %s", event.arguments[0])
         # FIXME what is the best thing to do here, just reconnect?
         #raise ConnectionError()
 
     def _on_dcc_disconnect(self, connection, event):
-        log.info("{0} dcc disconnected! {1}".format(
-            self.__class__.__name__, event.arguments[0]
-        ))
+        _log.info("DCC Disconnected! %s", event.arguments[0])
         self.connection.quit()
         # FIXME remove from _dcc_connections
         #raise ConnectionError()
@@ -146,7 +140,7 @@ class Service(object):
         if parsed is not None and parsed["type"] == "ACK":
             self._on_ack(connection, event, parsed)
         elif parsed is not None and parsed["type"] == "DATA":
-            log.info("Received package from {0}".format(parsed["node"]))
+            _log.info("Received package from %s", parsed["node"])
             self._received_queue.put(parsed)
 
     def _start_threads(self):
@@ -169,8 +163,7 @@ class Service(object):
             packagedchunk = package.data(self._wif, chunk,
                                          testnet=self._testnet)
             dcc.privmsg(_encode(packagedchunk))
-        logmsg = "Sent {total}bytes of data to {node}"
-        log.info(logmsg.format(total=len(data), node=node))
+        _log.info("Sent %sbytes of data to %s", len(data), node)
 
     def _sender_thread_loop(self):
         while not self._sender_stop:  # thread loop
@@ -203,7 +196,7 @@ class Service(object):
         self.connect()
 
     def disconnect(self):
-        log.info("Stopping network service!")
+        _log.info("Stopping network service!")
 
         # stop reactor
         if self._reactor_thread is not None:
@@ -222,12 +215,12 @@ class Service(object):
             self._connection.close()
             self._connection = None
 
-        log.info("Network service stopped!")
+        _log.info("Network service stopped!")
 
     def _on_connect(self, connection, event):
         # join own channel
         # TODO only if config allows incoming connections
-        log.info("Connecting to own channel {0}.".format(self._channel))
+        _log.info("Connecting to own channel %s", self._channel)
         connection.join(self._channel)
 
     ####################
@@ -251,11 +244,11 @@ class Service(object):
     ###########################
 
     def _node_connect(self, node):
-        log.info("Requesting connection to node {0}.".format(node))
+        _log.info("Requesting connection to node %s", node)
 
         # check for existing connection
         if self._node_state(node) != DISCONNECTED:
-            log.warning("Existing connection to {0}.".format(node))
+            _log.warning("Existing connection to %s", node)
             return
 
         # send connection request
@@ -270,14 +263,14 @@ class Service(object):
     def _send_syn(self, node):
         node_channel = "#{address}".format(address=node)
 
-        log.info("Connetcion to node channel {0}".format(node_channel))
+        _log.info("Connetcion to node channel %s", node_channel)
         self._connection.join(node_channel)  # node checks own channel for syns
 
-        log.info("Sending syn to channel {0}".format(node_channel))
+        _log.info("Sending syn to channel %s", node_channel)
         syn = package.syn(self._wif, testnet=self._testnet)
         self._connection.privmsg(node_channel, _encode(syn))
 
-        log.info("Disconneting from node channel {0}".format(node_channel))
+        _log.info("Disconneting from node channel %s", node_channel)
         self._connection.part([node_channel])  # leave to reduce traffic
 
     ##########################
@@ -298,13 +291,12 @@ class Service(object):
             self._on_syn(connection, event, parsed)
 
     def _on_syn(self, connection, event, syn):
-        log.info("Received syn from {node}".format(**syn))
+        _log.info("Received syn from %s", syn["node"])
 
         # check for existing connection
         state = self._node_state(syn["node"])
         if state != DISCONNECTED:
-            logmsg = "Existing connection to {node}: {state}."
-            log.warning(logmsg.format(node=syn["node"], state=state))
+            _log.warning("Existing connection to %s (%s)", syn["node"], state)
             return
 
         # accept connection
@@ -314,7 +306,7 @@ class Service(object):
         self._dcc_connections[syn["node"]] = {"state": CONNECTING, "dcc": dcc}
 
     def _send_synack(self, connection, event, syn):
-        log.info("Sending synack to {node}.".format(**syn))
+        _log.info("Sending synack to %s", syn["node"])
         dcc = self._reactor.dcc("raw")
         dcc.listen()
         msg_parts = map(str, (
@@ -347,11 +339,11 @@ class Service(object):
             return
 
         node = parsed["node"]
-        log.info("Received synack from {0}".format(node))
+        _log.info("Received synack from %s", node)
 
         # check for existing connection
         if self._node_state(node) != CONNECTING:
-            log.warning("Invalid state for {0}.".format(node))
+            _log.warning("Invalid state for %s", node)
             self._disconnect_node(node)
             return
 
@@ -362,7 +354,7 @@ class Service(object):
         dcc.connect(peer_address, peer_port)
 
         # acknowledge connection
-        log.info("Sending ack to {0}".format(node))
+        _log.info("Sending ack to %s", node)
         dcc.privmsg(_encode(package.ack(self._wif, testnet=self._testnet)))
 
         # update connection state
@@ -373,11 +365,11 @@ class Service(object):
     #####################################
 
     def _on_ack(self, connection, event, ack):
-        log.info("Received ack from {0}".format(ack["node"]))
+        _log.info("Received ack from %s", ack["node"])
 
         # check current connection state
         if self._node_state(ack["node"]) != CONNECTING:
-            log.warning("Invalid state for {0}.".format(ack["node"]))
+            _log.warning("Invalid state for %s", ack["node"])
             self.node_dissconnect(ack["node"])
             return
 
@@ -391,17 +383,11 @@ class Service(object):
     def send(self, node_address, data):
         # TODO assert address valid
         assert(isinstance(data, bytes))
-
-        # get outgoing queue
         queue = self._outgoing_queues.get(node_address)
         if queue is None:
             self._outgoing_queues[node_address] = queue = Queue()
-
-        # queue packages
         queue.put(data)
-
-        logmsg = "Queued {total}bytes to send {node}"
-        log.info(logmsg.format(total=len(data), node=node_address))
+        _log.info("Queued %sbytes to send %s", len(data), node_address)
 
     def received(self):
         result = {}
