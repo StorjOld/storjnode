@@ -131,8 +131,13 @@ class Service(object):
         # FIXME handle
 
     def _on_dcc_disconnect(self, connection, event):
-        _log.info("DCC Disconnected! %s", event.arguments[0])
-        # FIXME handle
+        with self._dcc_connections_mutex:
+            for node, props in self._dcc_connections.copy().items():
+                if props["dcc"] == connection:
+                    del self._dcc_connections[node]
+                    _log.info("%s disconnected!", node)
+                    return 
+        assert(False)  # unreachable code
 
     def _on_dccmsg(self, connection, event):
         packagedata = event.arguments[0]
@@ -160,27 +165,40 @@ class Service(object):
         for chunk in btctxstore.common.chunks(data, package.MAX_DATA_SIZE):
             packagedchunk = package.data(self._wif, chunk,
                                          testnet=self._testnet)
+            # FIXME keep track of bytes sent and requeue if unsent on error
+            if not dcc.connected:
+                msg = "DCC of %s not connected!" % node
+                _log.error(msg)
+                raise Exception(msg)
+            if dcc.socket is None:
+                msg = "DCC socket of %s missing!" % node
+                _log.error(msg)
+                raise Exception(msg)
+
             dcc.send_bytes(packagedchunk)
         _log.info("Sent %sbytes of data to %s", len(data), node)
+
+    def _process_outgoing(self, node, queue):
+        with self._dcc_connections_mutex:
+            if self._node_state(node) == CONNECTING:
+                pass  # wait until connected
+            elif self._node_state(node) == DISCONNECTED:
+                self._node_connect(node)
+                # and wait until connected
+            else:  # process send queue
+                dcc = self._dcc_connections[node]["dcc"]
+                assert(dcc is not None)
+                data = b""
+                while not queue.empty():  # concat queued data
+                    data = data + queue.get()
+                if len(data) > 0:
+                    self._send_data(node, dcc, data)
 
     def _sender_loop(self):
         while not self._sender_stop:  # thread loop
             if self.connected():
                 for node, queue in self._outgoing_queues.items():
-                    with self._dcc_connections_mutex:
-                        if self._node_state(node) == CONNECTING:
-                            pass  # wait until connected
-                        elif self._node_state(node) == DISCONNECTED:
-                            self._node_connect(node)
-                            # and wait until connected
-                        else:  # process send queue
-                            dcc = self._dcc_connections[node]["dcc"]
-                            assert(dcc is not None)
-                            data = b""
-                            while not queue.empty():  # concat queued data
-                                data = data + queue.get()
-                            if len(data) > 0:
-                                self._send_data(node, dcc, data)
+                    self._process_outgoing(node, queue)
             time.sleep(0.2)  # sleep a little to not hog the cpu
 
     def _reactor_loop(self):
@@ -203,16 +221,6 @@ class Service(object):
     def disconnect(self):
         _log.info("Stopping network service!")
 
-        # disconnect nodes
-        with self._dcc_connections_mutex:
-            for node, props in self._dcc_connections.copy().items():
-                _log.info("Disconnecting node %s", node)
-                dcc = props["dcc"]
-                if dcc is not None:
-                    dcc.disconnect()
-                del self._dcc_connections[node]
-            assert(len(self._dcc_connections) == 0)
-
         # stop reactor
         if self._reactor_thread is not None:
             self._reactor_stop = True
@@ -224,6 +232,16 @@ class Service(object):
             self._sender_stop = True
             self._sender_thread.join()
             self._sender_thread = None
+
+        # disconnect nodes
+        with self._dcc_connections_mutex:
+            for node, props in self._dcc_connections.copy().items():
+                _log.info("Disconnecting node %s", node)
+                dcc = props["dcc"]
+                if dcc is not None:
+                    dcc.disconnect()
+                # _on_dcc_disconnect handles entry deletion
+            assert(len(self._dcc_connections) == 0)
 
         # close connection
         with self._irc_connection_mutex:
