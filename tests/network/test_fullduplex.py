@@ -19,7 +19,7 @@ class TestFullDuplex(unittest.TestCase):
         self.alice.connect()
         self.bob = network.Service(INITIAL_RELAYNODES, self.bob_wif)
         self.bob.connect()
-        time.sleep(10)  # allow time to connect
+        time.sleep(15)  # allow time to connect
 
     def tearDown(self):
         self.alice.disconnect()
@@ -29,7 +29,7 @@ class TestFullDuplex(unittest.TestCase):
         self.alice.node_send(self.bob_address, b"alice")
         self.bob.node_send(self.alice_address, b"bob")
 
-        time.sleep(10)  # allow time to connect and send
+        time.sleep(15)  # allow time to connect and send
 
         expected_alice = {self.bob_address: b"bob"}
         self.assertEqual(expected_alice, self.alice.node_received())

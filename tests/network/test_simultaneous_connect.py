@@ -19,7 +19,7 @@ class TestSimultaneousConnect(unittest.TestCase):
         self.bob = network.Service(INITIAL_RELAYNODES, self.bob_wif)
         self.alice.connect()
         self.bob.connect()
-        time.sleep(10)  # allow time to connect
+        time.sleep(15)  # allow time to connect
 
     def tearDown(self):
         self.alice.disconnect()
@@ -29,7 +29,7 @@ class TestSimultaneousConnect(unittest.TestCase):
         self.alice.node_send(self.bob_address, b"something")
         self.bob.node_send(self.alice_address, b"something")
 
-        time.sleep(10)  # allow time to connect and send
+        time.sleep(15)  # allow time to connect and send
 
         self.assertEqual(self.alice.nodes_connected(), [self.bob_address])
         self.assertEqual(self.bob.nodes_connected(), [self.alice_address])

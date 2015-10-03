@@ -28,7 +28,7 @@ class TestTraficSimulation(unittest.TestCase):
         self.bob_received = 0
         self.alice_sent = 0
         self.bob_sent = 0
-        time.sleep(10)  # allow time to connect
+        time.sleep(15)  # allow time to connect
 
     def tearDown(self):
         self.alice.disconnect()
@@ -40,7 +40,7 @@ class TestTraficSimulation(unittest.TestCase):
             self.alice_received += len(received.get(self.bob_address, b""))
             self.alice.node_send(self.bob_address, b"data")
             self.alice_sent += 4
-            time.sleep(0.1)
+            time.sleep(0.2)
 
     def _bob_loop(self):
         while not self.bob_stop:  # thread loop
@@ -48,7 +48,7 @@ class TestTraficSimulation(unittest.TestCase):
             self.bob_received += len(received.get(self.alice_address, b""))
             self.bob.node_send(self.alice_address, b"data")
             self.bob_sent += 4
-            time.sleep(0.1)
+            time.sleep(0.2)
 
     def _start_threads(self):
         self.alice_thread = threading.Thread(target=self._alice_loop)
@@ -66,7 +66,7 @@ class TestTraficSimulation(unittest.TestCase):
 
         # other test is responsable for simultainous connect
         self.alice.node_send(self.bob_address, b"alice")
-        time.sleep(10)
+        time.sleep(15)
 
         self._start_threads()
         time.sleep(60)

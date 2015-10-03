@@ -161,12 +161,30 @@ class Service(object):
         self._sender_thread = threading.Thread(target=self._sender_loop)
         self._sender_thread.start()
 
+    def _send_bytes(self, dcc, data):
+        try:
+            dcc.send_bytes(data)
+            return True
+        except:
+            return False
+
     def _send_data(self, node, dcc, data):
+        bytes_sent = 0
         for chunk in btctxstore.common.chunks(data, package.MAX_DATA_SIZE):
             packagedchunk = package.data(self._wif, chunk,
                                          testnet=self._testnet)
-            dcc.send_bytes(packagedchunk)
-        _log.info("Sent %sbytes of data to %s", len(data), node)
+            if not self._send_bytes(dcc, packagedchunk):
+                _log.info("Sent %sbytes of data to %s", bytes_sent, node)
+                return bytes_sent
+            bytes_sent += len(chunk)
+        _log.info("Sent %sbytes of data to %s", bytes_sent, node)
+        return bytes_sent
+
+    def _clear_outgoing_queue(self, queue):
+        data = b""
+        while not queue.empty():  
+            data = data + queue.get()
+        return data
 
     def _process_outgoing(self, node, queue):
         with self._dcc_connections_mutex:
@@ -178,11 +196,12 @@ class Service(object):
             else:  # CONNECTED, process send queue
                 dcc = self._dcc_connections[node]["dcc"]
                 assert(dcc is not None)
-                data = b""
-                while not queue.empty():  # concat queued data
-                    data = data + queue.get()
+                data = self._clear_outgoing_queue(queue)
                 if len(data) > 0:
-                    self._send_data(node, dcc, data)
+                    bytes_sent = self._send_data(node, dcc, data)
+                    if bytes_sent != len(data):
+                        # FIXME close connection and requeue data safely 
+                        raise Exception("Failed to send data!")
 
     def _sender_loop(self):
         while not self._sender_stop:  # thread loop
@@ -396,9 +415,10 @@ class Service(object):
 
         # acknowledge connection
         _log.info("Sending ack to %s", node)
-        dcc.send_bytes(package.ack(self._wif, testnet=self._testnet))
+        ack = package.ack(self._wif, testnet=self._testnet)
+        sent = self._send_bytes(dcc, ack)
+        assert(sent)  # should work every time
 
-        # update connection state
         with self._dcc_connections_mutex:
             self._dcc_connections[node] = {"state": CONNECTED, "dcc": dcc}
 

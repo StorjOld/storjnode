@@ -19,7 +19,7 @@ class TestConcatsSmallData(unittest.TestCase):
         self.alice.connect()
         self.bob = network.Service(INITIAL_RELAYNODES, self.bob_wif)
         self.bob.connect()
-        time.sleep(10)  # allow time to connect
+        time.sleep(15)  # allow time to connect
 
     def tearDown(self):
         self.alice.disconnect()
@@ -30,7 +30,7 @@ class TestConcatsSmallData(unittest.TestCase):
         self.alice.node_send(self.bob_address, b"bar")
         self.alice.node_send(self.bob_address, b"baz")
 
-        time.sleep(10)  # allow time to connect and send
+        time.sleep(15)  # allow time to connect and send
 
         expected_bob = {self.alice_address: b"foobarbaz"}
         self.assertEqual(expected_bob, self.bob.node_received())
