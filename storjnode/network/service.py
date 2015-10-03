@@ -137,7 +137,7 @@ class Service(object):
                     del self._dcc_connections[node]
                     _log.info("%s disconnected!", node)
                     return
-        assert(False)  # unreachable code
+        assert(False)  # NOQA
 
     def _on_dccmsg(self, connection, event):
         packagedata = event.arguments[0]
@@ -281,11 +281,7 @@ class Service(object):
 
     def _node_connect(self, node):
         _log.info("Requesting connection to node %s", node)
-
-        # check for existing connection
-        if self._node_state(node) != DISCONNECTED:
-            _log.warning("Existing connection to %s", node)
-            return
+        assert(self._node_state(node) == DISCONNECTED)
 
         # send connection request
         if not self._send_syn(node):
@@ -416,8 +412,12 @@ class Service(object):
         # acknowledge connection
         _log.info("Sending ack to %s", node)
         ack = package.ack(self._wif, testnet=self._testnet)
-        sent = self._send_bytes(dcc, ack)
-        assert(sent)  # should work every time
+        successful = self._send_bytes(dcc, ack)
+        if not successful:
+            _log.info("Failed to send ack to %s", node)
+            # disconnect because anything else causes an invalid state
+            self._disconnect_node(ack["node"])
+            return
 
         with self._dcc_connections_mutex:
             self._dcc_connections[node] = {"state": CONNECTED, "dcc": dcc}
