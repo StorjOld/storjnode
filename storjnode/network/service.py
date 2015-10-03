@@ -165,16 +165,6 @@ class Service(object):
         for chunk in btctxstore.common.chunks(data, package.MAX_DATA_SIZE):
             packagedchunk = package.data(self._wif, chunk,
                                          testnet=self._testnet)
-            # FIXME keep track of bytes sent and requeue if unsent on error
-            if not dcc.connected:
-                msg = "DCC of %s not connected!" % node
-                _log.error(msg)
-                raise Exception(msg)
-            if dcc.socket is None:
-                msg = "DCC socket of %s missing!" % node
-                _log.error(msg)
-                raise Exception(msg)
-
             dcc.send_bytes(packagedchunk)
         _log.info("Sent %sbytes of data to %s", len(data), node)
 
@@ -322,7 +312,7 @@ class Service(object):
             self._on_syn(connection, event, parsed)
 
     def _on_simultaneous_connect(self, node):
-        _log.info("XXX Handeling simultaneous connection from %s", node)
+        _log.info("Handeling simultaneous connection from %s", node)
 
         # first both sides abort and reset to nothing
         self._disconnect_node(node)

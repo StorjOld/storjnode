@@ -20,7 +20,7 @@ class TestSendLargeFile(unittest.TestCase):
         self.alice.connect()
         self.bob = network.Service(INITIAL_RELAYNODES, self.bob_wif)
         self.bob.connect()
-        time.sleep(15)
+        time.sleep(10)  # allow time to connect
 
     def tearDown(self):
         self.alice.disconnect()

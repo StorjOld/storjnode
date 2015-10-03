@@ -24,7 +24,7 @@ class TestTransferNetwork(unittest.TestCase):
         self.bob.connect()
         self.charlie = network.Service(INITIAL_RELAYNODES, self.charlie_wif)
         self.charlie.connect()
-        time.sleep(15)
+        time.sleep(10)  # allow time to connect
 
     def tearDown(self):
         self.alice.disconnect()
@@ -32,13 +32,11 @@ class TestTransferNetwork(unittest.TestCase):
         self.charlie.disconnect()
 
     def test_connects(self):
-
         self.alice.node_send(self.bob_address, b"alice_to_bob")
         self.alice.node_send(self.charlie_address, b"alice_to_charlie")
-        time.sleep(15)  # other test is responsable for simultainous connect
         self.bob.node_send(self.alice_address, b"bob_to_alice")
-        time.sleep(15)  # other test is responsable for simultainous connect
         self.charlie.node_send(self.alice_address, b"charlie_to_alice")
+
         time.sleep(15)  # allow time to connect and send
 
         self.assertEqual(len(self.alice.node_received()), 2)

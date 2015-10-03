@@ -14,6 +14,7 @@ class TestConnection(unittest.TestCase):
         self.address = self.btctxstore.get_address(self.wif)
 
     def test_connects(self):
+
         # connect
         self.service = Service(INITIAL_RELAYNODES, self.wif)
         self.service.connect()
@@ -26,6 +27,7 @@ class TestConnection(unittest.TestCase):
         self.assertFalse(self.service.connected())
 
     def test_restart(self):
+
         # connect
         self.service = Service(INITIAL_RELAYNODES, self.wif)
         self.service.connect()
