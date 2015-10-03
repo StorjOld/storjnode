@@ -18,6 +18,7 @@ except ImportError:
 _log = logging.getLogger(__name__)
 
 
+AWAITING = "AWAITING"  # when a simultaneous connection attempt occured
 CONNECTED = "CONNECTED"
 CONNECTING = "CONNECTING"
 DISCONNECTED = "DISCONNECTED"
@@ -92,11 +93,11 @@ class Service(object):
             self._connect_to_relaynode(host, port, _generate_nick())
 
             with self._irc_connection_mutex:
-                if (self._irc_connection is not None and 
+                if (self._irc_connection is not None and
                     self._irc_connection.is_connected()): # successful
                     break
         with self._irc_connection_mutex:
-            if not (self._irc_connection is not None and 
+            if not (self._irc_connection is not None and
                     self._irc_connection.is_connected()):
                 _log.error("Couldn't connect to network!")
                 raise ConnectionError()
@@ -135,7 +136,7 @@ class Service(object):
                 if props["dcc"] == connection:
                     del self._dcc_connections[node]
                     _log.info("%s disconnected!", node)
-                    return 
+                    return
         assert(False)  # unreachable code
 
     def _on_dccmsg(self, connection, event):
@@ -179,12 +180,12 @@ class Service(object):
 
     def _process_outgoing(self, node, queue):
         with self._dcc_connections_mutex:
-            if self._node_state(node) == CONNECTING:
+            if self._node_state(node) in [CONNECTING, AWAITING]:
                 pass  # wait until connected
             elif self._node_state(node) == DISCONNECTED:
                 self._node_connect(node)
                 # and wait until connected
-            else:  # process send queue
+            else:  # CONNECTED, process send queue
                 dcc = self._dcc_connections[node]["dcc"]
                 assert(dcc is not None)
                 data = b""
@@ -209,7 +210,7 @@ class Service(object):
 
     def connected(self):
         with self._irc_connection_mutex:
-            return (self._irc_connection is not None and 
+            return (self._irc_connection is not None and
                     self._irc_connection.is_connected() and
                     self._reactor_thread is not None)
 
@@ -217,39 +218,27 @@ class Service(object):
         self.disconnect()
         self.connect()
 
-    def disconnect(self):
-        _log.info("Stopping network service!")
-
-        # stop reactor
+    def _stop_threads(self):
         if self._reactor_thread is not None:
             self._reactor_stop = True
             self._reactor_thread.join()
             self._reactor_thread = None
-
-        # stop sender
         if self._sender_thread is not None:
             self._sender_stop = True
             self._sender_thread.join()
             self._sender_thread = None
 
-        # disconnect nodes
-        with self._dcc_connections_mutex:
-            for node, props in self._dcc_connections.copy().items():
-                _log.info("Disconnecting node %s", node)
-                dcc = props["dcc"]
-                if dcc is not None:
-                    dcc.disconnect()
-                    # _on_dcc_disconnect handles entry deletion
-                else:
-                    del self._dcc_connections[node]
-            assert(len(self._dcc_connections) == 0)
-
-        # close connection
+    def _close_connection(self):
         with self._irc_connection_mutex:
             if self._irc_connection is not None:
                 self._irc_connection.close()
                 self._irc_connection = None
 
+    def disconnect(self):
+        _log.info("Stopping network service!")
+        self._stop_threads()
+        self._disconnect_nodes()
+        self._close_connection()
         _log.info("Network service stopped!")
 
     def _on_connect(self, connection, event):
@@ -264,13 +253,22 @@ class Service(object):
                 return self._dcc_connections[node]["state"]
             return DISCONNECTED
 
+    def _disconnect_nodes(self):
+        with self._dcc_connections_mutex:
+            for node in self._dcc_connections.copy().keys():
+                self._disconnect_node(node)
+            assert(len(self._dcc_connections) == 0)
+
     def _disconnect_node(self, node):
         with self._dcc_connections_mutex:
             if node in self._dcc_connections:
+                _log.info("Disconnecting node %s", node)
                 dcc = self._dcc_connections[node]["dcc"]
                 if dcc is not None:
                     dcc.disconnect()
-                del self._dcc_connections[node]
+                    # _on_dcc_disconnect handles entry deletion
+                else:
+                    del self._dcc_connections[node]
 
     def _node_connect(self, node):
         _log.info("Requesting connection to node %s", node)
@@ -324,22 +322,27 @@ class Service(object):
             self._on_syn(connection, event, parsed)
 
     def _on_simultaneous_connect(self, node):
-        _log.info("Handeling simultaneous connection from %s", node)
+        _log.info("XXX Handeling simultaneous connection from %s", node)
 
-        # both sides abort
+        # first both sides abort and reset to nothing
         self._disconnect_node(node)
 
         # node whos address is first when sorted alphanumericly
         # is repsonsabe for restarting the connection
         if sorted([self._address, node])[0] == self._address:
-            self._node_connect(node)
+            _log.info("Attemting to reconnect to %s", node)
+            # _process_outgoing will reconnect automaticly when reset
+        else:
+            _log.info("Waiting for %s to reconnect", node)
+            # prevent _process_outgoing from reconnecting automaticly
+            with self._dcc_connections_mutex:
+                self._dcc_connections[node] = {"state": AWAITING, "dcc": None}
 
     def _on_syn(self, connection, event, syn):
         _log.info("Received syn from %s", syn["node"])
 
         # check for existing connection
-        state = self._node_state(syn["node"])
-        if state != DISCONNECTED:
+        if self._node_state(syn["node"]) not in [DISCONNECTED, AWAITING]:
             self._on_simultaneous_connect(syn["node"])
             return
 
@@ -348,7 +351,10 @@ class Service(object):
 
         # update connection state
         with self._dcc_connections_mutex:
-            self._dcc_connections[syn["node"]] = {"state": CONNECTING, "dcc": dcc}
+            self._dcc_connections[syn["node"]] = {
+                "state": CONNECTING,
+                "dcc": dcc
+            }
 
     def _send_synack(self, connection, event, syn):
         _log.info("Sending synack to %s", syn["node"])
@@ -378,8 +384,10 @@ class Service(object):
         parsed = package.parse(synack, self._expiretime, self._testnet)
         if parsed is None or parsed["type"] != "SYNACK":
             return
+        self._on_synack(parsed, peer_address, peer_port)
 
-        node = parsed["node"]
+    def _on_synack(self, parsed_synack, peer_address, peer_port):
+        node = parsed_synack["node"]
         _log.info("Received synack from %s", node)
 
         # check for existing connection
