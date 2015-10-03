@@ -77,7 +77,6 @@ class Service(object):
         self._received_queue = Queue()
         self._outgoing_queues = {}  # {address: Queue, ...}
 
-
     def connect(self):
         _log.info("Starting network service!")
         self._find_relay_node()
@@ -240,7 +239,9 @@ class Service(object):
                 dcc = props["dcc"]
                 if dcc is not None:
                     dcc.disconnect()
-                # _on_dcc_disconnect handles entry deletion
+                    # _on_dcc_disconnect handles entry deletion
+                else:
+                    del self._dcc_connections[node]
             assert(len(self._dcc_connections) == 0)
 
         # close connection
