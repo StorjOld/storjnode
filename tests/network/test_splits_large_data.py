@@ -27,12 +27,12 @@ class TestSplitsLargeData(unittest.TestCase):
 
     def test_connects(self):
         largedata = b"X" * (network.package.MAX_DATA_SIZE * 2)
-        self.alice.node_send(self.bob_address, largedata)
+        self.alice.send(self.bob_address, largedata)
 
         time.sleep(15)  # allow time to connect and send
 
         expected_bob = {self.alice_address: largedata}
-        self.assertEqual(expected_bob, self.bob.node_received())
+        self.assertEqual(expected_bob, self.bob.received())
 
 
 if __name__ == "__main__":

@@ -36,9 +36,9 @@ class TestTraficSimulation(unittest.TestCase):
 
     def _alice_loop(self):
         while not self.alice_stop:  # thread loop
-            received = self.alice.node_received()  # empty input queue
+            received = self.alice.received()  # empty input queue
             self.alice_received += len(received.get(self.bob_address, b""))
-            self.alice.node_send(self.bob_address, b"data")
+            self.alice.send(self.bob_address, b"data")
             self.alice_sent += 4
             time.sleep(0.2)
 
@@ -46,7 +46,7 @@ class TestTraficSimulation(unittest.TestCase):
         while not self.bob_stop:  # thread loop
             received = self.bob.node_received()  # empty input queue
             self.bob_received += len(received.get(self.alice_address, b""))
-            self.bob.node_send(self.alice_address, b"data")
+            self.bob.send(self.alice_address, b"data")
             self.bob_sent += 4
             time.sleep(0.2)
 
@@ -65,7 +65,7 @@ class TestTraficSimulation(unittest.TestCase):
     def test_simulation(self):
 
         # other test is responsable for simultainous connect
-        self.alice.node_send(self.bob_address, b"alice")
+        self.alice.send(self.bob_address, b"alice")
         time.sleep(15)
 
         self._start_threads()

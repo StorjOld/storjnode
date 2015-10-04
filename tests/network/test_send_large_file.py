@@ -29,12 +29,12 @@ class TestSendLargeFile(unittest.TestCase):
     def test_connects(self):
         large_file = b"X" * (1024 * 1024)  # 1M
 
-        self.alice.node_send(self.bob_address, large_file)
+        self.alice.send(self.bob_address, large_file)
 
         time.sleep(60 * 3)  # allow time to connect and send
 
         # check size
-        received = self.bob.node_received()[self.alice_address]
+        received = self.bob.received()[self.alice_address]
         self.assertEqual(len(received), len(large_file))
 
         # check hash

@@ -26,8 +26,8 @@ class TestSimultaneousConnect(unittest.TestCase):
         self.bob.disconnect()
 
     def test_connects(self):
-        self.alice.node_send(self.bob_address, b"something")
-        self.bob.node_send(self.alice_address, b"something")
+        self.alice.send(self.bob_address, b"something")
+        self.bob.send(self.alice_address, b"something")
 
         time.sleep(15)  # allow time to connect and send
 

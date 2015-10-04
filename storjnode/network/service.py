@@ -73,12 +73,18 @@ class Service(object):
         # peer connections
         self._dcc_connections = {}  # {address: {"state": X, "dcc": Y}, ...}
         self._dcc_connections_mutex = threading.RLock()
+        # TODO add timeouts for unused and connecting
 
         # io queues
         self._received_queue = Queue()
         self._outgoing_queues = {}  # {address: Queue, ...}
 
     def connect(self):
+        """Connects to the irc network via one of the initial relaynodes.
+
+        Raises:
+            storjnode.network.ConnectionError on failure to connect.
+        """
         _log.info("Starting network service!")
         self._find_relay_node()
         self._add_handlers()
@@ -94,7 +100,7 @@ class Service(object):
 
             with self._irc_connection_mutex:
                 if (self._irc_connection is not None and
-                    self._irc_connection.is_connected()): # successful
+                    self._irc_connection.is_connected()):  # successful
                     break
         with self._irc_connection_mutex:
             if not (self._irc_connection is not None and
@@ -110,7 +116,8 @@ class Service(object):
                 self._irc_connection = server.connect(host, port, nick)
                 _log.info("Connection established!")
             except irc.client.ServerConnectionError:
-                _log.warning("Failed connecting to %s:%s as %s", host, port, nick)
+                _log.warning("Failed connecting to %s:%s as %s", host,
+                             port, nick)
 
     def _add_handlers(self):
         with self._irc_connection_mutex:
@@ -128,7 +135,7 @@ class Service(object):
 
     def _on_disconnect(self, connection, event):
         _log.info("Disconnected! %s", event.arguments[0])
-        # FIXME handle
+        self.reconnect()
 
     def _on_dcc_disconnect(self, connection, event):
         with self._dcc_connections_mutex:
@@ -142,7 +149,6 @@ class Service(object):
     def _on_dccmsg(self, connection, event):
         packagedata = event.arguments[0]
         parsed = package.parse(packagedata, self._expiretime, self._testnet)
-
         if parsed is not None and parsed["type"] == "ACK":
             self._on_ack(connection, event, parsed)
         elif parsed is not None and parsed["type"] == "DATA":
@@ -182,7 +188,7 @@ class Service(object):
 
     def _clear_outgoing_queue(self, queue):
         data = b""
-        while not queue.empty():  
+        while not queue.empty():
             data = data + queue.get()
         return data
 
@@ -200,7 +206,7 @@ class Service(object):
                 if len(data) > 0:
                     bytes_sent = self._send_data(node, dcc, data)
                     if bytes_sent != len(data):
-                        # FIXME close connection and requeue data safely 
+                        # FIXME close connection and requeue data safely
                         raise Exception("Failed to send data!")
 
     def _sender_loop(self):
@@ -218,12 +224,18 @@ class Service(object):
             self._reactor.process_once(timeout=0.2)
 
     def connected(self):
+        """Returns True if connected to the network."""
         with self._irc_connection_mutex:
             return (self._irc_connection is not None and
                     self._irc_connection.is_connected() and
                     self._reactor_thread is not None)
 
     def reconnect(self):
+        """Reconnect to the network.
+
+        Raises:
+            storjnode.network.ConnectionError on failure to connect.
+        """
         self.disconnect()
         self.connect()
 
@@ -244,6 +256,7 @@ class Service(object):
                 self._irc_connection = None
 
     def disconnect(self):
+        """Disconnect from the network."""
         _log.info("Stopping network service!")
         self._stop_threads()
         self._disconnect_nodes()
@@ -301,17 +314,11 @@ class Service(object):
                 return False
 
             node_channel = "#{address}".format(address=node)
-
-            # node checks own channel for syns
-            _log.info("Connetcion to node channel %s", node_channel)
+            _log.info("Sending syn to node channel %s", node_channel)
             self._irc_connection.join(node_channel)
-
-            _log.info("Sending syn to channel %s", node_channel)
             syn = package.syn(self._wif, testnet=self._testnet)
             self._irc_connection.privmsg(node_channel, _encode(syn))
-
-            _log.info("Disconnecting from node channel %s", node_channel)
-            self._irc_connection.part([node_channel])  # leave to reduce traffic
+            self._irc_connection.part([node_channel])
             return True
 
     def _on_pubmsg(self, connection, event):
@@ -435,16 +442,29 @@ class Service(object):
         with self._dcc_connections_mutex:
             self._dcc_connections[ack["node"]]["state"] = CONNECTED
 
-    def node_send(self, node_address, data):
-        assert(isinstance(data, bytes))
-        assert(self._btctxstore.validate_address(node_address))
-        queue = self._outgoing_queues.get(node_address)
-        if queue is None:
-            self._outgoing_queues[node_address] = queue = Queue()
-        queue.put(data)
-        _log.info("Queued %sbytes to send %s", len(data), node_address)
+    def send(self, node, data):
+        """Send bytes to node.
 
-    def node_received(self):
+        Arguments:
+            node: The bitcoin address of the node to receive the data.
+            data: The data to send to the node, must be instance of `bytes`.
+        """
+        assert(isinstance(data, bytes))
+        assert(self._btctxstore.validate_address(node))
+        queue = self._outgoing_queues.get(node)
+        if queue is None:
+            self._outgoing_queues[node] = queue = Queue()
+        queue.put(data)
+        _log.info("Queued %sbytes to send %s", len(data), node)
+
+    def received(self):
+        """Returns a dict with data received from nodes since the last call.
+
+        Format: {
+            "NODE_BITCOIN_ADDRESS": b"bytes recieved since last call",
+            ...
+        }
+        """
         result = {}
         while not self._received_queue.empty():
             package = self._received_queue.get()
@@ -455,6 +475,7 @@ class Service(object):
         return result
 
     def nodes_connected(self):
+        """Returns a list of nodes currently connected."""
         with self._dcc_connections_mutex:
             nodes = []
             for node, status in self._dcc_connections.items():
@@ -462,7 +483,11 @@ class Service(object):
                     nodes.append(node)
             return nodes
 
-    def get_current_relaynodes(self):
+    def get_relaynodes(self):
+        """Returns list of current relay nodes.
+        
+        Format: [("ip or url", port), ...]
+        """
         server_list = self._server_list[:]  # make a copy
         # TODO order by something
         return server_list
