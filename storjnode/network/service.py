@@ -75,6 +75,7 @@ class Service(object):
         self._sender_stop = True
 
         # irc connection
+        self._in_own_channel = False
         self._irc_connection = None
         self._irc_connection_mutex = threading.RLock()
 
@@ -97,6 +98,8 @@ class Service(object):
         self._find_relay_node()
         self._add_handlers()
         self._start_threads()
+        while not self.connected():  # block until connected
+            time.sleep(0.1)
         _log.info("Network service started!")
 
     def _find_relay_node(self):
@@ -137,13 +140,19 @@ class Service(object):
             c.add_global_handler("disconnect", self._on_disconnect)
             c.add_global_handler("nicknameinuse", self._on_nicknameinuse)
             c.add_global_handler("dcc_disconnect", self._on_dcc_disconnect)
+            c.add_global_handler("join", self._on_join)
+
+    def _on_join(self, connection, event):
+        if event.target == self._channel:
+            self._in_own_channel = True
+            _log.info("Joined own channel %s", self._channel)
 
     def _on_nicknameinuse(self, connection, event):
         connection.nick(_generate_nick())  # retry in case of miracle
 
     def _on_disconnect(self, connection, event):
         _log.info("Disconnected! %s", event.arguments[0])
-        # FIXME self.reconnect()
+        self._in_own_channel = False
 
     def _on_dcc_disconnect(self, connection, event):
         with self._dcc_connections_mutex:
@@ -183,15 +192,14 @@ class Service(object):
             return False
 
     def _send_data(self, node, dcc, data):
+        _log.info("Sending %sbytes of data to %s", len(data), node)
         bytes_sent = 0
         for chunk in btctxstore.common.chunks(data, package.MAX_DATA_SIZE):
             packagedchunk = package.data(self._wif, chunk,
                                          testnet=self._testnet)
             if not self._send_bytes(dcc, packagedchunk):
-                _log.info("Sent %sbytes of data to %s", bytes_sent, node)
                 return bytes_sent
             bytes_sent += len(chunk)
-        _log.info("Sent %sbytes of data to %s", bytes_sent, node)
         return bytes_sent
 
     def _clear_outgoing_queue(self, queue):
@@ -233,10 +241,12 @@ class Service(object):
 
     def connected(self):
         """Returns True if connected to the network."""
+        # FIXME check if joined channel
         with self._irc_connection_mutex:
             return (self._irc_connection is not None and
                     self._irc_connection.is_connected() and
-                    self._reactor_thread is not None)
+                    self._reactor_thread is not None and
+                    self._in_own_channel)
 
     def reconnect(self):
         """Reconnect to the network.
@@ -266,6 +276,7 @@ class Service(object):
     def disconnect(self):
         """Disconnect from the network."""
         _log.info("Stopping network service!")
+        self._in_own_channel = False
         self._stop_threads()
         self._disconnect_nodes()
         self._close_connection()
@@ -273,8 +284,6 @@ class Service(object):
 
     def _on_connect(self, connection, event):
         # join own channel
-        # TODO only if config allows incoming connections
-        _log.info("Connecting to own channel %s", self._channel)
         connection.join(self._channel)
 
     def _node_state(self, node):
@@ -465,7 +474,19 @@ class Service(object):
         queue.put(data)
         _log.info("Queued %sbytes to send %s", len(data), node)
 
-    def received(self):
+    def has_queued_output(self):
+        """Returns True if data is queued to be sent to other nodes."""
+        queues = self._outgoing_queues.values()
+        for queue in queues:
+            if not queue.empty():
+                return True
+        return False
+
+    def has_received(self):
+        """Returns True if data was received from nodes but not yet gotten."""
+        return not self._received_queue.empty()
+
+    def get_received(self):
         """Returns a dict with data received from nodes since the last call.
 
         Format: {

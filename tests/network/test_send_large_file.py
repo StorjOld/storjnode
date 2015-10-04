@@ -34,7 +34,7 @@ class TestSendLargeFile(unittest.TestCase):
         time.sleep(60 * 3)  # allow time to connect and send
 
         # check size
-        received = self.bob.received()[self.alice_address]
+        received = self.bob.get_received()[self.alice_address]
         self.assertEqual(len(received), len(large_file))
 
         # check hash

@@ -32,10 +32,10 @@ class TestFullDuplex(unittest.TestCase):
         time.sleep(15)  # allow time to connect and send
 
         expected_alice = {self.bob_address: b"bob"}
-        self.assertEqual(expected_alice, self.alice.received())
+        self.assertEqual(expected_alice, self.alice.get_received())
 
         expected_bob = {self.alice_address: b"alice"}
-        self.assertEqual(expected_bob, self.bob.received())
+        self.assertEqual(expected_bob, self.bob.get_received())
 
         self.assertEqual([self.bob_address], self.alice.nodes_connected())
         self.assertEqual([self.alice_address], self.bob.nodes_connected())

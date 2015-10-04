@@ -32,7 +32,7 @@ class TestSplitsLargeData(unittest.TestCase):
         time.sleep(15)  # allow time to connect and send
 
         expected_bob = {self.alice_address: largedata}
-        self.assertEqual(expected_bob, self.bob.received())
+        self.assertEqual(expected_bob, self.bob.get_received())
 
 
 if __name__ == "__main__":

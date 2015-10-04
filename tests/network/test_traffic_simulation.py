@@ -36,7 +36,7 @@ class TestTraficSimulation(unittest.TestCase):
 
     def _alice_loop(self):
         while not self.alice_stop:  # thread loop
-            received = self.alice.received()  # empty input queue
+            received = self.alice.get_received()  # empty input queue
             self.alice_received += len(received.get(self.bob_address, b""))
             self.alice.send(self.bob_address, b"data")
             self.alice_sent += 4
@@ -44,7 +44,7 @@ class TestTraficSimulation(unittest.TestCase):
 
     def _bob_loop(self):
         while not self.bob_stop:  # thread loop
-            received = self.bob.received()  # empty input queue
+            received = self.bob.get_received()  # empty input queue
             self.bob_received += len(received.get(self.alice_address, b""))
             self.bob.send(self.alice_address, b"data")
             self.bob_sent += 4

@@ -40,9 +40,9 @@ class TestTransferNetwork(unittest.TestCase):
 
         time.sleep(15)  # allow time to connect and send
 
-        self.assertEqual(len(self.alice.received()), 2)
-        self.assertEqual(len(self.bob.received()), 1)
-        self.assertEqual(len(self.charlie.received()), 1)
+        self.assertEqual(len(self.alice.get_received()), 2)
+        self.assertEqual(len(self.bob.get_received()), 1)
+        self.assertEqual(len(self.charlie.get_received()), 1)
 
         alice_connections = set([self.bob_address, self.charlie_address])
         self.assertEqual(alice_connections, set(self.alice.nodes_connected()))
