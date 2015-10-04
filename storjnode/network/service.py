@@ -44,7 +44,15 @@ def _generate_nick():
 
 class Service(object):
 
-    def __init__(self, initial_relaynodes, wif, testnet=False, expiretime=20):
+    def __init__(self, relaynodes, wif, testnet=False, expiretime=30):
+        """Create a network service instance with the given configuration.
+
+        Arguments:
+            relaynodes: Known relay nodes as `[("ip or domain", port), ...]`
+            wif: Bitcoin wif used as this nodes identity and to sign packages.
+            testnet: If the bitcoin testnet is being used.
+            expiretime: The time in seconds after which packages become stale.
+        """
         self._btctxstore = btctxstore.BtcTxStore(testnet=testnet)
 
         # package settings
@@ -54,7 +62,7 @@ class Service(object):
 
         # syn listen channel
         self._address = self._btctxstore.get_address(self._wif)  # read only
-        self._server_list = initial_relaynodes[:]  # never modify original
+        self._relaynodes = relaynodes[:]  # never modify original
         self._channel = "#{address}".format(address=self._address)  # read only
 
         # reactor
@@ -94,8 +102,8 @@ class Service(object):
     def _find_relay_node(self):
         # try to connect to servers in a random order until successful
         # TODO weight according to capacity, ping time
-        random.shuffle(self._server_list)
-        for host, port in self._server_list:
+        random.shuffle(self._relaynodes)
+        for host, port in self._relaynodes:
             self._connect_to_relaynode(host, port, _generate_nick())
 
             with self._irc_connection_mutex:
@@ -135,7 +143,7 @@ class Service(object):
 
     def _on_disconnect(self, connection, event):
         _log.info("Disconnected! %s", event.arguments[0])
-        self.reconnect()
+        # FIXME self.reconnect()
 
     def _on_dcc_disconnect(self, connection, event):
         with self._dcc_connections_mutex:
@@ -488,6 +496,6 @@ class Service(object):
         
         Format: [("ip or url", port), ...]
         """
-        server_list = self._server_list[:]  # make a copy
+        relaynodes = self._relaynodes[:]  # make a copy
         # TODO order by something
-        return server_list
+        return relaynodes

@@ -44,7 +44,7 @@ class TestTraficSimulation(unittest.TestCase):
 
     def _bob_loop(self):
         while not self.bob_stop:  # thread loop
-            received = self.bob.node_received()  # empty input queue
+            received = self.bob.received()  # empty input queue
             self.bob_received += len(received.get(self.alice_address, b""))
             self.bob.send(self.alice_address, b"data")
             self.bob_sent += 4
