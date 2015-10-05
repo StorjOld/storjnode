@@ -32,8 +32,10 @@ def get_args():
 if __name__ == "__main__":
     arguments = get_args()
     btctxstore = BtcTxStore()
-    wallet = btctxstore.create_key()
-    service = network.Service(RELAYNODES, wallet)
+    key = btctxstore.create_key()
+    address = btctxstore.get_address(key)
+    logging.info("USING ON TIME ADDRESS %s", address)
+    service = network.Service(RELAYNODES, key)
     try:
         service.connect()
         with open(arguments["filepath"], "rb") as f:

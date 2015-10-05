@@ -268,7 +268,7 @@ class Service(object):
                 data = self._clear_outgoing_queue(queue)
                 if len(data) > 0:
                     bytes_sent = self._send_data(node, dcc, data)
-                    if bytes_sent != len(data):
+                    if bytes_sent != len(data):  # receiver dropped during send
                         # FIXME close connection and requeue data safely
                         raise Exception("Failed to send data!")
 
@@ -535,7 +535,7 @@ class Service(object):
             _log.info("Failed to send ack to %s", node)
             # disconnect and timeout on the other end
             # because anything else causes an invalid state
-            self._disconnect_node(ack["node"])
+            self._disconnect_node(node)
             return
 
         with self._dcc_connections_mutex:
