@@ -26,8 +26,8 @@ def get_args():
             sys.exit(2)
     description = "Dataserve client command-line interface."
     parser = ArgumentParser(description=description)
-    parser.add_argument("hdwallet", help="Bitcoin HWIF is this nodes identity"
-                                         " and for signing.")
+    parser.add_argument("--hdwallet", default=None,
+                        help="Bitcoin HWIF is nodes identity and for signing.")
     parser.add_argument("--storepath" , default=STOREPATH,
                         help="Path to store data. default=%s" % STOREPATH)
     return vars(parser.parse_args())
@@ -35,8 +35,8 @@ def get_args():
 
 if __name__ == "__main__":
     arguments = get_args()
-    hdwallet = arguments["hdwallet"]
-    key = btctxstore.get_key(hdwallet)
+    hwif = arguments["hdwallet"]
+    key = btctxstore.create_key() if hwif is None else btctxstore.get_key(hwif)
     service = network.Service(RELAYNODES, key)
     try:
         service.connect()
