@@ -33,13 +33,13 @@ def get_args():
 if __name__ == "__main__":
     arguments = get_args()
     service = network.Service(RELAYNODES, arguments["wallet"])
-    service.connect()
+    try:
+        service.connect()
+        with open(arguments["filepath"], "rb") as f:
+            data = f.read()
+            service.send(arguments["receiver"], data)
 
-    with open(arguments["filepath"], "rb") as f:
-        data = f.read()
-        service.send(arguments["receiver"], data)
-
-    while service.has_queued_output():
-        time.sleep(0.1)
-
-    service.disconnect()
+        while service.has_queued_output():
+            time.sleep(0.1)
+    finally:
+        service.disconnect()

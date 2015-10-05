@@ -35,12 +35,15 @@ def get_args():
 if __name__ == "__main__":
     arguments = get_args()
     service = network.Service(RELAYNODES, arguments["wallet"])
-    service.connect()
-    while True:
-        received = service.get_received()
-        for node, data in received.items():
-            # FIXME make storepath dirs
-            path = os.path.realpath(os.path.join(arguments["storepath"], node))
-            with open(path, "ab") as f:
-                f.write(data)
-        time.sleep(0.1)
+    try:
+        service.connect()
+        while True:
+            received = service.get_received()
+            for node, data in received.items():
+                # FIXME make storepath dirs
+                path = os.path.realpath(os.path.join(arguments["storepath"], node))
+                with open(path, "ab") as f:
+                    f.write(data)
+            time.sleep(0.1)
+    finally:
+        service.disconnect()
