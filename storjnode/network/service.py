@@ -457,6 +457,12 @@ class Service(object):
 
         # accept connection
         dcc = self._send_synack(connection, event, syn)
+        if dcc is None:
+            _log.info("Failed to send synack to %s", syn["node"])
+            # disconnect and timeout on the other end
+            # because anything else causes an invalid state
+            self._disconnect_node(ack["node"])
+            return
 
         # update connection state
         with self._dcc_connections_mutex:
@@ -468,17 +474,20 @@ class Service(object):
 
     def _send_synack(self, connection, event, syn):
         _log.info("Sending synack to %s", syn["node"])
-        dcc = self._reactor.dcc("raw")
-        dcc.listen()
-        msg_parts = map(str, (
-            'CHAT',
-            _encode(package.synack(self._wif, testnet=self._testnet)),
-            irc.client.ip_quad_to_numstr(dcc.localaddress),
-            dcc.localport
-        ))
-        msg = subprocess.list2cmdline(msg_parts)
-        connection.ctcp("DCC", event.source.nick, msg)
-        return dcc
+        try:
+            dcc = self._reactor.dcc("raw")
+            dcc.listen()
+            msg_parts = map(str, (
+                'CHAT',
+                _encode(package.synack(self._wif, testnet=self._testnet)),
+                irc.client.ip_quad_to_numstr(dcc.localaddress),
+                dcc.localport
+            ))
+            msg = subprocess.list2cmdline(msg_parts)
+            connection.ctcp("DCC", event.source.nick, msg)
+            return dcc
+        except irc.client.DCCConnectionError:
+            return None
 
     def _on_ctcp(self, connection, event):
 
@@ -508,19 +517,24 @@ class Service(object):
             self._disconnect_node(node)
             return
 
-        # setup dcc
-        peer_address = irc.client.ip_numstr_to_quad(peer_address)
-        peer_port = int(peer_port)
-        dcc = self._reactor.dcc("raw")
-        dcc.connect(peer_address, peer_port)
+        try:
+            # setup dcc
+            peer_address = irc.client.ip_numstr_to_quad(peer_address)
+            peer_port = int(peer_port)
+            dcc = self._reactor.dcc("raw")
+            dcc.connect(peer_address, peer_port)
 
-        # acknowledge connection
-        _log.info("Sending ack to %s", node)
-        ack = package.ack(self._wif, testnet=self._testnet)
-        successful = self._send_bytes(dcc, ack)
+            # acknowledge connection
+            _log.info("Sending ack to %s", node)
+            ack = package.ack(self._wif, testnet=self._testnet)
+            successful = self._send_bytes(dcc, ack)
+        except irc.client.DCCConnectionError:
+            successful = False
+
         if not successful:
             _log.info("Failed to send ack to %s", node)
-            # disconnect because anything else causes an invalid state
+            # disconnect and timeout on the other end
+            # because anything else causes an invalid state
             self._disconnect_node(ack["node"])
             return
 
