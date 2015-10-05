@@ -82,15 +82,20 @@ class Service(object):
         self._relaynode_update_thread = None
         self._relaynode_update_stop = True
 
+        # relaynode updater
+        self._timeout_thread = None
+        self._timeout_stop = True
+
         # irc connection
         self._in_own_channel = False
         self._irc_connection = None
         self._irc_connection_mutex = threading.RLock()
 
         # peer connections
-        self._dcc_connections = {}  # {address: {"state": X, "dcc": Y}, ...}
+        self._dcc_connections = {}  # {
+        #     address: {"state": str, "dcc": obj, "lastused": datetime}, ...
+        # }
         self._dcc_connections_mutex = threading.RLock()
-        # TODO add timeouts for unused and connecting
 
         # io queues
         self._received_queue = Queue()
@@ -121,7 +126,7 @@ class Service(object):
 
             with self._irc_connection_mutex:
                 if (self._irc_connection is not None and
-                    self._irc_connection.is_connected()):  # successful
+                        self._irc_connection.is_connected()):  # successful
                     break
         with self._irc_connection_mutex:
             if not (self._irc_connection is not None and
@@ -181,6 +186,9 @@ class Service(object):
         elif parsed is not None and parsed["type"] == "DATA":
             _log.info("Received package from %s", parsed["node"])
             self._received_queue.put(parsed)
+            with self._dcc_connections_mutex:
+                now = datetime.datetime.now()
+                self._dcc_connections[parsed["node"]]["lastused"] = now
 
     def _start_threads(self):
 
@@ -194,9 +202,16 @@ class Service(object):
         self._sender_thread = threading.Thread(target=self._sender_loop)
         self._sender_thread.start()
 
-        # relaynode updater
+        # start timeout
+        self._timeout_stop = False
+        self._timeout_thread = threading.Thread(target=self._timeout_loop)
+        self._timeout_thread.start()
+
+        # start relaynode updater
         self._relaynode_update_stop = False
-        self._relaynode_update_thread = threading.Thread(target=self._relaynode_update_loop)
+        self._relaynode_update_thread = threading.Thread(
+            target=self._relaynode_update_loop
+        )
         self._relaynode_update_thread.start()
 
     def _send_bytes(self, dcc, data):
@@ -213,8 +228,12 @@ class Service(object):
             packagedchunk = package.data(self._wif, chunk,
                                          testnet=self._testnet)
             if not self._send_bytes(dcc, packagedchunk):
-                return bytes_sent
+                break
             bytes_sent += len(chunk)
+        if bytes_sent > 0:
+            with self._dcc_connections_mutex:
+                now = datetime.datetime.now()
+                self._dcc_connections[node]["lastused"] = now
         return bytes_sent
 
     def _clear_outgoing_queue(self, queue):
@@ -245,7 +264,19 @@ class Service(object):
             if self.connected():
                 for node, queue in self._outgoing_queues.items():
                     self._process_outgoing(node, queue)
-            time.sleep(0.1)  # sleep a little to not hog the cpu
+            time.sleep(0.1)
+
+    def _timeout_loop(self):
+        while not self._timeout_stop:
+            with self._dcc_connections_mutex:
+                for node, status in self._dcc_connections.items():
+                    if status["state"] == AWAITING:
+                        pass  # TODO check timeout
+                    elif status["state"] == CONNECTING:
+                        pass  # TODO check timeout
+                    elif status["state"] == CONNECTED:
+                        pass  # TODO check timeout
+            time.sleep(0.1)
 
     def _reactor_loop(self):
         # This loop should specifically *not* be mutex-locked.
@@ -277,10 +308,17 @@ class Service(object):
             self._relaynode_update_stop = True
             self._relaynode_update_thread.join()
             self._relaynode_update_thread = None
+
+        if self._timeout_thread is not None:
+            self._timeout_stop = True
+            self._timeout_thread.join()
+            self._timeout_thread = None
+
         if self._reactor_thread is not None:
             self._reactor_stop = True
             self._reactor_thread.join()
             self._reactor_thread = None
+
         if self._sender_thread is not None:
             self._sender_stop = True
             self._sender_thread.join()
@@ -340,7 +378,8 @@ class Service(object):
         with self._dcc_connections_mutex:
             self._dcc_connections[node] = {
                 "state": CONNECTING,
-                "dcc": None
+                "dcc": None,
+                "lastused": datetime.datetime.now()
             }
 
     def _send_syn(self, node):
@@ -384,7 +423,11 @@ class Service(object):
             _log.info("Waiting for %s to reconnect", node)
             # prevent _process_outgoing from reconnecting automaticly
             with self._dcc_connections_mutex:
-                self._dcc_connections[node] = {"state": AWAITING, "dcc": None}
+                self._dcc_connections[node] = {
+                    "state": AWAITING,
+                    "dcc": None,
+                    "lastused": datetime.datetime.now()
+                }
 
     def _on_syn(self, connection, event, syn):
         _log.info("Received syn from %s", syn["node"])
@@ -401,7 +444,8 @@ class Service(object):
         with self._dcc_connections_mutex:
             self._dcc_connections[syn["node"]] = {
                 "state": CONNECTING,
-                "dcc": dcc
+                "dcc": dcc,
+                "lastused": datetime.datetime.now()
             }
 
     def _send_synack(self, connection, event, syn):
@@ -463,7 +507,11 @@ class Service(object):
             return
 
         with self._dcc_connections_mutex:
-            self._dcc_connections[node] = {"state": CONNECTED, "dcc": dcc}
+            self._dcc_connections[node] = {
+                "state": CONNECTED,
+                "dcc": dcc,
+                "lastused": datetime.datetime.now()
+            }
 
     def _on_ack(self, connection, event, ack):
         _log.info("Received ack from %s", ack["node"])
@@ -476,7 +524,9 @@ class Service(object):
 
         # update connection state
         with self._dcc_connections_mutex:
+            now = datetime.datetime.now()
             self._dcc_connections[ack["node"]]["state"] = CONNECTED
+            self._dcc_connections[ack["node"]]["lastused"] = now
 
     def send(self, node, data):
         """Send bytes to node.
@@ -536,7 +586,7 @@ class Service(object):
         delta = datetime.timedelta(seconds=self._relaynode_update_interval)
         while not self._relaynode_update_stop:
             now = datetime.datetime.now()
-            if last_update is None or last_update + delta < now: 
+            if last_update is None or last_update + delta < now:
                 # FIXME update list, see experiments/servermap.py
                 last_update = now
             time.sleep(0.1)

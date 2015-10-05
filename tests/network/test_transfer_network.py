@@ -46,12 +46,11 @@ class TestTransferNetwork(unittest.TestCase):
         self.bob.send(self.alice_address, b"bob_to_alice")
         self.charlie.send(self.alice_address, b"charlie_to_alice")
 
-
         while (self.alice.has_queued_output()  # wait until sent
                or self.bob.has_queued_output()
                or self.charlie.has_queued_output()):
             time.sleep(0.2)
-        time.sleep(5)  # allow time to receive
+        time.sleep(15)  # allow time to receive
 
         self.assertEqual(len(self.alice.get_received()), 2)
         self.assertEqual(len(self.bob.get_received()), 1)
