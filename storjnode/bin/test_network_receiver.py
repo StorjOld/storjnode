@@ -9,6 +9,7 @@ import time
 import os
 import sys
 import argparse
+from storjnode import util
 from storjnode import network
 
 
@@ -42,8 +43,8 @@ if __name__ == "__main__":
         while True:
             received = service.get_received()
             for node, data in received.items():
-                # FIXME make storepath dirs
                 storepath = arguments["storepath"]
+                util.ensure_path_exists(storepath)
                 path = os.path.realpath(os.path.join(storepath, node))
                 with open(path, "ab") as f:
                     f.write(data)

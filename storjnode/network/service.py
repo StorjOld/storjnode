@@ -10,6 +10,7 @@ import base64
 import threading
 from datetime import timedelta
 from datetime import datetime
+from storjnode import util
 from storjnode import deserialize
 from storjnode.network import package
 try:
@@ -237,7 +238,7 @@ class Service(object):
     def _send_data(self, node, dcc, data):
         _log.info("Sending %sbytes of data to %s", len(data), node)
         bytes_sent = 0
-        for chunk in btctxstore.common.chunks(data, package.MAX_DATA_SIZE):
+        for chunk in util.chunks(data, package.MAX_DATA_SIZE):
             packagedchunk = package.data(self._wif, chunk,
                                          testnet=self._testnet)
             if not self._send_bytes(dcc, packagedchunk):
