@@ -1,2 +1,3 @@
-irc
+irc == 13.1
 btctxstore == 4.5.0
+psutil == 3.2.1
