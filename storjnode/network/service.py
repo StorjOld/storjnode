@@ -380,8 +380,7 @@ class Service(object):
                 dcc = self._dcc_connections[node]["dcc"]
                 if dcc is not None:
                     dcc.disconnect()
-                    # _on_dcc_disconnect handles entry deletion
-                else:
+                if node in self._dcc_connections:
                     del self._dcc_connections[node]
 
     def _node_connect(self, node):
