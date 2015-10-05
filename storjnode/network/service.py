@@ -8,7 +8,8 @@ import logging
 import irc.client
 import base64
 import threading
-import datetime
+from datetime import timedelta
+from datetime import datetime
 from storjnode import deserialize
 from storjnode.network import package
 try:
@@ -47,7 +48,10 @@ def _generate_nick():
 class Service(object):
 
     def __init__(self, relaynodes, wif, testnet=False, expiretime=30,
-                 relaynode_update_interval=3600):
+                 netmap_interval=3600,
+                 timeout_awaiting=60,
+                 timeout_connecting=60,
+                 timeout_unused=600):
         """Create a network service instance with the given configuration.
 
         Arguments:
@@ -55,6 +59,14 @@ class Service(object):
             wif: Bitcoin wif used as this nodes identity and to sign packages.
             testnet: If the bitcoin testnet is being used.
             expiretime: The time in seconds after which packages become stale.
+            netmap_interval: Interval in seconds for how often the
+                             network is scanned update relaynode list.
+            timeout_awaiting: Time it takes in seconds for connections in
+                              awaiting state to timeout and disconnect.
+            timeout_connecting: Time it takes in seconds for connections in
+                                connecting state to timeout and disconnect.
+            timeout_unused: Time it takes in seconds for established
+                            connections to timeout and disconnect when unused.
         """
         self._btctxstore = btctxstore.BtcTxStore(testnet=testnet)
 
@@ -62,7 +74,10 @@ class Service(object):
         self._expiretime = expiretime
         self._testnet = testnet
         self._wif = wif
-        self._relaynode_update_interval = relaynode_update_interval
+        self._netmap_interval = netmap_interval
+        self._timeout_awaiting = timeout_awaiting
+        self._timeout_connecting = timeout_connecting
+        self._timeout_unused = timeout_unused
 
         # syn listen channel
         self._address = self._btctxstore.get_address(self._wif)
@@ -79,8 +94,8 @@ class Service(object):
         self._sender_stop = True
 
         # relaynode updater
-        self._relaynode_update_thread = None
-        self._relaynode_update_stop = True
+        self._netmap_thread = None
+        self._netmap_stop = True
 
         # relaynode updater
         self._timeout_thread = None
@@ -187,7 +202,7 @@ class Service(object):
             _log.info("Received package from %s", parsed["node"])
             self._received_queue.put(parsed)
             with self._dcc_connections_mutex:
-                now = datetime.datetime.now()
+                now = datetime.now()
                 self._dcc_connections[parsed["node"]]["lastused"] = now
 
     def _start_threads(self):
@@ -208,11 +223,9 @@ class Service(object):
         self._timeout_thread.start()
 
         # start relaynode updater
-        self._relaynode_update_stop = False
-        self._relaynode_update_thread = threading.Thread(
-            target=self._relaynode_update_loop
-        )
-        self._relaynode_update_thread.start()
+        self._netmap_stop = False
+        self._netmap_thread = threading.Thread(target=self._netmap_loop)
+        self._netmap_thread.start()
 
     def _send_bytes(self, dcc, data):
         try:
@@ -232,8 +245,7 @@ class Service(object):
             bytes_sent += len(chunk)
         if bytes_sent > 0:
             with self._dcc_connections_mutex:
-                now = datetime.datetime.now()
-                self._dcc_connections[node]["lastused"] = now
+                self._dcc_connections[node]["lastused"] = datetime.now()
         return bytes_sent
 
     def _clear_outgoing_queue(self, queue):
@@ -269,13 +281,18 @@ class Service(object):
     def _timeout_loop(self):
         while not self._timeout_stop:
             with self._dcc_connections_mutex:
-                for node, status in self._dcc_connections.items():
-                    if status["state"] == AWAITING:
-                        pass  # TODO check timeout
-                    elif status["state"] == CONNECTING:
-                        pass  # TODO check timeout
-                    elif status["state"] == CONNECTED:
-                        pass  # TODO check timeout
+                for node, status in self._dcc_connections.copy().items():
+                    state = status["state"]
+                    lastused = status["lastused"]
+                    now = datetime.now()
+                    old_a = now - timedelta(seconds=self._timeout_awaiting)
+                    old_c = now - timedelta(seconds=self._timeout_connecting)
+                    old_u = now - timedelta(seconds=self._timeout_unused)
+                    if ((state == AWAITING and lastused < old_a) or
+                            (state == CONNECTING and lastused < old_c) or
+                            (state == CONNECTED and lastused < old_u)):
+                        _log.info("%s timeout", node)
+                        self._disconnect_node(node)
             time.sleep(0.1)
 
     def _reactor_loop(self):
@@ -304,10 +321,10 @@ class Service(object):
         self.connect()
 
     def _stop_threads(self):
-        if self._relaynode_update_thread is not None:
-            self._relaynode_update_stop = True
-            self._relaynode_update_thread.join()
-            self._relaynode_update_thread = None
+        if self._netmap_thread is not None:
+            self._netmap_stop = True
+            self._netmap_thread.join()
+            self._netmap_thread = None
 
         if self._timeout_thread is not None:
             self._timeout_stop = True
@@ -379,7 +396,7 @@ class Service(object):
             self._dcc_connections[node] = {
                 "state": CONNECTING,
                 "dcc": None,
-                "lastused": datetime.datetime.now()
+                "lastused": datetime.now()
             }
 
     def _send_syn(self, node):
@@ -426,7 +443,7 @@ class Service(object):
                 self._dcc_connections[node] = {
                     "state": AWAITING,
                     "dcc": None,
-                    "lastused": datetime.datetime.now()
+                    "lastused": datetime.now()
                 }
 
     def _on_syn(self, connection, event, syn):
@@ -445,7 +462,7 @@ class Service(object):
             self._dcc_connections[syn["node"]] = {
                 "state": CONNECTING,
                 "dcc": dcc,
-                "lastused": datetime.datetime.now()
+                "lastused": datetime.now()
             }
 
     def _send_synack(self, connection, event, syn):
@@ -510,7 +527,7 @@ class Service(object):
             self._dcc_connections[node] = {
                 "state": CONNECTED,
                 "dcc": dcc,
-                "lastused": datetime.datetime.now()
+                "lastused": datetime.now()
             }
 
     def _on_ack(self, connection, event, ack):
@@ -524,9 +541,8 @@ class Service(object):
 
         # update connection state
         with self._dcc_connections_mutex:
-            now = datetime.datetime.now()
             self._dcc_connections[ack["node"]]["state"] = CONNECTED
-            self._dcc_connections[ack["node"]]["lastused"] = now
+            self._dcc_connections[ack["node"]]["lastused"] = datetime.now()
 
     def send(self, node, data):
         """Send bytes to node.
@@ -581,11 +597,11 @@ class Service(object):
                     nodes.append(node)
             return nodes
 
-    def _relaynode_update_loop(self):
+    def _netmap_loop(self):
         last_update = None
-        delta = datetime.timedelta(seconds=self._relaynode_update_interval)
-        while not self._relaynode_update_stop:
-            now = datetime.datetime.now()
+        delta = timedelta(seconds=self._netmap_interval)
+        while not self._netmap_stop:
+            now = datetime.now()
             if last_update is None or last_update + delta < now:
                 # FIXME update list, see experiments/servermap.py
                 last_update = now
