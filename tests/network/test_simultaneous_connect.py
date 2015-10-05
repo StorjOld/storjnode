@@ -40,7 +40,7 @@ class TestSimultaneousConnect(unittest.TestCase):
         while (self.alice.has_queued_output()  # wait until sent
                or self.bob.has_queued_output()):
             time.sleep(0.2)
-        time.sleep(5)  # allow time to receive
+        time.sleep(10)  # allow time to receive
 
         self.assertEqual(self.alice.nodes_connected(), [self.bob_address])
         self.assertEqual(self.bob.nodes_connected(), [self.alice_address])

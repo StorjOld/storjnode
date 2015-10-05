@@ -40,7 +40,7 @@ class TestConcatsSmallData(unittest.TestCase):
 
         while self.alice.has_queued_output():  # wait until sent
             time.sleep(0.2)
-        time.sleep(5)  # allow time to receive
+        time.sleep(10)  # allow time to receive
 
         expected_bob = {self.alice_address: b"foobarbaz"}
         self.assertEqual(expected_bob, self.bob.get_received())

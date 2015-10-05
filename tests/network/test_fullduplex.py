@@ -40,7 +40,7 @@ class TestFullDuplex(unittest.TestCase):
         while (self.alice.has_queued_output() or  # wait until sent
                self.bob.has_queued_output()):
             time.sleep(0.2)
-        time.sleep(5)  # allow time to receive
+        time.sleep(10)  # allow time to receive
 
         expected_alice = {self.bob_address: b"bob"}
         self.assertEqual(expected_alice, self.alice.get_received())
