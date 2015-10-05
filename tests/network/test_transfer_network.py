@@ -4,7 +4,7 @@ import btctxstore
 from storjnode import network
 
 
-INITIAL_RELAYNODES = [("127.0.0.1", 6667)]
+INITIAL_RELAYNODES = [("localhost:6667")]
 
 
 class TestTransferNetwork(unittest.TestCase):

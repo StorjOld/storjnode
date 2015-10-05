@@ -8,6 +8,7 @@ import logging
 import irc.client
 import base64
 import threading
+from storjnode import deserialize
 from storjnode.network import package
 try:
     from Queue import Queue  # py2
@@ -48,7 +49,7 @@ class Service(object):
         """Create a network service instance with the given configuration.
 
         Arguments:
-            relaynodes: Known relay nodes as `[("ip or domain", port), ...]`
+            relaynodes: Known relay nodes as `["ip-or-domain:port", ...]`
             wif: Bitcoin wif used as this nodes identity and to sign packages.
             testnet: If the bitcoin testnet is being used.
             expiretime: The time in seconds after which packages become stale.
@@ -106,7 +107,8 @@ class Service(object):
         # try to connect to servers in a random order until successful
         # TODO weight according to capacity, ping time
         random.shuffle(self._relaynodes)
-        for host, port in self._relaynodes:
+        for relaynode_string in self._relaynodes:
+            host, port = deserialize.relaynode(relaynode_string)
             self._connect_to_relaynode(host, port, _generate_nick())
 
             with self._irc_connection_mutex:
@@ -514,8 +516,8 @@ class Service(object):
 
     def get_relaynodes(self):
         """Returns list of current relay nodes.
-        
-        Format: [("ip or url", port), ...]
+
+        Format: ["ip-or-domain:port", ...]
         """
         relaynodes = self._relaynodes[:]  # make a copy
         # TODO order by something

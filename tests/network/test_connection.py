@@ -3,7 +3,7 @@ import btctxstore
 from storjnode.network import Service
 
 
-INITIAL_RELAYNODES = [("127.0.0.1", 6667)]
+INITIAL_RELAYNODES = [("localhost:6667")]
 
 
 class TestConnection(unittest.TestCase):
