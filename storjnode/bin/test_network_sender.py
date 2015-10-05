@@ -9,11 +9,11 @@ import time
 import os
 import sys
 import argparse
-import btctxstore
+from btctxstore import BtcTxStore
 from storjnode import network
 
 
-RELAYNODES = [("irc.quakenet.org", 6667)]
+RELAYNODES = ["irc.quakenet.org:6667"]
 
 
 def get_args():
@@ -31,6 +31,7 @@ def get_args():
 
 if __name__ == "__main__":
     arguments = get_args()
+    btctxstore = BtcTxStore()
     wallet = btctxstore.create_key()
     service = network.Service(RELAYNODES, wallet)
     try:
