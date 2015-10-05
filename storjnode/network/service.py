@@ -8,6 +8,7 @@ import logging
 import irc.client
 import base64
 import threading
+import datetime
 from storjnode import deserialize
 from storjnode.network import package
 try:
@@ -45,7 +46,8 @@ def _generate_nick():
 
 class Service(object):
 
-    def __init__(self, relaynodes, wif, testnet=False, expiretime=30):
+    def __init__(self, relaynodes, wif, testnet=False, expiretime=30,
+                 relaynode_update_interval=3600):
         """Create a network service instance with the given configuration.
 
         Arguments:
@@ -57,14 +59,15 @@ class Service(object):
         self._btctxstore = btctxstore.BtcTxStore(testnet=testnet)
 
         # package settings
-        self._expiretime = expiretime  # read only
-        self._testnet = testnet  # read only
-        self._wif = wif  # read only
+        self._expiretime = expiretime
+        self._testnet = testnet
+        self._wif = wif
+        self._relaynode_update_interval = relaynode_update_interval
 
         # syn listen channel
-        self._address = self._btctxstore.get_address(self._wif)  # read only
+        self._address = self._btctxstore.get_address(self._wif)
         self._relaynodes = relaynodes[:]  # never modify original
-        self._channel = "#{address}".format(address=self._address)  # read only
+        self._channel = "#{address}".format(address=self._address)
 
         # reactor
         self._reactor = irc.client.Reactor()
@@ -74,6 +77,10 @@ class Service(object):
         # sender
         self._sender_thread = None
         self._sender_stop = True
+
+        # relaynode updater
+        self._relaynode_update_thread = None
+        self._relaynode_update_stop = True
 
         # irc connection
         self._in_own_channel = False
@@ -187,6 +194,11 @@ class Service(object):
         self._sender_thread = threading.Thread(target=self._sender_loop)
         self._sender_thread.start()
 
+        # relaynode updater
+        self._relaynode_update_stop = False
+        self._relaynode_update_thread = threading.Thread(target=self._relaynode_update_loop)
+        self._relaynode_update_thread.start()
+
     def _send_bytes(self, dcc, data):
         try:
             dcc.send_bytes(data)
@@ -233,14 +245,14 @@ class Service(object):
             if self.connected():
                 for node, queue in self._outgoing_queues.items():
                     self._process_outgoing(node, queue)
-            time.sleep(0.2)  # sleep a little to not hog the cpu
+            time.sleep(0.1)  # sleep a little to not hog the cpu
 
     def _reactor_loop(self):
         # This loop should specifically *not* be mutex-locked.
         # Otherwise no other thread would ever be able to change
         # the shared state of a Reactor object running this function.
         while not self._reactor_stop:
-            self._reactor.process_once(timeout=0.2)
+            self._reactor.process_once(timeout=0.1)
 
     def connected(self):
         """Returns True if connected to the network."""
@@ -261,6 +273,10 @@ class Service(object):
         self.connect()
 
     def _stop_threads(self):
+        if self._relaynode_update_thread is not None:
+            self._relaynode_update_stop = True
+            self._relaynode_update_thread.join()
+            self._relaynode_update_thread = None
         if self._reactor_thread is not None:
             self._reactor_stop = True
             self._reactor_thread.join()
@@ -514,6 +530,16 @@ class Service(object):
                 if status["state"] == CONNECTED:
                     nodes.append(node)
             return nodes
+
+    def _relaynode_update_loop(self):
+        last_update = None
+        delta = datetime.timedelta(seconds=self._relaynode_update_interval)
+        while not self._relaynode_update_stop:
+            now = datetime.datetime.now()
+            if last_update is None or last_update + delta < now: 
+                # FIXME update list, see experiments/servermap.py
+                last_update = now
+            time.sleep(0.1)
 
     def get_relaynodes(self):
         """Returns list of current relay nodes.

@@ -34,12 +34,12 @@ class TestSendLargeFile(unittest.TestCase):
         self.alice.disconnect()
         self.bob.disconnect()
 
-    def test_connects(self):
+    def test_send_large_file(self):
         large_file = b"X" * (1024 * 1024)  # 1M
 
         self.alice.send(self.bob_address, large_file)
 
-        time.sleep(60 * 3)  # allow time to connect and send
+        time.sleep(60 * 4)  # allow time to connect and send
 
         # check size
         received = self.bob.get_received()[self.alice_address]

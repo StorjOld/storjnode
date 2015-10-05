@@ -33,11 +33,13 @@ class TestSplitsLargeData(unittest.TestCase):
         self.alice.disconnect()
         self.bob.disconnect()
 
-    def test_connects(self):
+    def test_splits_large_data(self):
         largedata = b"X" * (network.package.MAX_DATA_SIZE * 2)
         self.alice.send(self.bob_address, largedata)
 
-        time.sleep(15)  # allow time to connect and send
+        while self.alice.has_queued_output():  # wait until sent
+            time.sleep(0.2)
+        time.sleep(10)  # allow time to receive
 
         expected_bob = {self.alice_address: largedata}
         self.assertEqual(expected_bob, self.bob.get_received())

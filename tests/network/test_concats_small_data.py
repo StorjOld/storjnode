@@ -33,12 +33,14 @@ class TestConcatsSmallData(unittest.TestCase):
         self.alice.disconnect()
         self.bob.disconnect()
 
-    def test_connects(self):
+    def test_concats_small_data(self):
         self.alice.send(self.bob_address, b"foo")
         self.alice.send(self.bob_address, b"bar")
         self.alice.send(self.bob_address, b"baz")
 
-        time.sleep(15)  # allow time to connect and send
+        while self.alice.has_queued_output():  # wait until sent
+            time.sleep(0.2)
+        time.sleep(5)  # allow time to receive
 
         expected_bob = {self.alice_address: b"foobarbaz"}
         self.assertEqual(expected_bob, self.bob.get_received())

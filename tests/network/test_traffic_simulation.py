@@ -72,10 +72,6 @@ class TestTraficSimulation(unittest.TestCase):
 
     def test_simulation(self):
 
-        # other test is responsable for simultainous connect
-        self.alice.send(self.bob_address, b"alice")
-        time.sleep(15)
-
         self._start_threads()
         time.sleep(60)
         self._stop_threads()

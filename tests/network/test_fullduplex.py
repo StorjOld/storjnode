@@ -33,11 +33,14 @@ class TestFullDuplex(unittest.TestCase):
         self.alice.disconnect()
         self.bob.disconnect()
 
-    def test_connects(self):
+    def test_fullduplex(self):
         self.alice.send(self.bob_address, b"alice")
         self.bob.send(self.alice_address, b"bob")
 
-        time.sleep(20)  # allow time to connect and send
+        while (self.alice.has_queued_output() or  # wait until sent
+               self.bob.has_queued_output()):
+            time.sleep(0.2)
+        time.sleep(5)  # allow time to receive
 
         expected_alice = {self.bob_address: b"bob"}
         self.assertEqual(expected_alice, self.alice.get_received())

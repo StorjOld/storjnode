@@ -33,11 +33,14 @@ class TestSimultaneousConnect(unittest.TestCase):
         self.alice.disconnect()
         self.bob.disconnect()
 
-    def test_connects(self):
+    def test_simultaneous_connect(self):
         self.alice.send(self.bob_address, b"something")
         self.bob.send(self.alice_address, b"something")
 
-        time.sleep(20)  # allow time to connect and send
+        while (self.alice.has_queued_output()  # wait until sent
+               or self.bob.has_queued_output()):
+            time.sleep(0.2)
+        time.sleep(5)  # allow time to receive
 
         self.assertEqual(self.alice.nodes_connected(), [self.bob_address])
         self.assertEqual(self.bob.nodes_connected(), [self.alice_address])
