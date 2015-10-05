@@ -94,6 +94,7 @@ class Service(object):
 
         Raises:
             storjnode.network.ConnectionError on failure to connect.
+            storjnode.deserialize.InvalidRelayNodeURL
         """
         _log.info("Starting network service!")
         self._find_relay_node()

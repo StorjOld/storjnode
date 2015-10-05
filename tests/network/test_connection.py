@@ -1,9 +1,18 @@
+import logging
+
+LOG_FORMAT = "%(levelname)s %(name)s %(lineno)d: %(message)s"
+logging.basicConfig(format=LOG_FORMAT, level=logging.INFO)
+
+import os
 import unittest
 import btctxstore
 from storjnode.network import Service
 
 
-INITIAL_RELAYNODES = [("localhost:6667")]
+if os.environ.get("STORJNODE_USE_RELAYNODE"):
+    INITIAL_RELAYNODES = [os.environ.get("STORJNODE_USE_RELAYNODE")]
+else:
+    INITIAL_RELAYNODES = ["localhost:6667"]
 
 
 class TestConnection(unittest.TestCase):

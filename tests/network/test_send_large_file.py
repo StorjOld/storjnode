@@ -1,3 +1,9 @@
+import logging
+
+LOG_FORMAT = "%(levelname)s %(name)s %(lineno)d: %(message)s"
+logging.basicConfig(format=LOG_FORMAT, level=logging.INFO)
+
+import os
 import hashlib
 import time
 import unittest
@@ -5,7 +11,10 @@ import btctxstore
 from storjnode import network
 
 
-INITIAL_RELAYNODES = [("localhost:6667")]
+if os.environ.get("STORJNODE_USE_RELAYNODE"):
+    INITIAL_RELAYNODES = [os.environ.get("STORJNODE_USE_RELAYNODE")]
+else:
+    INITIAL_RELAYNODES = ["localhost:6667"]
 
 
 class TestSendLargeFile(unittest.TestCase):
@@ -20,7 +29,6 @@ class TestSendLargeFile(unittest.TestCase):
         self.alice.connect()
         self.bob = network.Service(INITIAL_RELAYNODES, self.bob_wif)
         self.bob.connect()
-        time.sleep(15)  # allow time to connect
 
     def tearDown(self):
         self.alice.disconnect()

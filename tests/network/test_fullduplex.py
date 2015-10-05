@@ -1,10 +1,19 @@
+import logging
+
+LOG_FORMAT = "%(levelname)s %(name)s %(lineno)d: %(message)s"
+logging.basicConfig(format=LOG_FORMAT, level=logging.INFO)
+
+import os
 import time
 import unittest
 import btctxstore
 from storjnode import network
 
 
-INITIAL_RELAYNODES = [("localhost:6667")]
+if os.environ.get("STORJNODE_USE_RELAYNODE"):
+    INITIAL_RELAYNODES = [os.environ.get("STORJNODE_USE_RELAYNODE")]
+else:
+    INITIAL_RELAYNODES = ["localhost:6667"]
 
 
 class TestFullDuplex(unittest.TestCase):
@@ -19,7 +28,6 @@ class TestFullDuplex(unittest.TestCase):
         self.alice.connect()
         self.bob = network.Service(INITIAL_RELAYNODES, self.bob_wif)
         self.bob.connect()
-        time.sleep(15)  # allow time to connect
 
     def tearDown(self):
         self.alice.disconnect()
@@ -29,7 +37,7 @@ class TestFullDuplex(unittest.TestCase):
         self.alice.send(self.bob_address, b"alice")
         self.bob.send(self.alice_address, b"bob")
 
-        time.sleep(15)  # allow time to connect and send
+        time.sleep(20)  # allow time to connect and send
 
         expected_alice = {self.bob_address: b"bob"}
         self.assertEqual(expected_alice, self.alice.get_received())
