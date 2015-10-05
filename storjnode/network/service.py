@@ -84,6 +84,7 @@ class Service(object):
         self._address = self._btctxstore.get_address(self._wif)
         self._relaynodes = relaynodes[:]  # never modify original
         self._channel = "#{address}".format(address=self._address)
+        self._nick = _generate_nick()
 
         # reactor
         self._reactor = irc.client.Reactor()
@@ -138,7 +139,7 @@ class Service(object):
         random.shuffle(self._relaynodes)
         for relaynode_string in self._relaynodes:
             host, port = deserialize.relaynode(relaynode_string)
-            self._connect_to_relaynode(host, port, _generate_nick())
+            self._connect_to_relaynode(host, port, self._nick)
 
             with self._irc_connection_mutex:
                 if (self._irc_connection is not None and
@@ -174,12 +175,14 @@ class Service(object):
             c.add_global_handler("join", self._on_join)
 
     def _on_join(self, connection, event):
-        if event.target == self._channel:
+        if event.target == self._channel and self._nick in event.source:
+            assert(not self._in_own_channel)
             self._in_own_channel = True
             _log.info("Joined own channel %s", self._channel)
 
     def _on_nicknameinuse(self, connection, event):
-        connection.nick(_generate_nick())  # retry in case of miracle
+        self._nick = _generate_nick()
+        connection.nick(self._nick)  # retry in case of miracle
 
     def _on_disconnect(self, connection, event):
         _log.info("Disconnected! %s", event.arguments[0])
@@ -232,7 +235,8 @@ class Service(object):
         try:
             dcc.send_bytes(data)
             return True
-        except:
+        except Exception as e:
+            _log.warning("Failed to send bytes: %s", repr(e))
             return False
 
     def _send_data(self, node, dcc, data):
@@ -305,7 +309,6 @@ class Service(object):
 
     def connected(self):
         """Returns True if connected to the network."""
-        # FIXME check if joined channel
         with self._irc_connection_mutex:
             return (self._irc_connection is not None and
                     self._irc_connection.is_connected() and
@@ -414,6 +417,7 @@ class Service(object):
             return True
 
     def _on_pubmsg(self, connection, event):
+        _log.info("pubmsg: %s, %s", repr(event.source), repr(event.arguments))
 
         # Ignore messages from other node channels.
         # We may be trying to send a syn in another channel along with others.
@@ -452,6 +456,7 @@ class Service(object):
         # check for existing connection
         if self._node_state(syn["node"]) not in [DISCONNECTED, AWAITING]:
             self._on_simultaneous_connect(syn["node"])
+            # FIXME fails to handle two subsiquent syns
             return
 
         # accept connection
@@ -518,16 +523,18 @@ class Service(object):
 
         try:
             # setup dcc
+            _log.info("Setup DCC connection to %s", node)
             peer_address = irc.client.ip_numstr_to_quad(peer_address)
             peer_port = int(peer_port)
             dcc = self._reactor.dcc("raw")
-            dcc.connect(peer_address, peer_port)
+            dcc.connect(peer_address, peer_port)  # FIXME run in thread and timeout
 
             # acknowledge connection
             _log.info("Sending ack to %s", node)
             ack = package.ack(self._wif, testnet=self._testnet)
             successful = self._send_bytes(dcc, ack)
-        except irc.client.DCCConnectionError:
+        except irc.client.DCCConnectionError as e:
+            _log.warning("DCC connection error: %s", repr(e))
             successful = False
 
         if not successful:
