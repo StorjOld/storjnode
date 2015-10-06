@@ -14,7 +14,11 @@ from storjnode import util
 from storjnode import network
 
 
-RELAYNODES = ["irc.quakenet.org:6667"]
+if os.environ.get("STORJNODE_USE_RELAYNODE"):
+    INITIAL_RELAYNODES = [os.environ.get("STORJNODE_USE_RELAYNODE")]
+else:
+    INITIAL_RELAYNODES = ["irc.dal.net"]
+
 USERHOME = os.path.expanduser("~")
 STOREPATH = os.path.join(USERHOME, ".storjnode", "test_network_receiver")
 
@@ -44,7 +48,7 @@ if __name__ == "__main__":
     storepath = arguments["storepath"]
     util.ensure_path_exists(storepath)
     logging.info("SAVING RECEIVED DATA AT %s", storepath)
-    service = network.Service(RELAYNODES, key)
+    service = network.Service(INITIAL_RELAYNODES, key)
     try:
         service.connect()
         while True:

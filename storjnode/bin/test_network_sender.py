@@ -13,7 +13,10 @@ from btctxstore import BtcTxStore
 from storjnode import network
 
 
-RELAYNODES = ["irc.quakenet.org:6667"]
+if os.environ.get("STORJNODE_USE_RELAYNODE"):
+    INITIAL_RELAYNODES = [os.environ.get("STORJNODE_USE_RELAYNODE")]
+else:
+    INITIAL_RELAYNODES = ["irc.dal.net"]
 
 
 def get_args():
@@ -35,7 +38,7 @@ if __name__ == "__main__":
     key = btctxstore.create_key()
     address = btctxstore.get_address(key)
     logging.info("USING ON TIME ADDRESS %s", address)
-    service = network.Service(RELAYNODES, key)
+    service = network.Service(INITIAL_RELAYNODES, key)
     try:
         service.connect()
         with open(arguments["filepath"], "rb") as f:
