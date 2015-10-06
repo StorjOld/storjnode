@@ -46,6 +46,10 @@ def _generate_nick():
     return ''.join(random.choice(chars) for _ in range(12))
 
 
+def _get_channel(address):
+    return "#{address}".format(address=address[:31])  # limit to 32chars
+
+
 class Service(object):
 
     def __init__(self, relaynodes, wif, testnet=False, expiretime=30,
@@ -83,7 +87,7 @@ class Service(object):
         # syn listen channel
         self._address = self._btctxstore.get_address(self._wif)
         self._relaynodes = relaynodes[:]  # never modify original
-        self._channel = "#{address}".format(address=self._address)
+        self._channel = _get_channel(self._address)
         self._nick = _generate_nick()
 
         # reactor
@@ -408,7 +412,7 @@ class Service(object):
                 _log.warning("Cannot send syn, not connected!")
                 return False
 
-            node_channel = "#{address}".format(address=node)
+            node_channel = _get_channel(node)
             _log.info("Sending syn to node channel %s", node_channel)
             self._irc_connection.join(node_channel)
             syn = package.syn(self._wif, testnet=self._testnet)

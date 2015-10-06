@@ -17,7 +17,9 @@ from storjnode import network
 if os.environ.get("STORJNODE_USE_RELAYNODE"):
     INITIAL_RELAYNODES = [os.environ.get("STORJNODE_USE_RELAYNODE")]
 else:
-    INITIAL_RELAYNODES = ["irc.dal.net"]
+    INITIAL_RELAYNODES = ["niners.ctrl-c.se:6667"]
+    # INITIAL_RELAYNODES = ["storj.sdo-srv.com:6667"]
+    # INITIAL_RELAYNODES = ["irc.dal.net", "irc.eu.dal.net"]
 
 USERHOME = os.path.expanduser("~")
 STOREPATH = os.path.join(USERHOME, ".storjnode", "test_network_receiver")
