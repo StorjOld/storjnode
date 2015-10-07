@@ -1,6 +1,23 @@
-=============
+===================
+Storj Network Layer
+===================
+
+Network layer responsibilities:
+
+ - Broadcast messages (initially via IRC)
+ - Node descovery (initially via IRC)
+ - Establishing P2P connections (NAT traversal)
+ - P2P data transfer
+
+
+Interface
+#########
+
+TODO
+
+
 NAT Traversal
-=============
+#############
 
 Because everyone is not using IPv6 we have to deal with NAT and there is no
 prefect solution to establishing a P2P network with nodes behind NAT. This is
@@ -14,7 +31,7 @@ to overcome and get a P2P connection.
 
 
 NAT Traversal options
-#####################
+=====================
 
 The following practical NAT traversal options exist for P2P applications.
 
@@ -32,8 +49,11 @@ Drawbacks:
 
  - Doesn't work with Symmetric NAT devices.
 
-https://en.wikipedia.org/wiki/STUN
-https://en.wikipedia.org/wiki/UDP_hole_punching
+Links:
+
+ - `Wiki/STUN <https://en.wikipedia.org/wiki/STUN>`_
+ - `Wiki/UDP_hole_punching <https://en.wikipedia.org/wiki/UDP_hole_punching>`_
+ - `Proof of Concept <https://gist.github.com/koenbollen/464613>`_
 
 
 Automatic port forwarding
@@ -48,8 +68,10 @@ Drawbacks:
    causing ISPs to NAT internaly and this will only get worse).
  - These protocols have had a bad security track record.
 
-NAT-PMP: https://en.wikipedia.org/wiki/NAT_Port_Mapping_Protocol
-UPnP: https://en.wikipedia.org/wiki/Universal_Plug_and_Play
+Links:
+
+ - `Wiki/NAT-PMP <https://en.wikipedia.org/wiki/NAT_Port_Mapping_Protocol>`_
+ - `Wiki/UPnP <https://en.wikipedia.org/wiki/Universal_Plug_and_Play>`_
 
 
 Manually port forwarding
@@ -59,13 +81,15 @@ Most NAT device support manual port forwarding.
 
 Drawbacks: 
 
- - Obviously this requires the end user to configuer the NAT device.
+ - Obviously this requires the end user to configure the NAT device.
  - Only works if there is a single NAT layer (IPv4 depletion is now
    causing ISPs to NAT internaly and this will only get worse).
 
 
+
+
 Storj NAT Traversal stragegy
-############################
+============================
 
 
 UDP Connections
