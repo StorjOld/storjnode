@@ -43,6 +43,7 @@ Critical shortcomings:
  - No end-to-end encryption
  - No Authentication
  - No Messaging
+ - Minimal NAT-traversal
 
 
 Telehash
@@ -78,4 +79,9 @@ implementation. They seem to be moving at a quicker pace but still not to fast.
 `Current status <https://github.com/ethereum/devp2p/blob/master/rlpx.md#implementation-status>`_
 
 
+Bleep
+#####
+
+Bleep is pretty much exactly what we want if all they clame to be true is.
+Sadly they are not open source, so we cannot use them.
 
