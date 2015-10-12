@@ -4,8 +4,6 @@ Network
 
 A lightweight, stateless and fault tolerant P2P networking protocol.
 
-Everything we want? https://github.com/ethereum/devp2p/blob/master/rlpx.md#network-formation
-
 
 Features
 ########
@@ -221,6 +219,7 @@ Distributed hash table
 
 https://en.wikipedia.org/wiki/Kademlia
 https://github.com/bmuller/kademlia
+https://web.archive.org/web/20130320062215/http://www.cs.rice.edu/~scrosby/tr/BTMeasure-Main.pdf
 
 
 Packet types
