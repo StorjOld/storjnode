@@ -43,6 +43,7 @@ Critical shortcomings:
  - No end-to-end encryption
  - No Authentication
  - No Messaging
+ - No file transfer control
  - Minimal NAT-traversal
 
 
@@ -61,19 +62,19 @@ noteworthy but python may be added quickly via C bindings.
 Critical shortcomings:
 
  - No DHT
- - No ready
+ - Not ready
  - Minimal NAT-traversal
 
 
 Ethereum P2P Stack
 ##################
 
-While the Ethereum P2P stack suffers from similar over engineering problems
+While the Ethereum P2P stack suffers from similar over engineering problems,
 they have made great technical decisions regarding the P2P network
 implementation. They seem to be moving at a quicker pace but still not to fast.
 
  - No DHT
- - No ready
+ - Not ready
  - No NAT-traversal
 
 `Current status <https://github.com/ethereum/devp2p/blob/master/rlpx.md#implementation-status>`_

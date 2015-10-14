@@ -148,8 +148,8 @@ Protocol
 Linking nodes
 =============
 
-Direct linking
---------------
+Direct linking Handshake
+------------------------
 
 Used to establish links to public nodes. It does not matter if the initiating
 node is public or private since the required NAT entry is created by the
