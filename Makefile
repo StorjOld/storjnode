@@ -56,9 +56,9 @@ shell: setup
 
 
 test: setup
-	screen -S testserver -d -m $(PY) -m irc.server
+	#screen -S testserver -d -m $(PY) -m server.module
 	$(PY) setup.py test
-	screen -S testserver -X kill
+	#screen -S testserver -X kill
 
 
 publish: test

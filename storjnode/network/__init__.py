@@ -1,2 +1,2 @@
-from . service import Service
-from . service import ConnectionError
+from . import absnode
+from . import kadpynode

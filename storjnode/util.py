@@ -1,5 +1,36 @@
-import psutil
 import os
+import re
+import socket
+import psutil
+
+
+def valid_ipv4(ip):
+    """Returns True if the given string is a valid IPv4 address."""
+    try:
+        socket.inet_pton(socket.AF_INET, ip)
+        return True
+    except AttributeError:  # no inet_pton
+        try:
+            socket.inet_aton(ip)
+            return True
+        except socket.error:
+            return False
+    except socket.error:
+        return False
+
+
+def valid_ipv6(ip):
+    """Returns True if the given string is a valid IPv6 address."""
+    try:
+        socket.inet_pton(socket.AF_INET6, ip)
+    except socket.error:  # not a valid ip
+        return False
+    return True
+
+
+def valid_ip(ip):
+    """Returns True if the given string is a valid IPv4 or IPv6 address."""
+    return valid_ipv4(ip) or valid_ipv6(ip)
 
 
 def chunks(items, size):
@@ -7,8 +38,8 @@ def chunks(items, size):
     Original order is preserved.
 
     Example:
-        > chunks([1,2,3,4,5,6,7,8], 3)
-        [[1, 2, 3], [4, 5, 6], [7, 8]]
+        > chunks([1,2,3,4,5,6,7,8,9], 2)
+        [[1, 2], [3, 4], [5, 6], [7, 8], [9]]
     """
     return [items[i:i+size] for i in range(0, len(items), size)]
 
@@ -31,7 +62,7 @@ def get_fs_type(path):
     """Returns: path filesystem type or None.
 
     Example:
-        > control.util.get_fs_type("/home")
+        > get_fs_type("/home")
         'ext4'
     """
     partitions = {}
