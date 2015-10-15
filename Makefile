@@ -55,7 +55,7 @@ shell: setup
 	env/bin/ipython
 
 
-test: setup
+test:
 	#screen -S testserver -d -m $(PY) -m server.module
 	$(PY) setup.py test
 	#screen -S testserver -X kill

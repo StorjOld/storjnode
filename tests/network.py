@@ -4,10 +4,10 @@ import btctxstore
 import storjnode
 
 
-TEST_SWARM_SIZE = 20
+TEST_SWARM_SIZE = 10
 
 
-class TestNode(unittest.TestCase):
+class AbsNodeTest(object):
 
     def setUp(self):
         self.btctxstore = btctxstore.BtcTxStore(testnet=False)
@@ -15,7 +15,7 @@ class TestNode(unittest.TestCase):
         for i in range(TEST_SWARM_SIZE):
             print("creating peer {0}".format(i))
             bootstrap_nodes = [("127.0.0.1", 3000 + x) for x in range(i)][-5:]
-            node = storjnode.network.kadpynode.KadPyNode({
+            node = self.node_class({
                 "nodekey": self.btctxstore.create_wallet(),
                 "node_address": ("127.0.0.1", 3000 + i),
                 "bootstrap_nodes": bootstrap_nodes,
@@ -24,7 +24,6 @@ class TestNode(unittest.TestCase):
             self.swarm.append(node)
 
     def test_store_and_retreive(self):
-
         inserted = dict([
             ("key_{0}".format(i), "value_{0}".format(i)) for i in range(5)
         ])
@@ -41,6 +40,13 @@ class TestNode(unittest.TestCase):
             found_value = random_peer.get(key)
             print("found {0} -> {1}".format(key, found_value))
             self.assertEqual(found_value, inserted_value)
+
+
+class TestKadPyNode(AbsNodeTest, unittest.TestCase):
+
+    def __init__(self, *args, **kwargs):
+        self.node_class = storjnode.network.kadpynode.KadPyNode
+        super(TestKadPyNode, self).__init__(*args, **kwargs)
 
 
 if __name__ == "__main__":

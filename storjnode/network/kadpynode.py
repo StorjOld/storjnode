@@ -10,12 +10,12 @@ class KadPyNode(AbstractNode):
         self._dht = None
         self._dht_mutex = threading.RLock()
 
-    def put(self, key, data):
+    def put(self, key, value):
         # FIXME check key and data limitations
         if not self.is_linked():
             raise Exception("Node must be linked to store data!")
         with self._dht_mutex:
-            self._dht[key] = data
+            self._dht[key] = value
 
     def get(self, key):
         # FIXME check key limitations

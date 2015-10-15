@@ -11,8 +11,8 @@ class AbstractNode(object):
     __metaclass__ = abc.ABCMeta
 
     def __init__(self, config):
-        """Create a network node instance with the given config. All calls are
-        blocking for ease of use.
+        """Create a network node instance with the given config. 
+        All calls are blocking for ease of use.
 
         example_config = {
             "nodekey": "BITCOIN_WIF_OR_HWIF",
@@ -66,14 +66,24 @@ class AbstractNode(object):
             self._config = config
 
     def get_nodeid(self):
+        """Return the id of this node."""
         # use public key as nodeid instead?
         nodekey = self.cfg("nodekey")
         if self._btctxstore.validate_wallet(nodekey):
             nodekey = self._btctxstore.get_key(nodekey)
-        return self._btctxstore.get_address(nodekey)
+        address = self._btctxstore.get_address(nodekey)
+
+        addr_bytes = b"TODO"  # decode to bytes
+        return btctxstore.common.num_from_bytes(21, addr_bytes)
+
+    def __getitem__(self, key):
+        return self.get(key)
+
+    def __setitem__(self, key, value):
+        return self.put(key, value)
 
     @abc.abstractmethod
-    def put(self, key, data):
+    def put(self, key, value):
         """Store key->data in the DHT."""
         return
 
