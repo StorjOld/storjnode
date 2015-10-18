@@ -50,12 +50,12 @@ class TestNode(unittest.TestCase):
         for key, value in inserted.items():
             print("inserting {0} -> {1}".format(key, value))
             random_peer = random.choice(self.swarm)
-            random_peer.put(key, value)
+            random_peer[key] = value
 
         # retrieve values randomly
         for key, inserted_value in inserted.items():
             random_peer = random.choice(self.swarm)
-            found_value = random_peer.get(key)
+            found_value = random_peer[key]
             print("found {0} -> {1}".format(key, found_value))
             self.assertEqual(found_value, inserted_value)
 
