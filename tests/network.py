@@ -60,8 +60,5 @@ class TestNode(unittest.TestCase):
             self.assertEqual(found_value, inserted_value)
 
 
-
-
-
 if __name__ == "__main__":
     unittest.main()

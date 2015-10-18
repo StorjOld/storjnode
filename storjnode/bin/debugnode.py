@@ -93,7 +93,7 @@ def main():
         ]
     }
     print("CONFIG:", config)
-    node = storjnode.network.kademlianode.KademliaNode(config)
+    node = storjnode.network.BlockingNode(config)
     node.start()
     if command == "run":
         print("RUN")
@@ -109,7 +109,6 @@ def main():
         print("GET")
         key = args["key"]
         value = node[key]
-        # node.get(key, "defaultvalue")  # also works
         print("{0} => {1}".format(key, value))
     node.stop()
 

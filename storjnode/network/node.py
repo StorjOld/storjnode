@@ -126,8 +126,8 @@ class BlockingNode(object):
         # stop reactor
         if stop_reactor:
             reactor.stop()
-            self.reactor_thread.join()
-            self.reactor_thread = None
+            self._reactor_thread.join()
+            self._reactor_thread = None
 
     def restart(self, new_config=None, restart_reactor=True):
         """Restart node.
