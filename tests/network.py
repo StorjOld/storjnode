@@ -1,27 +1,45 @@
+import time
 import random
+import threading
 import unittest
 import btctxstore
 import storjnode
+from twisted.internet import reactor
 
 
 TEST_SWARM_SIZE = 10
 
 
-class AbsNodeTest(object):
+class TestNode(unittest.TestCase):
 
     def setUp(self):
         self.btctxstore = btctxstore.BtcTxStore(testnet=False)
         self.swarm = []
         for i in range(TEST_SWARM_SIZE):
             print("creating peer {0}".format(i))
-            bootstrap_nodes = [("127.0.0.1", 3000 + x) for x in range(i)][-5:]
-            node = self.node_class({
-                "nodekey": self.btctxstore.create_wallet(),
-                "node_address": ("127.0.0.1", 3000 + i),
+            bootstrap_nodes = [
+                ("127.0.0.1", 4000 + x) for x in range(i)
+            ][-5:]  # only the last 5 nodes
+            node = storjnode.network.BlockingNode({
+                "node_key": self.btctxstore.create_wallet(),
+                "node_address": ("127.0.0.1", 4000 + i),
                 "bootstrap_nodes": bootstrap_nodes,
             })
-            node.start()
+            node.start(start_reactor=False)
             self.swarm.append(node)
+
+        # start reactor
+        self.reactor_thread = threading.Thread(
+            target=reactor.run, kwargs={"installSignalHandlers": False}
+        )
+        self.reactor_thread.start()
+        time.sleep(12)  # wait until they organize
+
+    def tearDown(self):
+        for peer in self.swarm:
+            peer.stop(stop_reactor=False)
+        reactor.stop()
+        self.reactor_thread.join()
 
     def test_store_and_retreive(self):
         inserted = dict([
@@ -42,11 +60,7 @@ class AbsNodeTest(object):
             self.assertEqual(found_value, inserted_value)
 
 
-class TestKadPyNode(AbsNodeTest, unittest.TestCase):
 
-    def __init__(self, *args, **kwargs):
-        self.node_class = storjnode.network.kadpynode.KadPyNode
-        super(TestKadPyNode, self).__init__(*args, **kwargs)
 
 
 if __name__ == "__main__":
