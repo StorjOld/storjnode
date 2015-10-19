@@ -30,7 +30,7 @@ setup(
     name='storjnode',
     description="Low level storj protocol reference implementation.",
     long_description=open("README.rst").read(),
-    keywords="",
+    keywords="storj, reference, protocol, DHT",
     url='http://storj.io',
     author='Shawn Wilkinson',
     author_email='shawn+storjnode@storj.io',
