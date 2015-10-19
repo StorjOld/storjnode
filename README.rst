@@ -135,12 +135,9 @@ Starting and using a node in python.
     import storjnode
     import btctxstore
 
-    # node key must be a btc wif or hwif
-    node_key = btctxstore.BtcTxStore().create_key()
-
-    # start node on default port 4653
-    node = storjnode.network.BlockingNode(node_key)
-
+    # start node
+    node_key = btctxstore.BtcTxStore().create_key()  # btc wif or hwif
+    node = storjnode.network.BlockingNode(node_key)  # using default port 4653
     time.sleep(12)  # Giving node some time to find peers
 
     # The blocking node interface is very simple and behaves like a dict.
@@ -162,7 +159,6 @@ Starting and using a node in python.
 
     # stop twisted reactor to disconnect from network
     node.stop_reactor()
-
 
 Multinode usage
 ---------------
