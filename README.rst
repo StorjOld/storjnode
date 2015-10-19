@@ -81,40 +81,26 @@ Usage
 CLI reference node
 ==================
 
-Show help text.
+Using the CLI reference implementation.
 
 ::
 
+    # Show help text.
     $ storjnode --help
 
-Show version number.
-
-::
-
+    # Show version number.
     $ storjnode version
 
-Put key value pair in DHT.
-
-::
-
+    # Put key value pair in DHT.
     $ storjnode put <KEY> <VALUE>
 
-Retrieve value from DHT.
-
-::
-
+    # Retrieve value from DHT.
     $ storjnode get <KEY>
 
-Run node and join network.
-
-::
-
+    # Run node and join network.
     $ storjnode run
 
-Run node on non default port and join network.
-
-::
-
+    # Run node on non default port and join network.
     $ storjnode --port=1337 run
 
 
