@@ -18,14 +18,12 @@ class TestNode(unittest.TestCase):
         for i in range(TEST_SWARM_SIZE):
             print("creating peer {0}".format(i))
             bootstrap_nodes = [
-                ("127.0.0.1", 4000 + x) for x in range(i)
+                ("127.0.0.1", 3000 + x) for x in range(i)
             ][-5:]  # only the last 5 nodes
-            node = storjnode.network.BlockingNode({
-                "node_key": self.btctxstore.create_wallet(),
-                "node_address": ("127.0.0.1", 4000 + i),
-                "bootstrap_nodes": bootstrap_nodes,
-            })
-            node.start(start_reactor=False)
+            node = storjnode.network.BlockingNode(
+                self.btctxstore.create_wallet(), port=(3000 + i),
+                bootstrap_nodes=bootstrap_nodes, start_reactor=False
+            )
             self.swarm.append(node)
 
         # start reactor
@@ -33,11 +31,15 @@ class TestNode(unittest.TestCase):
             target=reactor.run, kwargs={"installSignalHandlers": False}
         )
         self.reactor_thread.start()
-        time.sleep(12)  # wait until they organize
+
+        # wait
+        time.sleep(12)
 
     def tearDown(self):
         for peer in self.swarm:
-            peer.stop(stop_reactor=False)
+            del peer
+
+        # stop reactor
         reactor.stop()
         self.reactor_thread.join()
 
@@ -48,7 +50,6 @@ class TestNode(unittest.TestCase):
 
         # insert mappping randomly into the swarm
         for key, value in inserted.items():
-            print("inserting {0} -> {1}".format(key, value))
             random_peer = random.choice(self.swarm)
             random_peer[key] = value
 
@@ -56,7 +57,6 @@ class TestNode(unittest.TestCase):
         for key, inserted_value in inserted.items():
             random_peer = random.choice(self.swarm)
             found_value = random_peer[key]
-            print("found {0} -> {1}".format(key, found_value))
             self.assertEqual(found_value, inserted_value)
 
 
