@@ -42,7 +42,7 @@ class TestNode(unittest.TestCase):
         reactor.stop()
         self.reactor_thread.join()
 
-    def test_store_and_retreive(self):
+    def test_swarm(self):
         inserted = dict([
             ("key_{0}".format(i), "value_{0}".format(i)) for i in range(5)
         ])

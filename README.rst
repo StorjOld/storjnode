@@ -43,7 +43,7 @@ Install client
 
 ::
 
-    $ sudo apt-get install python-pip
+    $ sudo apt-get install python-pip python-dev
     $ sudo pip install storjnode
     $ storjnode version
 

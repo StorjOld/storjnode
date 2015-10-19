@@ -100,11 +100,9 @@ if __name__ == "__main__":
         exit(0)
 
     # setup node
-    api = btctxstore.BtcTxStore()
-    node = storjnode.network.BlockingNode(
-        api.create_wallet(), port=args["port"],
-        bootstrap_nodes=BOOTSTRAP_NODES
-    )
+    node_key = btctxstore.BtcTxStore().create_wallet()
+    port = args["port"]
+    node = storjnode.network.BlockingNode(node_key, port=port)
 
     print("Giving node 12sec to find peers ...")
     time.sleep(12)
