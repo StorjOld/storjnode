@@ -43,15 +43,15 @@ Install client
 
 ::
 
-    $ sudo apt-get install python3-pip
-    $ sudo pip3 install storjnode
+    $ sudo apt-get install python-pip
+    $ sudo pip install storjnode
     $ storjnode version
 
 Update client
 
 ::
 
-    $ sudo pip3 install storjnode --upgrade
+    $ sudo pip install storjnode --upgrade
     $ storjnode version
 
 
@@ -62,16 +62,16 @@ Install client
 
 ::
 
-    $ brew install python3
+    $ brew install python
     $ rehash
-    $ pip3 install storjnode
+    $ pip install storjnode
     $ storjnode version
 
 Update client
 
 ::
 
-    $ pip3 install storjnode --upgrade
+    $ pip install storjnode --upgrade
     $ storjnode version
 
 
@@ -138,18 +138,15 @@ Starting and using a node in python.
     # node key must be a btc wif or hwif
     node_key = btctxstore.BtcTxStore().create_key()
 
-    # node must know at least one other peer to gain access to the network
-    peers = [("159.203.64.230", 4653)]
+    # start node on default port 4653
+    node = storjnode.network.BlockingNode(node_key)
 
-    # start node on default port 4653 (any port will do)
-    node = storjnode.network.BlockingNode(node_key, port=4653,
-                                          bootstrap_nodes=peers)
     time.sleep(12)  # Giving node some time to find peers
 
     # The blocking node interface is very simple and behaves like a dict.
     node["examplekey"] = "examplevalue"  # put key value pair into DHT
-    stored_value = node["examplekey"]  # retrieve value by key from DHT
-    print("{key} => {value}".format(key="examplekey", value=stored_value)
+    retrieved = node["examplekey"]  # retrieve value by key from DHT
+    print("{key} => {value}".format(key="examplekey", value=retrieved))
 
     # A node does not know of its size or all entries.
     try:
@@ -181,23 +178,20 @@ different ports and manage the twisted reactor yourself.
     # from examples/multinode_usage.py
 
     import time
+    import threading
     import storjnode
     import btctxstore
     from twisted.internet import reactor
 
-    peers = [("159.203.64.230", 4653)]  # known bootstrap peers
-
     # create alice node
     alice_wallet = btctxstore.BtcTxStore().create_wallet()  # hwif
-    alice_node = storjnode.network.BlockingNode(
-        alice_wallet, port=4653, start_reactor=False, bootstrap_nodes=peers
-    )
+    alice_node = storjnode.network.BlockingNode(alice_wallet, port=4653,
+                                                start_reactor=False)
 
     # create bob node
     bob_key = btctxstore.BtcTxStore().create_wallet()  # wif
-    bob_node = storjnode.network.BlockingNode(
-        bob_key, port=4654, start_reactor=False, bootstrap_nodes=peers
-    )
+    bob_node = storjnode.network.BlockingNode(bob_key, port=4654,
+                                              start_reactor=False)
 
     # start twisted reactor yourself
     reactor_thread = threading.Thread(target=reactor.run,
@@ -208,7 +202,7 @@ different ports and manage the twisted reactor yourself.
     # use nodes
     alice_node["examplekey"] = "examplevalue"  # alice inserts value
     stored_value = bob_node["examplekey"]  # bob retrievs value
-    print("{key} => {value}".format(key="examplekey", value=stored_value)
+    print("{key} => {value}".format(key="examplekey", value=stored_value))
 
     # stop twisted reactor
     reactor.stop()

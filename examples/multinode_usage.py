@@ -2,6 +2,7 @@
 # from examples/multinode_usage.py
 
 import time
+import threading
 import storjnode
 import btctxstore
 from twisted.internet import reactor
@@ -25,7 +26,7 @@ time.sleep(12)  # Giving node some time to find peers
 # use nodes
 alice_node["examplekey"] = "examplevalue"  # alice inserts value
 stored_value = bob_node["examplekey"]  # bob retrievs value
-print("{key} => {value}".format(key="examplekey", value=stored_value)
+print("{key} => {value}".format(key="examplekey", value=stored_value))
 
 # stop twisted reactor
 reactor.stop()
