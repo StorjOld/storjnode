@@ -14,9 +14,6 @@ storjnode
 .. |LicenseLink| image:: https://img.shields.io/badge/license-MIT-blue.svg
 .. _LicenseLink: https://raw.githubusercontent.com/Storj/storjnode
 
-.. |IssuesLink| image:: https://img.shields.io/github/issues/Storj/storjnode.svg
-.. _IssuesLink: https://github.com/Storj/storjnode/issues
-
 
 Low level storj protocol reference implementation.
 
