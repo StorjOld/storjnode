@@ -16,7 +16,6 @@ class TestNode(unittest.TestCase):
         self.btctxstore = btctxstore.BtcTxStore(testnet=False)
         self.swarm = []
         for i in range(TEST_SWARM_SIZE):
-            print("creating peer {0}".format(i))
             bootstrap_nodes = [
                 ("127.0.0.1", 3000 + x) for x in range(i)
             ][-5:]  # only the last 5 nodes
