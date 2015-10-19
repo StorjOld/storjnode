@@ -2,7 +2,7 @@
 storjnode
 #########
 
-|BuildLink|_ |CoverageLink|_ |LicenseLink|_ |IssuesLink|_
+|BuildLink|_ |CoverageLink|_ |LicenseLink|_ 
 
 
 .. |BuildLink| image:: https://travis-ci.org/Storj/storjnode.svg?branch=master
