@@ -20,13 +20,6 @@ import storjnode
 import btctxstore
 
 
-BOOTSTRAP_NODES = [
-    ("104.236.1.59", 4653),    # storj stable
-    ("159.203.64.230", 4653),  # storj develop
-    ("78.46.188.55", 4653),    # F483's server
-]
-
-
 def _add_programm_args(parser):
 
     # port

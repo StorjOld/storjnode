@@ -8,11 +8,16 @@ from kademlia.network import Server
 
 
 DEFAULT_PORT = 4653
+DEFAULT_BOOTSTRAP_NODES = [
+    ("104.236.1.59", 4653),    # storj stable
+    ("159.203.64.230", 4653),  # storj develop
+    ("78.46.188.55", 4653),    # F483's server
+]
 
 
 class BlockingNode(object):
 
-    def __init__(self, node_key, port=DEFAULT_PORT, 
+    def __init__(self, node_key, port=DEFAULT_PORT,
                  start_reactor=True, bootstrap_nodes=None):
         """Create a node instance with the given config. Behaves like a dict
         regarding DHT functionality. All calls are blocking for ease of use.
@@ -34,7 +39,8 @@ class BlockingNode(object):
         assert(port >= 0 and port <= 2**16)
 
         # validate bootstrap_nodes
-        bootstrap_nodes = bootstrap_nodes if bootstrap_nodes else []
+        if bootstrap_nodes is None:
+            bootstrap_nodes = DEFAULT_BOOTSTRAP_NODES
         for address in bootstrap_nodes:
             assert(isinstance(address, tuple) or isinstance(address, list))
             assert(len(address) == 2)

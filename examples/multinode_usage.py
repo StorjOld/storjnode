@@ -6,19 +6,15 @@ import storjnode
 import btctxstore
 from twisted.internet import reactor
 
-peers = [("159.203.64.230", 4653)]  # known bootstrap peers
-
 # create alice node
 alice_wallet = btctxstore.BtcTxStore().create_wallet()  # hwif
-alice_node = storjnode.network.BlockingNode(
-    alice_wallet, port=4653, start_reactor=False, bootstrap_nodes=peers
-)
+alice_node = storjnode.network.BlockingNode(alice_wallet, port=4653,
+                                            start_reactor=False)
 
 # create bob node
 bob_key = btctxstore.BtcTxStore().create_wallet()  # wif
-bob_node = storjnode.network.BlockingNode(
-    bob_key, port=4654, start_reactor=False, bootstrap_nodes=peers
-)
+bob_node = storjnode.network.BlockingNode(bob_key, port=4654,
+                                          start_reactor=False)
 
 # start twisted reactor yourself
 reactor_thread = threading.Thread(target=reactor.run,
