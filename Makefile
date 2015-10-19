@@ -62,7 +62,7 @@ shell: setup
 	env/bin/ipython
 
 
-test:
+test: setup
 	$(PY) setup.py test
 
 

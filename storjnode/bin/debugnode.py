@@ -2,16 +2,10 @@ import sys
 import time
 import argparse
 import storjnode
+import btctxstore
 
 
 def _add_programm_args(parser):
-
-    # ip
-    default = "127.0.0.1"
-    parser.add_argument(
-        "--ip", default=default,
-        help="Node ip address. Default: {0}.".format(default)
-    )
 
     # port
     default = 4653
@@ -85,16 +79,11 @@ def _parse_args():
 
 def main():
     command, args = _parse_args()
-    config = {
-        "node_key": "not used yet ...",
-        "node_address": (args["ip"], args["port"]),
-        "bootstrap_nodes": [
-            (args["bootstrap_ip"], args["bootstrap_port"])
-        ]
-    }
-    print("CONFIG:", config)
-    node = storjnode.network.BlockingNode(config)
-    node.start()
+    api = btctxstore.BtcTxStore()
+    node = storjnode.network.BlockingNode(
+        api.create_wallet(), port=args["port"],
+        bootstrap_nodes=[(args["bootstrap_ip"], args["bootstrap_port"])]
+    )
     if command == "run":
         print("RUN")
         while True:
@@ -110,7 +99,7 @@ def main():
         key = args["key"]
         value = node[key]
         print("{0} => {1}".format(key, value))
-    node.stop()
+    node.stop_reactor()
 
 
 if __name__ == "__main__":
