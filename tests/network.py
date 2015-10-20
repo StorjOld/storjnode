@@ -7,42 +7,44 @@ import storjnode
 from twisted.internet import reactor
 
 
-TEST_SWARM_SIZE = 10
+TEST_SWARM_SIZE = 50
 
 
-class TestNode(unittest.TestCase):
+class TestBlockingNode(unittest.TestCase):
 
-    def setUp(self):
-        self.btctxstore = btctxstore.BtcTxStore(testnet=False)
-        self.swarm = []
+    @classmethod
+    def setUpClass(cls):
+        cls.btctxstore = btctxstore.BtcTxStore(testnet=False)
+        cls.swarm = []
         for i in range(TEST_SWARM_SIZE):
+
+            # isolate swarm
             bootstrap_nodes = [
                 ("127.0.0.1", 3000 + x) for x in range(i)
-            ][-5:]  # only the last 5 nodes
+            ][-3:]  # only knows the last 3 nodes
+
+            # create node
             node = storjnode.network.BlockingNode(
-                self.btctxstore.create_wallet(), port=(3000 + i),
+                cls.btctxstore.create_wallet(), port=(3000 + i),
                 bootstrap_nodes=bootstrap_nodes, start_reactor=False
             )
-            self.swarm.append(node)
+            cls.swarm.append(node)
 
         # start reactor
-        self.reactor_thread = threading.Thread(
+        cls.reactor_thread = threading.Thread(
             target=reactor.run, kwargs={"installSignalHandlers": False}
         )
-        self.reactor_thread.start()
+        cls.reactor_thread.start()
 
         # wait
         time.sleep(12)
 
-    def tearDown(self):
-        for peer in self.swarm:
-            del peer
-
-        # stop reactor
+    @classmethod
+    def tearDownClass(cls):
         reactor.stop()
-        self.reactor_thread.join()
+        cls.reactor_thread.join()
 
-    def test_swarm(self):
+    def test_set_get_item(self):
         inserted = dict([
             ("key_{0}".format(i), "value_{0}".format(i)) for i in range(5)
         ])

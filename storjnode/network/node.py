@@ -1,10 +1,7 @@
-import copy
 import threading
-import btctxstore
-from storjnode import util
+from storjnode.util import valid_ip
 from twisted.internet import reactor
-from pycoin.encoding import a2b_hashed_base58
-from kademlia.network import Server
+from storjnode.network.server import StorjServer
 
 
 DEFAULT_PORT = 4653
@@ -17,22 +14,11 @@ DEFAULT_BOOTSTRAP_NODES = [
 
 class BlockingNode(object):
 
-    def __init__(self, node_key, port=DEFAULT_PORT,
+    def __init__(self, key, port=DEFAULT_PORT,
                  start_reactor=True, bootstrap_nodes=None):
-        """Create a node instance with the given config. Behaves like a dict
-        regarding DHT functionality. All calls are blocking for ease of use.
-
+        """Create a node instance, DHT functions like a dict.
+        All calls are blocking for ease of use.
         """
-
-        # validate node_key
-        assert(node_key is not None)
-        # TODO test node_key is valid wif/hwif for mainnet or testnet
-        testnet = False  # FIXME get from wif/hwif
-        self._btctxstore = btctxstore.BtcTxStore(testnet=testnet)
-        if self._btctxstore.validate_wallet(node_key):
-            self._node_key = self._btctxstore.get_key(node_key)
-        else:
-            self._node_key = node_key
 
         # validate port
         assert(isinstance(port, int))
@@ -45,15 +31,15 @@ class BlockingNode(object):
             assert(isinstance(address, tuple) or isinstance(address, list))
             assert(len(address) == 2)
             other_ip, other_port = address
-            assert(util.valid_ip(other_ip))
+            assert(valid_ip(other_ip))
             assert(isinstance(other_port, int))
             assert(other_port >= 0 and other_port <= 2**16)
 
         # start dht node
-        self._dht = Server()
-        self._dht.listen(port)
+        self._server = StorjServer(key)
+        self._server.listen(port)
         if len(bootstrap_nodes) > 0:
-            self._dht.bootstrap(bootstrap_nodes)
+            self._server.bootstrap(bootstrap_nodes)
 
         # start twisted reactor
         if start_reactor:
@@ -72,13 +58,6 @@ class BlockingNode(object):
             self._reactor_thread.join()
             self._reactor_thread = None
 
-    def _get_nodeid(self):
-        """Return the id of this node (bitcoin address as int)."""
-        # use public key as nodeid instead?
-        address = self._btctxstore.get_address(self._node_key)
-        address_bytes = a2b_hashed_base58(address)
-        return btctxstore.common.num_from_bytes(21, address_bytes)
-
     def __getitem__(self, key):
         """x.__getitem__(y) <==> x[y]"""
         result = self.get(key, KeyError(key))
@@ -92,7 +71,7 @@ class BlockingNode(object):
 
         def callback(result):
             finished.set()
-        self._dht.set(key, value).addCallback(callback)
+        self._server.set(key, value).addCallback(callback)
         finished.wait()  # block until added
 
     def get(self, key, default=None):
@@ -103,12 +82,10 @@ class BlockingNode(object):
         def callback(result):
             values.append(result)
             finished.set()
-        # FIXME update kademlia to accept a default, to know if not found.
-        self._dht.get(key).addCallback(callback)
+        # FIXME return default if not found (add to kademlia)
+        self._server.get(key).addCallback(callback)
         finished.wait()  # block until found
-        result = values[0]
-        # FIXME return default if not found
-        return result
+        return values[0]
 
     def __contains__(self, k):
         """D.__contains__(k) -> True if D has a key k, else False"""
