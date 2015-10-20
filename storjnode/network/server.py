@@ -47,3 +47,10 @@ class StorjServer(Server):
         address = self._btctxstore.get_address(self._key)
         return a2b_hashed_base58(address)
 
+    def messages_received(self):
+        # TODO implement
+        return []
+
+    def message_send(self, nodeid, message):
+        # TODO implement
+        return defer.succeed(None)
