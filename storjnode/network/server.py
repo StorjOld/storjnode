@@ -5,10 +5,8 @@ from pycoin.encoding import a2b_hashed_base58
 from kademlia.network import Server
 from kademlia.log import Logger
 from kademlia.storage import ForgetfulStorage
-from kademlia.utils import digest
 from twisted.internet.task import LoopingCall
 from kademlia.node import Node
-from kademlia.crawling import ValueSpiderCrawl
 
 
 class StorjServer(Server):
@@ -47,10 +45,16 @@ class StorjServer(Server):
         address = self._btctxstore.get_address(self._key)
         return a2b_hashed_base58(address)
 
-    def messages_received(self):
-        # TODO implement
-        return []
+    def has_messages(self):
+        return not self.protocol.messages_received.empty()
 
-    def message_send(self, nodeid, message):
-        # TODO implement
+    def get_messages(self):
+        messages = []
+        while self.has_messages():
+            received = self.protocol.messages_received.get()
+            # TODO reformat ?
+            messages.append(received)
+        return messages
+
+    def send_message(self, nodeid, message):
         return defer.succeed(None)

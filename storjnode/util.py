@@ -1,6 +1,5 @@
 import os
 import socket
-import psutil
 
 
 def valid_ipv4(ip):
@@ -57,27 +56,29 @@ def baskets(items, count):
     return list(filter(None, _baskets))
 
 
-def get_fs_type(path):
-    """Returns: path filesystem type or None.
-
-    Example:
-        > get_fs_type("/home")
-        'ext4'
-    """
-    partitions = {}
-    for partition in psutil.disk_partitions():
-        partitions[partition.mountpoint] = (partition.fstype, partition.device)
-    if path in partitions:
-        return partitions[path][0]
-    splitpath = path.split(os.sep)
-    for i in range(len(splitpath), 0, -1):
-        subpath = os.sep.join(splitpath[:i]) + os.sep
-        if subpath in partitions:
-            return partitions[subpath][0]
-        subpath = os.sep.join(splitpath[:i])
-        if subpath in partitions:
-            return partitions[subpath][0]
-    return None
+# FIXME breaks windows build and is not needed yet.
+#import psutil
+#def get_fs_type(path):
+#    """Returns: path filesystem type or None.
+# 
+#    Example:
+#        > get_fs_type("/home")
+#        'ext4'
+#    """
+#    partitions = {}
+#    for partition in psutil.disk_partitions():
+#        partitions[partition.mountpoint] = (partition.fstype, partition.device)
+#    if path in partitions:
+#        return partitions[path][0]
+#    splitpath = path.split(os.sep)
+#    for i in range(len(splitpath), 0, -1):
+#        subpath = os.sep.join(splitpath[:i]) + os.sep
+#        if subpath in partitions:
+#            return partitions[subpath][0]
+#        subpath = os.sep.join(splitpath[:i])
+#        if subpath in partitions:
+#            return partitions[subpath][0]
+#    return None
 
 
 def ensure_path_exists(path):

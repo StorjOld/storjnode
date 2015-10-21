@@ -58,6 +58,31 @@ class BlockingNode(object):
             self._reactor_thread.join()
             self._reactor_thread = None
 
+    def get_id(self):
+        return self._server.get_id()
+
+    def has_messages(self):
+        return self._server.has_messages()
+
+    def get_messages(self):
+        return self._server.get_messages()
+
+    def _blocking_call(self, async_method, *args, **kwargs):
+        finished = threading.Event()
+        return_values = []
+
+        def callback(*args, **kwargs):
+            if len(args) == 1:
+                return_values.append(args[0])
+            finished.set()
+
+        async_method(*args, **kwargs).addCallback(callback)
+        finished.wait()  # block until callback called
+        return return_values[0] if len(return_values) == 1 else None
+
+    def send_message(self, nodeid, message):
+        return self._blocking_call(self._server.send_message, nodeid, message)
+
     def __getitem__(self, key):
         """x.__getitem__(y) <==> x[y]"""
         result = self.get(key, KeyError(key))
@@ -67,25 +92,12 @@ class BlockingNode(object):
 
     def __setitem__(self, key, value):
         """x.__setitem__(i, y) <==> x[i]=y"""
-        finished = threading.Event()
-
-        def callback(result):
-            finished.set()
-        self._server.set(key, value).addCallback(callback)
-        finished.wait()  # block until added
+        self._blocking_call(self._server.set, key, value)
 
     def get(self, key, default=None):
         """D.get(k[,d]) -> D[k] if k in D, else d.  d defaults to None."""
-        finished = threading.Event()
-        values = []
-
-        def callback(result):
-            values.append(result)
-            finished.set()
         # FIXME return default if not found (add to kademlia)
-        self._server.get(key).addCallback(callback)
-        finished.wait()  # block until found
-        return values[0]
+        return self._blocking_call(self._server.get, key)
 
     def __contains__(self, k):
         """D.__contains__(k) -> True if D has a key k, else False"""
@@ -120,10 +132,10 @@ class BlockingNode(object):
         for k in f:
             self[k] = f[k]
 
-    def __repr__(self):
-        """x.__repr__() <==> repr(x)"""
-        # FIXME return internal state so that eval(repr(x)) is valid
-        raise NotImplementedError("FIXME implement!")
+    #def __repr__(self):
+    #    """x.__repr__() <==> repr(x)"""
+    #    # FIXME return internal state so that eval(repr(x)) is valid
+    #    #raise NotImplementedError("FIXME implement!")
 
     def values(self):
         """Not implemented by design, keyset to big."""
