@@ -2,19 +2,20 @@
 # coding: utf-8
 
 import sys
-import logging
+#import logging
 
 
 # set logging before anything is imported
-LOG_FORMAT = "%(levelname)s %(name)s %(lineno)d: %(message)s"
-if "--debug" in sys.argv:
-    logging.basicConfig(format=LOG_FORMAT, level=logging.DEBUG)
-elif "--quiet" in sys.argv:
-    logging.basicConfig(format=LOG_FORMAT, level=logging.WARNING)
-else:
-    logging.basicConfig(format=LOG_FORMAT, level=logging.INFO)
+#LOG_FORMAT = "%(levelname)s %(name)s %(lineno)d: %(message)s"
+#if "--debug" in sys.argv:
+#    logging.basicConfig(format=LOG_FORMAT, level=logging.DEBUG)
+#elif "--quiet" in sys.argv:
+#    logging.basicConfig(format=LOG_FORMAT, level=logging.WARNING)
+#else:
+#    logging.basicConfig(format=LOG_FORMAT, level=logging.INFO)
 
 
+import binascii
 import argparse
 import time
 import storjnode
@@ -64,6 +65,14 @@ def _add_version(command_parser):
     )
 
 
+def _add_message(command_parser):
+    parser = command_parser.add_parser(
+        "message", help="Send message to a peer."
+    )
+    parser.add_argument("id", help="ID of the peer to receive the message.")
+    parser.add_argument("message", help="The message to sent the peer.")
+
+
 def _parse_args():
     class ArgumentParser(argparse.ArgumentParser):
         def error(self, message):
@@ -83,6 +92,7 @@ def _parse_args():
     _add_put(command_parser)
     _add_get(command_parser)
     _add_run(command_parser)
+    _add_message(command_parser)
 
     # get values
     args = vars(parser.parse_args())
@@ -92,7 +102,22 @@ def _parse_args():
     return command, args
 
 
-if __name__ == "__main__":
+def run(node, args):
+    args["id"] = binascii.hexlify(node.get_id())
+    print("Running node on port {port} with id {id}...".format(**args))
+    while True:
+        time.sleep(1)
+        for received in node.get_messages():
+            print("Received message: {0}".format(received["message"]))
+
+
+def message(node, args):
+    peerid = binascii.unhexlify(args["id"])
+    result = node.send_message(peerid, args["message"])
+    print("Unsuccessfully sent!" if result is None else "Successfully sent!")
+
+
+def main():
     command, args = _parse_args()
 
     # show version
@@ -101,31 +126,27 @@ if __name__ == "__main__":
         exit(0)
 
     # setup node
-    node_key = btctxstore.BtcTxStore().create_wallet()
+    node_key = btctxstore.BtcTxStore().create_wallet()  # TODO get from args
     port = args["port"]
     node = storjnode.network.BlockingNode(node_key, port=port)
 
     print("Giving node 12sec to find peers ...")
     time.sleep(12)
 
-    # run node server
     if command == "run":
-        print("Running node on port {port} ...".format(**args))
-        while True:
-            time.sleep(1)
-
-    # put key value pair
+        run(node, args)
     elif command == "put":
-        key = args["key"]
-        value = args["value"]
-        node[key] = value
+        node[args["key"]] = args["value"]
         print("Put '{key}' => '{value}'!".format(**args))
-
-    # get value by key
     elif command == "get":
-        key = args["key"]
-        value = node[key]
-        print("Got '{key}' => '{value}'!".format(key=key, value=value))
+        value = node[args["key"]]
+        print("Got '{key}' => '{value}'!".format(key=args["key"], value=value))
+    elif command == "message":
+        message(node, args)
 
     print("Stopping node")
     node.stop_reactor()
+
+
+if __name__ == "__main__":
+    main()

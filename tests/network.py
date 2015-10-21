@@ -44,7 +44,6 @@ class TestBlockingNode(unittest.TestCase):
         reactor.stop()
         cls.reactor_thread.join()
 
-    @unittest.skip("not mimplemented")
     def test_messaging_success(self):
         sending_peer = self.swarm[0]
         receiving_peer = self.swarm[TEST_SWARM_SIZE - 1]
@@ -53,7 +52,6 @@ class TestBlockingNode(unittest.TestCase):
 
         # check if got message
         self.assertTrue(sender_address is not None)  # was received
-        import pudb;pu.db;
 
         # check returned transport address is valid
         ip, port = sender_address
@@ -71,7 +69,6 @@ class TestBlockingNode(unittest.TestCase):
         self.assertEqual("testmessage", message)
         self.assertEqual(ip, sender[0])
         self.assertEqual(port, sender[1])
-
 
     def test_set_get_item(self):
         inserted = dict([
