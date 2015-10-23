@@ -72,8 +72,8 @@ class BlockingNode(object):
         return_values = []
 
         def callback(*args, **kwargs):
-            if len(args) == 1:
-                return_values.append(args[0])
+            assert(len(args) == 1)
+            return_values.append(args[0])
             finished.set()
 
         async_method(*args, **kwargs).addCallback(callback)

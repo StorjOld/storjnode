@@ -57,7 +57,7 @@ class TestBlockingNode(unittest.TestCase):
         ip, port = sender_address
         self.assertTrue(storjnode.util.valid_ip(ip))
         self.assertTrue(isinstance(port, int))
-        self.assertTrue(port >= 0 and other_port <= 2**16)
+        self.assertTrue(port >= 0 and port <= 2**16)
 
         # check one message received
         self.assertTrue(receiving_peer.has_messages())
@@ -65,10 +65,10 @@ class TestBlockingNode(unittest.TestCase):
         self.assertEqual(len(received), 1)
 
         # check if message and sender ip/port match
-        sender, message = received[0]["sender"], received[0]["message"]
+        source, message = received[0]["source"], received[0]["message"]
         self.assertEqual("testmessage", message)
-        self.assertEqual(ip, sender[0])
-        self.assertEqual(port, sender[1])
+        self.assertEqual(ip, source.ip)
+        self.assertEqual(port, source.port)
 
     def test_set_get_item(self):
         inserted = dict([

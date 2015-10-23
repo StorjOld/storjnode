@@ -2,17 +2,17 @@
 # coding: utf-8
 
 import sys
-#import logging
+import logging
 
 
 # set logging before anything is imported
-#LOG_FORMAT = "%(levelname)s %(name)s %(lineno)d: %(message)s"
-#if "--debug" in sys.argv:
-#    logging.basicConfig(format=LOG_FORMAT, level=logging.DEBUG)
-#elif "--quiet" in sys.argv:
-#    logging.basicConfig(format=LOG_FORMAT, level=logging.WARNING)
-#else:
-#    logging.basicConfig(format=LOG_FORMAT, level=logging.INFO)
+LOG_FORMAT = "%(levelname)s %(name)s %(lineno)d: %(message)s"
+if "--debug" in sys.argv:
+    logging.basicConfig(format=LOG_FORMAT, level=logging.DEBUG)
+elif "--quiet" in sys.argv:
+    logging.basicConfig(format=LOG_FORMAT, level=logging.WARNING)
+else:
+    logging.basicConfig(format=LOG_FORMAT, level=logging.INFO)
 
 
 import binascii

@@ -1,12 +1,14 @@
 import btctxstore
+import binascii
 from storjnode.network.protocol import StorjProtocol
 from twisted.internet import defer
 from pycoin.encoding import a2b_hashed_base58
 from kademlia.network import Server
-from kademlia.log import Logger
+from kademlia.log import Logger, DEBUG
 from kademlia.storage import ForgetfulStorage
 from twisted.internet.task import LoopingCall
 from kademlia.node import Node
+from kademlia.crawling import NodeSpiderCrawl
 
 
 class StorjServer(Server):
@@ -34,7 +36,7 @@ class StorjServer(Server):
         # passing the protocol class should be added upstream
         self.ksize = ksize
         self.alpha = alpha
-        self.log = Logger(system=self)
+        self.log = Logger(system=self, loglevel=DEBUG)
         self.storage = storage or ForgetfulStorage()
         self.node = Node(self.get_id())
         self.protocol = StorjProtocol(self.node, self.storage, ksize)
@@ -43,7 +45,7 @@ class StorjServer(Server):
     def get_id(self):
         # key to id FIXME use public key with network prefix instead!
         address = self._btctxstore.get_address(self._key)
-        return a2b_hashed_base58(address)
+        return a2b_hashed_base58(address)[1:]  # remove network prefix
 
     def has_messages(self):
         return not self.protocol.messages_received.empty()
@@ -57,7 +59,33 @@ class StorjServer(Server):
         return messages
 
     def send_message(self, nodeid, message):
+        """
+        Send a message to a given node on the network.
+        """
+        hexid = binascii.hexlify(nodeid)
+        self.log.debug("messaging '%s' '%s'" % (hexid, message))
+        node = Node(nodeid)
 
+        def found_callback(nodes):
+            self.log.debug("nearest nodes %s" % list(map(str, nodes)))
+            nodes = filter(lambda n: n.id == nodeid, nodes)
+            if len(nodes) == 0:
+                self.log.debug("couldnt find destination node")
+                return defer.succeed(None)
+            else:
+                self.log.debug("found node %s" % binascii.hexlify(nodes[0].id))
+                async_call = self.protocol.callMessage(nodes[0], message)
+                def filter_result(responses):
+                    success, result = responses
+                    assert(success)
+                    return result
+                return async_call.addCallback(filter_result)
 
+        nearest = self.protocol.router.findNeighbors(node)
+        if len(nearest) == 0:
+            self.log.warning("There are no known neighbors to find %s" % hexid)
+            return defer.succeed(None)
+        spider = NodeSpiderCrawl(self.protocol, node, nearest,
+                                 self.ksize, self.alpha)
+        return spider.find().addCallback(found_callback)
 
-        return defer.succeed(None)
