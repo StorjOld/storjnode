@@ -44,31 +44,57 @@ class TestBlockingNode(unittest.TestCase):
         reactor.stop()
         cls.reactor_thread.join()
 
+    def test_messaging_failure(self):
+        sender = self.swarm[0]
+        result = sender.send_message(b"f483", "testmessage")
+        self.assertTrue(result is None)
+
     def test_messaging_success(self):
-        sending_peer = self.swarm[0]
-        receiving_peer = self.swarm[TEST_SWARM_SIZE - 1]
-        receiver_id = receiving_peer.get_id()
-        sender_address = sending_peer.send_message(receiver_id, "testmessage")
+        sender = self.swarm[0]
+        receiver = self.swarm[TEST_SWARM_SIZE - 1]
+        self._test_message(sender, receiver, True)
 
-        # check if got message
-        self.assertTrue(sender_address is not None)  # was received
+    def test_message_self(self):
+        sender = self.swarm[0]
+        receiver = self.swarm[0]
+        self._test_message(sender, receiver, False)
 
-        # check returned transport address is valid
-        ip, port = sender_address
-        self.assertTrue(storjnode.util.valid_ip(ip))
-        self.assertTrue(isinstance(port, int))
-        self.assertTrue(port >= 0 and port <= 2**16)
+    def _test_message(self, sender, receiver, success_expected):
+        receiver_id = receiver.get_id()
+        sender_address = sender.send_message(receiver_id, "testmessage")
 
-        # check one message received
-        self.assertTrue(receiving_peer.has_messages())
-        received = receiving_peer.get_messages()
-        self.assertEqual(len(received), 1)
+        if not success_expected:
+            self.assertTrue(sender_address is None)  # was not received
 
-        # check if message and sender ip/port match
-        source, message = received[0]["source"], received[0]["message"]
-        self.assertEqual("testmessage", message)
-        self.assertEqual(ip, source.ip)
-        self.assertEqual(port, source.port)
+        else:  # success expected
+
+            # check if got message
+            self.assertTrue(sender_address is not None)  # was received
+
+            # check returned transport address is valid
+            ip, port = sender_address
+            self.assertTrue(storjnode.util.valid_ip(ip))
+            self.assertTrue(isinstance(port, int))
+            self.assertTrue(port >= 0 and port <= 2**16)
+
+            # check one message received
+            self.assertTrue(receiver.has_messages())
+            received = receiver.get_messages()
+            self.assertEqual(len(received), 1)
+
+            # check if message and sender ip/port match
+            source, message = received[0]["source"], received[0]["message"]
+            self.assertEqual("testmessage", message)
+            self.assertEqual(ip, source.ip)
+            self.assertEqual(port, source.port)
+
+    def test_messaging(self):
+        senders = self.swarm[:]
+        random.shuffle(senders)
+        receivers = self.swarm[:]
+        random.shuffle(receivers)
+        for sender, receiver in zip(senders, receivers):
+            self._test_message(sender, receiver, sender is not receiver)
 
     def test_set_get_item(self):
         inserted = dict([

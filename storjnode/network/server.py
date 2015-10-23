@@ -74,12 +74,8 @@ class StorjServer(Server):
                 return defer.succeed(None)
             else:
                 self.log.debug("found node %s" % binascii.hexlify(nodes[0].id))
-                async_call = self.protocol.callMessage(nodes[0], message)
-                def filter_result(responses):
-                    success, result = responses
-                    assert(success)
-                    return result
-                return async_call.addCallback(filter_result)
+                async = self.protocol.callMessage(nodes[0], message)
+                return async.addCallback(lambda r: r[0] and r[1] or None)
 
         nearest = self.protocol.router.findNeighbors(node)
         if len(nearest) == 0:
@@ -88,4 +84,3 @@ class StorjServer(Server):
         spider = NodeSpiderCrawl(self.protocol, node, nearest,
                                  self.ksize, self.alpha)
         return spider.find().addCallback(found_callback)
-
