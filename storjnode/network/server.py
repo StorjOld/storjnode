@@ -1,10 +1,10 @@
 import btctxstore
 import binascii
+import logging
 from storjnode.network.protocol import StorjProtocol
 from twisted.internet import defer
 from pycoin.encoding import a2b_hashed_base58
 from kademlia.network import Server
-from kademlia.log import Logger, DEBUG
 from kademlia.storage import ForgetfulStorage
 from twisted.internet.task import LoopingCall
 from kademlia.node import Node
@@ -36,7 +36,7 @@ class StorjServer(Server):
         # passing the protocol class should be added upstream
         self.ksize = ksize
         self.alpha = alpha
-        self.log = Logger(system=self, loglevel=DEBUG)
+        self.log = logging.getLogger(__name__)
         self.storage = storage or ForgetfulStorage()
         self.node = Node(self.get_id())
         self.protocol = StorjProtocol(self.node, self.storage, ksize)

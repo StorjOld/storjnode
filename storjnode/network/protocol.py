@@ -8,6 +8,7 @@ from kademlia.routing import TableTraverser
 from kademlia.node import Node
 import heapq
 import operator
+import logging
 
 
 def _findNearest(self, node, k=None, exclude=None):
@@ -30,6 +31,7 @@ class StorjProtocol(KademliaProtocol):
     def __init__(self, *args, **kwargs):
         self.messages_received = Queue()
         KademliaProtocol.__init__(self, *args, **kwargs)
+        self.log = logging.getLogger(__name__)
 
     def rpc_message(self, sender, nodeid, message):
         source = Node(nodeid, sender[0], sender[1])
@@ -38,5 +40,6 @@ class StorjProtocol(KademliaProtocol):
 
     def callMessage(self, nodeToAsk, message):
         address = (nodeToAsk.ip, nodeToAsk.port)
+        self.log.debug("sending message to {0}:{1}".format(*address))
         d = self.message(address, self.sourceNode.id, message)
         return d.addCallback(self.handleCallResponse, nodeToAsk)

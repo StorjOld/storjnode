@@ -132,11 +132,6 @@ class BlockingNode(object):
         for k in f:
             self[k] = f[k]
 
-    #def __repr__(self):
-    #    """x.__repr__() <==> repr(x)"""
-    #    # FIXME return internal state so that eval(repr(x)) is valid
-    #    #raise NotImplementedError("FIXME implement!")
-
     def values(self):
         """Not implemented by design, keyset to big."""
         raise NotImplementedError("Not implemented by design, keyset to big.")
