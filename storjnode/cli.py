@@ -15,9 +15,9 @@ LOG_FORMAT = "%(levelname)s %(name)s %(lineno)d: %(message)s"
 if "--debug" in sys.argv:  # debug shows everything
     logging.basicConfig(format=LOG_FORMAT, level=logging.DEBUG)
 elif "--quiet" in sys.argv:  # quiet disables logging
-    logging.basicConfig(format=LOG_FORMAT, level=logging.NOTSET)
+    logging.basicConfig(format=LOG_FORMAT, level=60)
 else:  # default level INFO
-    logging.basicConfig(format=LOG_FORMAT, level=logging.INFO)
+    logging.basicConfig(format=LOG_FORMAT, level=logging.WARNING)
 
 
 import binascii
@@ -39,6 +39,13 @@ def _add_programm_args(parser):
     msg = "Optional bootstrap node. Example: 127.0.0.1:1234"
     parser.add_argument("--bootstrap", default=default,
                         help=msg.format(default))
+
+    # key
+    default = None
+    msg = ("Bitcoin wif/hwif for node id, auth and signing. "
+           "If not given a one will be generated.")
+    parser.add_argument("--key", default=default,
+                        help=msg)
 
     # debug
     parser.add_argument('--debug', action='store_true',
@@ -84,6 +91,12 @@ def _add_message(command_parser):
     parser.add_argument("message", help="The message to sent the peer.")
 
 
+def _add_showid(command_parser):
+    command_parser.add_parser(
+        "showid", help="Show node id."
+    )
+
+
 def _parse_args(args):
     class ArgumentParser(argparse.ArgumentParser):
         def error(self, message):
@@ -103,6 +116,7 @@ def _parse_args(args):
     _add_put(command_parser)
     _add_get(command_parser)
     _add_run(command_parser)
+    _add_showid(command_parser)
     _add_message(command_parser)
 
     # get values
@@ -137,6 +151,12 @@ def _get_bootstrap_nodes(args):
     return None
 
 
+def _get_key(args):
+    if args["key"] is not None:
+        return args["key"]
+    return btctxstore.BtcTxStore().create_wallet()
+
+
 def main(args):
     command, args = _parse_args(args)
 
@@ -146,10 +166,10 @@ def main(args):
         exit(0)
 
     # setup node
-    node_key = btctxstore.BtcTxStore().create_wallet()  # TODO get from args
+    key = _get_key(args)
     port = args["port"]
     bootstrap_nodes = _get_bootstrap_nodes(args)
-    node = storjnode.network.BlockingNode(node_key, port=port,
+    node = storjnode.network.BlockingNode(key, port=port,
                                           bootstrap_nodes=bootstrap_nodes)
 
     print("Giving node 12sec to find peers ...")
@@ -165,6 +185,8 @@ def main(args):
         print("Got '{key}' => '{value}'!".format(key=args["key"], value=value))
     elif command == "message":
         message(node, args)
+    elif command == "showid":
+        print("Node id: {0}".format(binascii.hexlify(node.get_id())))
 
     print("Stopping node")
     node.stop_reactor()

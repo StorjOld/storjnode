@@ -1,6 +1,9 @@
 v0.0.6
 
- * Minor bugfixes.
+ * Added show id command
+ * Added key argument
+ * Updated documentation
+ * Minor bugfixes
 
 v0.0.5
 

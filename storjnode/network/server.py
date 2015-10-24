@@ -43,7 +43,6 @@ class StorjServer(Server):
         self.refreshLoop = LoopingCall(self.refreshTable).start(3600)
 
     def get_id(self):
-        # key to id FIXME use public key with network prefix instead!
         address = self._btctxstore.get_address(self._key)
         return a2b_hashed_base58(address)[1:]  # remove network prefix
 

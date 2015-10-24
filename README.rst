@@ -2,7 +2,7 @@
 storjnode
 #########
 
-|BuildLink|_ |CoverageLink|_ |LicenseLink|_ 
+|BuildLink|_ |CoverageLink|_ |LicenseLink|_
 
 
 .. |BuildLink| image:: https://travis-ci.org/Storj/storjnode.svg?branch=master
@@ -94,11 +94,20 @@ Using the CLI reference implementation.
     # Retrieve value from DHT.
     $ storjnode get <KEY>
 
+    # Send node a direct message
+    $ storjnode message <NODEID> <MESSAGE TEXT>
+
     # Run node and join network.
     $ storjnode run
 
     # Run node on non default port and join network.
-    $ storjnode --port=1337 run
+    $ storjnode --port=<PORT> run
+
+    # Run node with provided key, used for node id, auth and encryption
+    $ storjnode --key=<BITCOIN WIF/HWIF> run
+
+    # Show node id
+    $ storjnode --key=<BITCOIN WIF/HWIF> showid
 
 
 Python
