@@ -35,10 +35,9 @@ def _add_programm_args(parser):
                         help="Node port. Default: {0}.".format(default))
 
     # bootstrap
-    # FIXME doesn't work with ipv6 addresses
     default = None
     msg = "Optional bootstrap node. Example: 127.0.0.1:1234"
-    parser.add_argument("--bootstrap", default=default, 
+    parser.add_argument("--bootstrap", default=default,
                         help=msg.format(default))
 
     # debug
@@ -130,6 +129,14 @@ def message(node, args):
     print("Unsuccessfully sent!" if result is None else "Successfully sent!")
 
 
+def _get_bootstrap_nodes(args):
+    # FIXME doesn't work with ipv6 addresses
+    if args["bootstrap"] is not None:
+        bootstrap = args["bootstrap"].split(":")
+        return [(bootstrap[0], int(bootstrap[1]))]
+    return None
+
+
 def main(args):
     command, args = _parse_args(args)
 
@@ -141,10 +148,7 @@ def main(args):
     # setup node
     node_key = btctxstore.BtcTxStore().create_wallet()  # TODO get from args
     port = args["port"]
-    if args["bootstrap"] is not None:
-        bootstrap = args["bootstrap"].split(":")
-        bootstrap = (bootstrap[0], int(bootstrap[1]))
-    bootstrap_nodes = [bootstrap] if bootstrap is not None else None
+    bootstrap_nodes = _get_bootstrap_nodes(args)
     node = storjnode.network.BlockingNode(node_key, port=port,
                                           bootstrap_nodes=bootstrap_nodes)
 

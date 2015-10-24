@@ -1,3 +1,2 @@
 btctxstore == 4.6.0
-psutil == 3.2.1
 kademlia >= 0.5

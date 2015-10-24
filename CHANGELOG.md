@@ -1,3 +1,7 @@
+v0.0.6
+
+ * Minor bugfixes.
+
 v0.0.5
 
  * Added direct messaging.
@@ -15,5 +19,5 @@ v0.0.2
  * Fixed download url
 
 v0.0.1
- 
+
  * Experemental irc based network prototype
