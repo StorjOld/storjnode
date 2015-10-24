@@ -104,10 +104,10 @@ Using the CLI reference implementation.
     $ storjnode --port=<PORT> run
 
     # Run node with provided key, used for node id, auth and encryption
-    $ storjnode --key=<BITCOIN WIF/HWIF> run
+    $ storjnode --node_key=<BITCOIN WIF/HWIF> run
 
     # Show node id
-    $ storjnode --key=<BITCOIN WIF/HWIF> showid
+    $ storjnode --node_key=<BITCOIN WIF/HWIF> showid
 
 
 Python
