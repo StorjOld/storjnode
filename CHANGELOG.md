@@ -1,3 +1,7 @@
+v0.0.7
+
+ * Fixed argument name reused
+
 v0.0.6
 
  * Added show id command
