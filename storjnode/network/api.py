@@ -6,18 +6,33 @@ from storjnode.network.server import StorjServer
 
 DEFAULT_PORT = 4653
 DEFAULT_BOOTSTRAP_NODES = [
-    ("104.236.1.59", 4653),    # storj stable  7b489cbfd61e675b86ac6469b6acd0a197da7f2c
-    ("159.203.64.230", 4653),  # storj develop 3f9f80fdfce32a08048193e3ba31393c0777ab21
-    ("78.46.188.55", 4653),    # F483's server 4c2acf7bdbdc57a3ae512ffba3ccf4f72a0367f9
+
+    # storj stable  7b489cbfd61e675b86ac6469b6acd0a197da7f2c
+    ("104.236.1.59", 4653),
+
+    # storj develop 3f9f80fdfce32a08048193e3ba31393c0777ab21
+    ("159.203.64.230", 4653),
+
+    # F483's server 4c2acf7bdbdc57a3ae512ffba3ccf4f72a0367f9
+    ("78.46.188.55", 4653),
 ]
 
 
 class BlockingNode(object):
+    """Blocking storj network layer implementation.
+
+    DHT functions like a dict and all calls are blocking for ease of use.
+    """
 
     def __init__(self, key, port=DEFAULT_PORT,
                  start_reactor=True, bootstrap_nodes=None):
-        """Create a node instance, DHT functions like a dict.
-        All calls are blocking for ease of use.
+        """Create a blocking storjnode instance.
+
+        Arguments:
+            key: Bitcoin wif/hwif to use for auth, encryption and node id.
+            port: Port to use for incoming packages.
+            start_reactor: Starts twisted reactor if True
+            bootstrap_nodes: Known network node addresses as [(ip, port), ...]
         """
 
         # validate port
@@ -59,12 +74,19 @@ class BlockingNode(object):
             self._reactor_thread = None
 
     def get_id(self):
+        """Returs 160bit node id as bytes."""
         return self._server.get_id()
 
     def has_messages(self):
+        """Returns True if this node has received messages."""
         return self._server.has_messages()
 
     def get_messages(self):
+        """Get list of messages received since this method was last called.
+
+        Returns:
+            [{"source": kademlia.node.Node, "massage": message_data}, ...]
+        """
         return self._server.get_messages()
 
     def _blocking_call(self, async_method, *args, **kwargs):
@@ -81,6 +103,19 @@ class BlockingNode(object):
         return return_values[0] if len(return_values) == 1 else None
 
     def send_message(self, nodeid, message):
+        """Send direct message to a node.
+
+        Spidercrawls the network to find the node and sends the message
+        directly. This will fail if the node is behind a NAT and doesn't
+        have a public ip.
+
+        Arguments:
+            nodeid: 160bit nodeid of the reciever as bytes
+            message: iu-msgpack-python serializable message data
+
+        Returns:
+            Own transport address (ip, port) if successfull otherwise None
+        """
         return self._blocking_call(self._server.send_message, nodeid, message)
 
     def __getitem__(self, key):
