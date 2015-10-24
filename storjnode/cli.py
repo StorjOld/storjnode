@@ -1,11 +1,9 @@
-
-
-import sys
-import logging
-
 ######################################
 # Setup logging before anything else #
 ######################################
+
+import sys
+import logging
 
 # make twisted use standard library logging module
 from twisted.python import log
@@ -14,11 +12,11 @@ observer.start()
 
 # setup standard logging module
 LOG_FORMAT = "%(levelname)s %(name)s %(lineno)d: %(message)s"
-if "--debug" in sys.argv:
+if "--debug" in sys.argv:  # debug shows everything
     logging.basicConfig(format=LOG_FORMAT, level=logging.DEBUG)
-elif "--quiet" in sys.argv:
-    logging.basicConfig(format=LOG_FORMAT, level=logging.WARNING)
-else:
+elif "--quiet" in sys.argv:  # quiet disables logging
+    logging.basicConfig(format=LOG_FORMAT, level=logging.NOTSET)
+else:  # default level INFO
     logging.basicConfig(format=LOG_FORMAT, level=logging.INFO)
 
 
@@ -35,6 +33,13 @@ def _add_programm_args(parser):
     default = 4653
     parser.add_argument("--port", default=default, type=int,
                         help="Node port. Default: {0}.".format(default))
+
+    # bootstrap
+    # FIXME doesn't work with ipv6 addresses
+    default = None
+    msg = "Optional bootstrap node. Example: 127.0.0.1:1234"
+    parser.add_argument("--bootstrap", default=default, 
+                        help=msg.format(default))
 
     # debug
     parser.add_argument('--debug', action='store_true',
@@ -136,7 +141,12 @@ def main(args):
     # setup node
     node_key = btctxstore.BtcTxStore().create_wallet()  # TODO get from args
     port = args["port"]
-    node = storjnode.network.BlockingNode(node_key, port=port)
+    if args["bootstrap"] is not None:
+        bootstrap = args["bootstrap"].split(":")
+        bootstrap = (bootstrap[0], int(bootstrap[1]))
+    bootstrap_nodes = [bootstrap] if bootstrap is not None else None
+    node = storjnode.network.BlockingNode(node_key, port=port,
+                                          bootstrap_nodes=bootstrap_nodes)
 
     print("Giving node 12sec to find peers ...")
     time.sleep(12)
