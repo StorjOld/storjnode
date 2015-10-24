@@ -60,14 +60,15 @@ def baskets(items, count):
 #import psutil
 #def get_fs_type(path):
 #    """Returns: path filesystem type or None.
-# 
+#
 #    Example:
 #        > get_fs_type("/home")
 #        'ext4'
 #    """
 #    partitions = {}
 #    for partition in psutil.disk_partitions():
-#        partitions[partition.mountpoint] = (partition.fstype, partition.device)
+#        partitions[partition.mountpoint] = (partition.fstype,
+#                                            partition.device)
 #    if path in partitions:
 #        return partitions[path][0]
 #    splitpath = path.split(os.sep)
