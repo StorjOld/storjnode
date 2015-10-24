@@ -129,11 +129,13 @@ def _parse_args(args):
 
 def run(node, args):
     args["id"] = binascii.hexlify(node.get_id())
-    print("Running node on port {port} with id {id}...".format(**args))
+    print("Running node on port {port} with id {id}".format(**args))
     while True:
         time.sleep(1)
         for received in node.get_messages():
-            print("Received message: {0}".format(received["message"]))
+            message = received["message"]
+            peerid = binascii.hexlify(received["source"].id)
+            print("Received message from {0}: {1}".format(peerid, message))
 
 
 def message(node, args):

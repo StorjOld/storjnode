@@ -6,9 +6,9 @@ from storjnode.network.server import StorjServer
 
 DEFAULT_PORT = 4653
 DEFAULT_BOOTSTRAP_NODES = [
-    ("104.236.1.59", 4653),    # storj stable
-    ("159.203.64.230", 4653),  # storj develop
-    ("78.46.188.55", 4653),    # F483's server
+    ("104.236.1.59", 4653),    # storj stable  7b489cbfd61e675b86ac6469b6acd0a197da7f2c
+    ("159.203.64.230", 4653),  # storj develop 3f9f80fdfce32a08048193e3ba31393c0777ab21
+    ("78.46.188.55", 4653),    # F483's server 4c2acf7bdbdc57a3ae512ffba3ccf4f72a0367f9
 ]
 
 

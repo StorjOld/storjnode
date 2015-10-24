@@ -19,11 +19,6 @@ if os.name == 'nt' and 'py2exe' in sys.argv:
 
 exec(open('storjnode/version.py').read())  # load __version__
 SCRIPT = os.path.join('storjnode', 'bin', 'storjnode')
-DOWNLOAD_URL = "%(baseurl)s/%(name)s/%(name)s-%(version)s-py2-none-any.whl" % {
-    'baseurl': "https://pypi.python.org/packages/3.4/d",
-    'name': 'storjnode',
-    'version': __version__  # NOQA
-}
 
 
 setup(
@@ -42,7 +37,6 @@ setup(
     dependency_links=[],
     install_requires=open("requirements.txt").readlines(),
     tests_require=open("test_requirements.txt").readlines(),
-    download_url=DOWNLOAD_URL,
     packages=find_packages(exclude=['storjnode.bin']),
     classifiers=[
         # "Development Status :: 1 - Planning",
