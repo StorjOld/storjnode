@@ -40,11 +40,11 @@ def _add_programm_args(parser):
     parser.add_argument("--bootstrap", default=default,
                         help=msg.format(default))
 
-    # key
+    # node_key
     default = None
     msg = ("Bitcoin wif/hwif for node id, auth and signing. "
            "If not given a one will be generated.")
-    parser.add_argument("--key", default=default,
+    parser.add_argument("--node_key", default=default,
                         help=msg)
 
     # debug
@@ -153,9 +153,9 @@ def _get_bootstrap_nodes(args):
     return None
 
 
-def _get_key(args):
-    if args["key"] is not None:
-        return args["key"]
+def _get_node_key(args):
+    if args["node_key"] is not None:
+        return args["node_key"]
     return btctxstore.BtcTxStore().create_wallet()
 
 
@@ -168,10 +168,10 @@ def main(args):
         exit(0)
 
     # setup node
-    key = _get_key(args)
+    node_key = _get_node_key(args)
     port = args["port"]
     bootstrap_nodes = _get_bootstrap_nodes(args)
-    node = storjnode.network.BlockingNode(key, port=port,
+    node = storjnode.network.BlockingNode(node_key, port=port,
                                           bootstrap_nodes=bootstrap_nodes)
 
     print("Giving node 12sec to find peers ...")
