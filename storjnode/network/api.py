@@ -102,6 +102,13 @@ class BlockingNode(object):
         finished.wait()  # block until callback called
         return return_values[0] if len(return_values) == 1 else None
 
+    def has_public_ip(self):
+        """Returns True if local IP is internet visible, otherwise False.
+        
+        The may false positive if you run other nodes on your local network.
+        """
+        return self._blocking_call(self._server.has_public_ip)
+
     def send_message(self, nodeid, message):
         """Send direct message to a node.
 

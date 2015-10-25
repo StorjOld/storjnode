@@ -1,6 +1,7 @@
 import btctxstore
 import binascii
 import logging
+from storjnode import util
 from storjnode.network.protocol import StorjProtocol
 from twisted.internet import defer
 from pycoin.encoding import a2b_hashed_base58
@@ -52,10 +53,16 @@ class StorjServer(Server):
     def get_messages(self):
         messages = []
         while self.has_messages():
-            received = self.protocol.messages_received.get()
-            # TODO reformat ?
-            messages.append(received)
+            messages.append(self.protocol.messages_received.get())
         return messages
+
+    def has_public_ip(self):
+        def handle(ips):
+            self.log.debug("Internet visible IPs: %s" % ips)
+            ip = util.get_inet_facing_ip()
+            self.log.debug("Internet facing IP: %s" % ip)
+            return ip is not None and ip in ips
+        return self.inetVisibleIP().addCallback(handle)
 
     def send_message(self, nodeid, message):
         """

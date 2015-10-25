@@ -97,6 +97,11 @@ def _add_showid(command_parser):
     )
 
 
+def _add_showtype(command_parser):
+    msg = "Show if public node with internet visible IP or private node."
+    command_parser.add_parser("showtype", help=msg)
+
+
 def _parse_args(args):
     class ArgumentParser(argparse.ArgumentParser):
         def error(self, message):
@@ -117,6 +122,7 @@ def _parse_args(args):
     _add_get(command_parser)
     _add_run(command_parser)
     _add_showid(command_parser)
+    _add_showtype(command_parser)
     _add_message(command_parser)
 
     # get values
@@ -179,16 +185,23 @@ def main(args):
 
     if command == "run":
         run(node, args)
+
     elif command == "put":
         node[args["key"]] = args["value"]
         print("Put '{key}' => '{value}'!".format(**args))
+
     elif command == "get":
         value = node[args["key"]]
         print("Got '{key}' => '{value}'!".format(key=args["key"], value=value))
+
     elif command == "message":
         message(node, args)
+
     elif command == "showid":
         print("Node id: {0}".format(binascii.hexlify(node.get_id())))
+
+    elif command == "showtype":
+        print("Public node!" if node.has_public_ip() else "Private node!")
 
     print("Stopping node")
     node.stop_reactor()

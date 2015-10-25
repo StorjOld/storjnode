@@ -44,20 +44,9 @@ class TestBlockingNode(unittest.TestCase):
         reactor.stop()
         cls.reactor_thread.join()
 
-    def test_messaging_failure(self):
-        sender = self.swarm[0]
-        result = sender.send_message(b"f483", "testmessage")
-        self.assertTrue(result is None)
-
-    def test_messaging_success(self):
-        sender = self.swarm[0]
-        receiver = self.swarm[TEST_SWARM_SIZE - 1]
-        self._test_message(sender, receiver, True)
-
-    def test_message_self(self):
-        sender = self.swarm[0]
-        receiver = self.swarm[0]
-        self._test_message(sender, receiver, False)
+    #########################
+    # test direct messaging #
+    #########################
 
     def _test_message(self, sender, receiver, success_expected):
         receiver_id = receiver.get_id()
@@ -88,6 +77,21 @@ class TestBlockingNode(unittest.TestCase):
             self.assertEqual(ip, source.ip)
             self.assertEqual(port, source.port)
 
+    def test_messaging_success(self):
+        sender = self.swarm[0]
+        receiver = self.swarm[TEST_SWARM_SIZE - 1]
+        self._test_message(sender, receiver, True)
+
+    def test_messaging_failure(self):
+        sender = self.swarm[0]
+        result = sender.send_message(b"f483", "testmessage")
+        self.assertTrue(result is None)
+
+    def test_message_self(self):
+        sender = self.swarm[0]
+        receiver = self.swarm[0]
+        self._test_message(sender, receiver, False)
+
     def test_messaging(self):
         senders = self.swarm[:]
         random.shuffle(senders)
@@ -95,6 +99,10 @@ class TestBlockingNode(unittest.TestCase):
         random.shuffle(receivers)
         for sender, receiver in zip(senders, receivers):
             self._test_message(sender, receiver, sender is not receiver)
+
+    ###############################
+    # test distributed hash table #
+    ###############################
 
     def test_set_get_item(self):
         inserted = dict([
