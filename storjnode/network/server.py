@@ -1,3 +1,4 @@
+import time
 import btctxstore
 import binascii
 import logging
@@ -14,7 +15,8 @@ from kademlia.crawling import NodeSpiderCrawl
 
 class StorjServer(Server):
 
-    def __init__(self, key, ksize=20, alpha=3, storage=None):
+    def __init__(self, key, ksize=20, alpha=3, storage=None,
+                 message_timeout=30):
         """
         Create a server instance.  This will start listening on the given port.
 
@@ -23,6 +25,7 @@ class StorjServer(Server):
             ksize (int): The k parameter from the kademlia paper
             alpha (int): The alpha parameter from the kademlia paper
             storage: implements :interface:`~kademlia.storage.IStorage`
+            message_timeout: Seconds until unprocessed messages are dropped.
         """
 
         # TODO validate key is valid wif/hwif for mainnet or testnet
@@ -43,6 +46,11 @@ class StorjServer(Server):
         self.protocol = StorjProtocol(self.node, self.storage, ksize)
         self.refreshLoop = LoopingCall(self.refreshTable).start(3600)
 
+        # own threads
+        self._message_timeout = message_timeout
+        self.forwardLoop = LoopingCall(self._forward_messages).start(0.2)
+        # XXX self.removeMessagesLoop = LoopingCall(self._remove_messages).start(5)
+
     def get_id(self):
         address = self._btctxstore.get_address(self._key)
         return a2b_hashed_base58(address)[1:]  # remove network prefix
@@ -51,42 +59,125 @@ class StorjServer(Server):
         return not self.protocol.messages_received.empty()
 
     def get_messages(self):
-        messages = []
-        while self.has_messages():
-            messages.append(self.protocol.messages_received.get())
-        return messages
+        return util.empty_queue(self.protocol.messages_received)
+
+    def send_relay_message(self, nodeid, message):
+        """Send relay message to a node.
+
+        Queues a message to be relayed accross the network. Relay messages are
+        sent to the node nearest the receiver in the routing table that accepts
+        the relay message. This continues until it reaches the destination or
+        the nearest node to the receiver is reached.
+
+        Because messages are always relayed only to reachable nodes in the
+        current routing table, there is a fare chance nodes behind a NAT can
+        be reached if it is connected to the network.
+
+        Args:
+            nodeid: 160bit nodeid of the reciever as bytes
+            message: iu-msgpack-python serializable message data
+        """
+        # FIXME drop messages to self
+        hexid = binascii.hexlify(nodeid)
+        self.log.debug("Queuing relay messaging for %s: %s" % (hexid, message))
+        self.protocol.messages_forward.put({
+            "dest": nodeid, "message": message, "timestamp": time.time()
+        })
+
+    def _forward_message(self, entry):
+        """Returns entry if failed to forward to a closer node or None"""
+
+        dest_node = Node(entry["dest"])
+        nearest = self.protocol.router.findNeighbors(dest_node)
+        # FIXME confirm they are ordered by distance and closer then self
+        if len(nearest) == 0:
+            hexid = binascii.hexlify(entry["dest"])
+            self.log.warning("No known neighbors to %s" % hexid)
+            return entry
+        for node in nearest:
+            hexid = binascii.hexlify(node.id)
+            self.log.debug("Attempting to relay message to %s" % hexid)
+            async = self.protocol.callRelayMessage(node, entry["dest"],
+                                                   entry["message"])
+            async = async.addCallback(lambda r: r[0] and r[1] or None)
+            result = util.blocking_call(lambda: async)
+            if result is None:
+                self.log.debug("Failed to relay message to %s" % hexid)
+            else:
+                self.log.debug("Successfully relayed message to %s" % hexid)
+                return None
+        return entry
+
+    def _forward_messages(self):
+        entries = util.empty_queue(self.protocol.messages_forward)
+        if len(entries) > 0:
+            self.log.debug("Forwarding %s messages" % len(entries))
+        result = util.threaded_parallel_map(self._forward_message, entries)
+        for unforwarded in filter(lambda e: e is not None, result):
+            hexid = binascii.hexlify(unforwarded["dest"])
+            self.log.debug("Requeueing unforwarded message for %s" % hexid)
+            self.protocol.messages_forward.put(unforwarded)
+
+    def _remove_messages(self):
+        self.log.debug("Removing stale relay messages.")
+        for entry in util.empty_queue(self.protocol.messages_forward):
+            if time.time() - entry["timestamp"] < self._message_timeout:
+                self.protocol.messages_forward.put(entry)
+            else:
+                hexid = binascii.hexlify(entry["dest"])
+                self.log.debug("Dropping stale relay message for %s" % hexid)
+
+        self.log.debug("Removing stale received messages.")
+        for entry in util.empty_queue(self.protocol.messages_received):
+            if time.time() - entry["timestamp"] < self._message_timeout:
+                self.protocol.messages_received.put(entry)
+            else:
+                hexid = binascii.hexlify(entry["dest"])
+                self.log.debug("Dropping stale received message %s" % hexid)
+
+    def send_direct_message(self, nodeid, message):
+        """Send direct message to a node.
+
+        Spidercrawls the network to find the node and sends the message
+        directly. This will fail if the node is behind a NAT and doesn't
+        have a public ip.
+
+        Args:
+            nodeid: 160bit nodeid of the reciever as bytes
+            message: iu-msgpack-python serializable message data
+
+        Returns:
+            Defered own transport address (ip, port) if successfull else None
+        """
+        hexid = binascii.hexlify(nodeid)
+        self.log.debug("Direct messaging %s: %s" % (hexid, message))
+
+        def found_callback(nodes):
+            self.log.debug("Nearest nodes: %s" % list(map(str, nodes)))
+            nodes = filter(lambda n: n.id == nodeid, nodes)
+            if len(nodes) == 0:
+                self.log.debug("Couldnt find destination node.")
+                return defer.succeed(None)
+            else:
+                self.log.debug("found node %s" % binascii.hexlify(nodes[0].id))
+                async = self.protocol.callDirectMessage(nodes[0], message)
+                return async.addCallback(lambda r: r[0] and r[1] or None)
+
+        node = Node(nodeid)
+        nearest = self.protocol.router.findNeighbors(node)
+        if len(nearest) == 0:
+            self.log.warning("No known neighbors to find %s" % hexid)
+            return defer.succeed(None)
+        spider = NodeSpiderCrawl(self.protocol, node, nearest,
+                                 self.ksize, self.alpha)
+        return spider.find().addCallback(found_callback)
 
     def has_public_ip(self):
         def handle(ips):
             self.log.debug("Internet visible IPs: %s" % ips)
             ip = util.get_inet_facing_ip()
             self.log.debug("Internet facing IP: %s" % ip)
-            return ip is not None and ip in ips
+            is_public = ip is not None and ip in ips
+            self.protocol.is_public = is_public  # update protocol state
+            return is_public
         return self.inetVisibleIP().addCallback(handle)
-
-    def send_message(self, nodeid, message):
-        """
-        Send a message to a given node on the network.
-        """
-        hexid = binascii.hexlify(nodeid)
-        self.log.debug("messaging '%s' '%s'" % (hexid, message))
-        node = Node(nodeid)
-
-        def found_callback(nodes):
-            self.log.debug("nearest nodes %s" % list(map(str, nodes)))
-            nodes = filter(lambda n: n.id == nodeid, nodes)
-            if len(nodes) == 0:
-                self.log.debug("couldnt find destination node")
-                return defer.succeed(None)
-            else:
-                self.log.debug("found node %s" % binascii.hexlify(nodes[0].id))
-                async = self.protocol.callMessage(nodes[0], message)
-                return async.addCallback(lambda r: r[0] and r[1] or None)
-
-        nearest = self.protocol.router.findNeighbors(node)
-        if len(nearest) == 0:
-            self.log.warning("There are no known neighbors to find %s" % hexid)
-            return defer.succeed(None)
-        spider = NodeSpiderCrawl(self.protocol, node, nearest,
-                                 self.ksize, self.alpha)
-        return spider.find().addCallback(found_callback)

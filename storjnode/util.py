@@ -1,5 +1,43 @@
 import os
 import socket
+import threading
+
+
+def threaded_parallel_map(function, sequence):
+    # see http://stackoverflow.com/a/1704501/90351
+    # see https://www.quantstart.com/articles/parallelising-python-with-threading-and-multiprocessing
+    # TODO implement
+    return list(map(function, sequence))
+
+
+def empty_queue(queue):
+    result = []
+    while not queue.empty():
+        result.append(queue.get())
+    return result
+
+
+def blocking_call(async_func, *args, **kwargs):
+    """Converts an async function call into a synchronous blocking call.
+    
+    Arags:
+        async_func: function that returns a twisted.internet.defer.Deferred
+        *args: async function arguments
+        **kwargs: async funtion keyword arguments
+    
+    Returns: Result of the async_func function call.
+    """
+    finished = threading.Event()
+    return_values = []
+
+    def callback(*args, **kwargs):
+        assert(len(args) == 1)
+        return_values.append(args[0])
+        finished.set()
+
+    async_func(*args, **kwargs).addCallback(callback)
+    finished.wait()  # block until callback called
+    return return_values[0] if len(return_values) == 1 else None
 
 
 def get_inet_facing_ip():

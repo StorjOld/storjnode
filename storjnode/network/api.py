@@ -1,5 +1,5 @@
 import threading
-from storjnode.util import valid_ip
+from storjnode.util import valid_ip, blocking_call
 from twisted.internet import reactor
 from storjnode.network.server import StorjServer
 
@@ -28,7 +28,7 @@ class BlockingNode(object):
                  start_reactor=True, bootstrap_nodes=None):
         """Create a blocking storjnode instance.
 
-        Arguments:
+        Args:
             key: Bitcoin wif/hwif to use for auth, encryption and node id.
             port: Port to use for incoming packages.
             start_reactor: Starts twisted reactor if True
@@ -89,41 +89,47 @@ class BlockingNode(object):
         """
         return self._server.get_messages()
 
-    def _blocking_call(self, async_method, *args, **kwargs):
-        finished = threading.Event()
-        return_values = []
-
-        def callback(*args, **kwargs):
-            assert(len(args) == 1)
-            return_values.append(args[0])
-            finished.set()
-
-        async_method(*args, **kwargs).addCallback(callback)
-        finished.wait()  # block until callback called
-        return return_values[0] if len(return_values) == 1 else None
-
     def has_public_ip(self):
         """Returns True if local IP is internet visible, otherwise False.
-        
+
         The may false positive if you run other nodes on your local network.
         """
-        return self._blocking_call(self._server.has_public_ip)
+        return blocking_call(self._server.has_public_ip)
 
-    def send_message(self, nodeid, message):
+    def send_relay_message(self, nodeid, message):
+        """Send relay message to a node.
+
+        Queues a message to be relayed accross the network. Relay messages are
+        sent to the node nearest the receiver in the routing table that accepts
+        the relay message. This continues until it reaches the destination or
+        the nearest node to the receiver is reached.
+
+        Because messages are always relayed only to reachable nodes in the
+        current routing table, there is a fare chance nodes behind a NAT can
+        be reached if it is connected to the network.
+
+        Args:
+            nodeid: 160bit nodeid of the reciever as bytes
+            message: iu-msgpack-python serializable message data
+        """
+        self._server.send_relay_message(nodeid, message)
+
+    def send_direct_message(self, nodeid, message):
         """Send direct message to a node.
 
         Spidercrawls the network to find the node and sends the message
         directly. This will fail if the node is behind a NAT and doesn't
         have a public ip.
 
-        Arguments:
+        Args:
             nodeid: 160bit nodeid of the reciever as bytes
             message: iu-msgpack-python serializable message data
 
         Returns:
-            Own transport address (ip, port) if successfull otherwise None
+            Own transport address (ip, port) if successfull else None
         """
-        return self._blocking_call(self._server.send_message, nodeid, message)
+        async_method = self._server.send_direct_message
+        return blocking_call(async_method, nodeid, message)
 
     def __getitem__(self, key):
         """x.__getitem__(y) <==> x[y]"""
@@ -134,12 +140,12 @@ class BlockingNode(object):
 
     def __setitem__(self, key, value):
         """x.__setitem__(i, y) <==> x[i]=y"""
-        self._blocking_call(self._server.set, key, value)
+        blocking_call(self._server.set, key, value)
 
     def get(self, key, default=None):
         """D.get(k[,d]) -> D[k] if k in D, else d.  d defaults to None."""
         # FIXME return default if not found (add to kademlia)
-        return self._blocking_call(self._server.get, key)
+        return blocking_call(self._server.get, key)
 
     def __contains__(self, k):
         """D.__contains__(k) -> True if D has a key k, else False"""

@@ -1,3 +1,4 @@
+import time
 try:
     from Queue import Queue  # py2
 except ImportError:
@@ -29,17 +30,53 @@ RoutingTable.findNeighbors = _findNearest  # XXX hack find neighbors
 class StorjProtocol(KademliaProtocol):
 
     def __init__(self, *args, **kwargs):
-        self.messages_received = Queue()
         KademliaProtocol.__init__(self, *args, **kwargs)
+        self.messages_forward = Queue()
+        self.messages_received = Queue()
+        self.is_public = False  # assume False, set by server
         self.log = logging.getLogger(__name__)
 
-    def rpc_message(self, sender, nodeid, message):
+    def rpc_is_public(self, sender, nodeid):
         source = Node(nodeid, sender[0], sender[1])
-        self.messages_received.put({"source": source, "message": message})
+        # FIXME add self.welcomeIfNewNode(source)
+        return self.is_public
+
+    def rpc_relay_message(self, sender, nodeid, destid, message):
+        source = Node(nodeid, sender[0], sender[1])
+        # FIXME add self.welcomeIfNewNode(source)
+        if destid == self.sourceNode.id:
+            self.messages_received.put({
+                "source": None, "message": message, "timestamp": time.time()
+            })
+        else:
+            # FIXME only add if ownid between sender and dest
+            self.messages_forward.put({
+                "dest": destid, "message": message, "timestamp": time.time()
+            })
         return (sender[0], sender[1])  # return (ip, port)
 
-    def callMessage(self, nodeToAsk, message):
+    def rpc_direct_message(self, sender, nodeid, message):
+        source = Node(nodeid, sender[0], sender[1])
+        # FIXME add self.welcomeIfNewNode(source)
+        self.messages_received.put({
+            "source": source, "message": message, "timestamp": time.time()
+        })
+        return (sender[0], sender[1])  # return (ip, port)
+
+    def callRelayMessage(self, nodeToAsk, destid, message):
         address = (nodeToAsk.ip, nodeToAsk.port)
-        self.log.debug("sending message to {0}:{1}".format(*address))
-        d = self.message(address, self.sourceNode.id, message)
+        self.log.debug("Sending relay message to {0}:{1}".format(*address))
+        d = self.relay_message(address, self.sourceNode.id, destid, message)
+        return d.addCallback(self.handleCallResponse, nodeToAsk)
+
+    def callDirectMessage(self, nodeToAsk, message):
+        address = (nodeToAsk.ip, nodeToAsk.port)
+        self.log.debug("Sending direct message to {0}:{1}".format(*address))
+        d = self.direct_message(address, self.sourceNode.id, message)
+        return d.addCallback(self.handleCallResponse, nodeToAsk)
+
+    def callIsPublic(self, nodeToAsk):
+        address = (nodeToAsk.ip, nodeToAsk.port)
+        self.log.debug("Querying if node is public {0}:{1}".format(*address))
+        d = self.is_public(address, self.sourceNode.id)
         return d.addCallback(self.handleCallResponse, nodeToAsk)

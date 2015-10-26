@@ -83,9 +83,17 @@ def _add_version(command_parser):
     )
 
 
-def _add_message(command_parser):
+def _add_relay_message(command_parser):
     parser = command_parser.add_parser(
-        "message", help="Send message to a peer."
+        "relay_message", help="Send relay message to a peer."
+    )
+    parser.add_argument("id", help="ID of the peer to receive the message.")
+    parser.add_argument("message", help="The message to sent the peer.")
+
+
+def _add_direct_message(command_parser):
+    parser = command_parser.add_parser(
+        "direct_message", help="Send direct message to a peer."
     )
     parser.add_argument("id", help="ID of the peer to receive the message.")
     parser.add_argument("message", help="The message to sent the peer.")
@@ -123,7 +131,8 @@ def _parse_args(args):
     _add_run(command_parser)
     _add_showid(command_parser)
     _add_showtype(command_parser)
-    _add_message(command_parser)
+    _add_direct_message(command_parser)
+    _add_relay_message(command_parser)
 
     # get values
     arguments = vars(parser.parse_args(args=args))
@@ -140,15 +149,25 @@ def run(node, args):
         time.sleep(1)
         for received in node.get_messages():
             message = received["message"]
-            peerid = binascii.hexlify(received["source"].id)
-            print("Received message from {0}: {1}".format(peerid, message))
+            if received["source"] is not None:
+                peerid = binascii.hexlify(received["source"].id)
+                msg = "Received direct message from {0}: {1}"
+                print(msg.format(peerid, message))
+            else:
+                print("Received relayed message: {0}".format(message))
 
 
-def message(node, args):
+def direct_message(node, args):
     peerid = binascii.unhexlify(args["id"])
-    result = node.send_message(peerid, args["message"])
+    result = node.send_direct_message(peerid, args["message"])
     print("RESULT:", result)
     print("Unsuccessfully sent!" if result is None else "Successfully sent!")
+
+
+def relay_message(node, args):
+    peerid = binascii.unhexlify(args["id"])
+    node.send_relay_message(peerid, args["message"])
+    print("Queued relay message.")
 
 
 def _get_bootstrap_nodes(args):
@@ -194,8 +213,12 @@ def main(args):
         value = node[args["key"]]
         print("Got '{key}' => '{value}'!".format(key=args["key"], value=value))
 
-    elif command == "message":
-        message(node, args)
+    elif command == "direct_message":
+        direct_message(node, args)
+
+    elif command == "relay_message":
+        relay_message(node, args)
+        time.sleep(5)  # give time for queue to be processed
 
     elif command == "showid":
         print("Node id: {0}".format(binascii.hexlify(node.get_id())))

@@ -1,3 +1,16 @@
+from twisted.python import log
+import logging
+
+# make twisted use standard library logging module
+observer = log.PythonLoggingObserver()
+observer.start()
+
+# setup standard logging module
+LOG_FORMAT = "%(levelname)s %(name)s %(lineno)d: %(message)s"
+logging.basicConfig(format=LOG_FORMAT, level=logging.DEBUG)
+
+
+import os
 import time
 import random
 import threading
@@ -41,19 +54,68 @@ class TestBlockingNode(unittest.TestCase):
 
     @classmethod
     def tearDownClass(cls):
+        print("stopping reactor")
         reactor.stop()
         cls.reactor_thread.join()
+
+    ########################
+    # test relay messaging #
+    ########################
+
+    @unittest.skip("temp because twisted sucks")
+    def _test_relay_message(self, sender, receiver, success_expected):
+        testmessage = os.urandom(32)
+        receiver_id = receiver.get_id()
+        sender.send_relay_message(receiver_id, testmessage)
+        time.sleep(4)  # wait for it to be relayed
+
+        if not success_expected:
+            self.assertFalse(receiver.has_messages())
+
+        else:  # success expected
+
+            # check one message received
+            self.assertTrue(receiver.has_messages())
+            received = receiver.get_messages()
+            self.assertEqual(len(received), 1)
+
+            # check if correct message received
+            source, message = received[0]["source"], received[0]["message"]
+            self.assertEqual(testmessage, message)
+
+    @unittest.skip("temp because twisted sucks")
+    def test_relay_messaging_success(self):
+        sender = self.swarm[0]
+        receiver = self.swarm[TEST_SWARM_SIZE - 1]
+        self._test_relay_message(sender, receiver, True)
+
+    @unittest.skip("temp because twisted sucks")
+    def test_relay_message_self(self):
+        sender = self.swarm[0]
+        receiver = self.swarm[0]
+        self._test_relay_message(sender, receiver, False)
+
+    @unittest.skip("temp because twisted sucks")
+    def test_relay_messaging(self):
+        senders = self.swarm[:]
+        random.shuffle(senders)
+        receivers = self.swarm[:]
+        random.shuffle(receivers)
+        for sender, receiver in zip(senders, receivers):
+            self._test_relay_message(sender, receiver, sender is not receiver)
 
     #########################
     # test direct messaging #
     #########################
 
-    def _test_message(self, sender, receiver, success_expected):
+    def _test_direct_message(self, sender, receiver, success_expected):
+        testmessage = os.urandom(32)
         receiver_id = receiver.get_id()
-        sender_address = sender.send_message(receiver_id, "testmessage")
+        sender_address = sender.send_direct_message(receiver_id, testmessage)
 
         if not success_expected:
             self.assertTrue(sender_address is None)  # was not received
+            self.assertFalse(receiver.has_messages())
 
         else:  # success expected
 
@@ -71,34 +133,36 @@ class TestBlockingNode(unittest.TestCase):
             received = receiver.get_messages()
             self.assertEqual(len(received), 1)
 
-            # check if message and sender ip/port match
+            # check if correct message received
             source, message = received[0]["source"], received[0]["message"]
-            self.assertEqual("testmessage", message)
+            self.assertEqual(testmessage, message)
+
+            # check if message and sender ip/port match
             self.assertEqual(ip, source.ip)
             self.assertEqual(port, source.port)
 
-    def test_messaging_success(self):
+    def test_direct_messaging_success(self):
         sender = self.swarm[0]
         receiver = self.swarm[TEST_SWARM_SIZE - 1]
-        self._test_message(sender, receiver, True)
+        self._test_direct_message(sender, receiver, True)
 
-    def test_messaging_failure(self):
+    def test_direct_messaging_failure(self):
         sender = self.swarm[0]
-        result = sender.send_message(b"f483", "testmessage")
+        result = sender.send_direct_message(b"f483", "testmessage")
         self.assertTrue(result is None)
 
-    def test_message_self(self):
+    def test_direct_message_self(self):
         sender = self.swarm[0]
         receiver = self.swarm[0]
-        self._test_message(sender, receiver, False)
+        self._test_direct_message(sender, receiver, False)
 
-    def test_messaging(self):
+    def test_direct_messaging(self):
         senders = self.swarm[:]
         random.shuffle(senders)
         receivers = self.swarm[:]
         random.shuffle(receivers)
         for sender, receiver in zip(senders, receivers):
-            self._test_message(sender, receiver, sender is not receiver)
+            self._test_direct_message(sender, receiver, sender is not receiver)
 
     ###############################
     # test distributed hash table #
