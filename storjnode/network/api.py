@@ -66,8 +66,9 @@ class BlockingNode(object):
         else:
             self._reactor_thread = None
 
-    def stop_reactor(self):
-        """Stop twisted rector if it was started by this node."""
+    def stop(self):
+        """Stop server and twisted rector if it was started by this node."""
+        self._server.stop()
         if self._reactor_thread is not None:
             reactor.stop()
             self._reactor_thread.join()

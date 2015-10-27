@@ -1,4 +1,5 @@
 import time
+import threading
 import btctxstore
 import binascii
 import logging
@@ -27,6 +28,7 @@ class StorjServer(Server):
             storage: implements :interface:`~kademlia.storage.IStorage`
             message_timeout: Seconds until unprocessed messages are dropped.
         """
+        self._message_timeout = message_timeout
 
         # TODO validate key is valid wif/hwif for mainnet or testnet
         testnet = False  # FIXME get from wif/hwif
@@ -46,10 +48,16 @@ class StorjServer(Server):
         self.protocol = StorjProtocol(self.node, self.storage, ksize)
         self.refreshLoop = LoopingCall(self.refreshTable).start(3600)
 
-        # own threads
-        self._message_timeout = message_timeout
-        self.forwardLoop = LoopingCall(self._forward_messages).start(0.2)
+        # setup relay message forwarding thread
+        self._forward_thread_stop = False
+        self._forward_thread = threading.Thread(target=self._forward_loop)
+        self._forward_thread.start()
+
         # XXX self.removeMessagesLoop = LoopingCall(self._remove_messages).start(5)
+
+    def stop(self):
+        self._forward_thread_stop = True
+        self._forward_thread.join()
 
     def get_id(self):
         address = self._btctxstore.get_address(self._key)
@@ -89,6 +97,7 @@ class StorjServer(Server):
 
         dest_node = Node(entry["dest"])
         nearest = self.protocol.router.findNeighbors(dest_node)
+
         # FIXME confirm they are ordered by distance and closer then self
         if len(nearest) == 0:
             hexid = binascii.hexlify(entry["dest"])
@@ -97,10 +106,10 @@ class StorjServer(Server):
         for node in nearest:
             hexid = binascii.hexlify(node.id)
             self.log.debug("Attempting to relay message to %s" % hexid)
-            async = self.protocol.callRelayMessage(node, entry["dest"],
-                                                   entry["message"])
-            async = async.addCallback(lambda r: r[0] and r[1] or None)
-            result = util.blocking_call(lambda: async)
+            defered = self.protocol.callRelayMessage(node, entry["dest"],
+                                                     entry["message"])
+            defered = defered.addCallback(lambda r: r[0] and r[1] or None)
+            result = util.blocking_call(lambda: defered)
             if result is None:
                 self.log.debug("Failed to relay message to %s" % hexid)
             else:
@@ -108,15 +117,18 @@ class StorjServer(Server):
                 return None
         return entry
 
-    def _forward_messages(self):
-        entries = util.empty_queue(self.protocol.messages_forward)
-        if len(entries) > 0:
-            self.log.debug("Forwarding %s messages" % len(entries))
-        result = util.threaded_parallel_map(self._forward_message, entries)
-        for unforwarded in filter(lambda e: e is not None, result):
-            hexid = binascii.hexlify(unforwarded["dest"])
-            self.log.debug("Requeueing unforwarded message for %s" % hexid)
-            self.protocol.messages_forward.put(unforwarded)
+    def _forward_loop(self):
+        while not self._forward_thread_stop:
+            entries = util.empty_queue(self.protocol.messages_forward)
+            if len(entries) > 0:
+                self.log.debug("Forwarding %s messages" % len(entries))
+            result = util.threaded_parallel_map(self._forward_message, entries)
+            # FIXME requeue unsent
+            #for unforwarded in filter(lambda e: e is not None, result):
+            #    hexid = binascii.hexlify(unforwarded["dest"])
+            #    self.log.debug("Requeueing unforwarded message for %s" % hexid)
+            #    self.protocol.messages_forward.put(unforwarded)
+            time.sleep(0.2)
 
     def _remove_messages(self):
         self.log.debug("Removing stale relay messages.")

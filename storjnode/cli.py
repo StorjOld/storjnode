@@ -227,4 +227,4 @@ def main(args):
         print("Public node!" if node.has_public_ip() else "Private node!")
 
     print("Stopping node")
-    node.stop_reactor()
+    node.stop()

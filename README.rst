@@ -149,8 +149,8 @@ Starting and using a node in python.
     except NotImplementedError as e:
         print(e)
 
-    # stop twisted reactor to disconnect from network
-    node.stop_reactor()
+    # stop server and twisted reactor to disconnect from network
+    node.stop()
 
 Multinode usage
 ---------------

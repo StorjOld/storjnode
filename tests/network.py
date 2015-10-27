@@ -20,7 +20,7 @@ import storjnode
 from twisted.internet import reactor
 
 
-TEST_SWARM_SIZE = 50
+TEST_SWARM_SIZE = 3
 
 
 class TestBlockingNode(unittest.TestCase):
@@ -34,7 +34,7 @@ class TestBlockingNode(unittest.TestCase):
             # isolate swarm
             bootstrap_nodes = [
                 ("127.0.0.1", 3000 + x) for x in range(i)
-            ][-3:]  # only knows the last 3 nodes
+            ][-1:]  # only knows the last node
 
             # create node
             node = storjnode.network.BlockingNode(
@@ -54,6 +54,9 @@ class TestBlockingNode(unittest.TestCase):
 
     @classmethod
     def tearDownClass(cls):
+        print("stopping swarm")
+        for node in cls.swarm:
+            node.stop()
         print("stopping reactor")
         reactor.stop()
         cls.reactor_thread.join()
@@ -62,7 +65,6 @@ class TestBlockingNode(unittest.TestCase):
     # test relay messaging #
     ########################
 
-    @unittest.skip("temp because twisted sucks")
     def _test_relay_message(self, sender, receiver, success_expected):
         testmessage = os.urandom(32)
         receiver_id = receiver.get_id()
@@ -82,20 +84,18 @@ class TestBlockingNode(unittest.TestCase):
             # check if correct message received
             source, message = received[0]["source"], received[0]["message"]
             self.assertEqual(testmessage, message)
+            self.assertEqual(source, None)
 
-    @unittest.skip("temp because twisted sucks")
     def test_relay_messaging_success(self):
         sender = self.swarm[0]
         receiver = self.swarm[TEST_SWARM_SIZE - 1]
         self._test_relay_message(sender, receiver, True)
 
-    @unittest.skip("temp because twisted sucks")
     def test_relay_message_self(self):
         sender = self.swarm[0]
         receiver = self.swarm[0]
         self._test_relay_message(sender, receiver, False)
 
-    @unittest.skip("temp because twisted sucks")
     def test_relay_messaging(self):
         senders = self.swarm[:]
         random.shuffle(senders)
