@@ -190,7 +190,7 @@ def main(args):
     # show version
     if command == "version":
         print("v{0}".format(storjnode.__version__))
-        exit(0)
+        sys.exit(0)
 
     # setup node
     node_key = _get_node_key(args)
