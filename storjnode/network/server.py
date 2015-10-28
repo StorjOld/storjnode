@@ -17,7 +17,7 @@ from kademlia.crawling import NodeSpiderCrawl
 class StorjServer(Server):
 
     def __init__(self, key, ksize=20, alpha=3, storage=None,
-                 message_timeout=30, max_messages=1024):
+                 message_timeout=30, max_messages=1024, default_hop_limit=64):
         """
         Create a server instance.  This will start listening on the given port.
 
@@ -29,6 +29,7 @@ class StorjServer(Server):
             message_timeout: Seconds until unprocessed messages are dropped.
         """
         self._message_timeout = message_timeout
+        self._default_hop_limit = default_hop_limit
 
         # TODO validate key is valid wif/hwif for mainnet or testnet
         testnet = False  # FIXME get from wif/hwif
@@ -46,8 +47,8 @@ class StorjServer(Server):
         self.storage = storage or ForgetfulStorage()
         self.node = Node(self.get_id())
         self.protocol = StorjProtocol(
-            self.node, self.storage, ksize,
-            max_messages=max_messages
+            self.node, self.storage, ksize, max_messages=max_messages,
+            max_hop_limit=self._default_hop_limit
         )
         self.refreshLoop = LoopingCall(self.refreshTable).start(3600)
 
@@ -101,20 +102,29 @@ class StorjServer(Server):
 
         # add to message relay queue
         self.log.debug("Queuing relay messaging for %s: %s" % (hexid, message))
-        self.protocol.queue_relay_message({"dest": nodeid, "message": message,
-                                           "timestamp": time.time()})
+        self.protocol.queue_relay_message({
+            "dest": nodeid, "message": message, 
+            "hop_limit": self._default_hop_limit
+        })
 
     def _relay_message(self, entry):
         """Returns entry if failed to relay to a closer node or None"""
 
         dest_node = Node(entry["dest"])
-        nearest = self.protocol.router.findNeighbors(dest_node)
+        nearest = self.protocol.router.findNeighbors(dest_node,
+                                                     exclude=self.node)
         # FIXME confirm they are ordered by distance and closer then self
 
         for node in nearest:
             hexid = binascii.hexlify(node.id)
+
+            if node.distanceTo(dest_node) >= node.distanceTo(self.node):
+                print("dont relay to farther node")
+                continue  # do not relay away from dest
+
             self.log.debug("Attempting to relay message for %s" % hexid)
             defered = self.protocol.callRelayMessage(node, entry["dest"],
+                                                     entry["hop_limit"],
                                                      entry["message"])
             defered = defered.addCallback(lambda r: r[0] and r[1] or None)
             result = util.blocking_call(lambda: defered)

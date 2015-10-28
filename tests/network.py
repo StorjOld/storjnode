@@ -22,7 +22,8 @@ from twisted.internet import reactor
 
 
 TEST_MESSAGE_TIMEOUT = 5
-TEST_SWARM_SIZE = 20  # FIXME increase swarm size
+TEST_SWARM_SIZE = 60  # FIXME increase swarm size
+TEST_MAX_MESSAGES = 2
 
 
 class TestBlockingNode(unittest.TestCase):
@@ -40,7 +41,8 @@ class TestBlockingNode(unittest.TestCase):
             node = storjnode.network.BlockingNode(
                 cls.btctxstore.create_wallet(), port=(3000 + i),
                 bootstrap_nodes=bootstrap_nodes, start_reactor=False,
-                message_timeout=TEST_MESSAGE_TIMEOUT
+                message_timeout=TEST_MESSAGE_TIMEOUT,
+                max_messages=TEST_MAX_MESSAGES
             )
             cls.swarm.append(node)
 
