@@ -20,7 +20,7 @@ import storjnode
 from twisted.internet import reactor
 
 
-TEST_SWARM_SIZE = 3
+TEST_SWARM_SIZE = 25  # FIXME increase swarm size
 
 
 class TestBlockingNode(unittest.TestCase):
@@ -50,7 +50,7 @@ class TestBlockingNode(unittest.TestCase):
         cls.reactor_thread.start()
 
         # wait
-        time.sleep(12)
+        time.sleep(6)
 
     @classmethod
     def tearDownClass(cls):
@@ -65,11 +65,15 @@ class TestBlockingNode(unittest.TestCase):
     # test relay messaging #
     ########################
 
+    # FIXME test messages are dropped when stale
+    # FIXME test unrelayed messages requeued until stale
+    # FIXME test max message queue size
+
     def _test_relay_message(self, sender, receiver, success_expected):
         testmessage = os.urandom(32)
         receiver_id = receiver.get_id()
         sender.send_relay_message(receiver_id, testmessage)
-        time.sleep(4)  # wait for it to be relayed
+        time.sleep(0.5)  # wait for it to be relayed
 
         if not success_expected:
             self.assertFalse(receiver.has_messages())

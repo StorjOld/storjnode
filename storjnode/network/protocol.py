@@ -1,3 +1,4 @@
+import binascii
 import time
 try:
     from Queue import Queue  # py2
@@ -31,7 +32,7 @@ class StorjProtocol(KademliaProtocol):
 
     def __init__(self, *args, **kwargs):
         KademliaProtocol.__init__(self, *args, **kwargs)
-        self.messages_forward = Queue()
+        self.messages_relay = Queue()
         self.messages_received = Queue()
         self.is_public = False  # assume False, set by server
         self.log = logging.getLogger(__name__)
@@ -42,6 +43,9 @@ class StorjProtocol(KademliaProtocol):
         return self.is_public
 
     def rpc_relay_message(self, sender, nodeid, destid, message):
+        self.log.debug("Got relay message from {0} at {1} for {2}.".format(
+            binascii.hexlify(nodeid), sender, binascii.hexlify(destid)
+        ))
         source = Node(nodeid, sender[0], sender[1])
         # FIXME add self.welcomeIfNewNode(source)
         if destid == self.sourceNode.id:
@@ -50,12 +54,15 @@ class StorjProtocol(KademliaProtocol):
             })
         else:
             # FIXME only add if ownid between sender and dest
-            self.messages_forward.put({
+            self.messages_relay.put({
                 "dest": destid, "message": message, "timestamp": time.time()
             })
         return (sender[0], sender[1])  # return (ip, port)
 
     def rpc_direct_message(self, sender, nodeid, message):
+        self.log.debug("Got direct message from {0}@{1}".format(
+            binascii.hexlify(nodeid), sender
+        ))
         source = Node(nodeid, sender[0], sender[1])
         # FIXME add self.welcomeIfNewNode(source)
         self.messages_received.put({

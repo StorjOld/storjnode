@@ -48,16 +48,16 @@ class StorjServer(Server):
         self.protocol = StorjProtocol(self.node, self.storage, ksize)
         self.refreshLoop = LoopingCall(self.refreshTable).start(3600)
 
-        # setup relay message forwarding thread
-        self._forward_thread_stop = False
-        self._forward_thread = threading.Thread(target=self._forward_loop)
-        self._forward_thread.start()
+        # setup relay message thread
+        self._relay_thread_stop = False
+        self._relay_thread = threading.Thread(target=self._relay_loop)
+        self._relay_thread.start()
 
         # XXX self.removeMessagesLoop = LoopingCall(self._remove_messages).start(5)
 
     def stop(self):
-        self._forward_thread_stop = True
-        self._forward_thread.join()
+        self._relay_thread_stop = True
+        self._relay_thread.join()
 
     def get_id(self):
         address = self._btctxstore.get_address(self._key)
@@ -85,15 +85,20 @@ class StorjServer(Server):
             nodeid: 160bit nodeid of the reciever as bytes
             message: iu-msgpack-python serializable message data
         """
-        # FIXME drop messages to self
         hexid = binascii.hexlify(nodeid)
+
+        if nodeid == self.node.id:
+            self.log.debug("Dropping message to self.")
+            return
+
+        # add to message relay queue
         self.log.debug("Queuing relay messaging for %s: %s" % (hexid, message))
-        self.protocol.messages_forward.put({
+        self.protocol.messages_relay.put({
             "dest": nodeid, "message": message, "timestamp": time.time()
         })
 
-    def _forward_message(self, entry):
-        """Returns entry if failed to forward to a closer node or None"""
+    def _relay_message(self, entry):
+        """Returns entry if failed to relay to a closer node or None"""
 
         dest_node = Node(entry["dest"])
         nearest = self.protocol.router.findNeighbors(dest_node)
@@ -117,24 +122,24 @@ class StorjServer(Server):
                 return None
         return entry
 
-    def _forward_loop(self):
-        while not self._forward_thread_stop:
-            entries = util.empty_queue(self.protocol.messages_forward)
+    def _relay_loop(self):
+        while not self._relay_thread_stop:
+            entries = util.empty_queue(self.protocol.messages_relay)
             if len(entries) > 0:
                 self.log.debug("Forwarding %s messages" % len(entries))
-            result = util.threaded_parallel_map(self._forward_message, entries)
+            result = util.threaded_parallel_map(self._relay_message, entries)
             # FIXME requeue unsent
-            #for unforwarded in filter(lambda e: e is not None, result):
-            #    hexid = binascii.hexlify(unforwarded["dest"])
-            #    self.log.debug("Requeueing unforwarded message for %s" % hexid)
-            #    self.protocol.messages_forward.put(unforwarded)
-            time.sleep(0.2)
+            #for unrelayed in filter(lambda e: e is not None, result):
+            #    hexid = binascii.hexlify(unrelayed["dest"])
+            #    self.log.debug("Requeueing unrelayed message for %s" % hexid)
+            #    self.protocol.messages_relay.put(unrelayed)
+            time.sleep(0.05)
 
     def _remove_messages(self):
         self.log.debug("Removing stale relay messages.")
-        for entry in util.empty_queue(self.protocol.messages_forward):
+        for entry in util.empty_queue(self.protocol.messages_relay):
             if time.time() - entry["timestamp"] < self._message_timeout:
-                self.protocol.messages_forward.put(entry)
+                self.protocol.messages_relay.put(entry)
             else:
                 hexid = binascii.hexlify(entry["dest"])
                 self.log.debug("Dropping stale relay message for %s" % hexid)
