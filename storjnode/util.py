@@ -3,6 +3,11 @@ import socket
 import threading
 
 
+def process_parallel_map(function, sequence):
+    # TODO implement
+    return list(map(function, sequence))
+
+
 def threaded_parallel_map(function, sequence):
     # see http://stackoverflow.com/a/1704501/90351
     # see https://www.quantstart.com/articles/parallelising-python-with-threading-and-multiprocessing
@@ -19,12 +24,12 @@ def empty_queue(queue):
 
 def blocking_call(async_func, *args, **kwargs):
     """Converts an async function call into a synchronous blocking call.
-    
+
     Arags:
         async_func: function that returns a twisted.internet.defer.Deferred
         *args: async function arguments
         **kwargs: async funtion keyword arguments
-    
+
     Returns: Result of the async_func function call.
     """
     finished = threading.Event()

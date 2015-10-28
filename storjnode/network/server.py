@@ -102,12 +102,8 @@ class StorjServer(Server):
 
         dest_node = Node(entry["dest"])
         nearest = self.protocol.router.findNeighbors(dest_node)
-
         # FIXME confirm they are ordered by distance and closer then self
-        if len(nearest) == 0:
-            hexid = binascii.hexlify(entry["dest"])
-            self.log.warning("No known neighbors to %s" % hexid)
-            return entry
+
         for node in nearest:
             hexid = binascii.hexlify(node.id)
             self.log.debug("Attempting to relay message to %s" % hexid)
@@ -119,31 +115,24 @@ class StorjServer(Server):
                 self.log.debug("Failed to relay message to %s" % hexid)
             else:
                 self.log.debug("Successfully relayed message to %s" % hexid)
-                return None
-        return entry
+                return
+
+        # failed to relay message
+        hexid = binascii.hexlify(entry["dest"])
+        if time.time() - entry["timestamp"] < self._message_timeout:
+            self.log.debug("Requeueing unrelayed message for %s" % hexid)
+            self.protocol.messages_relay.put(entry)
+        else:
+            self.log.debug("Dropping stale relay message for %s" % hexid)
 
     def _relay_loop(self):
         while not self._relay_thread_stop:
-            entries = util.empty_queue(self.protocol.messages_relay)
-            if len(entries) > 0:
-                self.log.debug("Forwarding %s messages" % len(entries))
-            result = util.threaded_parallel_map(self._relay_message, entries)
-            # FIXME requeue unsent
-            #for unrelayed in filter(lambda e: e is not None, result):
-            #    hexid = binascii.hexlify(unrelayed["dest"])
-            #    self.log.debug("Requeueing unrelayed message for %s" % hexid)
-            #    self.protocol.messages_relay.put(unrelayed)
+            # FIXME use worker pool to process queue
+            for entry in util.empty_queue(self.protocol.messages_relay):
+                self._relay_message(entry)
             time.sleep(0.05)
 
     def _remove_messages(self):
-        self.log.debug("Removing stale relay messages.")
-        for entry in util.empty_queue(self.protocol.messages_relay):
-            if time.time() - entry["timestamp"] < self._message_timeout:
-                self.protocol.messages_relay.put(entry)
-            else:
-                hexid = binascii.hexlify(entry["dest"])
-                self.log.debug("Dropping stale relay message for %s" % hexid)
-
         self.log.debug("Removing stale received messages.")
         for entry in util.empty_queue(self.protocol.messages_received):
             if time.time() - entry["timestamp"] < self._message_timeout:
