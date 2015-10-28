@@ -25,7 +25,8 @@ class BlockingNode(object):
     """
 
     def __init__(self, key, port=DEFAULT_PORT,
-                 start_reactor=True, bootstrap_nodes=None):
+                 start_reactor=True, bootstrap_nodes=None,
+                 message_timeout=30, max_messages=1024):
         """Create a blocking storjnode instance.
 
         Args:
@@ -33,7 +34,13 @@ class BlockingNode(object):
             port: Port to use for incoming packages.
             start_reactor: Starts twisted reactor if True
             bootstrap_nodes: Known network node addresses as [(ip, port), ...]
+            message_timeout: Seconds until unprocessed messages are dropped.
+            max_messages: Maximum unprecessed messages, additional are dropped.
         """
+
+        # validate message timeout
+        assert(isinstance(message_timeout, int))
+        assert(isinstance(max_messages, int))
 
         # validate port
         assert(isinstance(port, int))
@@ -51,7 +58,8 @@ class BlockingNode(object):
             assert(other_port >= 0 and other_port <= 2**16)
 
         # start dht node
-        self._server = StorjServer(key)
+        self._server = StorjServer(key, message_timeout=message_timeout,
+                                   max_messages=max_messages)
         self._server.listen(port)
         if len(bootstrap_nodes) > 0:
             self._server.bootstrap(bootstrap_nodes)
@@ -88,10 +96,6 @@ class BlockingNode(object):
     def has_messages(self):
         """Returns True if this node has received messages."""
         return self._server.has_messages()
-
-    def has_unrelayed_messages(self):
-        """Returns True if this node has unsent relay messages."""
-        return self._server.has_unrelayed_messages()
 
     def get_messages(self):
         """Get list of messages received since this method was last called.

@@ -21,7 +21,8 @@ import storjnode
 from twisted.internet import reactor
 
 
-TEST_SWARM_SIZE = 25  # FIXME increase swarm size
+TEST_MESSAGE_TIMEOUT = 5
+TEST_SWARM_SIZE = 20  # FIXME increase swarm size
 
 
 class TestBlockingNode(unittest.TestCase):
@@ -38,7 +39,8 @@ class TestBlockingNode(unittest.TestCase):
             # create node
             node = storjnode.network.BlockingNode(
                 cls.btctxstore.create_wallet(), port=(3000 + i),
-                bootstrap_nodes=bootstrap_nodes, start_reactor=False
+                bootstrap_nodes=bootstrap_nodes, start_reactor=False,
+                message_timeout=TEST_MESSAGE_TIMEOUT
             )
             cls.swarm.append(node)
 
@@ -64,8 +66,6 @@ class TestBlockingNode(unittest.TestCase):
     # test relay messaging #
     ########################
 
-    # FIXME test messages are dropped when stale
-    # FIXME test unrelayed messages requeued until stale
     # FIXME test max message queue size
 
     def _test_relay_message(self, sender, receiver, success_expected):
@@ -167,6 +167,18 @@ class TestBlockingNode(unittest.TestCase):
         random.shuffle(receivers)
         for sender, receiver in zip(senders, receivers):
             self._test_direct_message(sender, receiver, sender is not receiver)
+
+    def test_stale_messages_dropped(self):
+        testmessage = binascii.hexlify(os.urandom(32))
+        sender = self.swarm[0]
+        receiver = self.swarm[TEST_SWARM_SIZE - 1]
+        receiver_id = receiver.get_id()
+        sender_address = sender.send_direct_message(receiver_id, testmessage)
+
+        self.assertTrue(sender_address is not None)  # was received
+        self.assertTrue(receiver.has_messages()) # check one message received
+        time.sleep(TEST_MESSAGE_TIMEOUT + 1) # wait until stale
+        self.assertFalse(receiver.has_messages()) # check message was dropped
 
     ###############################
     # test distributed hash table #

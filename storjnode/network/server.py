@@ -77,9 +77,6 @@ class StorjServer(Server):
     def get_messages(self):
         return self.protocol.get_messages()
 
-    def has_unrelayed_messages(self):
-        return self.protocol.has_unrelayed_messages()
-
     def send_relay_message(self, nodeid, message):
         """Send relay message to a node.
 
@@ -116,25 +113,15 @@ class StorjServer(Server):
 
         for node in nearest:
             hexid = binascii.hexlify(node.id)
-            self.log.debug("Attempting to relay message to %s" % hexid)
+            self.log.debug("Attempting to relay message for %s" % hexid)
             defered = self.protocol.callRelayMessage(node, entry["dest"],
                                                      entry["message"])
             defered = defered.addCallback(lambda r: r[0] and r[1] or None)
             result = util.blocking_call(lambda: defered)
-            if result is None:
-                self.log.debug("Failed to relay message to %s" % hexid)
-            else:
+            if result is not None:
                 self.log.debug("Successfully relayed message to %s" % hexid)
-                return
-
-        # failed to relay message
-        # FIXME add exponential time back off for resend attempts
-        hexid = binascii.hexlify(entry["dest"])
-        if time.time() - entry["timestamp"] < self._message_timeout:
-            self.log.debug("Requeueing unrelayed message for %s" % hexid)
-            self.protocol.queue_relay_message(entry)
-        else:
-            self.log.debug("Dropping stale relay message for %s" % hexid)
+                return  # only relay to one peer, avoid amplification attacks
+        self.log.debug("Failed to relay message for %s" % hexid)
 
     def _relay_loop(self):
         while not self._relay_thread_stop:
@@ -170,7 +157,6 @@ class StorjServer(Server):
         self.log.debug("Direct messaging %s: %s" % (hexid, message))
 
         def found_callback(nodes):
-            self.log.debug("Nearest nodes: %s" % list(map(str, nodes)))
             nodes = filter(lambda n: n.id == nodeid, nodes)
             if len(nodes) == 0:
                 self.log.debug("Couldnt find destination node.")

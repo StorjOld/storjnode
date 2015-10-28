@@ -45,9 +45,6 @@ class StorjProtocol(KademliaProtocol):
     def get_messages(self):
         return util.empty_queue(self.messages_received)
 
-    def has_unrelayed_messages(self):
-        return not self.messages_relay.empty()
-
     def queue_relay_message(self, message):
         try:
             self.messages_relay.put_nowait(message)
@@ -86,7 +83,7 @@ class StorjProtocol(KademliaProtocol):
         return (sender[0], sender[1]) if queued else None
 
     def rpc_direct_message(self, sender, nodeid, message):
-        self.log.debug("Got direct message from {0}@{1}".format(
+        self.log.debug("Got direct message from {0} at {1}".format(
             binascii.hexlify(nodeid), sender
         ))
         source = Node(nodeid, sender[0], sender[1])
