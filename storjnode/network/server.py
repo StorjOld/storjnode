@@ -17,7 +17,7 @@ from kademlia.crawling import NodeSpiderCrawl
 class StorjServer(Server):
 
     def __init__(self, key, ksize=20, alpha=3, storage=None,
-                 message_timeout=30):
+                 message_timeout=30, max_messages=1024):
         """
         Create a server instance.  This will start listening on the given port.
 
@@ -45,7 +45,10 @@ class StorjServer(Server):
         self.log = logging.getLogger(__name__)
         self.storage = storage or ForgetfulStorage()
         self.node = Node(self.get_id())
-        self.protocol = StorjProtocol(self.node, self.storage, ksize)
+        self.protocol = StorjProtocol(
+            self.node, self.storage, ksize,
+            max_messages=max_messages
+        )
         self.refreshLoop = LoopingCall(self.refreshTable).start(3600)
 
         # setup relay message thread
@@ -93,9 +96,8 @@ class StorjServer(Server):
 
         # add to message relay queue
         self.log.debug("Queuing relay messaging for %s: %s" % (hexid, message))
-        self.protocol.messages_relay.put({
-            "dest": nodeid, "message": message, "timestamp": time.time()
-        })
+        self.protocol.queue_relay_message({"dest": nodeid, "message": message,
+                                           "timestamp": time.time()})
 
     def _relay_message(self, entry):
         """Returns entry if failed to relay to a closer node or None"""
@@ -121,7 +123,7 @@ class StorjServer(Server):
         hexid = binascii.hexlify(entry["dest"])
         if time.time() - entry["timestamp"] < self._message_timeout:
             self.log.debug("Requeueing unrelayed message for %s" % hexid)
-            self.protocol.messages_relay.put(entry)
+            self.protocol.queue_relay_message(entry)
         else:
             self.log.debug("Dropping stale relay message for %s" % hexid)
 
@@ -136,7 +138,7 @@ class StorjServer(Server):
         self.log.debug("Removing stale received messages.")
         for entry in util.empty_queue(self.protocol.messages_received):
             if time.time() - entry["timestamp"] < self._message_timeout:
-                self.protocol.messages_received.put(entry)
+                self.protocol.queue_received_message(entry)
             else:
                 hexid = binascii.hexlify(entry["dest"])
                 self.log.debug("Dropping stale received message %s" % hexid)

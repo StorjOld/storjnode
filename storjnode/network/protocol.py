@@ -1,9 +1,9 @@
 import binascii
 import time
 try:
-    from Queue import Queue  # py2
+    from Queue import Queue, Full  # py2
 except ImportError:
-    from queue import Queue  # py3
+    from queue import Queue, Full  # py3
 from kademlia.protocol import KademliaProtocol
 from kademlia.routing import RoutingTable
 from kademlia.routing import TableTraverser
@@ -31,11 +31,29 @@ RoutingTable.findNeighbors = _findNearest  # XXX hack find neighbors
 class StorjProtocol(KademliaProtocol):
 
     def __init__(self, *args, **kwargs):
-        KademliaProtocol.__init__(self, *args, **kwargs)
-        self.messages_relay = Queue()
-        self.messages_received = Queue()
+        max_messages = kwargs.pop("max_messages")
+        self.messages_relay = Queue(maxsize=max_messages)
+        self.messages_received = Queue(maxsize=max_messages)
         self.is_public = False  # assume False, set by server
+        KademliaProtocol.__init__(self, *args, **kwargs)
         self.log = logging.getLogger(__name__)
+
+    def queue_relay_message(self, message):
+        try:
+            self.messages_relay.put_nowait(message)
+            return True
+        except Full:
+            msg = "Relay message queue full, dropping message for %s"
+            self.log.warning(msg % binascii.hexlify(message["dest"]))
+            return False
+
+    def queue_received_message(self, message):
+        try:
+            self.messages_received.put_nowait(message)
+            return True
+        except Full:
+            self.log.warning("Received message queue full, dropping message.")
+            return False
 
     def rpc_is_public(self, sender, nodeid):
         source = Node(nodeid, sender[0], sender[1])
@@ -49,15 +67,15 @@ class StorjProtocol(KademliaProtocol):
         source = Node(nodeid, sender[0], sender[1])
         # FIXME add self.welcomeIfNewNode(source)
         if destid == self.sourceNode.id:
-            self.messages_received.put({
+            queued = self.queue_received_message({
                 "source": None, "message": message, "timestamp": time.time()
             })
         else:
             # FIXME only add if ownid between sender and dest
-            self.messages_relay.put({
+            queued = self.queue_relay_message({
                 "dest": destid, "message": message, "timestamp": time.time()
             })
-        return (sender[0], sender[1])  # return (ip, port)
+        return (sender[0], sender[1]) if queued else None
 
     def rpc_direct_message(self, sender, nodeid, message):
         self.log.debug("Got direct message from {0}@{1}".format(
@@ -65,10 +83,10 @@ class StorjProtocol(KademliaProtocol):
         ))
         source = Node(nodeid, sender[0], sender[1])
         # FIXME add self.welcomeIfNewNode(source)
-        self.messages_received.put({
+        queued = self.queue_received_message({
             "source": source, "message": message, "timestamp": time.time()
         })
-        return (sender[0], sender[1])  # return (ip, port)
+        return (sender[0], sender[1]) if queued else None
 
     def callRelayMessage(self, nodeToAsk, destid, message):
         address = (nodeToAsk.ip, nodeToAsk.port)

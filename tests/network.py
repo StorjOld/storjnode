@@ -12,6 +12,7 @@ logging.basicConfig(format=LOG_FORMAT, level=logging.DEBUG)
 
 import os
 import time
+import binascii
 import random
 import threading
 import unittest
@@ -32,9 +33,7 @@ class TestBlockingNode(unittest.TestCase):
         for i in range(TEST_SWARM_SIZE):
 
             # isolate swarm
-            bootstrap_nodes = [
-                ("127.0.0.1", 3000 + x) for x in range(i)
-            ][-1:]  # only knows the last node
+            bootstrap_nodes = [("127.0.0.1", 3000 + x) for x in range(i)][-1:]
 
             # create node
             node = storjnode.network.BlockingNode(
@@ -49,7 +48,7 @@ class TestBlockingNode(unittest.TestCase):
         )
         cls.reactor_thread.start()
 
-        # wait
+        # wait until network overlay stable
         time.sleep(6)
 
     @classmethod
@@ -70,7 +69,7 @@ class TestBlockingNode(unittest.TestCase):
     # FIXME test max message queue size
 
     def _test_relay_message(self, sender, receiver, success_expected):
-        testmessage = os.urandom(32)
+        testmessage = binascii.hexlify(os.urandom(32))
         receiver_id = receiver.get_id()
         sender.send_relay_message(receiver_id, testmessage)
         time.sleep(0.5)  # wait for it to be relayed
@@ -113,7 +112,7 @@ class TestBlockingNode(unittest.TestCase):
     #########################
 
     def _test_direct_message(self, sender, receiver, success_expected):
-        testmessage = os.urandom(32)
+        testmessage = binascii.hexlify(os.urandom(32))
         receiver_id = receiver.get_id()
         sender_address = sender.send_direct_message(receiver_id, testmessage)
 
