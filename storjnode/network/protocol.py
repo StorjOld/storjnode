@@ -56,16 +56,14 @@ class StorjProtocol(KademliaProtocol):
             return False
 
     def rpc_is_public(self, sender, nodeid):
-        source = Node(nodeid, sender[0], sender[1])
-        # FIXME add self.welcomeIfNewNode(source)
+        # FIXME add self.welcomeIfNewNode(Node(nodeid, sender[0], sender[1]))
         return self.is_public
 
     def rpc_relay_message(self, sender, nodeid, destid, message):
         self.log.debug("Got relay message from {0} at {1} for {2}.".format(
             binascii.hexlify(nodeid), sender, binascii.hexlify(destid)
         ))
-        source = Node(nodeid, sender[0], sender[1])
-        # FIXME add self.welcomeIfNewNode(source)
+        # FIXME add self.welcomeIfNewNode(Node(nodeid, sender[0], sender[1]))
         if destid == self.sourceNode.id:
             queued = self.queue_received_message({
                 "source": None, "message": message, "timestamp": time.time()

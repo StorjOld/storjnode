@@ -56,11 +56,16 @@ class StorjServer(Server):
         self._relay_thread = threading.Thread(target=self._relay_loop)
         self._relay_thread.start()
 
-        # XXX self.removeMessagesLoop = LoopingCall(self._remove_messages).start(5)
+        # setup cleanup thread (removes stale messages)
+        self._cleanup_thread_stop = False
+        self._cleanup_thread = threading.Thread(target=self._cleanup_loop)
+        self._cleanup_thread.start()
 
     def stop(self):
         self._relay_thread_stop = True
+        self._cleanup_thread_stop = True
         self._relay_thread.join()
+        self._cleanup_thread.join()
 
     def get_id(self):
         address = self._btctxstore.get_address(self._key)
@@ -134,14 +139,14 @@ class StorjServer(Server):
                 self._relay_message(entry)
             time.sleep(0.05)
 
-    def _remove_messages(self):
-        self.log.debug("Removing stale received messages.")
-        for entry in util.empty_queue(self.protocol.messages_received):
-            if time.time() - entry["timestamp"] < self._message_timeout:
-                self.protocol.queue_received_message(entry)
-            else:
-                hexid = binascii.hexlify(entry["dest"])
-                self.log.debug("Dropping stale received message %s" % hexid)
+    def _cleanup_loop(self):
+        while not self._cleanup_thread_stop:
+            for entry in util.empty_queue(self.protocol.messages_received):
+                if time.time() - entry["timestamp"] < self._message_timeout:
+                    self.protocol.queue_received_message(entry)
+                else:
+                    self.log.debug("Dropping stale received message")
+            time.sleep(0.5)
 
     def send_direct_message(self, nodeid, message):
         """Send direct message to a node.
