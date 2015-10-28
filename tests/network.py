@@ -150,8 +150,9 @@ class TestBlockingNode(unittest.TestCase):
         self._test_direct_message(sender, receiver, True)
 
     def test_direct_messaging_failure(self):
+        testmessage = binascii.hexlify(os.urandom(32))
         sender = self.swarm[0]
-        result = sender.send_direct_message(b"f483", "testmessage")
+        result = sender.send_direct_message(b"f483", testmessage)
         self.assertTrue(result is None)
 
     def test_direct_message_self(self):

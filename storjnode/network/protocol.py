@@ -1,5 +1,8 @@
 import binascii
 import time
+import heapq
+import operator
+import logging
 try:
     from Queue import Queue, Full  # py2
 except ImportError:
@@ -8,9 +11,7 @@ from kademlia.protocol import KademliaProtocol
 from kademlia.routing import RoutingTable
 from kademlia.routing import TableTraverser
 from kademlia.node import Node
-import heapq
-import operator
-import logging
+from storjnode import util
 
 
 def _findNearest(self, node, k=None, exclude=None):
@@ -25,7 +26,7 @@ def _findNearest(self, node, k=None, exclude=None):
     return list(map(operator.itemgetter(1), heapq.nsmallest(k, nodes)))
 
 
-RoutingTable.findNeighbors = _findNearest  # XXX hack find neighbors
+RoutingTable.findNeighbors = _findNearest  # XXX monkey patch find neighbors
 
 
 class StorjProtocol(KademliaProtocol):
@@ -37,6 +38,15 @@ class StorjProtocol(KademliaProtocol):
         self.is_public = False  # assume False, set by server
         KademliaProtocol.__init__(self, *args, **kwargs)
         self.log = logging.getLogger(__name__)
+
+    def has_messages(self):
+        return not self.messages_received.empty()
+
+    def get_messages(self):
+        return util.empty_queue(self.messages_received)
+
+    def has_unrelayed_messages(self):
+        return not self.messages_relay.empty()
 
     def queue_relay_message(self, message):
         try:

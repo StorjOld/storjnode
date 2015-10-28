@@ -78,9 +78,20 @@ class BlockingNode(object):
         """Returs 160bit node id as bytes."""
         return self._server.get_id()
 
+    def has_public_ip(self):
+        """Returns True if local IP is internet visible, otherwise False.
+
+        The may false positive if you run other nodes on your local network.
+        """
+        return blocking_call(self._server.has_public_ip)
+
     def has_messages(self):
         """Returns True if this node has received messages."""
         return self._server.has_messages()
+
+    def has_unrelayed_messages(self):
+        """Returns True if this node has unsent relay messages."""
+        return self._server.has_unrelayed_messages()
 
     def get_messages(self):
         """Get list of messages received since this method was last called.
@@ -89,13 +100,6 @@ class BlockingNode(object):
             [{"source": kademlia.node.Node, "massage": message_data}, ...]
         """
         return self._server.get_messages()
-
-    def has_public_ip(self):
-        """Returns True if local IP is internet visible, otherwise False.
-
-        The may false positive if you run other nodes on your local network.
-        """
-        return blocking_call(self._server.has_public_ip)
 
     def send_relay_message(self, nodeid, message):
         """Send relay message to a node.

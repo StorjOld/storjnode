@@ -72,10 +72,13 @@ class StorjServer(Server):
         return a2b_hashed_base58(address)[1:]  # remove network prefix
 
     def has_messages(self):
-        return not self.protocol.messages_received.empty()
+        return self.protocol.has_messages()
 
     def get_messages(self):
-        return util.empty_queue(self.protocol.messages_received)
+        return self.protocol.get_messages()
+
+    def has_unrelayed_messages(self):
+        return self.protocol.has_unrelayed_messages()
 
     def send_relay_message(self, nodeid, message):
         """Send relay message to a node.
@@ -96,7 +99,7 @@ class StorjServer(Server):
         hexid = binascii.hexlify(nodeid)
 
         if nodeid == self.node.id:
-            self.log.debug("Dropping message to self.")
+            self.log.info("Dropping message to self.")
             return
 
         # add to message relay queue
@@ -125,6 +128,7 @@ class StorjServer(Server):
                 return
 
         # failed to relay message
+        # FIXME add exponential time back off for resend attempts
         hexid = binascii.hexlify(entry["dest"])
         if time.time() - entry["timestamp"] < self._message_timeout:
             self.log.debug("Requeueing unrelayed message for %s" % hexid)
@@ -141,7 +145,7 @@ class StorjServer(Server):
 
     def _cleanup_loop(self):
         while not self._cleanup_thread_stop:
-            for entry in util.empty_queue(self.protocol.messages_received):
+            for entry in self.get_messages():
                 if time.time() - entry["timestamp"] < self._message_timeout:
                     self.protocol.queue_received_message(entry)
                 else:
