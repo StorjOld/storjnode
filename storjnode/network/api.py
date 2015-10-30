@@ -1,6 +1,4 @@
-import threading
 from storjnode.util import valid_ip, blocking_call
-from twisted.internet import reactor
 from storjnode.network.server import StorjServer
 
 
@@ -26,7 +24,7 @@ class BlockingNode(object):
 
     def __init__(self, key, port=DEFAULT_PORT,
                  start_reactor=True, bootstrap_nodes=None,
-                 message_timeout=30, max_messages=1024):
+                 storage=None, message_timeout=30, max_messages=1024):
         """Create a blocking storjnode instance.
 
         Args:
@@ -34,6 +32,7 @@ class BlockingNode(object):
             port: Port to use for incoming packages.
             start_reactor: Starts twisted reactor if True
             bootstrap_nodes: Known network node addresses as [(ip, port), ...]
+            storage: implements :interface:`~kademlia.storage.IStorage`
             message_timeout: Seconds until unprocessed messages are dropped.
             max_messages: Maximum unprecessed messages, additional are dropped.
         """
@@ -58,29 +57,16 @@ class BlockingNode(object):
             assert(other_port >= 0 and other_port <= 2**16)
 
         # start dht node
-        self._server = StorjServer(key, message_timeout=message_timeout,
+        self._server = StorjServer(key, storage=storage,
+                                   message_timeout=message_timeout,
                                    max_messages=max_messages)
         self._server.listen(port)
         if len(bootstrap_nodes) > 0:
             self._server.bootstrap(bootstrap_nodes)
 
-        # start twisted reactor
-        if start_reactor:
-            self._reactor_thread = threading.Thread(
-                target=reactor.run,
-                kwargs={"installSignalHandlers": False}
-            )
-            self._reactor_thread.start()
-        else:
-            self._reactor_thread = None
-
     def stop(self):
         """Stop server and twisted rector if it was started by this node."""
         self._server.stop()
-        if self._reactor_thread is not None:
-            reactor.stop()
-            self._reactor_thread.join()
-            self._reactor_thread = None
 
     def get_id(self):
         """Returs 160bit node id as bytes."""

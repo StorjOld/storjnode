@@ -1,28 +1,29 @@
-from twisted.python import log
-import logging
+# start twisted
+from crochet import setup
+setup()
 
 # make twisted use standard library logging module
+from twisted.python import log
 observer = log.PythonLoggingObserver()
 observer.start()
 
 # setup standard logging module
+import logging
 LOG_FORMAT = "%(levelname)s %(name)s %(lineno)d: %(message)s"
-logging.basicConfig(format=LOG_FORMAT, level=logging.DEBUG)
+logging.basicConfig(format=LOG_FORMAT, level=logging.WARNING)
 
 
 import os
 import time
 import binascii
 import random
-import threading
 import unittest
 import btctxstore
 import storjnode
-from twisted.internet import reactor
 
 
 TEST_MESSAGE_TIMEOUT = 5
-TEST_SWARM_SIZE = 60  # FIXME increase swarm size
+TEST_SWARM_SIZE = 20
 TEST_MAX_MESSAGES = 2
 
 
@@ -46,23 +47,13 @@ class TestBlockingNode(unittest.TestCase):
             )
             cls.swarm.append(node)
 
-        # start reactor
-        cls.reactor_thread = threading.Thread(
-            target=reactor.run, kwargs={"installSignalHandlers": False}
-        )
-        cls.reactor_thread.start()
-
         # wait until network overlay stable
-        time.sleep(6)
+        time.sleep(10)
 
     @classmethod
     def tearDownClass(cls):
-        print("stopping swarm")
         for node in cls.swarm:
             node.stop()
-        print("stopping reactor")
-        reactor.stop()
-        cls.reactor_thread.join()
 
     ########################
     # test relay messaging #
@@ -74,7 +65,7 @@ class TestBlockingNode(unittest.TestCase):
         testmessage = binascii.hexlify(os.urandom(32))
         receiver_id = receiver.get_id()
         sender.send_relay_message(receiver_id, testmessage)
-        time.sleep(0.5)  # wait for it to be relayed
+        time.sleep(0.1)  # wait for it to be relayed
 
         if not success_expected:
             self.assertFalse(receiver.has_messages())
@@ -178,9 +169,9 @@ class TestBlockingNode(unittest.TestCase):
         sender_address = sender.send_direct_message(receiver_id, testmessage)
 
         self.assertTrue(sender_address is not None)  # was received
-        self.assertTrue(receiver.has_messages()) # check one message received
-        time.sleep(TEST_MESSAGE_TIMEOUT + 1) # wait until stale
-        self.assertFalse(receiver.has_messages()) # check message was dropped
+        self.assertTrue(receiver.has_messages())  # check one message received
+        time.sleep(TEST_MESSAGE_TIMEOUT + 1)  # wait until stale
+        self.assertFalse(receiver.has_messages())  # check message was dropped
 
     ###############################
     # test distributed hash table #

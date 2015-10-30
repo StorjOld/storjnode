@@ -76,7 +76,6 @@ class StorjProtocol(KademliaProtocol):
         msg = "Got relay message from {0} at {1} for {2} with limit {3}."
         self.log.debug(msg.format(hex_sender_id, sender,
                                   hex_dest_id, hop_limit))
-        print(msg.format(hex_sender_id, sender, hex_dest_id, hop_limit))
         # FIXME self.welcomeIfNewNode(Node(sender_id, sender[0], sender[1]))
         queued = False
 

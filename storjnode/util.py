@@ -32,6 +32,7 @@ def blocking_call(async_func, *args, **kwargs):
 
     Returns: Result of the async_func function call.
     """
+    # FIXME replace usage with crochet calls
     finished = threading.Event()
     return_values = []
 

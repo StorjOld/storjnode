@@ -103,7 +103,7 @@ class StorjServer(Server):
         # add to message relay queue
         self.log.debug("Queuing relay messaging for %s: %s" % (hexid, message))
         self.protocol.queue_relay_message({
-            "dest": nodeid, "message": message, 
+            "dest": nodeid, "message": message,
             "hop_limit": self._default_hop_limit
         })
 
@@ -113,25 +113,24 @@ class StorjServer(Server):
         dest_node = Node(entry["dest"])
         nearest = self.protocol.router.findNeighbors(dest_node,
                                                      exclude=self.node)
-        # FIXME confirm they are ordered by distance and closer then self
+        for relay_node in nearest:
+            dist_self = dest_node.distanceTo(self.node)
+            dist_relay = dest_node.distanceTo(relay_node)
+            if dist_self <= dist_relay:
+                continue  # do not relay away from node
 
-        for node in nearest:
-            hexid = binascii.hexlify(node.id)
-
-            if node.distanceTo(dest_node) >= node.distanceTo(self.node):
-                print("dont relay to farther node")
-                continue  # do not relay away from dest
-
+            hexid = binascii.hexlify(relay_node.id)
             self.log.debug("Attempting to relay message for %s" % hexid)
-            defered = self.protocol.callRelayMessage(node, entry["dest"],
-                                                     entry["hop_limit"],
-                                                     entry["message"])
+            defered = self.protocol.callRelayMessage(
+                relay_node, entry["dest"], entry["hop_limit"], entry["message"]
+            )
             defered = defered.addCallback(lambda r: r[0] and r[1] or None)
             result = util.blocking_call(lambda: defered)
             if result is not None:
                 self.log.debug("Successfully relayed message to %s" % hexid)
-                return  # only relay to one peer, avoid amplification attacks
-        self.log.debug("Failed to relay message for %s" % hexid)
+                return  # relay to nearest peer, avoid amplification attacks
+
+        self.log.debug("Failed to relay message for %s" % dest_node)
 
     def _relay_loop(self):
         while not self._relay_thread_stop:
