@@ -65,7 +65,7 @@ class BlockingNode(object):
             self._server.bootstrap(bootstrap_nodes)
 
     def stop(self):
-        """Stop server and twisted rector if it was started by this node."""
+        """Stop storj node."""
         self._server.stop()
 
     def get_id(self):

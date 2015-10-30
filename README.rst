@@ -125,19 +125,22 @@ Starting and using a node in python.
 
     import time
     import storjnode
-    import btctxstore
+    from crochet import setup
 
-    # start node
-    node_key = btctxstore.BtcTxStore().create_key()  # btc wif or hwif
-    node = storjnode.network.BlockingNode(node_key)  # using default port 4653
-    time.sleep(12)  # Giving node some time to find peers
+    setup()  # start twisted via crochet
+
+    # start node (use bitcoin wif or hwif as node key)
+    node_key = "KzygUeD8qXaKBFdJWMk9c6AVib89keoZFBNdFBsj73kYZfAc4n1j"
+    node = storjnode.network.BlockingNode(node_key)
+
+    time.sleep(10)  # Giving node some time to find peers
 
     # The blocking node interface is very simple and behaves like a dict.
     node["examplekey"] = "examplevalue"  # put key value pair into DHT
     retrieved = node["examplekey"]  # retrieve value by key from DHT
     print("{key} => {value}".format(key="examplekey", value=retrieved))
 
-    # A node does not know of its size or all entries.
+    # A node cannot know of the DHT size or all entries.
     try:
         node.items()
     except NotImplementedError as e:
@@ -149,8 +152,9 @@ Starting and using a node in python.
     except NotImplementedError as e:
         print(e)
 
-    # stop server and twisted reactor to disconnect from network
+    # stop node
     node.stop()
+
 
 Multinode usage
 ---------------
@@ -158,40 +162,35 @@ Multinode usage
 Using more then one node in a python script.
 
 If your are using more then one node in a single script, you must assign them
-different ports and manage the twisted reactor yourself.
+different ports.
 
 .. code:: python
 
     #!/usr/bin/env python
-    # from examples/multinode_usage.py
+    # from examples/multinode.py
 
     import time
-    import threading
     import storjnode
-    import btctxstore
-    from twisted.internet import reactor
+    from crochet import setup
 
-    # create alice node
-    alice_wallet = btctxstore.BtcTxStore().create_wallet()  # hwif
-    alice_node = storjnode.network.BlockingNode(alice_wallet, port=4653,
-                                                start_reactor=False)
+    setup()  # start twisted via crochet
 
-    # create bob node
-    bob_key = btctxstore.BtcTxStore().create_wallet()  # wif
-    bob_node = storjnode.network.BlockingNode(bob_key, port=4654,
-                                              start_reactor=False)
+    # create alice node (with bitcoin wif as node key)
+    alice_key = "Kyh4a6zF1TkBZW6gyzwe7XRVtJ18Y75C2bC2d9axeWZnoUdAVXYc"
+    alice_node = storjnode.network.BlockingNode(alice_key, port=4653)
 
-    # start twisted reactor yourself
-    reactor_thread = threading.Thread(target=reactor.run,
-                                      kwargs={"installSignalHandlers": False})
-    reactor_thread.start()
-    time.sleep(12)  # Giving node some time to find peers
+    # create bob node (with bitcoin hwif as node key)
+    bob_key = ("xprv9s21ZrQH143K3uzRG1qUPdYhVZG1TAxQ9bLTWZuFf1FHR5hiWuRf"
+               "o2L2ZNoUX9BW17guAbMXqHjMJXBFvuTBD2WWvRT3zNbtVJ1S7yxUvWd")
+    bob_node = storjnode.network.BlockingNode(bob_key, port=4654)
+
+    time.sleep(12)  # Giving nodes some time to find peers
 
     # use nodes
     alice_node["examplekey"] = "examplevalue"  # alice inserts value
     stored_value = bob_node["examplekey"]  # bob retrievs value
     print("{key} => {value}".format(key="examplekey", value=stored_value))
 
-    # stop twisted reactor
-    reactor.stop()
-    reactor_thread.join()
+    # stop nodes
+    alice_node.stop()
+    bob_node.stop()

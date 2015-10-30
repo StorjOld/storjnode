@@ -67,6 +67,7 @@ class StorjServer(Server):
         self._cleanup_thread_stop = True
         self._relay_thread.join()
         self._cleanup_thread.join()
+        # FIXME actually disconnect from port and stop properly
 
     def get_id(self):
         address = self._btctxstore.get_address(self._key)

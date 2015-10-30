@@ -1,7 +1,3 @@
-######################################
-# Setup logging before anything else #
-######################################
-
 # start twisted
 from crochet import setup
 setup()
