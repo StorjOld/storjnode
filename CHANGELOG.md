@@ -1,3 +1,9 @@
+v0.0.8
+
+ * Added message queue size and time limit
+ * Added relay messaging with hop limit
+ * Added has public ip call
+
 v0.0.7
 
  * Fixed argument name reused
