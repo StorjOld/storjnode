@@ -59,12 +59,14 @@ class RendezvousClient:
         self.interface = interface
         self.ntp_delay = 6
         self.timeout = 5 #Socket timeout.
+        self.predictable_nats = ["preserving", "delta"]
 
     #Delete any old rendezvous server state for node.
     def leave_fight(self):
         rendezvous_con = Sock(self.rendezvous_servers[0]["addr"], self.rendezvous_servers[0]["port"], blocking=1, interface=self.interface)
         rendezvous_con.send_line("CLEAR")
         rendezvous_con.close()
+        return 1
 
     def attend_fight(self, mappings, node_ip, predictions, ntp):
         """
@@ -89,7 +91,6 @@ class RendezvousClient:
             one side of the fight ends up ruining valid connections on
             this side. Will need to test more.
             """
-            print("Active sim cons found. Closing unneeded cons.")
 
             #Close unneeded holes.
             for i in range(1, len(self.simultaneous_cons)):
@@ -127,11 +128,7 @@ class RendezvousClient:
             return None
 
         #First mapping is used to talk to server.
-        print("mappings 1")
-        print(mappings)
         mappings.remove(mappings[0])
-        print("mappings 2")
-        print(mappings)
 
         #Receive port mapping.
         msg = "SOURCE TCP %s" % (str(mappings[0]["source"]))
@@ -205,6 +202,8 @@ class RendezvousClient:
         be determined before use. Current support for preserving and
         delta type mapping behaviour.
         """
+        if self.nat_type not in self.predictable_nats:
+            raise Exception("Can't predict mappings for non-predictable NAT type.")
 
         for mapping in mappings:
             mapping["bound"] = mapping["sock"].getsockname()[1]
@@ -259,11 +258,7 @@ class RendezvousClient:
             tries = 20 #20
             local = 1
         else:
-            print("1 try")
             tries = 1
-
-        print("sock = ")
-        print(sock)
 
         source_port = sock.getsockname()[1]
         error = 0
@@ -275,7 +270,6 @@ class RendezvousClient:
             try:
                 #Attempt to connect.
                 con.connect(node_ip, remote_port)
-                print("Success")
 
                 #FATALITY.
 
@@ -372,12 +366,10 @@ class RendezvousClient:
         msg = "CANDIDATE %s %s %s" % (node_ip, str(proto), predictions)
         con.send_line(msg)
         reply = con.recv_line()
-        print(reply)
 
         #Wait for node to accept and give us fight time.
         #FIGHT 192.168.0.1 4552 345 34235 TCP 123123123.1\
         reply = con.recv_line()
-        print(reply)
         con.s.close()
         parts = re.findall("^FIGHT ([0-9]+[.][0-9]+[.][0-9]+[.][0-9]+) ((?:[0-9]+\s?)+) (TCP|UDP) ([0-9]+(?:[.][0-9]+)?)$", reply)
         if not len(parts):
@@ -423,7 +415,7 @@ class RendezvousClient:
         differences = list(set(differences))
 
         #Record delta pattern results.
-        delta = "random"
+        delta = 0
         for difference in differences:
             """
             Calculate matches relative to each number for each difference.
@@ -466,11 +458,18 @@ class RendezvousClient:
                 continue
             delta = difference
             break
-        
-        if delta != "random":
-            self.delta = delta
+
+        if delta:
             nat_type = "delta"
-        return nat_type
+        else:
+            nat_type = "random"
+
+        ret = {
+            "nat_type": nat_type,
+            "delta": delta
+        }
+
+        return ret
 
     def determine_nat(self):
         """
@@ -509,16 +508,13 @@ http://www.researchgate.net/publication/239801764_Implementing_NAT_Traversal_on_
         #Load mappings for preserving and delta tests.
         mappings = sequential_bind(self.nat_tests, self.interface)
         for i in range(0, self.nat_tests):
-            try:
-                con = Sock(blocking=1, interface=self.interface)
-                con.s = mappings[i]["sock"]
-                con.connect(self.rendezvous_servers[0]["addr"], self.rendezvous_servers[0]["port"]) 
-                con.send_line("SOURCE TCP " + str(mappings[i]["source"]))
-                remote_port = self.parse_remote_port(con.recv_line())
-                mappings[i]["remote"] = int(remote_port)
-                con.s.close()
-            except:
-                return None
+            con = Sock(blocking=1, interface=self.interface)
+            con.s = mappings[i]["sock"]
+            con.connect(self.rendezvous_servers[0]["addr"], self.rendezvous_servers[0]["port"]) 
+            con.send_line("SOURCE TCP " + str(mappings[i]["source"]))
+            remote_port = self.parse_remote_port(con.recv_line())
+            mappings[i]["remote"] = int(remote_port)
+            con.s.close()
 
         #Preserving test.
         preserving = 0
@@ -530,8 +526,11 @@ http://www.researchgate.net/publication/239801764_Implementing_NAT_Traversal_on_
             return nat_type
 
         #Delta test.
-        nat_type = self.delta_test(mappings)
-        if nat_type != "random":
+        delta_ret = self.delta_test(mappings)
+        if delta_ret["nat_type"] != "random":
+            #Save delta value.
+            self.delta = delta_ret["delta"]
+
             return nat_type
 
         #Load mappings for reuse test.
@@ -575,3 +574,9 @@ http://www.researchgate.net/publication/239801764_Implementing_NAT_Traversal_on_
             nat_type = "reuse"
 
         return nat_type
+
+
+if __name__ == "__main__":
+    from pyp2p.net import rendezvous_servers
+    client = RendezvousClient(nat_type="preserving", rendezvous_servers=rendezvous_servers)
+

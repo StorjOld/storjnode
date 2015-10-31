@@ -26,9 +26,10 @@ import sys
 from twisted.internet.protocol import Factory
 from twisted.protocols.basic import LineReceiver
 from twisted.internet import reactor
-from .parse_config import *
 from .lib import *
-from .globals import *
+
+error_log_path = "error.log"
+debug = 1
 
 class RendezvousProtocol(LineReceiver):
     def __init__(self, factory):
@@ -40,8 +41,9 @@ class RendezvousProtocol(LineReceiver):
         self.connected = False
 
     def log_entry(self, msg, direction="none"):
-        if type(msg) == bytes:
-            msg = msg.decode("utf-8")
+        if sys.version_info >= (3,0,0):
+            if type(msg) == bytes:
+                msg = msg.decode("utf-8")
         ip_addr = str(self.transport.getPeer().host)
         port = str(self.transport.getPeer().port)
         when = time.strftime("%H:%M:%S %Y-%m-%d")
@@ -57,8 +59,6 @@ class RendezvousProtocol(LineReceiver):
         return entry
 
     def send_line(self, msg):
-        global config
-
         #Not connected.
         if not self.connected:
             return
@@ -73,7 +73,7 @@ class RendezvousProtocol(LineReceiver):
             return
 
         #stdout for debugging.
-        if config["debug"]:
+        if debug:
             print(self.log_entry(msg, "send"))
 
         self.sendLine(msg)
@@ -178,7 +178,7 @@ class RendezvousProtocol(LineReceiver):
     def connectionMade(self):
         try:
             self.connected = True
-            if config["debug"]:
+            if debug:
                 print(self.log_entry("OPENED =", "none"))
 
             #Force reconnect if node has candidates and the timeout is old.
@@ -199,7 +199,7 @@ class RendezvousProtocol(LineReceiver):
         """
         try:
             self.connected = False
-            if config["debug"]:
+            if debug:
                 print(self.log_entry("CLOSED =", "none"))
 
             #Every five minutes: cleanup
@@ -255,15 +255,13 @@ class RendezvousProtocol(LineReceiver):
             print(self.log_entry("ERROR =", error))
 
     def lineReceived(self, line):
-        global config
-
         #Unicode for text patterns.
         try:
             line = line.decode("utf-8")
         except:
             #Received invalid characters.
             return
-        if config["debug"]:
+        if debug:
             print(self.log_entry(line, "recv"))
 
         try:
@@ -561,10 +559,9 @@ class RendezvousFactory(Factory):
     def buildProtocol(self, addr):
         return RendezvousProtocol(self)
 
-config = ParseConfig(os.path.join(data_dir, "config.json"))
-server_config = config.get_server("rendezvous_servers")
-reactor.listenTCP(server_config["port"], RendezvousFactory(), interface=server_config["bind"])
-
-print("Starting rendezvous server.")
-reactor.run()
+if __name__ == "__main__":
+    print("Starting rendezvous server.")
+    factory = RendezvousFactory()
+    reactor.listenTCP(8000, factory, interface="0.0.0.0")
+    reactor.run()
 
