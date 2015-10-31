@@ -13,8 +13,8 @@ install:
 
 # run tests, e.g. python setup.py test
 script:
-  - coverage run --source="storjnode" tests/network.py
   - coverage run --source="storjnode" tests/util.py
+  - coverage run --source="storjnode" tests/network.py
 
 # run coverage
 after_success:

@@ -95,7 +95,10 @@ Using the CLI reference implementation.
     $ storjnode get <KEY>
 
     # Send node a direct message
-    $ storjnode message <NODEID> <MESSAGE TEXT>
+    $ storjnode direct_message <NODEID> <MESSAGE>
+
+    # Send node a relay message
+    $ storjnode relay_message <NODEID> <MESSAGE>
 
     # Run node and join network.
     $ storjnode run
@@ -108,6 +111,9 @@ Using the CLI reference implementation.
 
     # Show node id
     $ storjnode --node_key=<BITCOIN WIF/HWIF> showid
+
+    # Show node type (Public with public ip or private behind a NAT)
+    $ storjnode --node_key=<BITCOIN WIF/HWIF> showtype
 
 
 Python
@@ -196,8 +202,8 @@ different ports.
     bob_node.stop()
 
 
-Multinode usage
----------------
+Node messaging
+--------------
 
 Nodes can send messages to each other. You can send direct messages or relay
 messages from node to node.

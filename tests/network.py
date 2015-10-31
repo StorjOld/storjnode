@@ -10,7 +10,7 @@ observer.start()
 # setup standard logging module
 import logging
 LOG_FORMAT = "%(levelname)s %(name)s %(lineno)d: %(message)s"
-logging.basicConfig(format=LOG_FORMAT, level=logging.WARNING)
+logging.basicConfig(format=LOG_FORMAT, level=logging.DEBUG)
 
 
 import os
