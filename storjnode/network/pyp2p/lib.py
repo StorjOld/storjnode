@@ -272,6 +272,9 @@ def memoize(function):
 
 @memoize
 def get_wan_ip():
+    if args.wan_ip != None:
+        return args.wan_ip
+
     ip = myip()
     if ip == u'':
         #Fail-safe: use centralized server for IP lookup.

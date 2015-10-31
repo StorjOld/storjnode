@@ -205,16 +205,17 @@ class Net():
         #Time frame for connection to respond to reverse query.
         self.reverse_query_expiry = 5
 
+        #Enable more than one connection to the same IP.
+        self.enable_duplicate_ip_cons = 0
+
         #Net instances hide their con details to prioritise direct cons. 
         if self.net_type == "direct":
             self.disable_bootstrap()    
             self.disable_advertise()
+            self.enable_duplicate_ip_cons = 1
 
         #Set to 1 when self.start() has been called.
         self.is_net_started = 0
-
-        #Enable more than one connection to the same IP.
-        self.enable_duplicate_ip_cons = 0
 
     #Outputs debug statements if debug mode is enabled.
     def debug_print(self, msg):
@@ -642,7 +643,7 @@ class Net():
 
             #No checks for manually specifying passive
             # (there probably should be.)
-            if self.node_type != "passive":
+            if self.node_type != "passive" and self.debug != 1:
                 self.node_type = self.determine_node()
                 if self.net_type == "p2p":
                     """
@@ -659,10 +660,6 @@ class Net():
 
         #Set net started status.
         self.is_net_started = 1
-
-        #Allow duplicate connections for direct net.
-        if self.net_type == "direct":
-            self.enable_duplicate_ip_cons = 1
 
         #Initialise our UNL details.
         self.unl = UNL(self, self.dht_node)
@@ -743,6 +740,7 @@ class Net():
                     skip_dht_check = 1
 
             if not skip_dht_check:
+                dht_messages = []
                 for msg in self.dht_node.get_messages():
                     #Found reverse connect request.
                     if re.match("^REVERSE_CONNECT:[a-zA-Z0-9+/-=_\s]+$", msg) != None:
@@ -765,6 +763,12 @@ class Net():
                             return success
 
                         self.unl.connect(their_unl, {"success": success_builder()}, reverse_connect=1)
+                    else:
+                        dht_messages.append(msg)
+
+                #Put messages back.
+                for msg in dht_messages:
+                    self.dht_node.messages.append(msg)
 
             self.last_dht_msg = t
 

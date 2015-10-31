@@ -20,6 +20,7 @@ class DHT():
     def __init__(self):
         self.node_id = self.rand_str(20)
         self.password = self.rand_str(30)
+        self.messages = []
 
         #Register a new "account."
         self.register(self.node_id, self.password)
@@ -68,7 +69,10 @@ class DHT():
         return self.node_id.encode("ascii")
 
     def get_messages(self):
-        return self.list(self.node_id, self.password)
+        messages = self.messages[:] + self.list(self.node_id, self.password)
+        self.messages = []
+
+        return messages
 
 
 if __name__ == "__main__":
