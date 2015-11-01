@@ -37,7 +37,7 @@ from .lib import *
 error_log_path = "error.log"
 
 class Sock:
-    def __init__(self, addr=None, port=None, blocking=0, timeout=5, interface="default", use_ssl=0):
+    def __init__(self, addr=None, port=None, blocking=0, timeout=5, interface="default", use_ssl=0, debug=1):
         self.reply_filter = None
         self.buf = u""
         self.max_buf = 1024 * 1024 #1 MB.
@@ -53,6 +53,7 @@ class Sock:
         self.connected = 0
         self.interface = interface
         self.delimiter = u"\r\n"
+        self.debug = debug
 
         #Set a timeout for blocking operations so they don't DoS the program.
         #Disabled after connect if non-blocking is set.
@@ -71,6 +72,11 @@ class Sock:
         #Connect socket.
         if addr != None and port != None:
             self.connect(addr, port)
+
+    def debug_print(self, msg):
+        msg = "> " + str(msg)
+        if self.debug:
+            print(msg)
 
     def set_keep_alive(self, sock, after_idle_sec=1, interval_sec=3, max_fails=5):
         """
@@ -219,7 +225,7 @@ It activates after 1 second (after_idle_sec) of idleness, then sends a keepalive
         return replies
 
     #Blocking or non-blocking.
-    def get_chunks(self, fixed_limit=None):
+    def get_chunks(self, fixed_limit=None, encoding="unicode"):
         """
         This is the function which handles retrieving new data chunks. It's
         main logic is avoiding a recv call blocking forever and halting
@@ -237,7 +243,6 @@ It activates after 1 second (after_idle_sec) of idleness, then sends a keepalive
         #Recv chunks until network buffer is empty.
         repeat = 1
         wait = 0.2
-        t = time.time()
         chunk_no = 0
         max_buf = self.max_buf
         max_chunks = self.max_chunks
@@ -246,12 +251,6 @@ It activates after 1 second (after_idle_sec) of idleness, then sends a keepalive
             max_chunks = fixed_limit
 
         while repeat:
-            #Timeout.
-            elapsed = int(time.time() - t)
-            if elapsed >= self.timeout and self.timeout and self.blocking:
-                raise socket.error("Socket timeout.")
-                break
-
             chunk_size = self.chunk_size
             while True:
                 #Don't exceed buffer size.
@@ -270,8 +269,12 @@ It activates after 1 second (after_idle_sec) of idleness, then sends a keepalive
                 try:
                     chunk = self.s.recv(chunk_size)
                 except socket.timeout as e:
+                    self.debug_print("Get chunks timed out.")
+                    self.debug_print(e)
+
                     #Timeout on blocking sockets.
                     err = e.args[0]
+                    self.debug_print(err)
                     if err == "timed out":
                         break
                 except ssl.SSLError as e:
@@ -283,7 +286,9 @@ It activates after 1 second (after_idle_sec) of idleness, then sends a keepalive
                         return
                 except socket.error as e:
                     #Will block on nonblocking non-SSL sockets.
+                    self.debug_print("Get chunks socket.error")
                     err = e.args[0]
+                    self.debug_print(err)
                     if err == errno.EAGAIN or err == errno.EWOULDBLOCK:
                         #Check connection isn't dead:
                         if time.time() - self.last_heart_beat >= self.heart_beat_interval:
@@ -297,13 +302,19 @@ It activates after 1 second (after_idle_sec) of idleness, then sends a keepalive
                         return
                 else:
                     if chunk == b"":
+                        self.debug_print("Get chunk: b''")
                         self.close()
                         return
 
                     #Avoid decoding errors.
                     try:
-                        self.buf += chunk.decode("utf-8")
-                    except:
+                        if encoding == "unicode":
+                            self.buf += chunk.decode("utf-8")
+                        else:
+                            self.buf += chunk.decode("latin-1")
+                    except Exception as e:
+                        self.debug_print(e)
+                        self.debug_print("Get chunk: can't decode.")
                         chunk_no += 1
                         continue
 
@@ -368,35 +379,50 @@ It activates after 1 second (after_idle_sec) of idleness, then sends a keepalive
             return 0
 
     #Blocking or non-blocking.
-    def recv(self, n):
+    def recv(self, n, encoding="unicode"):
         if not self.connected:
-            return 0
+            if encoding == "unicode":
+                return u""
+            else:
+                return b""
         try:
             #Save current buffer state.
-            temp_buf = self.buf
+            temp_buf = self.buf[:]
 
             #Clear buffer.
             self.buf = u""
 
             #Get data.
             while True:
-                self.get_chunks(n)
+                self.get_chunks(n, encoding=encoding)
                 if not (len(self.buf) < n and self.connected and self.blocking):
                     break
 
             #Save current buffer.
-            ret = self.buf
+            ret = self.buf[:]
 
             #Restore old buffer.
             self.buf = temp_buf
 
             #Return results.
+            if encoding != "unicode":
+                #Convert from unicode string with latin-1 encoding
+                #To a byte string.
+                codes = []
+                for ch in ret:
+                    codes.append(ord(ch))
+
+                return bytes(codes)
+
             return ret
         except Exception as e:
             error = parse_exception(e)
             log_exception(error_log_path, error)
             self.close()
-            return 0
+            if encoding == "unicode":
+                return u""
+            else:
+                return b""
 
     #Sends a new message delimitered by a new line.
     #Blocking: blocks until entire line is sent for simplicity.

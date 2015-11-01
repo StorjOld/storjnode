@@ -49,7 +49,11 @@ class UNL():
     def __eq__(self, other):
         #Compare UNLs. Used to check if a UNL is us.
         our_unl = self.deconstruct(self.value)
-        their_unl = self.deconstruct(other)
+        their_unl = self.deconstruct(other.value)
+
+        print("---------")
+        print(our_unl)
+        print(their_unl)
 
         #Different WAN IPs.
         if our_unl["wan_ip"] != their_unl["wan_ip"]:
@@ -213,7 +217,10 @@ class UNL():
         t = Thread(target=self.connect_handler, args=parms)
         t.start()
 
-    def deconstruct(self, unl):
+    def deconstruct(self, unl=None):
+        if unl == None:
+            unl = self.value
+
         try:
             if sys.version_info >= (3,0,0):
                 # for Python 3

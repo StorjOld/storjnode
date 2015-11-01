@@ -1,3 +1,4 @@
+from .pyp2p.unl import UNL
 from .pyp2p.net import Net
 from .pyp2p.dht_msg import DHT
 from .pyp2p.lib import is_ip_private
@@ -6,11 +7,16 @@ import time
 import json
 import hashlib
 import sys
+import os
+import shutil
 
 class FileTransfer():
-    def __init__(self, net):
+    def __init__(self, net, storage_path):
         # Accept direct connections.
         self.net = net
+
+        # Where will the data be stored?
+        self.storage_path = storage_path
 
         # Start networking.
         self.net.start()
@@ -22,7 +28,7 @@ class FileTransfer():
         self.handshake = {}
 
         #Associated with contracts.
-        self.cons = {}
+        self.con_info = {}
 
     def protocol(self, msg):
         msg = json.loads(msg, object_pairs_hook=OrderedDict)
@@ -60,7 +66,7 @@ class FileTransfer():
             })
 
             # Send reply.
-            self.send_msg(reply, msg["syn"]["host_unl"])
+            self.send_msg(reply, msg["syn"]["dest_unl"])
             print("SYN-ACK")
 
         if msg["status"] == "ACK":
@@ -77,9 +83,11 @@ class FileTransfer():
             def success_wrapper():
                 def success(con):
                     #Associate TCP con with contract.
-                    self.cons[con] = {
+                    file_size = self.contracts[contract_id]["file_size"]
+                    self.con_info[con] = {
                         "contract_id": contract_id,
-                        "associated": True
+                        "associated": True,
+                        "remaining": file_size
                     }
 
                     #Tell them what contract to associate con with.
@@ -90,7 +98,7 @@ class FileTransfer():
             # Try make TCP con.
             contract = self.contracts[contract_id]
             self.net.unl.connect(
-                contract["host_unl"],
+                contract["src_unl"],
                 {
                     "success": success_wrapper()
                 }
@@ -121,12 +129,66 @@ class FileTransfer():
 
         return hashlib.sha256(contract).hexdigest()
 
-    def get_data(self, data_id, node_unl):
+    def recv_contract_id(self, con):
+        """
+        Buffer contract ID. When received: connection is reading to send/recv binary data.
+        """
+
+        #Combine partial contract IDs.
+        con_info = self.con_info[con]
+        contract_id_len = len(con_info["contract_id"])
+        partial = con.recv(64 - contract_id_len)
+        print("Partial = ")
+        print(partial)
+        con_info["contract_id"] += partial
+
+        #Full ID received: check it.
+        if len(con_info["contract_id"]) == 64:
+            print("Contract ID received.")
+            print(con_info["contract_id"])
+            print(list(self.contracts))
+
+            if con_info["contract_id"] in self.contracts:
+                print("Found contract.")
+                contract = self.contracts[con_info["contract_id"]]
+                con_addr, con_port = con.s.getpeername()
+                print(con_addr)
+                for unl in [contract["src_unl"], contract["dest_unl"]]:
+                    unl = self.net.unl.deconstruct(unl)
+                    if is_ip_private(con_addr):
+                        if unl["lan_ip"] == con_addr:
+                            con_info["associated"] = True
+                            con_info["remaining"] = contract["file_size"]
+                            print("\a")
+                            print("Con ready to receive binary data.")
+                            break
+                    else:
+                        if unl["wan_ip"] == con_addr:
+                            con_info["associated"] = True
+                            con_info["remaining"] = contract["file_size"]
+                            print("\a")
+                            print("Con ready to receive binary data.")
+                            break
+
+    def data_request(self, action, data_id, file_size, node_unl):
+        """
+        Action = put (upload), get (download.)
+        """
+        #Who is hosting this data?
+        if action == "upload":
+            #We store this data.
+            host_unl = self.net.unl.value
+        else:
+            #They store the data.
+            host_unl = node_unl
+
         # Create contract.
         contract = OrderedDict({
             "status": "SYN",
             "data_id": data_id,
-            "host_unl": node_unl,
+            "file_size": file_size,
+            "host_unl": host_unl,
+            "dest_unl": node_unl,
             "src_unl": self.net.unl.value
         })
 
@@ -136,6 +198,38 @@ class FileTransfer():
 
         # Update handshake.
         self.handshake[contract_id] = "SYN"
+
+    def hash_file(self, path):
+        sha256 = hashlib.sha256()
+        buf_size = 1048576 #1 MB
+        with open(path, 'rb') as fp:
+            while True:
+                data = fp.read(buf_size)
+                if not data:
+                    break
+
+                sha256.update(data)
+
+        return sha256.hexdigest()
+
+    def move_file_to_storage(self, path):
+        file_name = self.hash_file(path)
+        destination = os.path.join(self.storage_path, file_name)
+        shutil.copyfile(path, destination)
+
+    def get_data_chunk(self, data_id, position, chunk_size=1048576):
+        path = os.path.join(self.storage_path, data_id)
+        buf = b""
+        with open(path, "rb") as fp:
+            fp.seek(position, 0)
+            buf = fp.read(chunk_size)
+
+        return buf
+
+    def save_data_chunk(self, data_id, chunk):
+        path = os.path.join(self.storage_path, data_id)
+        with open(path, "ab") as fp:
+            fp.write(chunk)
 
 if __name__ == "__main__":
     # Alice sample node.
@@ -147,8 +241,12 @@ if __name__ == "__main__":
             passive_port=60400,
             dht_node=DHT(),
             debug=1
-        )
+        ),
+        storage_path="/home/laurence/Storj/Alice"
     )
+
+    # ed980e5ef780d5b9ca1a6200a03302f2a91223044bc63dacc6d9f07eead663ab
+    # alice.move_file_to_storage("/home/laurence/Firefox_wallpaper.png")
 
     # Bob sample node.
     bob = FileTransfer(
@@ -159,75 +257,93 @@ if __name__ == "__main__":
             passive_port=60401,
             dht_node=DHT(),
             debug=1
-        )
+        ),
+        storage_path="/home/laurence/Storj/Bob"
     )
 
-    # Alice wants data from Bob.
-    alice.get_data("data_id", bob.net.unl.value)
+    print(alice.net.unl.deconstruct())
+    print(bob.net.unl.deconstruct())
 
-    def process_client(client):
+    # Alice wants data from Bob.
+    alice.data_request(
+        "download",
+        "ed980e5ef780d5b9ca1a6200a03302f2a91223044bc63dacc6d9f07eead663ab",
+        2631451,
+        bob.net.unl.value
+    )
+
+    def process_transfers(client):
        # Process contract messages.
         for msg in client.net.dht_node.get_messages():
             client.protocol(msg)
 
         # Process connections.
         for con in client.net:
-            #This is a new connection.
-            if con not in client.cons:
-                client.cons[con] = {
+            print("In con.")
+
+            # This is a new connection.
+            if con not in client.con_info:
+                client.con_info[con] = {
                     "contract_id": "",
-                    "associated": False
+                    "associated": False,
+                    "remaining": 0
                 }
 
-            #Attempt to associate connections.
-            net_con = client.cons[con]
-            if not net_con["associated"]:
-                print("Not associated.")
+            # Attempt to associate connection with contract.
+            con_info = client.con_info[con]
+            if not con_info["associated"]:
+                client.recv_contract_id(con)
 
-                #Combine partial contract IDs.
-                contract_id_len = len(net_con["contract_id"])
-                partial = con.recv(64 - contract_id_len)
-                print("Partial = ")
-                print(partial)
+            # Handle binary chunks.
+            print(con_info)
+            if con_info["associated"]:
+                #Anything left to do?
+                if not con_info["remaining"]:
+                    continue
 
-                net_con["contract_id"] += partial
+                #Upload.
+                contract = client.contracts[con_info["contract_id"]]
+                print(client.net.unl.deconstruct())
+                if client.net.unl == UNL(value=contract["host_unl"]):
+                    print("Found our UNL")
 
-                #Full ID received: check it.
-                if len(net_con["contract_id"]) == 64:
-                    print("Contract ID received.")
-                    print(net_con["contract_id"])
-                    print(list(client.contracts))
+                    #Get next chunk from file.
+                    position = contract["file_size"] - con_info["remaining"]
+                    data_chunk = client.get_data_chunk(
+                        contract["data_id"],
+                        position
+                    )
 
-                    if net_con["contract_id"] in client.contracts:
-                        print("Found contract.")
+                    #Upload chunk binary to socket.
+                    bytes_sent = con.send(data_chunk)
+                    print(bytes_sent)
+                    if bytes_sent:
+                        con_info["remaining"] -= bytes_sent
+                else:
+                    print("Attempting to download.")
 
-                        contract = client.contracts[net_con["contract_id"]]
-                        con_addr, con_port = con.s.getpeername()
-                        print(con_addr)
-                        for unl in [
-                            contract["src_unl"],
-                            contract["host_unl"]
-                        ]:
-                            unl = client.net.unl.deconstruct(unl)
-                            if is_ip_private(con_addr):
-                                if unl["lan_ip"] == con_addr:
-                                    net_con["associated"] = True
-                                    print("\a")
-                                    print("Con ready to receive binary data.")
-                                    break
-                            else:
-                                if unl["wan_ip"] == con_addr:
-                                    net_con["associated"] = True
-                                    print("\a")
-                                    print("Con ready to receive binary data.")
-                                    break
+                    #Download.
+                    data = con.recv(
+                        con_info["remaining"],
+                        encoding="ascii"
+                    )
+                    print(con.connected)
+                    if len(data):
+                        con_info["remaining"] -= len(data)
+                        client.save_data_chunk(contract["data_id"], data)
 
-            #Handle binary chunks.
+                    #When done downloading close con.
+                    if not con_info["remaining"]:
+                        con.close()
 
     # Main event loop.
     while 1:
         for client in [alice, bob]:
-            process_client(client)
+            if client == alice:
+                print("Alice")
+            else:
+                print("Bob")
+            process_transfers(client)
 
         time.sleep(0.5)
 
