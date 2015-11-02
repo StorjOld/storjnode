@@ -131,7 +131,8 @@ class StorjServer(Server):
                 self.log.debug("Successfully relayed message to %s" % hexid)
                 return  # relay to nearest peer, avoid amplification attacks
 
-        self.log.debug("Failed to relay message for %s" % dest_node)
+        dest_hexid = binascii.hexlify(entry["dest"])
+        self.log.debug("Failed to relay message for %s" % dest_hexid)
 
     def _relay_loop(self):
         while not self._relay_thread_stop:
