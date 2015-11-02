@@ -1,8 +1,8 @@
+import random
 from storjnode.util import valid_ip, blocking_call
 from storjnode.network.server import StorjServer
 
 
-DEFAULT_PORT = 4653
 DEFAULT_BOOTSTRAP_NODES = [
 
     # storj stable  7b489cbfd61e675b86ac6469b6acd0a197da7f2c
@@ -22,14 +22,14 @@ class BlockingNode(object):
     DHT functions like a dict and all calls are blocking for ease of use.
     """
 
-    def __init__(self, key, port=DEFAULT_PORT,
+    def __init__(self, key, port=None,
                  start_reactor=True, bootstrap_nodes=None,
                  storage=None, message_timeout=30, max_messages=1024):
         """Create a blocking storjnode instance.
 
         Args:
             key: Bitcoin wif/hwif to use for auth, encryption and node id.
-            port: Port to use for incoming packages.
+            port: Port to use for incoming packages, randomly by default.
             start_reactor: Starts twisted reactor if True
             bootstrap_nodes: Known network node addresses as [(ip, port), ...]
             storage: implements :interface:`~kademlia.storage.IStorage`
@@ -42,8 +42,11 @@ class BlockingNode(object):
         assert(isinstance(max_messages, int))
 
         # validate port
+        if port is None:
+            port = random.choice(range(1024, 49151))  # randomish user port
         assert(isinstance(port, int))
-        assert(port >= 0 and port <= 2**16)
+        assert(port >= 0 and port < 2**16)
+        self.port = port
 
         # validate bootstrap_nodes
         if bootstrap_nodes is None:
@@ -60,7 +63,7 @@ class BlockingNode(object):
         self._server = StorjServer(key, storage=storage,
                                    message_timeout=message_timeout,
                                    max_messages=max_messages)
-        self._server.listen(port)
+        self._server.listen(self.port)
         if len(bootstrap_nodes) > 0:
             self._server.bootstrap(bootstrap_nodes)
 

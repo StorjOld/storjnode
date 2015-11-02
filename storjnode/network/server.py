@@ -114,6 +114,7 @@ class StorjServer(Server):
         dest_node = Node(entry["dest"])
         nearest = self.protocol.router.findNeighbors(dest_node,
                                                      exclude=self.node)
+        self.log.debug("Relaying to nearest: %s" % repr(nearest))
         for relay_node in nearest:
             dist_self = dest_node.distanceTo(self.node)
             dist_relay = dest_node.distanceTo(relay_node)
