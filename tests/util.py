@@ -102,5 +102,26 @@ class TestEmptyQueue(unittest.TestCase):
          self.assertTrue(q.empty())  # queue now empty
 
 
+class TestEnsurePathExists(unittest.TestCase):
+
+    def test_creates_for_nonexisting(path):
+        pass  # TODO test
+
+    def test_uses_existing(path):
+        pass  # TODO test
+
+    def test_error_if_file(path):
+        pass  # TODO test
+
+    def test_error_if_not_readable(path):
+        pass  # TODO test
+
+    def test_error_if_not_writable(path):
+        pass  # TODO test
+
+    def test_error_if_not_searchable(path):
+        pass  # TODO test
+
+
 if __name__ == "__main__":
     unittest.main()

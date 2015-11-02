@@ -41,7 +41,7 @@ class TestBlockingNode(unittest.TestCase):
             # create node
             node = storjnode.network.BlockingNode(
                 cls.btctxstore.create_wallet(), port=(3000 + i),
-                bootstrap_nodes=bootstrap_nodes, start_reactor=False,
+                bootstrap_nodes=bootstrap_nodes,
                 message_timeout=TEST_MESSAGE_TIMEOUT,
                 max_messages=TEST_MAX_MESSAGES
             )
@@ -108,6 +108,12 @@ class TestBlockingNode(unittest.TestCase):
         random.shuffle(receivers)
         for sender, receiver in zip(senders, receivers):
             self._test_relay_message(sender, receiver, sender is not receiver)
+
+    def test_relay_message_to_void(self):  # for coverage
+        random_peer = random.choice(self.swarm)
+        void_id = b"void" * 5
+        random_peer.send_relay_message(void_id, "into the void")
+        time.sleep(0.2)  # wait for it to be relayed
 
     #########################
     # test direct messaging #
@@ -181,6 +187,17 @@ class TestBlockingNode(unittest.TestCase):
         self.assertTrue(receiver.has_messages())  # check one message received
         time.sleep(TEST_MESSAGE_TIMEOUT + 1)  # wait until stale
         self.assertFalse(receiver.has_messages())  # check message was dropped
+
+    @unittest.skip("FIXME does not exit gracefully")
+    def test_direct_message_to_void(self):  # for coverage
+        # slim chance of colission with existing port
+        isolated_peer = storjnode.network.BlockingNode(
+            self.__class__.btctxstore.create_wallet(),
+            bootstrap_nodes=[("240.0.0.0", 1337)],
+        )
+        void_id = b"void" * 5
+        result = isolated_peer.send_direct_message(void_id, "into the void")
+        self.assertTrue(result is None)
 
     ###############################
     # test distributed hash table #

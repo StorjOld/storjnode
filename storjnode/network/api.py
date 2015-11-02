@@ -22,15 +22,13 @@ class BlockingNode(object):
     DHT functions like a dict and all calls are blocking for ease of use.
     """
 
-    def __init__(self, key, port=None,
-                 start_reactor=True, bootstrap_nodes=None,
+    def __init__(self, key, port=None, bootstrap_nodes=None,
                  storage=None, message_timeout=30, max_messages=1024):
         """Create a blocking storjnode instance.
 
         Args:
             key: Bitcoin wif/hwif to use for auth, encryption and node id.
             port: Port to use for incoming packages, randomly by default.
-            start_reactor: Starts twisted reactor if True
             bootstrap_nodes: Known network node addresses as [(ip, port), ...]
             storage: implements :interface:`~kademlia.storage.IStorage`
             message_timeout: Seconds until unprocessed messages are dropped.
@@ -50,7 +48,7 @@ class BlockingNode(object):
 
         # validate bootstrap_nodes
         if bootstrap_nodes is None:
-            bootstrap_nodes = DEFAULT_BOOTSTRAP_NODES
+            bootstrap_nodes = DEFAULT_BOOTSTRAP_NODES  # NOQA
         for address in bootstrap_nodes:
             assert(isinstance(address, tuple) or isinstance(address, list))
             assert(len(address) == 2)
