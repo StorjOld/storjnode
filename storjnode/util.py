@@ -3,18 +3,6 @@ import socket
 import threading
 
 
-def process_parallel_map(function, sequence):
-    # TODO implement
-    return list(map(function, sequence))
-
-
-def threaded_parallel_map(function, sequence):
-    # see http://stackoverflow.com/a/1704501/90351
-    # see https://www.quantstart.com/articles/parallelising-python-with-threading-and-multiprocessing
-    # TODO implement
-    return list(map(function, sequence))
-
-
 def empty_queue(queue):
     result = []
     while not queue.empty():

@@ -57,7 +57,7 @@ class BlockingNode(object):
             other_ip, other_port = address
             assert(valid_ip(other_ip))
             assert(isinstance(other_port, int))
-            assert(other_port >= 0 and other_port <= 2**16)
+            assert(other_port >= 0 and other_port < 2**16)
 
         # start dht node
         self._server = StorjServer(key, storage=storage,
@@ -72,7 +72,7 @@ class BlockingNode(object):
         self._server.stop()
 
     def get_id(self):
-        """Returs 160bit node id as bytes."""
+        """Returns 160bit node id as bytes."""
         return self._server.get_id()
 
     def has_public_ip(self):

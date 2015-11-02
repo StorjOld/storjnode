@@ -48,12 +48,21 @@ class TestBlockingNode(unittest.TestCase):
             cls.swarm.append(node)
 
         # wait until network overlay stable
-        time.sleep(10)
+        time.sleep(15)
 
     @classmethod
     def tearDownClass(cls):
         for node in cls.swarm:
             node.stop()
+
+    #######################
+    # test util functions #
+    #######################
+
+    def test_has_public_ip(self):
+        random_peer = random.choice(self.swarm)
+        result = random_peer.has_public_ip()
+        self.assertTrue(isinstance(result, bool))
 
     ########################
     # test relay messaging #
@@ -65,7 +74,7 @@ class TestBlockingNode(unittest.TestCase):
         testmessage = binascii.hexlify(os.urandom(32))
         receiver_id = receiver.get_id()
         sender.send_relay_message(receiver_id, testmessage)
-        time.sleep(0.1)  # wait for it to be relayed
+        time.sleep(0.2)  # wait for it to be relayed
 
         if not success_expected:
             self.assertFalse(receiver.has_messages())

@@ -1,5 +1,9 @@
 import unittest
 import storjnode
+try:
+    from Queue import Queue, Full  # py2
+except ImportError:
+    from queue import Queue, Full  # py3
 
 
 class TestValidIP(unittest.TestCase):
@@ -85,6 +89,17 @@ class TestBaskets(unittest.TestCase):
         result = storjnode.util.baskets([1,2,3,4,5,6,7,8, 9, 10], 3)
         expected = [[1, 4, 7, 10], [2, 5, 8], [3, 6, 9]]
         self.assertEqual(result, expected)
+
+
+class TestEmptyQueue(unittest.TestCase):
+
+     def test_empty_queue(self):
+         q = Queue()
+         q.put(1)
+         q.put(2)
+         l = storjnode.util.empty_queue(q)
+         self.assertEqual(l, [1,2])  # emptied in correct order
+         self.assertTrue(q.empty())  # queue now empty
 
 
 if __name__ == "__main__":
