@@ -28,7 +28,6 @@ except:
     import simplejson as json
 import traceback
 
-from .ipgetter import *
 from .args import args
 from decimal import Decimal
 
@@ -275,26 +274,24 @@ def get_wan_ip():
     if args.wan_ip != None:
         return args.wan_ip
 
-    ip = myip()
-    if ip == u'':
-        #Fail-safe: use centralized server for IP lookup.
-        from .net import forwarding_servers
-        for forwarding_server in forwarding_servers:
-            url = "http://" + forwarding_server["addr"] + ":"
-            url += str(forwarding_server["port"])
-            url += forwarding_server["url"]
-            url += "?action=get_wan_ip"
-            try:
-                r = urlopen(url, timeout=2)
-                response = r.read().decode("utf-8")
-                if is_ip_valid(response):
-                    return response
-            except:
-                continue
+    """
+    That IP module sucks. Occasionally it returns an IP address behind cloudflare which probably happens when cloudflare tries to proxy your web request because it thinks you're trying to DoS. It's better if we just run our own infrastructure.
+    """
 
-        raise Exception("Unable to determine WAN IP.")
-    else:
-        return ip
+    #Fail-safe: use centralized server for IP lookup.
+    from .net import forwarding_servers
+    for forwarding_server in forwarding_servers:
+        url = "http://" + forwarding_server["addr"] + ":"
+        url += str(forwarding_server["port"])
+        url += forwarding_server["url"]
+        url += "?action=get_wan_ip"
+        try:
+            r = urlopen(url, timeout=2)
+            response = r.read().decode("utf-8")
+            if is_ip_valid(response):
+                return response
+        except:
+            continue
 
 if __name__ == "__main__":
     pass

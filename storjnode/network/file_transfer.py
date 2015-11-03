@@ -71,6 +71,18 @@ def process_transfers(client):
 
             #When done downloading close con.
             if not con_info["remaining"]:
+                # Remove that we're downloading this.
+                data_id = contract["data_id"]
+                if data_id in client.downloading:
+                    del client.downloading[data_id]
+
+                # Delete file if it doesn't hash right!
+                path = client.get_data_path(data_id)
+                if client.hash_file(path) != data_id:
+                    print("Error: downloaded file doesn't hash right!")
+                    os.remove(path)
+
+                # Transfer done: close it (like HTTP.)
                 con.close()
 
 def map_path(path):
@@ -119,11 +131,14 @@ class FileTransfer():
         # Dict of data requests.
         self.contracts = {}
 
-        # Threeway handshake status for contracts.
+        # Three-way handshake status for contracts.
         self.handshake = {}
 
-        #Associated with contracts.
+        # Associated with contracts.
         self.con_info = {}
+
+        # List of current downloads.
+        self.downloading = {}
 
     def debug_print(self, msg):
         if self.debug:
@@ -181,7 +196,11 @@ class FileTransfer():
             # Do we already have this file?
             path = self.get_data_path(msg[u"data_id"])
             if os.path.isfile(path):
-                self.debug_print("Attemtping to download file we already have")
+                self.debug_print("Attempting to download file we already have")
+                return 0
+
+            # Are we already trying to download this?
+            if msg[u"data_id"] in self.downloading:
                 return 0
 
         return 1
@@ -190,7 +209,7 @@ class FileTransfer():
         msg = json.loads(msg, object_pairs_hook=OrderedDict)
 
         # Associate TCP con with contract.
-        def success_wrapper(self, contract_id):
+        def success_wrapper(self, contract_id, host_unl):
             def success(con):
                 #Associate TCP con with contract.
                 file_size = self.contracts[contract_id]["file_size"]
@@ -198,6 +217,11 @@ class FileTransfer():
                     "contract_id": contract_id,
                     "remaining": file_size
                 }
+
+                # Record download state.
+                data_id = self.contracts[contract_id]["data_id"]
+                if self.net.unl != UNL(value=host_unl):
+                    self.downloading[data_id] = 1
 
             return success
 
@@ -273,7 +297,11 @@ class FileTransfer():
             self.net.unl.connect(
                 contract["dest_unl"],
                 {
-                    "success": success_wrapper(self, contract_id)
+                    "success": success_wrapper(
+                        self,
+                        contract_id,
+                        contract["host_unl"]
+                    )
                 },
                 force_master=0
             )
@@ -320,7 +348,11 @@ class FileTransfer():
             self.net.unl.connect(
                 contract["src_unl"],
                 {
-                    "success": success_wrapper(self, contract_id)
+                    "success": success_wrapper(
+                        self,
+                        contract_id,
+                        contract["host_unl"]
+                    )
                 },
                 force_master=0
             )
@@ -399,6 +431,10 @@ class FileTransfer():
         else:
             #They store the data.
             host_unl = node_unl
+            if data_id in self.downloading:
+                raise Exception("Already trying to download this.")
+            else:
+                self.downloading[data_id] = 1
 
         # Encoding.
         if sys.version_info >= (3,0,0):
