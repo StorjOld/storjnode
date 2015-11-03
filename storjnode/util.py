@@ -42,8 +42,9 @@ def get_inet_facing_ip():
             [[(s.connect(('8.8.8.8', 80)), s.getsockname()[0], s.close())
                 for s in [socket.socket(
                     socket.AF_INET, socket.SOCK_DGRAM)]][0][1]]) if l][0][0]
-    except:  # inet not reachable
-        return None  # NOQA
+    except:  # pragma: no cover
+        # inet not reachable
+        return None  # pragma: no cover
 
 
 def valid_ipv4(ip):

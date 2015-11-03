@@ -10,7 +10,7 @@ from setuptools import setup, find_packages
 # Only load py2exe settings when its used, so we can install it first.
 options = {}
 if os.name == 'nt' and 'py2exe' in sys.argv:
-    import py2exe  # NOQA
+    import py2exe  # pragma: no cover
     options = {'py2exe': {
         "optimize": 2,
         "bundle_files": 2,  # This tells py2exe to bundle everything
@@ -30,7 +30,7 @@ setup(
     author='Shawn Wilkinson',
     author_email='shawn+storjnode@storj.io',
     license="MIT",
-    version=__version__,  # NOQA
+    version=__version__,  # pragma: no cover
     scripts=[SCRIPT],
     console=[SCRIPT],
     test_suite="tests",

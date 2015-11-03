@@ -48,7 +48,7 @@ class BlockingNode(object):
 
         # validate bootstrap_nodes
         if bootstrap_nodes is None:
-            bootstrap_nodes = DEFAULT_BOOTSTRAP_NODES  # NOQA
+            bootstrap_nodes = DEFAULT_BOOTSTRAP_NODES  # pragma: no cover
         for address in bootstrap_nodes:
             assert(isinstance(address, tuple) or isinstance(address, list))
             assert(len(address) == 2)

@@ -119,7 +119,7 @@ class StorjServer(Server):
             dist_self = dest_node.distanceTo(self.node)
             dist_relay = dest_node.distanceTo(relay_node)
             if dist_self <= dist_relay:  # do not relay away from node
-                continue  # NOQA
+                continue  # pragma: no cover
 
             hexid = binascii.hexlify(relay_node.id)
             self.log.debug("Attempting to relay message for %s" % hexid)
