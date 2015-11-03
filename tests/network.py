@@ -48,7 +48,7 @@ class TestBlockingNode(unittest.TestCase):
             cls.swarm.append(node)
 
         # wait until network overlay stable
-        time.sleep(15)
+        time.sleep(20)
 
     @classmethod
     def tearDownClass(cls):
@@ -113,6 +113,21 @@ class TestBlockingNode(unittest.TestCase):
         random_peer = random.choice(self.swarm)
         void_id = b"void" * 5
         random_peer.send_relay_message(void_id, "into the void")
+        time.sleep(1)  # wait for it to be relayed
+
+    def test_max_relay_messages(self):  # for coverage
+        random_peer = random.choice(self.swarm)
+        void_id = b"void" * 5
+
+        queued = random_peer.send_relay_message(void_id, "into the void")
+        self.assertTrue(queued)
+        queued = random_peer.send_relay_message(void_id, "into the void")
+        self.assertTrue(queued)
+
+        # XXX chance of failure if queue is processed during test
+        queued = random_peer.send_relay_message(void_id, "into the void")
+        self.assertFalse(queued)  # relay queue full
+
         time.sleep(1)  # wait for it to be relayed
 
     #########################
@@ -199,7 +214,7 @@ class TestBlockingNode(unittest.TestCase):
         result = isolated_peer.send_direct_message(void_id, "into the void")
         self.assertTrue(result is None)
 
-    def test_max_messages(self):
+    def test_max_received_messages(self):
         sender = self.swarm[0]
 
         receiver = self.swarm[TEST_SWARM_SIZE - 1]
