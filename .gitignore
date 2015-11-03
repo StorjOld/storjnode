@@ -1,6 +1,8 @@
 #PyCharm crap.
 .idea
 error.log
+storjnode/bin/error.log
+error.log/*
 
 # Byte-compiled / optimized / DLL files
 __pycache__/

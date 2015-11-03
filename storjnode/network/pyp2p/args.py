@@ -1,6 +1,6 @@
 import argparse
 
-if __name__ != "__main__":
+if __name__ == "storjnode.network.file_transfer":
     #Setup parser.
     parser = argparse.ArgumentParser(prog='pyp2p')
 
@@ -12,3 +12,10 @@ if __name__ != "__main__":
 
     #Parse arguments.
     args = args, unknown = parser.parse_known_args()
+else:
+    class Args():
+        def __init__(self):
+            self.wan_ip = None
+            self.lan_ip = None
+
+    args = Args()

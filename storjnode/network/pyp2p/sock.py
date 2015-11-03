@@ -37,7 +37,7 @@ from .lib import *
 error_log_path = "error.log"
 
 class Sock:
-    def __init__(self, addr=None, port=None, blocking=0, timeout=5, interface="default", use_ssl=0, debug=1):
+    def __init__(self, addr=None, port=None, blocking=0, timeout=5, interface="default", use_ssl=0, debug=0):
         self.reply_filter = None
         self.buf = u""
         self.max_buf = 1024 * 1024 #1 MB.
@@ -408,11 +408,18 @@ It activates after 1 second (after_idle_sec) of idleness, then sends a keepalive
             if encoding != "unicode":
                 #Convert from unicode string with latin-1 encoding
                 #To a byte string.
-                codes = []
-                for ch in ret:
-                    codes.append(ord(ch))
+                if sys.version_info >= (3,0,0):
+                    codes = []
+                    for ch in ret:
+                        codes.append(ord(ch))
 
-                return bytes(codes)
+                    return bytes(codes)
+                else:
+                    byte_str = b""
+                    for ch in ret:
+                        byte_str += chr(ord(ch))
+
+                    return byte_str
 
             return ret
         except Exception as e:
