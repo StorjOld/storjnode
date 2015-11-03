@@ -408,11 +408,18 @@ It activates after 1 second (after_idle_sec) of idleness, then sends a keepalive
             if encoding != "unicode":
                 #Convert from unicode string with latin-1 encoding
                 #To a byte string.
-                codes = []
-                for ch in ret:
-                    codes.append(ord(ch))
+                if sys.version_info >= (3,0,0):
+                    codes = []
+                    for ch in ret:
+                        codes.append(ord(ch))
 
-                return bytes(codes)
+                    return bytes(codes)
+                else:
+                    byte_str = b""
+                    for ch in ret:
+                        byte_str += chr(ord(ch))
+
+                    return byte_str
 
             return ret
         except Exception as e:

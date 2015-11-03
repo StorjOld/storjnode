@@ -59,10 +59,6 @@ class UNL():
         our_unl = self.deconstruct(self.value)
         their_unl = self.deconstruct(other.value)
 
-        print("---------")
-        print(our_unl)
-        print(their_unl)
-
         #Different WAN IPs.
         if our_unl["wan_ip"] != their_unl["wan_ip"]:
             return False
@@ -176,7 +172,7 @@ class UNL():
                             node_id = their_unl["node_id"]
                             if int(binascii.hexlify(node_id), 16):
                                 reverse_query = 1
-                                self.dht_node.send_message(node_id, con_request)
+                                self.dht_node.send_direct_message(node_id, con_request)
 
                         #They will connect to us.
                         found_con = 0

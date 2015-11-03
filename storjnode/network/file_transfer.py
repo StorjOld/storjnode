@@ -1,3 +1,8 @@
+"""
+Issues:
+    * Multiple concurrent uploads and downloads for the same data can corrupt the data. The neeeds to be a check for this.
+"""
+
 from .pyp2p.unl import UNL, is_valid_unl
 from .pyp2p.net import Net
 from .pyp2p.dht_msg import DHT
@@ -10,9 +15,75 @@ import sys
 import os
 import shutil
 import binascii
+import platform
+
+def process_transfers(client):
+    # Process contract messages.
+    if client.net.dht_node.has_messages():
+        for msg in client.net.dht_node.get_messages():
+            print(msg)
+            client.protocol(msg)
+
+    # Process connections.
+    for con in client.net:
+        print("In con.")
+
+        # This is a new connection.
+        if con not in client.con_info:
+            continue
+
+        #Anything left to do?
+        con_info = client.con_info[con]
+        if not con_info["remaining"]:
+            continue
+
+        #Upload.
+        contract = client.contracts[con_info["contract_id"]]
+        if client.net.unl == UNL(value=contract["host_unl"]):
+            print("Uploading: Found our UNL")
+
+            #Get next chunk from file.
+            position = contract["file_size"] - con_info["remaining"]
+            data_chunk = client.get_data_chunk(
+                contract["data_id"],
+                position
+            )
+
+            #Upload chunk binary to socket.
+            bytes_sent = con.send(data_chunk)
+            print(bytes_sent)
+            if bytes_sent:
+                con_info["remaining"] -= bytes_sent
+        else:
+            print("Attempting to download.")
+
+            #Download.
+            data = con.recv(
+                con_info["remaining"],
+                encoding="ascii"
+            )
+            print(con.connected)
+
+
+            if len(data):
+                con_info["remaining"] -= len(data)
+                client.save_data_chunk(contract["data_id"], data)
+
+            #When done downloading close con.
+            if not con_info["remaining"]:
+                con.close()
+
+def map_path(path):
+    return os.path.realpath \
+    (
+        os.path.expandvars \
+        (
+            os.path.expanduser(path)
+        )
+    )
 
 class FileTransfer():
-    def __init__(self, net, wallet, storage_path):
+    def __init__(self, net, wallet, storage_path=None, debug=1):
         # Accept direct connections.
         self.net = net
 
@@ -22,9 +93,28 @@ class FileTransfer():
 
         # Where will the data be stored?
         self.storage_path = storage_path
+        if self.storage_path == None:
+            if platform.system() == "Darwin":
+                self.storage_path  = "~/Library/Application Support/"
+                self.storage_path += "Storj/storage"
+
+            if platform.system() == "Windows":
+                self.storage_path = "%APPDATA%\\Storj\\storage"
+
+            if platform.system() == "Linux":
+                self.storage_path = "~/.Storage/storage"
+
+        #Does the path exist? If not create it.
+        self.storage_path = map_path(self.storage_path)
+        if not os.path.isdir(self.storage_path):
+            os.makedirs(self.storage_path)
+
+        # Enable debug print.
+        self.debug = debug
 
         # Start networking.
-        self.net.start()
+        if not self.net.is_net_started:
+            self.net.start()
 
         # Dict of data requests.
         self.contracts = {}
@@ -35,46 +125,63 @@ class FileTransfer():
         #Associated with contracts.
         self.con_info = {}
 
+    def debug_print(self, msg):
+        if self.debug:
+            print("> " + str(msg))
+
     def is_valid_syn(self, msg):
         # List of expected fields.
         syn_schema = (
-            "status",
-            "data_id",
-            "file_size",
-            "host_unl",
-            "dest_unl",
-            "src_unl",
-            "signature"
+            u"status",
+            u"data_id",
+            u"file_size",
+            u"host_unl",
+            u"dest_unl",
+            u"src_unl",
+            u"signature"
         )
 
         # Check all fields exist.
         if not all (key in msg for key in syn_schema):
+            self.debug_print("Missing required key.")
             return 0
 
         # Check the UNLs are valid.
-        unl_tuple = ("host_unl", "dest_unl", "src_unl")
+        unl_tuple = (u"host_unl", u"dest_unl", u"src_unl")
         for unl_key in unl_tuple:
             if not is_valid_unl(msg[unl_key]):
+                self.debug_print("Invalid UNL for " + unl_key)
+                self.debug_print(msg[unl_key])
                 return 0
 
         # Check file size.
-        file_size_type = type(msg["file_size"])
+        file_size_type = type(msg[u"file_size"])
         if sys.version_info >= (3,0,0):
             expr = file_size_type != int
         else:
             expr = file_size_type != int and file_size_type != long
         if expr:
+            self.debug_print("File size validation failed")
+            self.debug_print(type(msg[u"file_size"]))
             return 0
 
         # Are we the host?
-        if self.net.unl == UNL(value=msg["host_unl"]):
+        if self.net.unl == UNL(value=msg[u"host_unl"]):
             # Then check we have this file.
-            path = self.get_data_path(msg["data_id"])
+            path = self.get_data_path(msg[u"data_id"])
             if not os.path.isfile(path):
+                self.debug_print("Failed to find file we're uploading")
                 return 0
 
             # Did they specify the right size?
-            if os.path.getsize(path) != msg["file_size"]:
+            if os.path.getsize(path) != msg[u"file_size"]:
+                self.debug_print("Client did not specify correct file siz.e")
+                return 0
+        else:
+            # Do we already have this file?
+            path = self.get_data_path(msg[u"data_id"])
+            if os.path.isfile(path):
+                self.debug_print("Attemtping to download file we already have")
                 return 0
 
         return 1
@@ -95,13 +202,14 @@ class FileTransfer():
             return success
 
         # Sanity checking.
-        if "status" not in msg:
+        if u"status" not in msg:
             return
 
         # Accept data request.
-        if msg["status"] == "SYN":
+        if msg[u"status"] == u"SYN":
             # Check syn is valid.
             if not self.is_valid_syn(msg):
+                self.debug_print("SYN: invalid syn.")
                 return
 
             # Save contract.
@@ -109,44 +217,53 @@ class FileTransfer():
 
             # Create reply.
             reply = OrderedDict({
-                "status": "SYN-ACK",
-                "syn": msg,
+                u"status": u"SYN-ACK",
+                u"syn": msg,
             })
 
             # Sign reply.
             reply = self.sign_contract(reply)
 
             # Save reply.
-            self.send_msg(reply, msg["src_unl"])
+            self.send_msg(reply, msg[u"src_unl"])
             print("SYN")
 
         # Confirm accept and make connection if needed.
-        if msg["status"] == "SYN-ACK":
+        if msg[u"status"] == u"SYN-ACK":
             # Valid syn-ack?
-            if "syn" not in msg:
+            if u"syn" not in msg:
+                self.debug_print("SYN-ACK: syn not in msg.")
                 return
 
             # Is this a reply to our SYN?
-            contract_id = self.contract_id(msg["syn"])
+            contract_id = self.contract_id(msg[u"syn"])
             if contract_id not in self.contracts:
+                self.debug_print("--------------")
+                self.debug_print(msg)
+                self.debug_print("--------------")
+                self.debug_print(self.contracts)
+                self.debug_print("--------------")
+                self.debug_print("SYN-ACK: contract not found.")
                 return
 
             # Check syn is valid.
-            if not self.is_valid_syn(msg["syn"]):
+            if not self.is_valid_syn(msg[u"syn"]):
+                self.debug_print("SYN-ACK: invalid syn.")
                 return
 
             # Did I sign this?
-            if not self.is_valid_contract_sig(msg["syn"]):
+            if not self.is_valid_contract_sig(msg[u"syn"]):
+                self.debug_print("SYN-ACK: sig is invalid.")
                 return
 
             # Update handshake.
             contract = self.contracts[contract_id]
-            self.handshake[contract_id] = "SYN-ACK"
+            self.handshake[contract_id] = u"SYN-ACK"
 
             # Create reply contract.
             reply = OrderedDict({
-                "status": "ACK",
-                "syn_ack": msg
+                u"status": u"ACK",
+                u"syn_ack": msg
             })
 
             # Sign reply.
@@ -162,32 +279,42 @@ class FileTransfer():
             )
 
             # Send reply.
-            self.send_msg(reply, msg["syn"]["dest_unl"])
+            self.send_msg(reply, msg[u"syn"][u"dest_unl"])
             print("SYN-ACK")
 
-        if msg["status"] == "ACK":
+        if msg[u"status"] == u"ACK":
             # Valid ack.
-            if "syn_ack" not in msg:
+            if u"syn_ack" not in msg:
+                self.debug_print("ACK: syn_ack not in msg.")
                 return
-            if "syn" not in msg["syn_ack"]:
+            if u"syn" not in msg[u"syn_ack"]:
+                self.debug_print("ACK: syn not in msg.")
                 return
 
             # Is this a reply to our SYN-ACK?
-            contract_id = self.contract_id(msg["syn_ack"]["syn"])
+            contract_id = self.contract_id(msg[u"syn_ack"][u"syn"])
             if contract_id not in self.contracts:
+                self.debug_print("ACK: contract not found.")
                 return
 
             # Did I sign this?
-            if not self.is_valid_contract_sig(msg["syn_ack"]):
+            if not self.is_valid_contract_sig(msg[u"syn_ack"]):
+                self.debug_print("--------------")
+                self.debug_print(msg)
+                self.debug_print("--------------")
+                self.debug_print(self.contracts)
+                self.debug_print("--------------")
+                self.debug_print("ACK: sig is invalid.")
                 return
 
             # Is the syn valid?
-            if not self.is_valid_syn(msg["syn_ack"]["syn"]):
+            if not self.is_valid_syn(msg[u"syn_ack"][u"syn"]):
+                self.debug_print("ACK: syn is invalid.")
                 return
 
             # Update handshake.
             contract = self.contracts[contract_id]
-            self.handshake[contract_id] = "ACK"
+            self.handshake[contract_id] = u"ACK"
 
             # Try make TCP con.
             self.net.unl.connect(
@@ -215,7 +342,7 @@ class FileTransfer():
     def send_msg(self, dict_obj, unl):
         node_id = self.net.unl.deconstruct(unl)["node_id"]
         msg = json.dumps(dict_obj, ensure_ascii=True)
-        self.net.dht_node.send_message(
+        self.net.dht_node.send_direct_message(
             node_id,
             msg
         )
@@ -238,15 +365,15 @@ class FileTransfer():
         sig = self.wallet.sign_data(self.wif, msg)
 
         if sys.version_info >= (3,0,0):
-            contract["signature"] = sig.decode("utf-8")
+            contract[u"signature"] = sig.decode("utf-8")
         else:
-            contract["signature"] = unicode(sig)
+            contract[u"signature"] = unicode(sig)
 
         return contract
 
     def is_valid_contract_sig(self, contract):
-        sig = contract["signature"][:]
-        del contract["signature"]
+        sig = contract[u"signature"][:]
+        del contract[u"signature"]
 
         if sys.version_info >= (3,0,0):
             msg = str(contract).encode("ascii")
@@ -257,7 +384,7 @@ class FileTransfer():
         address = self.wallet.get_address(self.wif)
 
         ret = self.wallet.verify_signature(address, sig, msg)
-        contract["signature"] = sig[:]
+        contract[u"signature"] = sig[:]
 
         return ret
 
@@ -273,14 +400,34 @@ class FileTransfer():
             #They store the data.
             host_unl = node_unl
 
+        # Encoding.
+        if sys.version_info >= (3,0,0):
+            if type(data_id) == bytes:
+                data_id = data_id.decode("utf-8")
+
+            if type(host_unl) == bytes:
+                host_unl = host_unl.decode("utf-8")
+
+            if type(node_unl) == bytes:
+                node_unl = node_unl.decode("utf-8")
+        else:
+            if type(data_id) == str:
+                data_id = unicode(data_id)
+
+            if type(host_unl) == str:
+                host_unl = unicode(host_unl)
+
+            if type(node_unl) == str:
+                node_unl = unicode(node_unl)
+
         # Create contract.
         contract = OrderedDict({
-            "status": "SYN",
-            "data_id": data_id,
-            "file_size": file_size,
-            "host_unl": host_unl,
-            "dest_unl": node_unl,
-            "src_unl": self.net.unl.value
+            u"status": u"SYN",
+            u"data_id": data_id,
+            u"file_size": file_size,
+            u"host_unl": host_unl,
+            u"dest_unl": node_unl,
+            u"src_unl": self.net.unl.value
         })
 
         # Sign contract.
@@ -309,7 +456,16 @@ class FileTransfer():
     def move_file_to_storage(self, path):
         file_name = self.hash_file(path)
         destination = self.get_data_path(file_name)
-        shutil.copyfile(path, destination)
+        if not os.path.isfile(destination):
+            shutil.copyfile(path, destination)
+
+        file_size = os.path.getsize(path)
+        ret = {
+            "file_size": file_size,
+            "data_id": file_name
+        }
+
+        return ret
 
     def get_data_chunk(self, data_id, position, chunk_size=1048576):
         path = self.get_data_path(data_id)
@@ -364,63 +520,12 @@ if __name__ == "__main__":
 
     # Alice wants data from Bob.
     alice.data_request(
-        "download",
+        "upload",
         "ed980e5ef780d5b9ca1a6200a03302f2a91223044bc63dacc6d9f07eead663ab",
         2631451,
         bob.net.unl.value
     )
 
-    def process_transfers(client):
-       # Process contract messages.
-        for msg in client.net.dht_node.get_messages():
-            client.protocol(msg)
-
-        # Process connections.
-        for con in client.net:
-            print("In con.")
-
-            # This is a new connection.
-            if con not in client.con_info:
-                continue
-
-            #Anything left to do?
-            con_info = client.con_info[con]
-            if not con_info["remaining"]:
-                continue
-
-            #Upload.
-            contract = client.contracts[con_info["contract_id"]]
-            if client.net.unl == UNL(value=contract["host_unl"]):
-                print("Uploading: Found our UNL")
-
-                #Get next chunk from file.
-                position = contract["file_size"] - con_info["remaining"]
-                data_chunk = client.get_data_chunk(
-                    contract["data_id"],
-                    position
-                )
-
-                #Upload chunk binary to socket.
-                bytes_sent = con.send(data_chunk)
-                print(bytes_sent)
-                if bytes_sent:
-                    con_info["remaining"] -= bytes_sent
-            else:
-                print("Attempting to download.")
-
-                #Download.
-                data = con.recv(
-                    con_info["remaining"],
-                    encoding="ascii"
-                )
-                print(con.connected)
-                if len(data):
-                    con_info["remaining"] -= len(data)
-                    client.save_data_chunk(contract["data_id"], data)
-
-                #When done downloading close con.
-                if not con_info["remaining"]:
-                    con.close()
 
     # Main event loop.
     while 1:

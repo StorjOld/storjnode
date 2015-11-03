@@ -643,7 +643,7 @@ class Net():
 
             #No checks for manually specifying passive
             # (there probably should be.)
-            if self.node_type != "passive" and self.debug != 1:
+            if (self.node_type != "passive" and self.debug != 1) or self.node_type == "unknown":
                 self.node_type = self.determine_node()
                 if self.net_type == "p2p":
                     """
@@ -739,7 +739,7 @@ class Net():
                 if t - self.last_dht_msg > dht_msg_interval:
                     skip_dht_check = 1
 
-            if not skip_dht_check:
+            if not skip_dht_check and self.dht_node.has_messages():
                 dht_messages = []
                 for msg in self.dht_node.get_messages():
                     #Found reverse connect request.
@@ -768,7 +768,8 @@ class Net():
 
                 #Put messages back.
                 for msg in dht_messages:
-                    self.dht_node.messages.append(msg)
+                    self.debug_print(msg)
+                    self.dht_node.messages_received.put_nowait(msg)
 
             self.last_dht_msg = t
 
