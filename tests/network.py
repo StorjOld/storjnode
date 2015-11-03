@@ -48,12 +48,14 @@ class TestBlockingNode(unittest.TestCase):
             cls.swarm.append(node)
 
         # wait until network overlay stable
-        time.sleep(15)
+        time.sleep(20)
 
     @classmethod
     def tearDownClass(cls):
         for node in cls.swarm:
             node.stop()
+
+    # FIXME expose and test is public rpc call
 
     #######################
     # test util functions #
@@ -68,13 +70,11 @@ class TestBlockingNode(unittest.TestCase):
     # test relay messaging #
     ########################
 
-    # FIXME test max message queue size
-
     def _test_relay_message(self, sender, receiver, success_expected):
         testmessage = binascii.hexlify(os.urandom(32))
         receiver_id = receiver.get_id()
         sender.send_relay_message(receiver_id, testmessage)
-        time.sleep(0.5)  # wait for it to be relayed
+        time.sleep(1)  # wait for it to be relayed
 
         if not success_expected:
             self.assertFalse(receiver.has_messages())
@@ -113,7 +113,22 @@ class TestBlockingNode(unittest.TestCase):
         random_peer = random.choice(self.swarm)
         void_id = b"void" * 5
         random_peer.send_relay_message(void_id, "into the void")
-        time.sleep(0.5)  # wait for it to be relayed
+        time.sleep(1)  # wait for it to be relayed
+
+    def test_max_relay_messages(self):  # for coverage
+        random_peer = random.choice(self.swarm)
+        void_id = b"void" * 5
+
+        queued = random_peer.send_relay_message(void_id, "into the void")
+        self.assertTrue(queued)
+        queued = random_peer.send_relay_message(void_id, "into the void")
+        self.assertTrue(queued)
+
+        # XXX chance of failure if queue is processed during test
+        queued = random_peer.send_relay_message(void_id, "into the void")
+        self.assertFalse(queued)  # relay queue full
+
+        time.sleep(1)  # wait for it to be relayed
 
     #########################
     # test direct messaging #
@@ -198,6 +213,30 @@ class TestBlockingNode(unittest.TestCase):
         void_id = b"void" * 5
         result = isolated_peer.send_direct_message(void_id, "into the void")
         self.assertTrue(result is None)
+
+    def test_max_received_messages(self):
+        sender = self.swarm[0]
+
+        receiver = self.swarm[TEST_SWARM_SIZE - 1]
+        receiver_id = receiver.get_id()
+
+        message_a = binascii.hexlify(os.urandom(32))
+        message_b = binascii.hexlify(os.urandom(32))
+        message_c = binascii.hexlify(os.urandom(32))
+
+
+        result = sender.send_direct_message(receiver_id, message_a)
+        self.assertTrue(result is not None)
+        result = sender.send_direct_message(receiver_id, message_b)
+        self.assertTrue(result is not None)
+        result = sender.send_direct_message(receiver_id, message_c)
+        self.assertTrue(result is None)
+
+        received = receiver.get_messages()
+        self.assertEqual(len(received), 2)
+        self.assertTrue(received[0]["message"] in [message_a, message_b])
+        self.assertTrue(received[1]["message"] in [message_a, message_b])
+
 
     ###############################
     # test distributed hash table #

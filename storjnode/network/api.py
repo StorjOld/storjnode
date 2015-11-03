@@ -40,15 +40,15 @@ class BlockingNode(object):
         assert(isinstance(max_messages, int))
 
         # validate port
-        if port is None:
-            port = random.choice(range(1024, 49151))  # randomish user port
+        if port is None:  # randomish user port by default
+            port = random.choice(range(1024, 49151))  # pragma: no cover
         assert(isinstance(port, int))
         assert(0 <= port < 2 ** 16)
         self.port = port
 
         # validate bootstrap_nodes
         if bootstrap_nodes is None:
-            bootstrap_nodes = DEFAULT_BOOTSTRAP_NODES  # NOQA
+            bootstrap_nodes = DEFAULT_BOOTSTRAP_NODES  # pragma: no cover
         for address in bootstrap_nodes:
             assert(isinstance(address, tuple) or isinstance(address, list))
             assert(len(address) == 2)
@@ -107,8 +107,11 @@ class BlockingNode(object):
         Args:
             nodeid: 160bit nodeid of the reciever as bytes
             message: iu-msgpack-python serializable message data
+
+        Returns:
+            True if message was added to relay queue, otherwise False.
         """
-        self._server.send_relay_message(nodeid, message)
+        return self._server.send_relay_message(nodeid, message)
 
     def send_direct_message(self, nodeid, message):
         """Send direct message to a node.
@@ -178,92 +181,92 @@ class BlockingNode(object):
 
     def values(self):
         """Not implemented by design, keyset to big."""
-        raise NotImplementedError("Not implemented by design, keyset to big.")
+        raise NotImplementedError()  # pragma: no cover
 
     def viewitems(self):
         """Not implemented by design, keyset to big."""
-        raise NotImplementedError("Not implemented by design, keyset to big.")
+        raise NotImplementedError()  # pragma: no cover
 
     def viewkeys(self):
         """Not implemented by design, keyset to big."""
-        raise NotImplementedError("Not implemented by design, keyset to big.")
+        raise NotImplementedError()  # pragma: no cover
 
     def viewvalues(self):
         """Not implemented by design, keyset to big."""
-        raise NotImplementedError("Not implemented by design, keyset to big.")
+        raise NotImplementedError()  # pragma: no cover
 
     def __cmp__(self, other):
         """Not implemented by design, keyset to big."""
-        raise NotImplementedError("Not implemented by design, keyset to big.")
+        raise NotImplementedError()  # pragma: no cover
 
     def __eq__(self, other):
         """Not implemented by design, keyset to big."""
-        raise NotImplementedError("Not implemented by design, keyset to big.")
+        raise NotImplementedError()  # pragma: no cover
 
     def __ge__(self, other):
         """Not implemented by design, keyset to big."""
-        raise NotImplementedError("Not implemented by design, keyset to big.")
+        raise NotImplementedError()  # pragma: no cover
 
     def __gt__(self, other):
         """Not implemented by design, keyset to big."""
-        raise NotImplementedError("Not implemented by design, keyset to big.")
+        raise NotImplementedError()  # pragma: no cover
 
     def __le__(self, other):
         """Not implemented by design, keyset to big."""
-        raise NotImplementedError("Not implemented by design, keyset to big.")
+        raise NotImplementedError()  # pragma: no cover
 
     def __len__(self):
         """Not implemented by design, keyset to big."""
-        raise NotImplementedError("Not implemented by design, keyset to big.")
+        raise NotImplementedError()  # pragma: no cover
 
     def __lt__(self, other):
         """Not implemented by design, keyset to big."""
-        raise NotImplementedError("Not implemented by design, keyset to big.")
+        raise NotImplementedError()  # pragma: no cover
 
     def __ne__(self, other):
         """Not implemented by design, keyset to big."""
-        raise NotImplementedError("Not implemented by design, keyset to big.")
+        raise NotImplementedError()  # pragma: no cover
 
     def clear(self):
         """Not implemented by design, keyset to big."""
-        raise NotImplementedError("Not implemented by design, keyset to big.")
+        raise NotImplementedError()  # pragma: no cover
 
     def copy(self):
         """Not implemented by design, keyset to big."""
-        raise NotImplementedError("Not implemented by design, keyset to big.")
+        raise NotImplementedError()  # pragma: no cover
 
     def items(self):
         """Not implemented by design, keyset to big."""
-        raise NotImplementedError("Not implemented by design, keyset to big.")
+        raise NotImplementedError()  # pragma: no cover
 
     def iteritems(self):
         """Not implemented by design, keyset to big."""
-        raise NotImplementedError("Not implemented by design, keyset to big.")
+        raise NotImplementedError()  # pragma: no cover
 
     def iterkeys(self):
         """Not implemented by design, keyset to big."""
-        raise NotImplementedError("Not implemented by design, keyset to big.")
+        raise NotImplementedError()  # pragma: no cover
 
     def itervalues(self):
         """Not implemented by design, keyset to big."""
-        raise NotImplementedError("Not implemented by design, keyset to big.")
+        raise NotImplementedError()  # pragma: no cover
 
     def keys(self):
         """Not implemented by design, keyset to big."""
-        raise NotImplementedError("Not implemented by design, keyset to big.")
+        raise NotImplementedError()  # pragma: no cover
 
     def __iter__(self):
         """Not implemented by design, keyset to big."""
-        raise NotImplementedError("Not implemented by design, keyset to big.")
+        raise NotImplementedError()  # pragma: no cover
 
     def __delitem__(self, y):
         """Not implemented by design, write only."""
-        raise NotImplementedError("Not implemented by design, write only.")
+        raise NotImplementedError()  # pragma: no cover
 
     def pop(self, k, d=None):
         """Not implemented by design, write only."""
-        raise NotImplementedError("Not implemented by design, write only.")
+        raise NotImplementedError()  # pragma: no cover
 
     def popitem(self):
         """Not implemented by design, write only."""
-        raise NotImplementedError("Not implemented by design, write only.")
+        raise NotImplementedError()  # pragma: no cover

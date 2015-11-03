@@ -94,16 +94,19 @@ class StorjServer(Server):
         Args:
             nodeid: 160bit nodeid of the reciever as bytes
             message: iu-msgpack-python serializable message data
+
+        Returns:
+            True if message was added to relay queue, otherwise False.
         """
         hexid = binascii.hexlify(nodeid)
 
         if nodeid == self.node.id:
             self.log.info("Dropping message to self.")
-            return
+            return False
 
         # add to message relay queue
         self.log.debug("Queuing relay messaging for %s: %s" % (hexid, message))
-        self.protocol.queue_relay_message({
+        return self.protocol.queue_relay_message({
             "dest": nodeid, "message": message,
             "hop_limit": self._default_hop_limit
         })
@@ -119,7 +122,7 @@ class StorjServer(Server):
             dist_self = dest_node.distanceTo(self.node)
             dist_relay = dest_node.distanceTo(relay_node)
             if dist_self <= dist_relay:  # do not relay away from node
-                continue  # NOQA
+                continue  # pragma: no cover
 
             hexid = binascii.hexlify(relay_node.id)
             self.log.debug("Attempting to relay message for %s" % hexid)
