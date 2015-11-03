@@ -74,7 +74,7 @@ class TestBlockingNode(unittest.TestCase):
         testmessage = binascii.hexlify(os.urandom(32))
         receiver_id = receiver.get_id()
         sender.send_relay_message(receiver_id, testmessage)
-        time.sleep(0.5)  # wait for it to be relayed
+        time.sleep(1)  # wait for it to be relayed
 
         if not success_expected:
             self.assertFalse(receiver.has_messages())
@@ -113,7 +113,7 @@ class TestBlockingNode(unittest.TestCase):
         random_peer = random.choice(self.swarm)
         void_id = b"void" * 5
         random_peer.send_relay_message(void_id, "into the void")
-        time.sleep(0.5)  # wait for it to be relayed
+        time.sleep(1)  # wait for it to be relayed
 
     #########################
     # test direct messaging #
