@@ -3,18 +3,6 @@ import socket
 import threading
 
 
-def process_parallel_map(function, sequence):
-    # TODO implement
-    return list(map(function, sequence))
-
-
-def threaded_parallel_map(function, sequence):
-    # see http://stackoverflow.com/a/1704501/90351
-    # see https://www.quantstart.com/articles/parallelising-python-with-threading-and-multiprocessing
-    # TODO implement
-    return list(map(function, sequence))
-
-
 def empty_queue(queue):
     result = []
     while not queue.empty():
@@ -48,18 +36,14 @@ def blocking_call(async_func, *args, **kwargs):
 
 def get_inet_facing_ip():
     # source http://stackoverflow.com/a/1267524/90351
-    # better to use https://pypi.python.org/pypi/netifaces ?
     try:
-        ip = [l for l in ([ip for ip in socket.gethostbyname_ex(
+        return [l for l in ([ip for ip in socket.gethostbyname_ex(
             socket.gethostname())[2] if not ip.startswith("127.")][:1],
             [[(s.connect(('8.8.8.8', 80)), s.getsockname()[0], s.close())
                 for s in [socket.socket(
                     socket.AF_INET, socket.SOCK_DGRAM)]][0][1]]) if l][0][0]
-        if not valid_ip(ip):
-            return None
-        return ip
-    except:
-        return None
+    except:  # inet not reachable
+        return None  # NOQA
 
 
 def valid_ipv4(ip):

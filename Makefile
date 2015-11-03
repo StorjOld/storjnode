@@ -62,8 +62,8 @@ shell: setup
 	env/bin/ipython
 
 
-test:
-	$(PY) setup.py test
+test: setup
+	$(PY) -m unittest tests
 
 
 install: test

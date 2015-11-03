@@ -1,8 +1,8 @@
+import random
 from storjnode.util import valid_ip, blocking_call
 from storjnode.network.server import StorjServer
 
 
-DEFAULT_PORT = 4653
 DEFAULT_BOOTSTRAP_NODES = [
 
     # storj stable  7b489cbfd61e675b86ac6469b6acd0a197da7f2c
@@ -22,15 +22,13 @@ class BlockingNode(object):
     DHT functions like a dict and all calls are blocking for ease of use.
     """
 
-    def __init__(self, key, port=DEFAULT_PORT,
-                 start_reactor=True, bootstrap_nodes=None,
+    def __init__(self, key, port=None, bootstrap_nodes=None,
                  storage=None, message_timeout=30, max_messages=1024):
         """Create a blocking storjnode instance.
 
         Args:
             key: Bitcoin wif/hwif to use for auth, encryption and node id.
-            port: Port to use for incoming packages.
-            start_reactor: Starts twisted reactor if True
+            port: Port to use for incoming packages, randomly by default.
             bootstrap_nodes: Known network node addresses as [(ip, port), ...]
             storage: implements :interface:`~kademlia.storage.IStorage`
             message_timeout: Seconds until unprocessed messages are dropped.
@@ -42,25 +40,28 @@ class BlockingNode(object):
         assert(isinstance(max_messages, int))
 
         # validate port
+        if port is None:
+            port = random.choice(range(1024, 49151))  # randomish user port
         assert(isinstance(port, int))
-        assert(port >= 0 and port <= 2**16)
+        assert(port >= 0 and port < 2**16)
+        self.port = port
 
         # validate bootstrap_nodes
         if bootstrap_nodes is None:
-            bootstrap_nodes = DEFAULT_BOOTSTRAP_NODES
+            bootstrap_nodes = DEFAULT_BOOTSTRAP_NODES  # NOQA
         for address in bootstrap_nodes:
             assert(isinstance(address, tuple) or isinstance(address, list))
             assert(len(address) == 2)
             other_ip, other_port = address
             assert(valid_ip(other_ip))
             assert(isinstance(other_port, int))
-            assert(other_port >= 0 and other_port <= 2**16)
+            assert(other_port >= 0 and other_port < 2**16)
 
         # start dht node
         self._server = StorjServer(key, storage=storage,
                                    message_timeout=message_timeout,
                                    max_messages=max_messages)
-        self._server.listen(port)
+        self._server.listen(self.port)
         if len(bootstrap_nodes) > 0:
             self._server.bootstrap(bootstrap_nodes)
 
@@ -69,7 +70,7 @@ class BlockingNode(object):
         self._server.stop()
 
     def get_id(self):
-        """Returs 160bit node id as bytes."""
+        """Returns 160bit node id as bytes."""
         return self._server.get_id()
 
     def has_public_ip(self):

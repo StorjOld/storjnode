@@ -114,11 +114,12 @@ class StorjServer(Server):
         dest_node = Node(entry["dest"])
         nearest = self.protocol.router.findNeighbors(dest_node,
                                                      exclude=self.node)
+        self.log.debug("Relaying to nearest: %s" % repr(nearest))
         for relay_node in nearest:
             dist_self = dest_node.distanceTo(self.node)
             dist_relay = dest_node.distanceTo(relay_node)
-            if dist_self <= dist_relay:
-                continue  # do not relay away from node
+            if dist_self <= dist_relay:  # do not relay away from node
+                continue  # NOQA
 
             hexid = binascii.hexlify(relay_node.id)
             self.log.debug("Attempting to relay message for %s" % hexid)
@@ -131,7 +132,8 @@ class StorjServer(Server):
                 self.log.debug("Successfully relayed message to %s" % hexid)
                 return  # relay to nearest peer, avoid amplification attacks
 
-        self.log.debug("Failed to relay message for %s" % dest_node)
+        dest_hexid = binascii.hexlify(entry["dest"])
+        self.log.debug("Failed to relay message for %s" % dest_hexid)
 
     def _relay_loop(self):
         while not self._relay_thread_stop:

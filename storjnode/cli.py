@@ -29,9 +29,9 @@ import btctxstore
 def _add_programm_args(parser):
 
     # port
-    default = 4653
+    default = None
     parser.add_argument("--port", default=default, type=int,
-                        help="Node port. Default: {0}.".format(default))
+                        help="Node port, random user port by default.")
 
     # bootstrap
     default = None
@@ -143,6 +143,7 @@ def _parse_args(args):
 
 def run(node, args):
     args["id"] = binascii.hexlify(node.get_id())
+    args["port"] = node.port
     print("Running node on port {port} with id {id}".format(**args))
     while True:
         time.sleep(1)
