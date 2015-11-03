@@ -94,7 +94,7 @@ class DCCSend(irc.client.SimpleIRCClient):
     def send_chunk(self):
         data = self.file.read(1024)
         self.dcc.send_bytes(data)
-        self.sent_bytes = self.sent_bytes + len(data)
+        self.sent_bytes += len(data)
 
 
 class DCCReceive(irc.client.SimpleIRCClient):
@@ -124,7 +124,7 @@ class DCCReceive(irc.client.SimpleIRCClient):
     def on_dccmsg(self, connection, event):
         data = event.arguments[0]
         self.file.write(data)
-        self.received_bytes = self.received_bytes + len(data)
+        self.received_bytes += len(data)
         self.dcc.send_bytes(struct.pack("!I", self.received_bytes))
 
     def on_dcc_disconnect(self, connection, event):

@@ -20,13 +20,13 @@ time.sleep(12)  # Giving nodes some time to find peers
 
 # send direct message
 alice_node.send_direct_message(bob_id, "hi bob")  # blocking call
-if(bob_node.has_messages()):
+if bob_node.has_messages():
     print(bob_node.get_messages())
 
 # send relayed message
 bob_node.send_relay_message(alice_id, "hi alice")  # non blocking call
 time.sleep(10)  # wait for it to be relayed
-if(alice_node.has_messages()):
+if alice_node.has_messages():
     print(alice_node.get_messages())
 
 # stop nodes
