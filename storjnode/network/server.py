@@ -12,6 +12,10 @@ from kademlia.storage import ForgetfulStorage
 from twisted.internet.task import LoopingCall
 from kademlia.node import Node
 from kademlia.crawling import NodeSpiderCrawl
+from crochet import TimeoutError
+
+
+TIMEOUT = 5.0
 
 
 class StorjServer(Server):
@@ -114,27 +118,36 @@ class StorjServer(Server):
     def _relay_message(self, entry):
         """Returns entry if failed to relay to a closer node or None"""
 
-        dest_node = Node(entry["dest"])
-        nearest = self.protocol.router.findNeighbors(dest_node,
-                                                     exclude=self.node)
+        dest = Node(entry["dest"])
+        nearest = self.protocol.router.findNeighbors(dest, exclude=self.node)
         self.log.debug("Relaying to nearest: %s" % repr(nearest))
         for relay_node in nearest:
-            dist_self = dest_node.distanceTo(self.node)
-            dist_relay = dest_node.distanceTo(relay_node)
-            if dist_self <= dist_relay:  # do not relay away from node
+
+            # do not relay away from node
+            if dest.distanceTo(self.node) <= dest.distanceTo(relay_node):
                 continue  # pragma: no cover
 
+            # relay message
             hexid = binascii.hexlify(relay_node.id)
             self.log.debug("Attempting to relay message for %s" % hexid)
             defered = self.protocol.callRelayMessage(
                 relay_node, entry["dest"], entry["hop_limit"], entry["message"]
             )
             defered = defered.addCallback(lambda r: r[0] and r[1] or None)
-            result = util.blocking_call(lambda: defered)
+
+            # wait for relay result
+            try:
+                result = util.wait_for_defered(defered, timeout=TIMEOUT)
+            except TimeoutError:
+                self.log.debug("Timeout while relayed message to %s" % hexid)
+                result = None
+
+            # successfull relay
             if result is not None:
                 self.log.debug("Successfully relayed message to %s" % hexid)
                 return  # relay to nearest peer, avoid amplification attacks
 
+        # failed to relay message
         dest_hexid = binascii.hexlify(entry["dest"])
         self.log.debug("Failed to relay message for %s" % dest_hexid)
 

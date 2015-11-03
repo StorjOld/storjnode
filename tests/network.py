@@ -74,7 +74,7 @@ class TestBlockingNode(unittest.TestCase):
         testmessage = binascii.hexlify(os.urandom(32))
         receiver_id = receiver.get_id()
         sender.send_relay_message(receiver_id, testmessage)
-        time.sleep(1)  # wait for it to be relayed
+        time.sleep(2)  # wait for it to be relayed
 
         if not success_expected:
             self.assertFalse(receiver.has_messages())
@@ -113,7 +113,7 @@ class TestBlockingNode(unittest.TestCase):
         random_peer = random.choice(self.swarm)
         void_id = b"void" * 5
         random_peer.send_relay_message(void_id, "into the void")
-        time.sleep(1)  # wait for it to be relayed
+        time.sleep(2)  # wait for it to be relayed
 
     def test_max_relay_messages(self):  # for coverage
         random_peer = random.choice(self.swarm)
@@ -128,7 +128,7 @@ class TestBlockingNode(unittest.TestCase):
         queued = random_peer.send_relay_message(void_id, "into the void")
         self.assertFalse(queued)  # relay queue full
 
-        time.sleep(1)  # wait for it to be relayed
+        time.sleep(2)  # wait for it to be relayed
 
     #########################
     # test direct messaging #
@@ -203,9 +203,8 @@ class TestBlockingNode(unittest.TestCase):
         time.sleep(TEST_MESSAGE_TIMEOUT + 1)  # wait until stale
         self.assertFalse(receiver.has_messages())  # check message was dropped
 
-    @unittest.skip("FIXME does not exit gracefully")
+    @unittest.skip("causes tests to not finish")  # FIXME make it work!
     def test_direct_message_to_void(self):  # for coverage
-        # slim chance of colission with existing port
         isolated_peer = storjnode.network.BlockingNode(
             self.__class__.btctxstore.create_wallet(),
             bootstrap_nodes=[("240.0.0.0", 1337)],

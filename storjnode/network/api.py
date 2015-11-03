@@ -1,6 +1,7 @@
 import random
-from storjnode.util import valid_ip, blocking_call
-from storjnode.network.server import StorjServer
+from crochet import wait_for
+from storjnode.util import valid_ip
+from storjnode.network.server import StorjServer, TIMEOUT
 
 
 DEFAULT_BOOTSTRAP_NODES = [
@@ -73,12 +74,16 @@ class BlockingNode(object):
         """Returns 160bit node id as bytes."""
         return self._server.get_id()
 
+    @wait_for(timeout=TIMEOUT)
     def has_public_ip(self):
         """Returns True if local IP is internet visible, otherwise False.
 
         The may false positive if you run other nodes on your local network.
+
+        Raises:
+            crochet.TimeoutError if call exceeds storjnode.network.TIMEOUT
         """
-        return blocking_call(self._server.has_public_ip)
+        return self._server.has_public_ip()
 
     def has_messages(self):
         """Returns True if this node has received messages."""
@@ -113,6 +118,7 @@ class BlockingNode(object):
         """
         return self._server.send_relay_message(nodeid, message)
 
+    @wait_for(timeout=TIMEOUT)
     def send_direct_message(self, nodeid, message):
         """Send direct message to a node.
 
@@ -126,9 +132,11 @@ class BlockingNode(object):
 
         Returns:
             Own transport address (ip, port) if successfull else None
+
+        Raises:
+            crochet.TimeoutError if call exceeds storjnode.network.TIMEOUT
         """
-        async_method = self._server.send_direct_message
-        return blocking_call(async_method, nodeid, message)
+        return self._server.send_direct_message(nodeid, message)
 
     def __getitem__(self, key):
         """x.__getitem__(y) <==> x[y]"""
@@ -137,14 +145,24 @@ class BlockingNode(object):
             raise result
         return result
 
+    @wait_for(timeout=TIMEOUT)
     def __setitem__(self, key, value):
-        """x.__setitem__(i, y) <==> x[i]=y"""
-        blocking_call(self._server.set, key, value)
+        """x.__setitem__(i, y) <==> x[i]=y
+        
+        Raises:
+            crochet.TimeoutError if call exceeds storjnode.network.TIMEOUT
+        """
+        self._server.set(key, value)
 
+    @wait_for(timeout=TIMEOUT)
     def get(self, key, default=None):
-        """D.get(k[,d]) -> D[k] if k in D, else d.  d defaults to None."""
+        """D.get(k[,d]) -> D[k] if k in D, else d.  d defaults to None.
+        
+        Raises:
+            crochet.TimeoutError if call exceeds storjnode.network.TIMEOUT
+        """
         # FIXME return default if not found (add to kademlia)
-        return blocking_call(self._server.get, key)
+        return self._server.get(key)
 
     def __contains__(self, k):
         """D.__contains__(k) -> True if D has a key k, else False"""
