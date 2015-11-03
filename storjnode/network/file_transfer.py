@@ -1,19 +1,24 @@
-from .pyp2p.unl import UNL
+from .pyp2p.unl import UNL, is_valid_unl
 from .pyp2p.net import Net
 from .pyp2p.dht_msg import DHT
-from .pyp2p.lib import is_ip_private
 from collections import OrderedDict
+from btctxstore import BtcTxStore
 import time
 import json
 import hashlib
 import sys
 import os
 import shutil
+import binascii
 
 class FileTransfer():
-    def __init__(self, net, storage_path):
+    def __init__(self, net, wallet, storage_path):
         # Accept direct connections.
         self.net = net
+
+        # Used for signing messages.
+        self.wallet = wallet
+        self.wif = self.wallet.create_key()
 
         # Where will the data be stored?
         self.storage_path = storage_path
@@ -30,11 +35,75 @@ class FileTransfer():
         #Associated with contracts.
         self.con_info = {}
 
+    def is_valid_syn(self, msg):
+        # List of expected fields.
+        syn_schema = (
+            "status",
+            "data_id",
+            "file_size",
+            "host_unl",
+            "dest_unl",
+            "src_unl",
+            "signature"
+        )
+
+        # Check all fields exist.
+        if not all (key in msg for key in syn_schema):
+            return 0
+
+        # Check the UNLs are valid.
+        unl_tuple = ("host_unl", "dest_unl", "src_unl")
+        for unl_key in unl_tuple:
+            if not is_valid_unl(msg[unl_key]):
+                return 0
+
+        # Check file size.
+        file_size_type = type(msg["file_size"])
+        if sys.version_info >= (3,0,0):
+            expr = file_size_type != int
+        else:
+            expr = file_size_type != int and file_size_type != long
+        if expr:
+            return 0
+
+        # Are we the host?
+        if self.net.unl == UNL(value=msg["host_unl"]):
+            # Then check we have this file.
+            path = self.get_data_path(msg["data_id"])
+            if not os.path.isfile(path):
+                return 0
+
+            # Did they specify the right size?
+            if os.path.getsize(path) != msg["file_size"]:
+                return 0
+
+        return 1
+
     def protocol(self, msg):
         msg = json.loads(msg, object_pairs_hook=OrderedDict)
 
+        # Associate TCP con with contract.
+        def success_wrapper(self, contract_id):
+            def success(con):
+                #Associate TCP con with contract.
+                file_size = self.contracts[contract_id]["file_size"]
+                self.con_info[con] = {
+                    "contract_id": contract_id,
+                    "remaining": file_size
+                }
+
+            return success
+
+        # Sanity checking.
+        if "status" not in msg:
+            return
+
         # Accept data request.
         if msg["status"] == "SYN":
+            # Check syn is valid.
+            if not self.is_valid_syn(msg):
+                return
+
             # Save contract.
             self.save_contract(msg)
 
@@ -44,19 +113,34 @@ class FileTransfer():
                 "syn": msg,
             })
 
+            # Sign reply.
+            reply = self.sign_contract(reply)
+
             # Save reply.
             self.send_msg(reply, msg["src_unl"])
             print("SYN")
 
         # Confirm accept and make connection if needed.
         if msg["status"] == "SYN-ACK":
+            # Valid syn-ack?
+            if "syn" not in msg:
+                return
+
             # Is this a reply to our SYN?
-            # Todo: if we signed it check.
             contract_id = self.contract_id(msg["syn"])
             if contract_id not in self.contracts:
                 return
 
+            # Check syn is valid.
+            if not self.is_valid_syn(msg["syn"]):
+                return
+
+            # Did I sign this?
+            if not self.is_valid_contract_sig(msg["syn"]):
+                return
+
             # Update handshake.
+            contract = self.contracts[contract_id]
             self.handshake[contract_id] = "SYN-ACK"
 
             # Create reply contract.
@@ -65,46 +149,61 @@ class FileTransfer():
                 "syn_ack": msg
             })
 
+            # Sign reply.
+            reply = self.sign_contract(reply)
+
+            # Try make TCP con.
+            self.net.unl.connect(
+                contract["dest_unl"],
+                {
+                    "success": success_wrapper(self, contract_id)
+                },
+                force_master=0
+            )
+
             # Send reply.
             self.send_msg(reply, msg["syn"]["dest_unl"])
             print("SYN-ACK")
 
         if msg["status"] == "ACK":
+            # Valid ack.
+            if "syn_ack" not in msg:
+                return
+            if "syn" not in msg["syn_ack"]:
+                return
+
             # Is this a reply to our SYN-ACK?
-            # Todo: if we signed it check.
             contract_id = self.contract_id(msg["syn_ack"]["syn"])
             if contract_id not in self.contracts:
                 return
 
+            # Did I sign this?
+            if not self.is_valid_contract_sig(msg["syn_ack"]):
+                return
+
+            # Is the syn valid?
+            if not self.is_valid_syn(msg["syn_ack"]["syn"]):
+                return
+
             # Update handshake.
+            contract = self.contracts[contract_id]
             self.handshake[contract_id] = "ACK"
 
-            # Associate TCP con with contract.
-            def success_wrapper():
-                def success(con):
-                    #Associate TCP con with contract.
-                    file_size = self.contracts[contract_id]["file_size"]
-                    self.con_info[con] = {
-                        "contract_id": contract_id,
-                        "associated": True,
-                        "remaining": file_size
-                    }
-
-                    #Tell them what contract to associate con with.
-                    con.send(contract_id, send_all=1)
-
-                return success
-
             # Try make TCP con.
-            contract = self.contracts[contract_id]
             self.net.unl.connect(
                 contract["src_unl"],
                 {
-                    "success": success_wrapper()
-                }
+                    "success": success_wrapper(self, contract_id)
+                },
+                force_master=0
             )
 
             print("ACK")
+
+    def get_data_path(self, data_id):
+        path = os.path.join(self.storage_path, data_id)
+
+        return path
 
     def save_contract(self, contract):
         # Record contract details.
@@ -129,46 +228,38 @@ class FileTransfer():
 
         return hashlib.sha256(contract).hexdigest()
 
-    def recv_contract_id(self, con):
-        """
-        Buffer contract ID. When received: connection is reading to send/recv binary data.
-        """
+    def sign_contract(self, contract):
+        if sys.version_info >= (3,0,0):
+            msg = str(contract).encode("ascii")
+        else:
+            msg = str(contract)
 
-        #Combine partial contract IDs.
-        con_info = self.con_info[con]
-        contract_id_len = len(con_info["contract_id"])
-        partial = con.recv(64 - contract_id_len)
-        print("Partial = ")
-        print(partial)
-        con_info["contract_id"] += partial
+        msg = binascii.hexlify(msg)
+        sig = self.wallet.sign_data(self.wif, msg)
 
-        #Full ID received: check it.
-        if len(con_info["contract_id"]) == 64:
-            print("Contract ID received.")
-            print(con_info["contract_id"])
-            print(list(self.contracts))
+        if sys.version_info >= (3,0,0):
+            contract["signature"] = sig.decode("utf-8")
+        else:
+            contract["signature"] = unicode(sig)
 
-            if con_info["contract_id"] in self.contracts:
-                print("Found contract.")
-                contract = self.contracts[con_info["contract_id"]]
-                con_addr, con_port = con.s.getpeername()
-                print(con_addr)
-                for unl in [contract["src_unl"], contract["dest_unl"]]:
-                    unl = self.net.unl.deconstruct(unl)
-                    if is_ip_private(con_addr):
-                        if unl["lan_ip"] == con_addr:
-                            con_info["associated"] = True
-                            con_info["remaining"] = contract["file_size"]
-                            print("\a")
-                            print("Con ready to receive binary data.")
-                            break
-                    else:
-                        if unl["wan_ip"] == con_addr:
-                            con_info["associated"] = True
-                            con_info["remaining"] = contract["file_size"]
-                            print("\a")
-                            print("Con ready to receive binary data.")
-                            break
+        return contract
+
+    def is_valid_contract_sig(self, contract):
+        sig = contract["signature"][:]
+        del contract["signature"]
+
+        if sys.version_info >= (3,0,0):
+            msg = str(contract).encode("ascii")
+        else:
+            msg = str(contract)
+
+        msg = binascii.hexlify(msg)
+        address = self.wallet.get_address(self.wif)
+
+        ret = self.wallet.verify_signature(address, sig, msg)
+        contract["signature"] = sig[:]
+
+        return ret
 
     def data_request(self, action, data_id, file_size, node_unl):
         """
@@ -192,7 +283,10 @@ class FileTransfer():
             "src_unl": self.net.unl.value
         })
 
-        #Route contract.
+        # Sign contract.
+        contract = self.sign_contract(contract)
+
+        # Route contract.
         contract_id = self.save_contract(contract)
         self.send_msg(contract, node_unl)
 
@@ -214,11 +308,11 @@ class FileTransfer():
 
     def move_file_to_storage(self, path):
         file_name = self.hash_file(path)
-        destination = os.path.join(self.storage_path, file_name)
+        destination = self.get_data_path(file_name)
         shutil.copyfile(path, destination)
 
     def get_data_chunk(self, data_id, position, chunk_size=1048576):
-        path = os.path.join(self.storage_path, data_id)
+        path = self.get_data_path(data_id)
         buf = b""
         with open(path, "rb") as fp:
             fp.seek(position, 0)
@@ -227,12 +321,13 @@ class FileTransfer():
         return buf
 
     def save_data_chunk(self, data_id, chunk):
-        path = os.path.join(self.storage_path, data_id)
+        path = self.get_data_path(data_id)
         with open(path, "ab") as fp:
             fp.write(chunk)
 
 if __name__ == "__main__":
     # Alice sample node.
+    alice_wallet = BtcTxStore(testnet=True, dryrun=True)
     alice = FileTransfer(
         Net(
             net_type="direct",
@@ -242,6 +337,7 @@ if __name__ == "__main__":
             dht_node=DHT(),
             debug=1
         ),
+        wallet=alice_wallet,
         storage_path="/home/laurence/Storj/Alice"
     )
 
@@ -249,6 +345,7 @@ if __name__ == "__main__":
     # alice.move_file_to_storage("/home/laurence/Firefox_wallpaper.png")
 
     # Bob sample node.
+    bob_wallet = BtcTxStore(testnet=True, dryrun=True)
     bob = FileTransfer(
         Net(
             net_type="direct",
@@ -258,6 +355,7 @@ if __name__ == "__main__":
             dht_node=DHT(),
             debug=1
         ),
+        wallet=bob_wallet,
         storage_path="/home/laurence/Storj/Bob"
     )
 
@@ -283,58 +381,46 @@ if __name__ == "__main__":
 
             # This is a new connection.
             if con not in client.con_info:
-                client.con_info[con] = {
-                    "contract_id": "",
-                    "associated": False,
-                    "remaining": 0
-                }
+                continue
 
-            # Attempt to associate connection with contract.
+            #Anything left to do?
             con_info = client.con_info[con]
-            if not con_info["associated"]:
-                client.recv_contract_id(con)
+            if not con_info["remaining"]:
+                continue
 
-            # Handle binary chunks.
-            print(con_info)
-            if con_info["associated"]:
-                #Anything left to do?
+            #Upload.
+            contract = client.contracts[con_info["contract_id"]]
+            if client.net.unl == UNL(value=contract["host_unl"]):
+                print("Uploading: Found our UNL")
+
+                #Get next chunk from file.
+                position = contract["file_size"] - con_info["remaining"]
+                data_chunk = client.get_data_chunk(
+                    contract["data_id"],
+                    position
+                )
+
+                #Upload chunk binary to socket.
+                bytes_sent = con.send(data_chunk)
+                print(bytes_sent)
+                if bytes_sent:
+                    con_info["remaining"] -= bytes_sent
+            else:
+                print("Attempting to download.")
+
+                #Download.
+                data = con.recv(
+                    con_info["remaining"],
+                    encoding="ascii"
+                )
+                print(con.connected)
+                if len(data):
+                    con_info["remaining"] -= len(data)
+                    client.save_data_chunk(contract["data_id"], data)
+
+                #When done downloading close con.
                 if not con_info["remaining"]:
-                    continue
-
-                #Upload.
-                contract = client.contracts[con_info["contract_id"]]
-                print(client.net.unl.deconstruct())
-                if client.net.unl == UNL(value=contract["host_unl"]):
-                    print("Found our UNL")
-
-                    #Get next chunk from file.
-                    position = contract["file_size"] - con_info["remaining"]
-                    data_chunk = client.get_data_chunk(
-                        contract["data_id"],
-                        position
-                    )
-
-                    #Upload chunk binary to socket.
-                    bytes_sent = con.send(data_chunk)
-                    print(bytes_sent)
-                    if bytes_sent:
-                        con_info["remaining"] -= bytes_sent
-                else:
-                    print("Attempting to download.")
-
-                    #Download.
-                    data = con.recv(
-                        con_info["remaining"],
-                        encoding="ascii"
-                    )
-                    print(con.connected)
-                    if len(data):
-                        con_info["remaining"] -= len(data)
-                        client.save_data_chunk(contract["data_id"], data)
-
-                    #When done downloading close con.
-                    if not con_info["remaining"]:
-                        con.close()
+                    con.close()
 
     # Main event loop.
     while 1:

@@ -59,7 +59,7 @@ class DHT():
         #Return a list of messages.
         return response
 
-    def send_message(self, node_id, msg):
+    def send_direct_message(self, node_id, msg):
         if type(node_id) != str:
             node_id = node_id.decode("utf-8")
 
@@ -67,6 +67,12 @@ class DHT():
 
     def get_id(self):
         return self.node_id.encode("ascii")
+
+    def has_messages(self):
+        if len(self.messages):
+            return 1
+        else:
+            return 0
 
     def get_messages(self):
         messages = self.messages[:] + self.list(self.node_id, self.password)

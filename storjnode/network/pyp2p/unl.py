@@ -11,6 +11,14 @@ import base64
 import binascii
 from threading import Thread, Lock
 
+def is_valid_unl(value):
+    unl = UNL(value=value)
+    ret = unl.deconstruct()
+    if ret == None:
+        return 0
+    else:
+        return 1
+
 class UNL():
     def __init__(self, net=None, dht_node=None, value=None):
         self.version = 1
@@ -70,7 +78,7 @@ class UNL():
         #They are the same.
         return True
 
-    def connect_handler(self, their_unl, events, force_master, reverse_connect):
+    def connect_handler(self, their_unl, events, force_master):
         #Figure out who should make the connection.
         our_unl = self.value.encode("ascii")
         their_unl = their_unl.encode("ascii")
@@ -163,7 +171,7 @@ class UNL():
                             break
                     else:
                         #Tell them to connect to us.
-                        if self.dht_node != None:
+                        if self.dht_node != None and force_master:
                             con_request = "REVERSE_CONNECT:%s" % (self.value)
                             node_id = their_unl["node_id"]
                             if int(binascii.hexlify(node_id), 16):
@@ -209,11 +217,11 @@ class UNL():
                 if "failure" in events:
                     events["failure"](con)
 
-    def connect(self, their_unl, events, force_master=1, reverse_connect=0):
+    def connect(self, their_unl, events, force_master=1):
         """
         A new thread is spawned because many of the connection techniques rely on sleep to determine connection outcome or to synchronise hole punching techniques. If the sleep is in its own thread it won't block main execution.
         """
-        parms = (their_unl, events, force_master, reverse_connect)
+        parms = (their_unl, events, force_master)
         t = Thread(target=self.connect_handler, args=parms)
         t.start()
 
