@@ -1,10 +1,8 @@
 #!/usr/bin/env python
-# from examples/messaging.py
 
 import time
 import storjnode
 from crochet import setup
-
 setup()  # start twisted via crochet
 
 # create alice node (with bitcoin wif as node key)

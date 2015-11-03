@@ -4,8 +4,8 @@
 import time
 import storjnode
 from crochet import setup
-
 setup()  # start twisted via crochet
+
 
 # create alice node (with bitcoin wif as node key)
 alice_key = "Kyh4a6zF1TkBZW6gyzwe7XRVtJ18Y75C2bC2d9axeWZnoUdAVXYc"
