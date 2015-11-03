@@ -15,7 +15,8 @@ bob_key = ("xprv9s21ZrQH143K3uzRG1qUPdYhVZG1TAxQ9bLTWZuFf1FHR5hiWuRf"
            "o2L2ZNoUX9BW17guAbMXqHjMJXBFvuTBD2WWvRT3zNbtVJ1S7yxUvWd")
 bob_node = storjnode.network.BlockingNode(bob_key)
 
-time.sleep(30)  # Giving nodes some time to find peers
+print("Giving nodes some time to find peers.")
+time.sleep(30)
 
 try:
     # use nodes

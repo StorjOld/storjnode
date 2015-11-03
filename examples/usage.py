@@ -10,7 +10,8 @@ setup()  # start twisted via crochet
 node_key = "KzygUeD8qXaKBFdJWMk9c6AVib89keoZFBNdFBsj73kYZfAc4n1j"
 node = storjnode.network.BlockingNode(node_key)
 
-time.sleep(30)  # Giving nodes some time to find peers
+print("Giving nodes some time to find peers.")
+time.sleep(30)
 
 try:
     # The blocking node interface is very simple and behaves like a dict.
