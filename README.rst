@@ -136,35 +136,38 @@ Starting and using a node in python.
 
     import time
     import storjnode
-    from crochet import setup
-
+    from crochet import setup, TimeoutError
     setup()  # start twisted via crochet
 
     # start node (use bitcoin wif or hwif as node key)
     node_key = "KzygUeD8qXaKBFdJWMk9c6AVib89keoZFBNdFBsj73kYZfAc4n1j"
     node = storjnode.network.BlockingNode(node_key)
 
-    time.sleep(10)  # Giving node some time to find peers
+    time.sleep(30)  # Giving nodes some time to find peers
 
-    # The blocking node interface is very simple and behaves like a dict.
-    node["examplekey"] = "examplevalue"  # put key value pair into DHT
-    retrieved = node["examplekey"]  # retrieve value by key from DHT
-    print("{key} => {value}".format(key="examplekey", value=retrieved))
-
-    # A node cannot know of the DHT size or all entries.
     try:
-        node.items()
-    except NotImplementedError as e:
-        print(e)
+        # The blocking node interface is very simple and behaves like a dict.
+        node["examplekey"] = "examplevalue"  # put key value pair into DHT
+        retrieved = node["examplekey"]  # retrieve value by key from DHT
+        print("{key} => {value}".format(key="examplekey", value=retrieved))
 
-    # A node can only write to the DHT.
-    try:
-        del node["examplekey"]
-    except NotImplementedError as e:
-        print(e)
+        # A node cannot know of the DHT size or all entries.
+        try:
+            node.items()
+        except NotImplementedError as e:
+            print(repr(e))
 
-    # stop node
-    node.stop()
+        # A node can only write to the DHT.
+        try:
+            del node["examplekey"]
+        except NotImplementedError as e:
+            print(repr(e))
+
+    except TimeoutError:
+        print("Got timeout error")
+
+    finally:
+        node.stop()
 
 
 Multinode usage
@@ -182,29 +185,32 @@ different ports.
 
     import time
     import storjnode
-    from crochet import setup
-
+    from crochet import setup, TimeoutError
     setup()  # start twisted via crochet
 
     # create alice node (with bitcoin wif as node key)
     alice_key = "Kyh4a6zF1TkBZW6gyzwe7XRVtJ18Y75C2bC2d9axeWZnoUdAVXYc"
-    alice_node = storjnode.network.BlockingNode(alice_key, port=4653)
+    alice_node = storjnode.network.BlockingNode(alice_key)
 
     # create bob node (with bitcoin hwif as node key)
     bob_key = ("xprv9s21ZrQH143K3uzRG1qUPdYhVZG1TAxQ9bLTWZuFf1FHR5hiWuRf"
                "o2L2ZNoUX9BW17guAbMXqHjMJXBFvuTBD2WWvRT3zNbtVJ1S7yxUvWd")
-    bob_node = storjnode.network.BlockingNode(bob_key, port=4654)
+    bob_node = storjnode.network.BlockingNode(bob_key)
 
-    time.sleep(12)  # Giving nodes some time to find peers
+    time.sleep(30)  # Giving nodes some time to find peers
 
-    # use nodes
-    alice_node["examplekey"] = "examplevalue"  # alice inserts value
-    stored_value = bob_node["examplekey"]  # bob retrievs value
-    print("{key} => {value}".format(key="examplekey", value=stored_value))
+    try:
+        # use nodes
+        alice_node["examplekey"] = "examplevalue"  # alice inserts value
+        stored_value = bob_node["examplekey"]  # bob retrievs value
+        print("{key} => {value}".format(key="examplekey", value=stored_value))
 
-    # stop nodes
-    alice_node.stop()
-    bob_node.stop()
+    except TimeoutError:
+        print("Got timeout error")
+
+    finally:  # stop nodes
+        alice_node.stop()
+        bob_node.stop()
 
 
 Node messaging
@@ -237,34 +243,37 @@ it is connected to the network.
 
     import time
     import storjnode
-    from crochet import setup
-
+    from crochet import setup, TimeoutError
     setup()  # start twisted via crochet
 
     # create alice node (with bitcoin wif as node key)
     alice_key = "Kyh4a6zF1TkBZW6gyzwe7XRVtJ18Y75C2bC2d9axeWZnoUdAVXYc"
-    alice_node = storjnode.network.BlockingNode(alice_key, port=4653)
+    alice_node = storjnode.network.BlockingNode(alice_key)
     alice_id = alice_node.get_id()
 
     # create bob node (with bitcoin hwif as node key)
     bob_key = ("xprv9s21ZrQH143K3uzRG1qUPdYhVZG1TAxQ9bLTWZuFf1FHR5hiWuRf"
                "o2L2ZNoUX9BW17guAbMXqHjMJXBFvuTBD2WWvRT3zNbtVJ1S7yxUvWd")
-    bob_node = storjnode.network.BlockingNode(bob_key, port=4654)
+    bob_node = storjnode.network.BlockingNode(bob_key)
     bob_id = alice_node.get_id()
 
-    time.sleep(12)  # Giving nodes some time to find peers
+    time.sleep(30)  # Giving nodes some time to find peers
 
-    # send direct message
-    alice_node.send_direct_message(bob_id, "hi bob")  # blocking call
-    if(bob_node.has_messages()):
-        print(bob_node.get_messages())
+    try:
+        # send relayed message
+        bob_node.send_relay_message(alice_id, "hi alice")  # non blocking call
+        time.sleep(10)  # wait for it to be relayed
+        if alice_node.has_messages():
+            print(alice_node.get_messages())
 
-    # send relayed message
-    bob_node.send_relay_message(alice_id, "hi alice")  # non blocking call
-    time.sleep(10)  # wait for it to be relayed
-    if(alice_node.has_messages()):
-        print(alice_node.get_messages())
+        # send direct message
+        alice_node.send_direct_message(bob_id, "hi bob")  # blocking call
+        if bob_node.has_messages():
+            print(bob_node.get_messages())
 
-    # stop nodes
-    alice_node.stop()
-    bob_node.stop()
+    except TimeoutError:
+        print("Got timeout error")
+
+    finally:  # stop nodes
+        alice_node.stop()
+        bob_node.stop()
