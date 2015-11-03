@@ -15,7 +15,7 @@ from kademlia.crawling import NodeSpiderCrawl
 from crochet import TimeoutError
 
 
-TIMEOUT = 5.0
+TIMEOUT = 10.0
 
 
 class StorjServer(Server):
