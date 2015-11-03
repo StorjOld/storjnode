@@ -86,7 +86,7 @@ class StorjProtocol(KademliaProtocol):
             })
 
         # add to relay queue
-        elif hop_limit > 0 and hop_limit <= self.max_hop_limit:
+        elif 0 < hop_limit <= self.max_hop_limit:
             # FIXME only add if ownid between sender and dest
             queued = self.queue_relay_message({
                 "dest": dest_id, "message": message, "hop_limit": hop_limit - 1
