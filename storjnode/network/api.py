@@ -43,7 +43,7 @@ class BlockingNode(object):
         if port is None:
             port = random.choice(range(1024, 49151))  # randomish user port
         assert(isinstance(port, int))
-        assert(port >= 0 and port < 2**16)
+        assert(0 <= port < 2 ** 16)
         self.port = port
 
         # validate bootstrap_nodes
@@ -55,7 +55,7 @@ class BlockingNode(object):
             other_ip, other_port = address
             assert(valid_ip(other_ip))
             assert(isinstance(other_port, int))
-            assert(other_port >= 0 and other_port < 2**16)
+            assert(0 <= other_port < 2 ** 16)
 
         # start dht node
         self._server = StorjServer(key, storage=storage,

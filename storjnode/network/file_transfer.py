@@ -1,6 +1,7 @@
 """
 Issues:
-    * Multiple concurrent uploads and downloads for the same data can corrupt the data. The neeeds to be a check for this.
+    * Multiple concurrent uploads and downloads for the same data can corrupt
+      the data. There needs to be a check for this.
 """
 
 from .pyp2p.unl import UNL, is_valid_unl
@@ -17,6 +18,7 @@ import shutil
 import binascii
 import platform
 
+
 def process_transfers(client):
     # Process contract messages.
     if client.net.dht_node.has_messages():
@@ -32,24 +34,24 @@ def process_transfers(client):
         if con not in client.con_info:
             continue
 
-        #Anything left to do?
+        # Anything left to do?
         con_info = client.con_info[con]
         if not con_info["remaining"]:
             continue
 
-        #Upload.
+        # Upload.
         contract = client.contracts[con_info["contract_id"]]
         if client.net.unl == UNL(value=contract["host_unl"]):
             print("Uploading: Found our UNL")
 
-            #Get next chunk from file.
+            # Get next chunk from file.
             position = contract["file_size"] - con_info["remaining"]
             data_chunk = client.get_data_chunk(
                 contract["data_id"],
                 position
             )
 
-            #Upload chunk binary to socket.
+            # Upload chunk binary to socket.
             bytes_sent = con.send(data_chunk)
             print(bytes_sent)
             if bytes_sent:
@@ -57,19 +59,18 @@ def process_transfers(client):
         else:
             print("Attempting to download.")
 
-            #Download.
+            # Download.
             data = con.recv(
                 con_info["remaining"],
                 encoding="ascii"
             )
             print(con.connected)
 
-
             if len(data):
                 con_info["remaining"] -= len(data)
                 client.save_data_chunk(contract["data_id"], data)
 
-            #When done downloading close con.
+            # When done downloading close con.
             if not con_info["remaining"]:
                 # Remove that we're downloading this.
                 data_id = contract["data_id"]
@@ -85,16 +86,12 @@ def process_transfers(client):
                 # Transfer done: close it (like HTTP.)
                 con.close()
 
-def map_path(path):
-    return os.path.realpath \
-    (
-        os.path.expandvars \
-        (
-            os.path.expanduser(path)
-        )
-    )
 
-class FileTransfer():
+def map_path(path):
+    return os.path.realpath(os.path.expandvars(os.path.expanduser(path)))
+
+
+class FileTransfer:
     def __init__(self, net, wallet, storage_path=None, debug=1):
         # Accept direct connections.
         self.net = net
@@ -105,9 +102,9 @@ class FileTransfer():
 
         # Where will the data be stored?
         self.storage_path = storage_path
-        if self.storage_path == None:
+        if self.storage_path is None:
             if platform.system() == "Darwin":
-                self.storage_path  = "~/Library/Application Support/"
+                self.storage_path = "~/Library/Application Support/"
                 self.storage_path += "Storj/storage"
 
             if platform.system() == "Windows":
@@ -116,7 +113,7 @@ class FileTransfer():
             if platform.system() == "Linux":
                 self.storage_path = "~/.Storage/storage"
 
-        #Does the path exist? If not create it.
+        # Does the path exist? If not create it.
         self.storage_path = map_path(self.storage_path)
         if not os.path.isdir(self.storage_path):
             os.makedirs(self.storage_path)
@@ -157,7 +154,7 @@ class FileTransfer():
         )
 
         # Check all fields exist.
-        if not all (key in msg for key in syn_schema):
+        if not all(key in msg for key in syn_schema):
             self.debug_print("Missing required key.")
             return 0
 
@@ -171,7 +168,7 @@ class FileTransfer():
 
         # Check file size.
         file_size_type = type(msg[u"file_size"])
-        if sys.version_info >= (3,0,0):
+        if sys.version_info >= (3, 0, 0):
             expr = file_size_type != int
         else:
             expr = file_size_type != int and file_size_type != long
@@ -211,7 +208,7 @@ class FileTransfer():
         # Associate TCP con with contract.
         def success_wrapper(self, contract_id, host_unl):
             def success(con):
-                #Associate TCP con with contract.
+                # Associate TCP con with contract.
                 file_size = self.contracts[contract_id]["file_size"]
                 self.con_info[con] = {
                     "contract_id": contract_id,
@@ -380,7 +377,7 @@ class FileTransfer():
         )
 
     def contract_id(self, contract):
-        if sys.version_info >= (3,0,0):
+        if sys.version_info >= (3, 0, 0):
             contract = str(contract).encode("ascii")
         else:
             contract = str(contract)
@@ -388,7 +385,7 @@ class FileTransfer():
         return hashlib.sha256(contract).hexdigest()
 
     def sign_contract(self, contract):
-        if sys.version_info >= (3,0,0):
+        if sys.version_info >= (3, 0, 0):
             msg = str(contract).encode("ascii")
         else:
             msg = str(contract)
@@ -396,7 +393,7 @@ class FileTransfer():
         msg = binascii.hexlify(msg)
         sig = self.wallet.sign_data(self.wif, msg)
 
-        if sys.version_info >= (3,0,0):
+        if sys.version_info >= (3, 0, 0):
             contract[u"signature"] = sig.decode("utf-8")
         else:
             contract[u"signature"] = unicode(sig)
@@ -407,7 +404,7 @@ class FileTransfer():
         sig = contract[u"signature"][:]
         del contract[u"signature"]
 
-        if sys.version_info >= (3,0,0):
+        if sys.version_info >= (3, 0, 0):
             msg = str(contract).encode("ascii")
         else:
             msg = str(contract)
@@ -424,12 +421,12 @@ class FileTransfer():
         """
         Action = put (upload), get (download.)
         """
-        #Who is hosting this data?
+        # Who is hosting this data?
         if action == "upload":
-            #We store this data.
+            # We store this data.
             host_unl = self.net.unl.value
         else:
-            #They store the data.
+            # They store the data.
             host_unl = node_unl
             if data_id in self.downloading:
                 raise Exception("Already trying to download this.")
@@ -437,7 +434,7 @@ class FileTransfer():
                 self.downloading[data_id] = 1
 
         # Encoding.
-        if sys.version_info >= (3,0,0):
+        if sys.version_info >= (3, 0, 0):
             if type(data_id) == bytes:
                 data_id = data_id.decode("utf-8")
 
@@ -478,7 +475,7 @@ class FileTransfer():
 
     def hash_file(self, path):
         sha256 = hashlib.sha256()
-        buf_size = 1048576 #1 MB
+        buf_size = 1048576  # 1 MB
         with open(path, 'rb') as fp:
             while True:
                 data = fp.read(buf_size)
@@ -561,7 +558,6 @@ if __name__ == "__main__":
         2631451,
         bob.net.unl.value
     )
-
 
     # Main event loop.
     while 1:
