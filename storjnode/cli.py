@@ -11,7 +11,7 @@ import storjnode
 import btctxstore
 import sys
 import random
-from crochet import setup
+from crochet import setup, TimeoutError
 setup()  # start twisted via crochet
 
 
@@ -188,7 +188,7 @@ def _parse_args(args):
     return command, arguments
 
 
-def run(node, client, args):
+def command_run(node, client, args):
     args["id"] = binascii.hexlify(node.get_id())
     args["dht_port"] = node.port
     print("Running node on port {dht_port} with id {id}".format(**args))
@@ -207,17 +207,40 @@ def run(node, client, args):
         process_transfers(client)
 
 
-def direct_message(node, args):
-    peerid = binascii.unhexlify(args["id"])
-    result = node.send_direct_message(peerid, args["message"])
-    print("RESULT:", result)
-    print("Unsuccessfully sent!" if result is None else "Successfully sent!")
+def command_put(node, args):
+    try:
+        node[args["key"]] = args["value"]
+        print("Put '{key}' => '{value}'!".format(**args))
+    except TimeoutError:
+        print("Timeout error!")
 
 
-def relay_message(node, args):
+def command_get(node, args):
+    try:
+        value = node[args["key"]]
+        print("Got '{key}' => '{value}'!".format(key=args["key"],
+                                                 value=value))
+    except TimeoutError:
+        print("Timeout error!")
+
+
+def command_direct_message(node, args):
+    try:
+        peerid = binascii.unhexlify(args["id"])
+        result = node.send_direct_message(peerid, args["message"])
+        if result is None:
+            print("Unsuccessfully sent!")
+        else:
+            print("Successfully sent!")
+    except TimeoutError:
+        print("Timeout error!")
+
+
+def command_relay_message(node, args):
     peerid = binascii.unhexlify(args["id"])
     node.send_relay_message(peerid, args["message"])
     print("Queued relay message.")
+    time.sleep(5)  # give time for queue to be processed
 
 
 def _get_bootstrap_nodes(args):
@@ -234,20 +257,52 @@ def _get_node_key(args):
     return btctxstore.BtcTxStore().create_wallet()
 
 
-def main(args):
-    command, args = _parse_args(args)
+def command_showtype(node):
+    try:
+        print("Public node!" if node.has_public_ip() else "Private node!")
+    except TimeoutError:
+        print("Timeout error!")
 
-    # show version
-    if command == "version":
-        print("v{0}".format(storjnode.__version__))
-        return
 
-    # setup node
+def command_upload(client, args):
+    client.data_request(
+        "upload",
+        args["data_id"],
+        int(args["file_size"]),
+        args["node_unl"]
+    )
+
+    while 1:
+        time.sleep(0.5)
+        process_transfers(client)
+
+
+def command_download(client, args):
+    print(args["data_id"])
+    print(args["file_size"])
+    print(args["node_unl"])
+
+    client.data_request(
+        "download",
+        args["data_id"],
+        int(args["file_size"]),
+        args["node_unl"]
+    )
+
+    while 1:
+        time.sleep(0.5)
+        process_transfers(client)
+
+
+def setup_node(args):
     node_key = _get_node_key(args)
     dht_port = args["dht_port"]
     bootstrap_nodes = _get_bootstrap_nodes(args)
-    node = storjnode.network.BlockingNode(node_key, port=dht_port,
+    return storjnode.network.BlockingNode(node_key, port=dht_port,
                                           bootstrap_nodes=bootstrap_nodes)
+
+
+def setup_file_transfer_client(args):
 
     #Setup direct connect.
     wallet = btctxstore.BtcTxStore(testnet=True, dryrun=True)
@@ -264,73 +319,51 @@ def main(args):
     )
 
     #File transfer client.
-    client = FileTransfer(
+    return FileTransfer(
         net=direct_net,
         wallet=wallet,
         storage_path=args["storage_path"]
     )
 
-    print("Giving node 12sec to find peers ...")
-    time.sleep(12)
+
+def main(args):
+    command, args = _parse_args(args)
+
+    # show version
+    if command == "version":
+        print("v{0}".format(storjnode.__version__))
+        return
+
+    node = setup_node(args)
+    client = setup_file_transfer_client(args)
+
+    print("Giving node 120sec to find peers ...")
+    time.sleep(120)
 
     if command == "run":
-        run(node, client, args)
-
+        command_run(node, client, args)
     elif command == "put":
-        node[args["key"]] = args["value"]
-        print("Put '{key}' => '{value}'!".format(**args))
-
+        command_put(node, args)
     elif command == "get":
-        value = node[args["key"]]
-        print("Got '{key}' => '{value}'!".format(key=args["key"], value=value))
-
+        command_get(node, args)
     elif command == "direct_message":
-        direct_message(node, args)
-
+        command_direct_message(node, args)
     elif command == "relay_message":
-        relay_message(node, args)
-        time.sleep(5)  # give time for queue to be processed
-
+        command_relay_message(node, args)
     elif command == "showid":
         print("Node id: {0}".format(binascii.hexlify(node.get_id())))
-
     elif command == "showtype":
-        print("Public node!" if node.has_public_ip() else "Private node!")
+        command_showtype(node)
 
     # TCP networking / file transfer commands.
-    if command == "host_file":
+    elif command == "host_file":
         print(client.move_file_to_storage(args["path"]))
-
-    if command == "showunl":
-        print("UNL = " + direct_net.unl.value)
-
+    elif command == "showunl":
+        print("UNL = " + client.net.unl.value)
     elif command == "upload":
-        client.data_request(
-            "upload",
-            args["data_id"],
-            int(args["file_size"]),
-            args["node_unl"]
-        )
-
-        while 1:
-            time.sleep(0.5)
-            process_transfers(client)
-
+        command_upload(client, args)
     elif command == "download":
-        print(args["data_id"])
-        print(args["file_size"])
-        print(args["node_unl"])
-
-        client.data_request(
-            "download",
-            args["data_id"],
-            int(args["file_size"]),
-            args["node_unl"]
-        )
-
-        while 1:
-            time.sleep(0.5)
-            process_transfers(client)
+        command_download(client, args)
 
     print("Stopping node")
     client.net.stop()

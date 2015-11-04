@@ -15,7 +15,7 @@ from kademlia.crawling import NodeSpiderCrawl
 from crochet import TimeoutError
 
 
-TIMEOUT = 10.0
+TIMEOUT = 120.0
 
 
 class StorjServer(Server):
@@ -127,7 +127,7 @@ class StorjServer(Server):
             if dest.distanceTo(self.node) <= dest.distanceTo(relay_node):
                 msg = "Skipping %s, farther then self."  # pragma: no cover
                 self.log.debug(msg % repr(relay_node))  # pragma: no cover
-                continue  # pragma: no cover
+                continue
 
             # relay message
             hexid = binascii.hexlify(relay_node.id)
@@ -140,7 +140,7 @@ class StorjServer(Server):
             # wait for relay result
             try:
                 result = util.wait_for_defered(defered, timeout=TIMEOUT)
-            except TimeoutError:
+            except TimeoutError:  # pragma: no cover
                 msg = "Timeout while relayed message to %s"  # pragma: no cover
                 self.log.debug(msg % hexid)  # pragma: no cover
                 result = None  # pragma: no cover
