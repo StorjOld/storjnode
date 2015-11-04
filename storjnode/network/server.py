@@ -14,8 +14,8 @@ from kademlia.node import Node
 from kademlia.crawling import NodeSpiderCrawl
 from crochet import TimeoutError
 
-
-TIMEOUT = 120.0
+QUERY_TIMEOUT = 5.0
+WALK_TIMEOUT = QUERY_TIMEOUT * 32
 
 
 class StorjServer(Server):
@@ -139,7 +139,7 @@ class StorjServer(Server):
 
             # wait for relay result
             try:
-                result = util.wait_for_defered(defered, timeout=TIMEOUT)
+                result = util.wait_for_defered(defered, timeout=QUERY_TIMEOUT)
             except TimeoutError:  # pragma: no cover
                 msg = "Timeout while relayed message to %s"  # pragma: no cover
                 self.log.debug(msg % hexid)  # pragma: no cover

@@ -20,7 +20,7 @@ bob_node = storjnode.network.BlockingNode(
 )
 
 print("Giving nodes some time to find peers.")
-time.sleep(60)
+time.sleep(120)
 
 try:
     # send relayed message (non blocking call)
