@@ -81,7 +81,7 @@ class BlockingNode(object):
         The may false positive if you run other nodes on your local network.
 
         Raises:
-            crochet.TimeoutError if call exceeds storjnode.network.TIMEOUT
+            crochet.TimeoutError if exceeds storjnode.network.server.TIMEOUT
         """
         return self._server.has_public_ip()
 
@@ -134,7 +134,7 @@ class BlockingNode(object):
             Own transport address (ip, port) if successfull else None
 
         Raises:
-            crochet.TimeoutError if call exceeds storjnode.network.TIMEOUT
+            crochet.TimeoutError if exceeds storjnode.network.server.TIMEOUT
         """
         return self._server.send_direct_message(nodeid, message)
 
@@ -150,7 +150,7 @@ class BlockingNode(object):
         """x.__setitem__(i, y) <==> x[i]=y
         
         Raises:
-            crochet.TimeoutError if call exceeds storjnode.network.TIMEOUT
+            crochet.TimeoutError if exceeds storjnode.network.server.TIMEOUT
         """
         self._server.set(key, value)
 
@@ -159,7 +159,7 @@ class BlockingNode(object):
         """D.get(k[,d]) -> D[k] if k in D, else d.  d defaults to None.
         
         Raises:
-            crochet.TimeoutError if call exceeds storjnode.network.TIMEOUT
+            crochet.TimeoutError if exceeds storjnode.network.server.TIMEOUT
         """
         # FIXME return default if not found (add to kademlia)
         return self._server.get(key)

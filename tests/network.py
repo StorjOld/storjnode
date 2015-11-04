@@ -1,18 +1,3 @@
-# start twisted
-from crochet import setup
-setup()
-
-# make twisted use standard library logging module
-from twisted.python import log
-observer = log.PythonLoggingObserver()
-observer.start()
-
-# setup standard logging module
-import logging
-LOG_FORMAT = "%(levelname)s %(name)s %(lineno)d: %(message)s"
-logging.basicConfig(format=LOG_FORMAT, level=logging.DEBUG)
-
-
 import os
 import time
 import binascii
@@ -20,6 +5,8 @@ import random
 import unittest
 import btctxstore
 import storjnode
+from crochet import setup
+setup()  # start twisted via crochet
 
 
 TEST_MESSAGE_TIMEOUT = 5
@@ -130,6 +117,27 @@ class TestBlockingNode(unittest.TestCase):
 
         time.sleep(2)  # wait for it to be relayed
 
+    def test_relay_message_full_duplex(self):
+        alice_node = storjnode.network.BlockingNode(
+            self.__class__.btctxstore.create_key(),
+            bootstrap_nodes=[("240.0.0.0", 1337)]
+        )
+        bob_node = storjnode.network.BlockingNode(
+            self.__class__.btctxstore.create_key(),
+            bootstrap_nodes=[("127.0.0.1", alice_node.port)]
+        )
+        time.sleep(10)
+        try:
+            alice_node.send_relay_message(bob_node.get_id(), "hi bob")
+            time.sleep(10)  # wait for it to be relayed
+            self.assertTrue(bob_node.has_messages())
+            bob_node.send_relay_message(alice_node.get_id(), "hi alice")
+            time.sleep(10)  # wait for it to be relayed
+            self.assertTrue(alice_node.has_messages())
+        finally:
+            alice_node.stop()
+            bob_node.stop()
+
     #########################
     # test direct messaging #
     #########################
@@ -203,15 +211,36 @@ class TestBlockingNode(unittest.TestCase):
         time.sleep(TEST_MESSAGE_TIMEOUT + 1)  # wait until stale
         self.assertFalse(receiver.has_messages())  # check message was dropped
 
-    @unittest.skip("causes tests to not finish")  # FIXME make it work!
     def test_direct_message_to_void(self):  # for coverage
-        isolated_peer = storjnode.network.BlockingNode(
+        peer = storjnode.network.BlockingNode(
             self.__class__.btctxstore.create_wallet(),
-            bootstrap_nodes=[("240.0.0.0", 1337)],
+            bootstrap_nodes=[("240.0.0.0", 1337)],  # isolated peer
         )
-        void_id = b"void" * 5
-        result = isolated_peer.send_direct_message(void_id, "into the void")
-        self.assertTrue(result is None)
+        try:
+            void_id = b"void" * 5
+            result = peer.send_direct_message(void_id, "into the void")
+            self.assertTrue(result is None)
+        finally:
+            peer.stop()
+
+    def test_direct_message_full_duplex(self):
+        alice_node = storjnode.network.BlockingNode(
+            self.__class__.btctxstore.create_key(),
+            bootstrap_nodes=[("240.0.0.0", 1337)]
+        )
+        bob_node = storjnode.network.BlockingNode(
+            self.__class__.btctxstore.create_key(),
+            bootstrap_nodes=[("127.0.0.1", alice_node.port)]
+        )
+        time.sleep(10)
+        try:
+            alice_node.send_direct_message(bob_node.get_id(), "hi bob")
+            self.assertTrue(bob_node.has_messages())
+            bob_node.send_direct_message(alice_node.get_id(), "hi alice")
+            self.assertTrue(alice_node.has_messages())
+        finally:
+            alice_node.stop()
+            bob_node.stop()
 
     def test_max_received_messages(self):
         sender = self.swarm[0]
@@ -222,7 +251,6 @@ class TestBlockingNode(unittest.TestCase):
         message_a = binascii.hexlify(os.urandom(32))
         message_b = binascii.hexlify(os.urandom(32))
         message_c = binascii.hexlify(os.urandom(32))
-
 
         result = sender.send_direct_message(receiver_id, message_a)
         self.assertTrue(result is not None)
@@ -235,7 +263,6 @@ class TestBlockingNode(unittest.TestCase):
         self.assertEqual(len(received), 2)
         self.assertTrue(received[0]["message"] in [message_a, message_b])
         self.assertTrue(received[1]["message"] in [message_a, message_b])
-
 
     ###############################
     # test distributed hash table #

@@ -125,6 +125,8 @@ class StorjServer(Server):
 
             # do not relay away from node
             if dest.distanceTo(self.node) <= dest.distanceTo(relay_node):
+                msg = "Skipping %s, farther then self."  # pragma: no cover
+                self.log.debug(msg % repr(relay_node))  # pragma: no cover
                 continue  # pragma: no cover
 
             # relay message
@@ -139,8 +141,9 @@ class StorjServer(Server):
             try:
                 result = util.wait_for_defered(defered, timeout=TIMEOUT)
             except TimeoutError:
-                self.log.debug("Timeout while relayed message to %s" % hexid)
-                result = None
+                msg = "Timeout while relayed message to %s"  # pragma: no cover
+                self.log.debug(msg % hexid)  # pragma: no cover
+                result = None  # pragma: no cover
 
             # successfull relay
             if result is not None:

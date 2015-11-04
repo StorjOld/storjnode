@@ -252,7 +252,8 @@ def main(args):
     #Setup direct connect.
     wallet = btctxstore.BtcTxStore(testnet=True, dryrun=True)
     if args["passive_port"] is None:
-        passive_port = random.randport(4000, 68000)
+        #passive_port = random.randport(4000, 68000)
+        passive_port = random.choice(range(1024, 49151))  # randomish user port
     else:
         passive_port = args["passive_port"]
     direct_net = Net(
