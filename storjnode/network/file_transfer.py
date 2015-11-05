@@ -48,11 +48,7 @@ def process_transfers(client):
             continue
 
         # Anything left to do?
-<<<<<<< HEAD
         con_info = client.con_info[con][contract_id]
-=======
-        con_info = client.con_info[con]
->>>>>>> eaefdea82575fbc746c4ebe8b85dc4f9aa868ff1
         if not con_info["remaining"]:
             print("Skipping remaining.")
             continue
