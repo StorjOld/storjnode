@@ -1,4 +1,6 @@
+import binascii
 import random
+from graphviz import Digraph
 from crochet import wait_for
 from storjnode.util import valid_ip
 from storjnode.network.server import StorjServer, QUERY_TIMEOUT, WALK_TIMEOUT
@@ -17,18 +19,36 @@ DEFAULT_BOOTSTRAP_NODES = [
 ]
 
 
+def generate_graph(nodes, name):
+    network = dict(map(lambda n: (n.get_hex_id(), n.get_known_peers()), nodes))
+    dot = Digraph(comment=name, engine="circo")
+
+    # add nodes
+    for node in network.keys():
+        dot.node(node, node)
+
+    # add connections
+    for node, peers in network.items():
+        for peer in peers:
+            dot.edge(node, peer, constraint='false')
+
+    # render graph
+    dot.render('%s.gv' % name, view=True)
+
+
 class BlockingNode(object):
     """Blocking storj network layer implementation.
 
     DHT functions like a dict and all calls are blocking for ease of use.
     """
 
-    def __init__(self, key, port=None, bootstrap_nodes=None,
+    def __init__(self, key, ksize=20, port=None, bootstrap_nodes=None,
                  storage=None, message_timeout=30, max_messages=1024):
         """Create a blocking storjnode instance.
 
         Args:
             key: Bitcoin wif/hwif to use for auth, encryption and node id.
+            ksize (int): The k parameter from the kademlia paper
             port: Port to use for incoming packages, randomly by default.
             bootstrap_nodes: Known network node addresses as [(ip, port), ...]
             storage: implements :interface:`~kademlia.storage.IStorage`
@@ -59,12 +79,16 @@ class BlockingNode(object):
             assert(0 <= other_port < 2 ** 16)
 
         # start dht node
-        self._server = StorjServer(key, storage=storage,
+        self._server = StorjServer(key, ksize=ksize, storage=storage,
                                    message_timeout=message_timeout,
                                    max_messages=max_messages)
         self._server.listen(self.port)
-        if len(bootstrap_nodes) > 0:
-            self._server.bootstrap(bootstrap_nodes)
+        self._server.bootstrap(bootstrap_nodes)
+
+    def get_known_peers(self):
+        """Returns list of hex encoded node ids."""
+        peers = list(self._server.get_known_peers())
+        return list(map(lambda n: binascii.hexlify(n.id), peers))
 
     def stop(self):
         """Stop storj node."""
@@ -73,6 +97,9 @@ class BlockingNode(object):
     def get_id(self):
         """Returns 160bit node id as bytes."""
         return self._server.get_id()
+
+    def get_hex_id(self):
+        return self._server.get_hex_id()
 
     @wait_for(timeout=QUERY_TIMEOUT)
     def has_public_ip(self):

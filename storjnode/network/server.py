@@ -4,6 +4,7 @@ import btctxstore
 import binascii
 import logging
 from storjnode import util
+from kademlia.routing import TableTraverser
 from storjnode.network.protocol import StorjProtocol
 from twisted.internet import defer
 from pycoin.encoding import a2b_hashed_base58
@@ -14,8 +15,9 @@ from kademlia.node import Node
 from kademlia.crawling import NodeSpiderCrawl
 from crochet import TimeoutError
 
+
 QUERY_TIMEOUT = 5.0
-WALK_TIMEOUT = QUERY_TIMEOUT * 32
+WALK_TIMEOUT = QUERY_TIMEOUT * 24
 
 
 class StorjServer(Server):
@@ -76,6 +78,10 @@ class StorjServer(Server):
     def get_id(self):
         address = self._btctxstore.get_address(self._key)
         return a2b_hashed_base58(address)[1:]  # remove network prefix
+
+    def get_known_peers(self):
+        """Returns list of known node."""
+        return TableTraverser(self.protocol.router, self.node)
 
     def has_messages(self):
         return self.protocol.has_messages()
@@ -190,7 +196,8 @@ class StorjServer(Server):
         def found_callback(nodes):
             nodes = filter(lambda n: n.id == nodeid, nodes)
             if len(nodes) == 0:
-                self.log.debug("Couldnt find destination node.")
+                msg = "{0} couldn't find destination node {1}"
+                self.log.warning(msg.format(self.get_hex_id(), hexid))
                 return defer.succeed(None)
             else:
                 self.log.debug("found node %s" % binascii.hexlify(nodes[0].id))
@@ -200,11 +207,15 @@ class StorjServer(Server):
         node = Node(nodeid)
         nearest = self.protocol.router.findNeighbors(node)
         if len(nearest) == 0:
-            self.log.warning("No known neighbors to find %s" % hexid)
+            msg = "{0} has no known neighbors to find {1}"
+            self.log.warning(msg.format(self.get_hex_id(), hexid))
             return defer.succeed(None)
         spider = NodeSpiderCrawl(self.protocol, node, nearest,
                                  self.ksize, self.alpha)
         return spider.find().addCallback(found_callback)
+
+    def get_hex_id(self):
+        return binascii.hexlify(self.get_id())
 
     def has_public_ip(self):
         def handle(ips):
