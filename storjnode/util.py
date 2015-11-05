@@ -1,6 +1,25 @@
 import os
 import socket
 import threading
+from crochet import wait_for
+
+
+def wait_for_defered(defered, timeout=5.0):
+    """ Wait until defered resolves or fail if timeout exceeded.
+
+    A simple wrapper around crochet.wait_for.
+
+    Args:
+        defered: twisted.internet.defer.Deferred to wait for
+        timeout: time in seconds to wait befor call fails
+
+    Raises:
+        crochet.TimeoutError if call exceeds given timeout
+    """
+    @wait_for(timeout=timeout)
+    def callback():
+        return defered
+    return callback()
 
 
 def empty_queue(queue):
@@ -8,30 +27,6 @@ def empty_queue(queue):
     while not queue.empty():
         result.append(queue.get())
     return result
-
-
-def blocking_call(async_func, *args, **kwargs):
-    """Converts an async function call into a synchronous blocking call.
-
-    Arags:
-        async_func: function that returns a twisted.internet.defer.Deferred
-        *args: async function arguments
-        **kwargs: async funtion keyword arguments
-
-    Returns: Result of the async_func function call.
-    """
-    # FIXME replace usage with crochet calls
-    finished = threading.Event()
-    return_values = []
-
-    def callback(*args, **kwargs):
-        assert(len(args) == 1)
-        return_values.append(args[0])
-        finished.set()
-
-    async_func(*args, **kwargs).addCallback(callback)
-    finished.wait()  # block until callback called
-    return return_values[0] if len(return_values) == 1 else None
 
 
 def get_inet_facing_ip():
@@ -42,8 +37,9 @@ def get_inet_facing_ip():
             [[(s.connect(('8.8.8.8', 80)), s.getsockname()[0], s.close())
                 for s in [socket.socket(
                     socket.AF_INET, socket.SOCK_DGRAM)]][0][1]]) if l][0][0]
-    except:  # inet not reachable
-        return None  # NOQA
+    except:  # pragma: no cover
+        # inet not reachable
+        return None  # pragma: no cover
 
 
 def valid_ipv4(ip):

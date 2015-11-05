@@ -12,6 +12,10 @@ from kademlia.storage import ForgetfulStorage
 from twisted.internet.task import LoopingCall
 from kademlia.node import Node
 from kademlia.crawling import NodeSpiderCrawl
+from crochet import TimeoutError
+
+QUERY_TIMEOUT = 5.0
+WALK_TIMEOUT = QUERY_TIMEOUT * 32
 
 
 class StorjServer(Server):
@@ -94,16 +98,19 @@ class StorjServer(Server):
         Args:
             nodeid: 160bit nodeid of the reciever as bytes
             message: iu-msgpack-python serializable message data
+
+        Returns:
+            True if message was added to relay queue, otherwise False.
         """
         hexid = binascii.hexlify(nodeid)
 
         if nodeid == self.node.id:
             self.log.info("Dropping message to self.")
-            return
+            return False
 
         # add to message relay queue
         self.log.debug("Queuing relay messaging for %s: %s" % (hexid, message))
-        self.protocol.queue_relay_message({
+        return self.protocol.queue_relay_message({
             "dest": nodeid, "message": message,
             "hop_limit": self._default_hop_limit
         })
@@ -111,27 +118,39 @@ class StorjServer(Server):
     def _relay_message(self, entry):
         """Returns entry if failed to relay to a closer node or None"""
 
-        dest_node = Node(entry["dest"])
-        nearest = self.protocol.router.findNeighbors(dest_node,
-                                                     exclude=self.node)
+        dest = Node(entry["dest"])
+        nearest = self.protocol.router.findNeighbors(dest, exclude=self.node)
         self.log.debug("Relaying to nearest: %s" % repr(nearest))
         for relay_node in nearest:
-            dist_self = dest_node.distanceTo(self.node)
-            dist_relay = dest_node.distanceTo(relay_node)
-            if dist_self <= dist_relay:  # do not relay away from node
-                continue  # NOQA
 
+            # do not relay away from node
+            if dest.distanceTo(self.node) <= dest.distanceTo(relay_node):
+                msg = "Skipping %s, farther then self."  # pragma: no cover
+                self.log.debug(msg % repr(relay_node))  # pragma: no cover
+                continue
+
+            # relay message
             hexid = binascii.hexlify(relay_node.id)
             self.log.debug("Attempting to relay message for %s" % hexid)
             defered = self.protocol.callRelayMessage(
                 relay_node, entry["dest"], entry["hop_limit"], entry["message"]
             )
             defered = defered.addCallback(lambda r: r[0] and r[1] or None)
-            result = util.blocking_call(lambda: defered)
+
+            # wait for relay result
+            try:
+                result = util.wait_for_defered(defered, timeout=QUERY_TIMEOUT)
+            except TimeoutError:  # pragma: no cover
+                msg = "Timeout while relayed message to %s"  # pragma: no cover
+                self.log.debug(msg % hexid)  # pragma: no cover
+                result = None  # pragma: no cover
+
+            # successfull relay
             if result is not None:
                 self.log.debug("Successfully relayed message to %s" % hexid)
                 return  # relay to nearest peer, avoid amplification attacks
 
+        # failed to relay message
         dest_hexid = binascii.hexlify(entry["dest"])
         self.log.debug("Failed to relay message for %s" % dest_hexid)
 

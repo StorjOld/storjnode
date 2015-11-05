@@ -1,6 +1,7 @@
 import random
-from storjnode.util import valid_ip, blocking_call
-from storjnode.network.server import StorjServer
+from crochet import wait_for
+from storjnode.util import valid_ip
+from storjnode.network.server import StorjServer, QUERY_TIMEOUT, WALK_TIMEOUT
 
 
 DEFAULT_BOOTSTRAP_NODES = [
@@ -40,22 +41,22 @@ class BlockingNode(object):
         assert(isinstance(max_messages, int))
 
         # validate port
-        if port is None:
-            port = random.choice(range(1024, 49151))  # randomish user port
+        if port is None:  # randomish user port by default
+            port = random.choice(range(1024, 49151))  # pragma: no cover
         assert(isinstance(port, int))
-        assert(port >= 0 and port < 2**16)
+        assert(0 <= port < 2 ** 16)
         self.port = port
 
         # validate bootstrap_nodes
         if bootstrap_nodes is None:
-            bootstrap_nodes = DEFAULT_BOOTSTRAP_NODES  # NOQA
+            bootstrap_nodes = DEFAULT_BOOTSTRAP_NODES  # pragma: no cover
         for address in bootstrap_nodes:
             assert(isinstance(address, tuple) or isinstance(address, list))
             assert(len(address) == 2)
             other_ip, other_port = address
             assert(valid_ip(other_ip))
             assert(isinstance(other_port, int))
-            assert(other_port >= 0 and other_port < 2**16)
+            assert(0 <= other_port < 2 ** 16)
 
         # start dht node
         self._server = StorjServer(key, storage=storage,
@@ -73,12 +74,16 @@ class BlockingNode(object):
         """Returns 160bit node id as bytes."""
         return self._server.get_id()
 
+    @wait_for(timeout=QUERY_TIMEOUT)
     def has_public_ip(self):
         """Returns True if local IP is internet visible, otherwise False.
 
         The may false positive if you run other nodes on your local network.
+
+        Raises:
+            crochet.TimeoutError after storjnode.network.server.QUERY_TIMEOUT
         """
-        return blocking_call(self._server.has_public_ip)
+        return self._server.has_public_ip()
 
     def has_messages(self):
         """Returns True if this node has received messages."""
@@ -107,9 +112,13 @@ class BlockingNode(object):
         Args:
             nodeid: 160bit nodeid of the reciever as bytes
             message: iu-msgpack-python serializable message data
-        """
-        self._server.send_relay_message(nodeid, message)
 
+        Returns:
+            True if message was added to relay queue, otherwise False.
+        """
+        return self._server.send_relay_message(nodeid, message)
+
+    @wait_for(timeout=WALK_TIMEOUT)
     def send_direct_message(self, nodeid, message):
         """Send direct message to a node.
 
@@ -123,9 +132,11 @@ class BlockingNode(object):
 
         Returns:
             Own transport address (ip, port) if successfull else None
+
+        Raises:
+            crochet.TimeoutError after storjnode.network.server.WALK_TIMEOUT
         """
-        async_method = self._server.send_direct_message
-        return blocking_call(async_method, nodeid, message)
+        return self._server.send_direct_message(nodeid, message)
 
     def __getitem__(self, key):
         """x.__getitem__(y) <==> x[y]"""
@@ -134,14 +145,24 @@ class BlockingNode(object):
             raise result
         return result
 
+    @wait_for(timeout=WALK_TIMEOUT)
     def __setitem__(self, key, value):
-        """x.__setitem__(i, y) <==> x[i]=y"""
-        blocking_call(self._server.set, key, value)
+        """x.__setitem__(i, y) <==> x[i]=y
 
+        Raises:
+            crochet.TimeoutError after storjnode.network.server.WALK_TIMEOUT
+        """
+        self._server.set(key, value)
+
+    @wait_for(timeout=WALK_TIMEOUT)
     def get(self, key, default=None):
-        """D.get(k[,d]) -> D[k] if k in D, else d.  d defaults to None."""
+        """D.get(k[,d]) -> D[k] if k in D, else d.  d defaults to None.
+
+        Raises:
+            crochet.TimeoutError after storjnode.network.server.WALK_TIMEOUT
+        """
         # FIXME return default if not found (add to kademlia)
-        return blocking_call(self._server.get, key)
+        return self._server.get(key)
 
     def __contains__(self, k):
         """D.__contains__(k) -> True if D has a key k, else False"""
@@ -178,92 +199,92 @@ class BlockingNode(object):
 
     def values(self):
         """Not implemented by design, keyset to big."""
-        raise NotImplementedError("Not implemented by design, keyset to big.")
+        raise NotImplementedError()  # pragma: no cover
 
     def viewitems(self):
         """Not implemented by design, keyset to big."""
-        raise NotImplementedError("Not implemented by design, keyset to big.")
+        raise NotImplementedError()  # pragma: no cover
 
     def viewkeys(self):
         """Not implemented by design, keyset to big."""
-        raise NotImplementedError("Not implemented by design, keyset to big.")
+        raise NotImplementedError()  # pragma: no cover
 
     def viewvalues(self):
         """Not implemented by design, keyset to big."""
-        raise NotImplementedError("Not implemented by design, keyset to big.")
+        raise NotImplementedError()  # pragma: no cover
 
     def __cmp__(self, other):
         """Not implemented by design, keyset to big."""
-        raise NotImplementedError("Not implemented by design, keyset to big.")
+        raise NotImplementedError()  # pragma: no cover
 
     def __eq__(self, other):
         """Not implemented by design, keyset to big."""
-        raise NotImplementedError("Not implemented by design, keyset to big.")
+        raise NotImplementedError()  # pragma: no cover
 
     def __ge__(self, other):
         """Not implemented by design, keyset to big."""
-        raise NotImplementedError("Not implemented by design, keyset to big.")
+        raise NotImplementedError()  # pragma: no cover
 
     def __gt__(self, other):
         """Not implemented by design, keyset to big."""
-        raise NotImplementedError("Not implemented by design, keyset to big.")
+        raise NotImplementedError()  # pragma: no cover
 
     def __le__(self, other):
         """Not implemented by design, keyset to big."""
-        raise NotImplementedError("Not implemented by design, keyset to big.")
+        raise NotImplementedError()  # pragma: no cover
 
     def __len__(self):
         """Not implemented by design, keyset to big."""
-        raise NotImplementedError("Not implemented by design, keyset to big.")
+        raise NotImplementedError()  # pragma: no cover
 
     def __lt__(self, other):
         """Not implemented by design, keyset to big."""
-        raise NotImplementedError("Not implemented by design, keyset to big.")
+        raise NotImplementedError()  # pragma: no cover
 
     def __ne__(self, other):
         """Not implemented by design, keyset to big."""
-        raise NotImplementedError("Not implemented by design, keyset to big.")
+        raise NotImplementedError()  # pragma: no cover
 
     def clear(self):
         """Not implemented by design, keyset to big."""
-        raise NotImplementedError("Not implemented by design, keyset to big.")
+        raise NotImplementedError()  # pragma: no cover
 
     def copy(self):
         """Not implemented by design, keyset to big."""
-        raise NotImplementedError("Not implemented by design, keyset to big.")
+        raise NotImplementedError()  # pragma: no cover
 
     def items(self):
         """Not implemented by design, keyset to big."""
-        raise NotImplementedError("Not implemented by design, keyset to big.")
+        raise NotImplementedError()  # pragma: no cover
 
     def iteritems(self):
         """Not implemented by design, keyset to big."""
-        raise NotImplementedError("Not implemented by design, keyset to big.")
+        raise NotImplementedError()  # pragma: no cover
 
     def iterkeys(self):
         """Not implemented by design, keyset to big."""
-        raise NotImplementedError("Not implemented by design, keyset to big.")
+        raise NotImplementedError()  # pragma: no cover
 
     def itervalues(self):
         """Not implemented by design, keyset to big."""
-        raise NotImplementedError("Not implemented by design, keyset to big.")
+        raise NotImplementedError()  # pragma: no cover
 
     def keys(self):
         """Not implemented by design, keyset to big."""
-        raise NotImplementedError("Not implemented by design, keyset to big.")
+        raise NotImplementedError()  # pragma: no cover
 
     def __iter__(self):
         """Not implemented by design, keyset to big."""
-        raise NotImplementedError("Not implemented by design, keyset to big.")
+        raise NotImplementedError()  # pragma: no cover
 
     def __delitem__(self, y):
         """Not implemented by design, write only."""
-        raise NotImplementedError("Not implemented by design, write only.")
+        raise NotImplementedError()  # pragma: no cover
 
     def pop(self, k, d=None):
         """Not implemented by design, write only."""
-        raise NotImplementedError("Not implemented by design, write only.")
+        raise NotImplementedError()  # pragma: no cover
 
     def popitem(self):
         """Not implemented by design, write only."""
-        raise NotImplementedError("Not implemented by design, write only.")
+        raise NotImplementedError()  # pragma: no cover

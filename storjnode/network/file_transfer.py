@@ -19,6 +19,7 @@ import shutil
 import binascii
 import platform
 
+
 def process_transfers(client):
     # Process contract messages.
     if client.net.dht_node.has_messages():
@@ -47,7 +48,11 @@ def process_transfers(client):
             continue
 
         # Anything left to do?
+<<<<<<< HEAD
         con_info = client.con_info[con][contract_id]
+=======
+        con_info = client.con_info[con]
+>>>>>>> eaefdea82575fbc746c4ebe8b85dc4f9aa868ff1
         if not con_info["remaining"]:
             print("Skipping remaining.")
             continue
@@ -83,7 +88,6 @@ def process_transfers(client):
             )
             print(con.connected)
 
-
             if len(data):
                 con_info["remaining"] -= len(data)
                 client.save_data_chunk(contract["data_id"], data)
@@ -106,16 +110,12 @@ def process_transfers(client):
 
 
 
-def map_path(path):
-    return os.path.realpath \
-    (
-        os.path.expandvars \
-        (
-            os.path.expanduser(path)
-        )
-    )
 
-class FileTransfer():
+def map_path(path):
+    return os.path.realpath(os.path.expandvars(os.path.expanduser(path)))
+
+
+class FileTransfer:
     def __init__(self, net, wallet, storage_path=None, debug=1):
         # Accept direct connections.
         self.net = net
@@ -126,9 +126,9 @@ class FileTransfer():
 
         # Where will the data be stored?
         self.storage_path = storage_path
-        if self.storage_path == None:
+        if self.storage_path is None:
             if platform.system() == "Darwin":
-                self.storage_path  = "~/Library/Application Support/"
+                self.storage_path = "~/Library/Application Support/"
                 self.storage_path += "Storj/storage"
 
             if platform.system() == "Windows":
@@ -137,7 +137,7 @@ class FileTransfer():
             if platform.system() == "Linux":
                 self.storage_path = "~/.Storage/storage"
 
-        #Does the path exist? If not create it.
+        # Does the path exist? If not create it.
         self.storage_path = map_path(self.storage_path)
         if not os.path.isdir(self.storage_path):
             os.makedirs(self.storage_path)
@@ -194,7 +194,7 @@ class FileTransfer():
         )
 
         # Check all fields exist.
-        if not all (key in msg for key in syn_schema):
+        if not all(key in msg for key in syn_schema):
             self.debug_print("Missing required key.")
             return 0
 
@@ -208,7 +208,7 @@ class FileTransfer():
 
         # Check file size.
         file_size_type = type(msg[u"file_size"])
-        if sys.version_info >= (3,0,0):
+        if sys.version_info >= (3, 0, 0):
             expr = file_size_type != int
         else:
             expr = file_size_type != int and file_size_type != long
@@ -430,7 +430,7 @@ class FileTransfer():
         )
 
     def contract_id(self, contract):
-        if sys.version_info >= (3,0,0):
+        if sys.version_info >= (3, 0, 0):
             contract = str(contract).encode("ascii")
         else:
             contract = str(contract)
@@ -438,7 +438,7 @@ class FileTransfer():
         return hashlib.sha256(contract).hexdigest()
 
     def sign_contract(self, contract):
-        if sys.version_info >= (3,0,0):
+        if sys.version_info >= (3, 0, 0):
             msg = str(contract).encode("ascii")
         else:
             msg = str(contract)
@@ -446,7 +446,7 @@ class FileTransfer():
         msg = binascii.hexlify(msg)
         sig = self.wallet.sign_data(self.wif, msg)
 
-        if sys.version_info >= (3,0,0):
+        if sys.version_info >= (3, 0, 0):
             contract[u"signature"] = sig.decode("utf-8")
         else:
             contract[u"signature"] = unicode(sig)
@@ -457,7 +457,7 @@ class FileTransfer():
         sig = contract[u"signature"][:]
         del contract[u"signature"]
 
-        if sys.version_info >= (3,0,0):
+        if sys.version_info >= (3, 0, 0):
             msg = str(contract).encode("ascii")
         else:
             msg = str(contract)
@@ -474,18 +474,18 @@ class FileTransfer():
         """
         Action = put (upload), get (download.)
         """
-        #Who is hosting this data?
+        # Who is hosting this data?
         if action == "upload":
-            #We store this data.
+            # We store this data.
             host_unl = self.net.unl.value
         else:
-            #They store the data.
+            # They store the data.
             host_unl = node_unl
             if data_id in self.downloading:
                 raise Exception("Already trying to download this.")
 
         # Encoding.
-        if sys.version_info >= (3,0,0):
+        if sys.version_info >= (3, 0, 0):
             if type(data_id) == bytes:
                 data_id = data_id.decode("utf-8")
 
@@ -526,7 +526,7 @@ class FileTransfer():
 
     def hash_file(self, path):
         sha256 = hashlib.sha256()
-        buf_size = 1048576 #1 MB
+        buf_size = 1048576  # 1 MB
         with open(path, 'rb') as fp:
             while True:
                 data = fp.read(buf_size)
@@ -621,6 +621,7 @@ if __name__ == "__main__":
         2631451,
         bob.net.unl.value
     )
+
 
 
     """

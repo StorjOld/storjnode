@@ -56,6 +56,7 @@ setup: virtualenv
 	$(PIP) install $(WHEEL_INSTALL_ARGS) -r requirements.txt
 	$(PIP) install $(WHEEL_INSTALL_ARGS) -r test_requirements.txt
 	$(PIP) install $(WHEEL_INSTALL_ARGS) -r develop_requirements.txt
+	$(PY) setup.py install
 
 
 shell: setup
@@ -64,10 +65,6 @@ shell: setup
 
 test: setup
 	$(PY) -m unittest tests
-
-
-install: test
-	$(PY) setup.py install
 
 
 publish: test
