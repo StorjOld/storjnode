@@ -1,11 +1,13 @@
 """
 Issues:
-    * Multiple concurrent uploads and downloads for the same data can corrupt the data. The neeeds to be a check for this.
+    * Delete con_info and con_transfers when con is closed
+    * Should contract also be deleted when its transfered? Prob
 """
 
-from .pyp2p.unl import UNL, is_valid_unl
-from .pyp2p.net import Net
-from .pyp2p.dht_msg import DHT
+import pyp2p.unl
+import pyp2p.net
+import pyp2p.dht_msg
+
 from collections import OrderedDict
 from btctxstore import BtcTxStore
 import time
@@ -28,36 +30,53 @@ def process_transfers(client):
     for con in client.net:
         print("In con.")
 
-        # This is a new connection.
+        # This is an new (or old) connection.
         if con not in client.con_info:
+            print("Con not in con_info")
             continue
 
-        #Anything left to do?
-        con_info = client.con_info[con]
+        # Get active contract ID.
+        if con not in client.con_transfer:
+            client.con_transfer[con] = u""
+        contract_id = client.con_transfer[con]
+        if len(contract_id) < 64:
+            remaining = 64 - len(contract_id)
+            partial = con.recv(remaining)
+            client.con_transfer[con] += partial
+            print("Skipping contract id.")
+            continue
+
+        # Anything left to do?
+        con_info = client.con_info[con][contract_id]
         if not con_info["remaining"]:
+            print("Skipping remaining.")
             continue
 
-        #Upload.
-        contract = client.contracts[con_info["contract_id"]]
-        if client.net.unl == UNL(value=contract["host_unl"]):
+        # Upload.
+        contract = client.contracts[contract_id]
+        if client.net.unl == pyp2p.unl.UNL(value=contract["host_unl"]):
             print("Uploading: Found our UNL")
 
-            #Get next chunk from file.
+            # Get next chunk from file.
             position = contract["file_size"] - con_info["remaining"]
             data_chunk = client.get_data_chunk(
                 contract["data_id"],
                 position
             )
 
-            #Upload chunk binary to socket.
+            # Upload chunk binary to socket.
             bytes_sent = con.send(data_chunk)
             print(bytes_sent)
             if bytes_sent:
                 con_info["remaining"] -= bytes_sent
+
+            # Everything uploaded.
+            if not con_info["remaining"]:
+                client.queue_next_upload(con)
         else:
             print("Attempting to download.")
 
-            #Download.
+            # Download.
             data = con.recv(
                 con_info["remaining"],
                 encoding="ascii"
@@ -69,7 +88,7 @@ def process_transfers(client):
                 con_info["remaining"] -= len(data)
                 client.save_data_chunk(contract["data_id"], data)
 
-            #When done downloading close con.
+            # When done downloading close con.
             if not con_info["remaining"]:
                 # Remove that we're downloading this.
                 data_id = contract["data_id"]
@@ -82,8 +101,10 @@ def process_transfers(client):
                     print("Error: downloaded file doesn't hash right!")
                     os.remove(path)
 
-                # Transfer done: close it (like HTTP.)
-                con.close()
+                # Ready for a new transfer (if there are any.)
+                client.con_transfer[con] = u""
+
+
 
 def map_path(path):
     return os.path.realpath \
@@ -134,15 +155,31 @@ class FileTransfer():
         # Three-way handshake status for contracts.
         self.handshake = {}
 
-        # Associated with contracts.
+        # All contracts associated with this connection.
         self.con_info = {}
 
-        # List of current downloads.
+        # File transfer currently active on connection.
+        self.con_transfer = {}
+
+        # List of active downloads.
+        # (Never try to download multiple copies of the same thing at once.)
         self.downloading = {}
 
     def debug_print(self, msg):
         if self.debug:
             print("> " + str(msg))
+
+    def queue_next_upload(self, con):
+        for contract_id in list(self.con_info[con]):
+            con_info = self.con_info[con][contract_id]
+            if con_info["remaining"]:
+                self.con_transfer[con] = contract_id
+                con.send(contract_id, send_all=1)
+                return
+
+        # No more uploads.
+        con.close()
+        del self.con_transfer[con]
 
     def is_valid_syn(self, msg):
         # List of expected fields.
@@ -164,7 +201,7 @@ class FileTransfer():
         # Check the UNLs are valid.
         unl_tuple = (u"host_unl", u"dest_unl", u"src_unl")
         for unl_key in unl_tuple:
-            if not is_valid_unl(msg[unl_key]):
+            if not pyp2p.unl.is_valid_unl(msg[unl_key]):
                 self.debug_print("Invalid UNL for " + unl_key)
                 self.debug_print(msg[unl_key])
                 return 0
@@ -181,7 +218,7 @@ class FileTransfer():
             return 0
 
         # Are we the host?
-        if self.net.unl == UNL(value=msg[u"host_unl"]):
+        if self.net.unl == pyp2p.unl.UNL(value=msg[u"host_unl"]):
             # Then check we have this file.
             path = self.get_data_path(msg[u"data_id"])
             if not os.path.isfile(path):
@@ -201,6 +238,7 @@ class FileTransfer():
 
             # Are we already trying to download this?
             if msg[u"data_id"] in self.downloading:
+                self.debug_print("We're already trying to download this")
                 return 0
 
         return 1
@@ -211,17 +249,29 @@ class FileTransfer():
         # Associate TCP con with contract.
         def success_wrapper(self, contract_id, host_unl):
             def success(con):
-                #Associate TCP con with contract.
+                # Associate TCP con with contract.
                 file_size = self.contracts[contract_id]["file_size"]
-                self.con_info[con] = {
-                    "contract_id": contract_id,
-                    "remaining": file_size
-                }
+
+                # Store con association.
+                if con not in self.con_info:
+                    self.con_info[con] = {}
+
+                # Associate contract with con.
+                if contract_id not in self.con_info[con]:
+                    self.con_info[con][contract_id] = {
+                        "contract_id": contract_id,
+                        "remaining": file_size
+                    }
 
                 # Record download state.
                 data_id = self.contracts[contract_id]["data_id"]
-                if self.net.unl != UNL(value=host_unl):
+                if self.net.unl != pyp2p.unl.UNL(value=host_unl):
                     self.downloading[data_id] = 1
+                else:
+                    # Set initial upload for this con.
+                    if con not in self.con_transfer:
+                        self.con_transfer[con] = contract_id
+                        con.send(contract_id, send_all=1)
 
             return success
 
@@ -433,8 +483,6 @@ class FileTransfer():
             host_unl = node_unl
             if data_id in self.downloading:
                 raise Exception("Already trying to download this.")
-            else:
-                self.downloading[data_id] = 1
 
         # Encoding.
         if sys.version_info >= (3,0,0):
@@ -521,12 +569,12 @@ if __name__ == "__main__":
     # Alice sample node.
     alice_wallet = BtcTxStore(testnet=True, dryrun=True)
     alice = FileTransfer(
-        Net(
+        pyp2p.net.Net(
             net_type="direct",
             node_type="passive",
             nat_type="preserving",
             passive_port=60400,
-            dht_node=DHT(),
+            dht_node=pyp2p.dht_msg.DHT(),
             debug=1
         ),
         wallet=alice_wallet,
@@ -534,17 +582,19 @@ if __name__ == "__main__":
     )
 
     # ed980e5ef780d5b9ca1a6200a03302f2a91223044bc63dacc6d9f07eead663ab
-    # alice.move_file_to_storage("/home/laurence/Firefox_wallpaper.png")
+    # print(alice.move_file_to_storage("/home/laurence/small_file"))
+
+    # exit()
 
     # Bob sample node.
     bob_wallet = BtcTxStore(testnet=True, dryrun=True)
     bob = FileTransfer(
-        Net(
+        pyp2p.net.Net(
             net_type="direct",
             node_type="passive",
             nat_type="preserving",
             passive_port=60401,
-            dht_node=DHT(),
+            dht_node=pyp2p.dht_msg.DHT(),
             debug=1
         ),
         wallet=bob_wallet,
@@ -554,6 +604,16 @@ if __name__ == "__main__":
     print(alice.net.unl.deconstruct())
     print(bob.net.unl.deconstruct())
 
+
+    # alice.net.unl == bob.net.unl
+
+
+
+    print(type(alice.net.unl))
+    print(type(pyp2p.unl.UNL(value=bob.net.unl.value)))
+
+    # exit()
+
     # Alice wants data from Bob.
     alice.data_request(
         "upload",
@@ -562,6 +622,15 @@ if __name__ == "__main__":
         bob.net.unl.value
     )
 
+
+    """
+    alice.data_request(
+        "upload",
+        "f2ca1bb6c7e907d06dafe4687e579fce76b37e4e93b7605022da52e6ccc26fd2",
+        5,
+        bob.net.unl.value
+    )
+    """
 
     # Main event loop.
     while 1:

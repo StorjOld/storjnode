@@ -1,8 +1,8 @@
 # File transfer.
 from .network.file_transfer import FileTransfer, process_transfers
-from .network.pyp2p.unl import UNL, is_valid_unl
-from .network.pyp2p.net import Net
-from .network.pyp2p.dht_msg import DHT
+from pyp2p.unl import UNL, is_valid_unl
+from pyp2p.net import Net
+from pyp2p.dht_msg import DHT
 
 # start twisted
 from crochet import setup
