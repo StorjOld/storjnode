@@ -7,3 +7,4 @@ twisted >= 15.4.0
 ipaddress >= 1.0.14
 requests >= 2.8.1
 graphviz==0.4.7
+pyp2p >= 0.0.1

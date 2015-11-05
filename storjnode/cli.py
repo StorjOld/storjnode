@@ -2,8 +2,9 @@ import time
 
 # File transfer.
 from .network.file_transfer import FileTransfer, process_transfers
-from .network.pyp2p.net import Net
-from .network.pyp2p.dht_msg import DHT
+from pyp2p.unl import UNL, is_valid_unl
+from pyp2p.net import Net
+from pyp2p.dht_msg import DHT
 
 import binascii
 import argparse
@@ -24,6 +25,10 @@ def _add_programm_args(parser):
 
     parser.add_argument("--passive_port", default=default, type=int,
                         help=("Port to receive inbound TCP connections on"
+                              " when nodes direct connect to us."))
+
+    parser.add_argument("--passive_bind", default=default,
+                        help=("LAN IP to receive inbound TCP connections on"
                               " when nodes direct connect to us."))
 
     parser.add_argument("--storage_path", default=default,
@@ -311,11 +316,18 @@ def setup_file_transfer_client(args):
         passive_port = random.choice(range(1024, 49151))  # randomish user port
     else:
         passive_port = args["passive_port"]
+
+    if args["passive_bind"] is not None:
+        passive_bind = args["passive_bind"]
+    else:
+        passive_bind = "0.0.0.0"
+
     direct_net = Net(
         net_type="direct",
         dht_node=DHT(),
         debug=1,
-        passive_port=passive_port
+        passive_port=passive_port,
+        passive_bind=passive_bind
     )
 
     #File transfer client.
