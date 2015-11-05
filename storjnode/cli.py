@@ -27,6 +27,10 @@ def _add_programm_args(parser):
                         help=("Port to receive inbound TCP connections on"
                               " when nodes direct connect to us."))
 
+    parser.add_argument("--passive_bind", default=default,
+                        help=("LAN IP to receive inbound TCP connections on"
+                              " when nodes direct connect to us."))
+
     parser.add_argument("--storage_path", default=default,
                         help="Where to store files hosted.")
 
@@ -312,11 +316,18 @@ def setup_file_transfer_client(args):
         passive_port = random.choice(range(1024, 49151))  # randomish user port
     else:
         passive_port = args["passive_port"]
+
+    if args["passive_bind"] is not None:
+        passive_bind = args["passive_bind"]
+    else:
+        passive_bind = "0.0.0.0"
+
     direct_net = Net(
         net_type="direct",
         dht_node=DHT(),
         debug=1,
-        passive_port=passive_port
+        passive_port=passive_port,
+        passive_bind=passive_bind
     )
 
     #File transfer client.
