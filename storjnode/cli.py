@@ -303,8 +303,10 @@ def setup_node(args):
     node_key = _get_node_key(args)
     dht_port = args["dht_port"]
     bootstrap_nodes = _get_bootstrap_nodes(args)
-    return storjnode.network.BlockingNode(node_key, port=dht_port,
-                                          bootstrap_nodes=bootstrap_nodes)
+    return storjnode.network.BlockingNode(
+        node_key, port=dht_port, bootstrap_nodes=bootstrap_nodes,
+        refresh_neighbours_interval=storjnode.network.server.WALK_TIMEOUT
+    )
 
 
 def setup_file_transfer_client(args):
