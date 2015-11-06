@@ -47,14 +47,16 @@ class BlockingNode(object):
         """Create a blocking storjnode instance.
 
         Args:
-            key: Bitcoin wif/hwif to use for auth, encryption and node id.
+            key (str): Bitcoin wif/hwif to use for auth, encryption and node id.
             ksize (int): The k parameter from the kademlia paper
-            port: Port to use for incoming packages, randomly by default.
-            bootstrap_nodes: Known network node addresses as [(ip, port), ...]
+            port (port): Port to use for incoming packages, randomly by default.
+            bootstrap_nodes [(ip, port), ...]: Known network node addresses as.
             storage: implements :interface:`~kademlia.storage.IStorage`
-            message_timeout: Seconds until unprocessed messages are dropped.
-            max_messages: Maximum unprecessed messages, additional are dropped.
+            message_timeout (int): Seconds until unprocessed messages dropped.
+            max_messages (int): Max unprecessed messages, additional dropped.
         """
+        assert(isinstance(ksize, int))
+        assert(ksize > 0)
 
         # validate message timeout
         assert(isinstance(message_timeout, int))
@@ -102,7 +104,7 @@ class BlockingNode(object):
         return self._server.get_hex_id()
 
     @wait_for(timeout=QUERY_TIMEOUT)
-    def has_public_ip(self):
+    def dbg_has_public_ip(self):
         """Returns True if local IP is internet visible, otherwise False.
 
         The may false positive if you run other nodes on your local network.
@@ -110,7 +112,7 @@ class BlockingNode(object):
         Raises:
             crochet.TimeoutError after storjnode.network.server.QUERY_TIMEOUT
         """
-        return self._server.has_public_ip()
+        return self._server.dbg_has_public_ip()
 
     def has_messages(self):
         """Returns True if this node has received messages."""

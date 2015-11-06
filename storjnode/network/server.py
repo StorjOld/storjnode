@@ -217,12 +217,11 @@ class StorjServer(Server):
     def get_hex_id(self):
         return binascii.hexlify(self.get_id())
 
-    def has_public_ip(self):
+    def dbg_has_public_ip(self):
         def handle(ips):
             self.log.debug("Internet visible IPs: %s" % ips)
             ip = util.get_inet_facing_ip()
             self.log.debug("Internet facing IP: %s" % ip)
             is_public = ip is not None and ip in ips
-            self.protocol.is_public = is_public  # update protocol state
             return is_public
         return self.inetVisibleIP().addCallback(handle)

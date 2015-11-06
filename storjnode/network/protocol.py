@@ -36,7 +36,6 @@ class StorjProtocol(KademliaProtocol):
         self.max_hop_limit = kwargs.pop("max_hop_limit")
         self.messages_relay = Queue(maxsize=max_messages)
         self.messages_received = Queue(maxsize=max_messages)
-        self.is_public = False  # assume False, set by server
         KademliaProtocol.__init__(self, *args, **kwargs)
         self.log = logging.getLogger(__name__)
 
@@ -62,10 +61,6 @@ class StorjProtocol(KademliaProtocol):
         except Full:
             self.log.warning("Received message queue full, dropping message.")
             return False
-
-    def rpc_is_public(self, sender, nodeid):
-        # FIXME self.welcomeIfNewNode(Node(nodeid, sender[0], sender[1]))
-        return self.is_public
 
     def rpc_relay_message(self, sender, sender_id, dest_id,
                           hop_limit, message):
@@ -116,10 +111,4 @@ class StorjProtocol(KademliaProtocol):
         address = (nodeToAsk.ip, nodeToAsk.port)
         self.log.debug("Sending direct message to {0}:{1}".format(*address))
         d = self.direct_message(address, self.sourceNode.id, message)
-        return d.addCallback(self.handleCallResponse, nodeToAsk)
-
-    def callIsPublic(self, nodeToAsk):
-        address = (nodeToAsk.ip, nodeToAsk.port)
-        self.log.debug("Querying if node is public {0}:{1}".format(*address))
-        d = self.is_public(address, self.sourceNode.id)
         return d.addCallback(self.handleCallResponse, nodeToAsk)

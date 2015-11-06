@@ -72,10 +72,17 @@ class TestBlockingNode(unittest.TestCase):
     # test util functions #
     #######################
 
-    def test_has_public_ip(self):
+    def test_dbg_has_public_ip(self):  # for coverage
         random_peer = random.choice(self.swarm)
-        result = random_peer.has_public_ip()
+        result = random_peer.dbg_has_public_ip()
         self.assertTrue(isinstance(result, bool))
+
+    def test_get_known_peers(self): # for coverage
+        random_peer = random.choice(self.swarm)
+        peers = random_peer.get_known_peers()
+        self.assertTrue(isinstance(peers, list))
+        for peerid in peers:
+            self.assertTrue(isinstance(peerid, str))
 
     ########################
     # test relay messaging #
