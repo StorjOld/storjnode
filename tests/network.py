@@ -1,5 +1,4 @@
 import os
-import datetime
 import time
 import binascii
 import random
@@ -11,8 +10,8 @@ from crochet import setup
 setup()  # start twisted via crochet
 
 # change timeouts because everything is local
-QUERY_TIMEOUT = QUERY_TIMEOUT / 5.0
-WALK_TIMEOUT = WALK_TIMEOUT / 5.0
+QUERY_TIMEOUT = QUERY_TIMEOUT / 2.5
+WALK_TIMEOUT = WALK_TIMEOUT / 2.5
 
 TEST_MESSAGE_TIMEOUT = 5
 TEST_SWARM_SIZE = 64  # tested up to 256
@@ -30,7 +29,7 @@ class TestBlockingNode(unittest.TestCase):
         for i in range(TEST_SWARM_SIZE):
 
             # isolate swarm
-            bootstrap_nodes = [("127.0.0.1", 3000 + x) for x in range(i)][-1:]
+            bootstrap_nodes = [("127.0.0.1", 3000 + x) for x in range(i)][-20:]
 
             # create node
             node = storjnode.network.BlockingNode(
@@ -48,11 +47,11 @@ class TestBlockingNode(unittest.TestCase):
         print("TEST: stabalize network overlay")
         time.sleep(WALK_TIMEOUT)
         for node in cls.swarm:
-            node._server.bootstrap(node._server.bootstrappableNeighbors())
+            node.refresh_neighbours()
         time.sleep(WALK_TIMEOUT)
-        for node in cls.swarm:
-            node._server.bootstrap(node._server.bootstrappableNeighbors())
-        time.sleep(WALK_TIMEOUT)
+        #for node in cls.swarm:
+        #    node.refresh_neighbours()
+        #time.sleep(WALK_TIMEOUT)
 
         #print("TEST: generating swarm graph")
         #name = "unittest_network_" + str(datetime.datetime.now())
@@ -66,16 +65,21 @@ class TestBlockingNode(unittest.TestCase):
         for node in cls.swarm:
             node.stop()
 
-    # FIXME expose and test is public rpc call
+    #################################
+    # test util and debug functions #
+    #################################
 
-    #######################
-    # test util functions #
-    #######################
-
-    def test_has_public_ip(self):
+    def test_dbg_has_public_ip(self):  # for coverage
         random_peer = random.choice(self.swarm)
-        result = random_peer.has_public_ip()
+        result = random_peer.dbg_has_public_ip()
         self.assertTrue(isinstance(result, bool))
+
+    def test_get_known_peers(self):  # for coverage
+        random_peer = random.choice(self.swarm)
+        peers = random_peer.get_known_peers()
+        self.assertTrue(isinstance(peers, list))
+        for peerid in peers:
+            self.assertTrue(isinstance(peerid, str))
 
     ########################
     # test relay messaging #
@@ -208,8 +212,9 @@ class TestBlockingNode(unittest.TestCase):
 
     def test_direct_messaging_failure(self):
         testmessage = binascii.hexlify(os.urandom(32))
+        receiver_id = binascii.unhexlify("DEADBEEF" * 5)
         sender = self.swarm[0]
-        result = sender.send_direct_message(b"f483", testmessage)
+        result = sender.send_direct_message(receiver_id, testmessage)
         self.assertTrue(result is None)
 
     def test_direct_message_self(self):
