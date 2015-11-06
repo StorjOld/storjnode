@@ -264,7 +264,7 @@ def _get_node_key(args):
 
 def command_showtype(node):
     try:
-        print("Public node!" if node.has_public_ip() else "Private node!")
+        print("Public node!" if node.dbg_has_public_ip() else "Private node!")
     except TimeoutError:
         print("Timeout error!")
 
