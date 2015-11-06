@@ -149,8 +149,8 @@ class StorjServer(Server):
 
             # do not relay away from node
             if dest.distanceTo(self.node) <= dest.distanceTo(relay_node):
-                msg = "Skipping %s, farther then self."  # pragma: no cover
-                self.log.debug(msg % repr(relay_node))  # pragma: no cover
+                msg = "Skipping %s, farther then self."
+                self.log.debug(msg % repr(relay_node))
                 continue
 
             # relay message

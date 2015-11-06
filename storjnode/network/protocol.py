@@ -66,9 +66,10 @@ class StorjProtocol(KademliaProtocol):
                           hop_limit, message):
         # FIXME self.welcomeIfNewNode(Node(sender_id, sender[0], sender[1]))
 
-        msg = "Got relay message from {0} at {1} for {2} with limit {3}."
-        self.log.debug(msg.format(binascii.hexlify(sender_id), sender,
-                                  binascii.hexlify(dest_id), hop_limit))
+        logargs = (sender, binascii.hexlify(sender_id), 
+                   binascii.hexlify(dest_id), hop_limit)
+        msg = "Got relay message from {1} at {0} for {2} with limit {3}."
+        self.log.debug(msg.format(*logargs))
 
         # message is for this node
         if dest_id == self.sourceNode.id:
@@ -79,12 +80,15 @@ class StorjProtocol(KademliaProtocol):
 
         # invalid hop limit
         if not (0 < hop_limit <= self.max_hop_limit):
+            msg = "Dropping relay message, bad hop limit {0}."
+            self.log.debug(msg.format(hop_limit))
             return None
 
         # do not relay away from dest
         sender_distance = Node(sender_id).distanceTo(Node(dest_id))
         our_distance = self.sourceNode.distanceTo(Node(dest_id))
         if our_distance >= sender_distance:  
+            self.log.debug("Dropping relay message, self not closer to dest.")
             return None
 
         # add to relay queue

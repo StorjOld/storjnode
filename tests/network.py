@@ -69,6 +69,28 @@ class TestBlockingNode(unittest.TestCase):
     # test util and debug functions #
     #################################
 
+    def test_refresh_neighbours_thread(self):
+        interval = QUERY_TIMEOUT * 2
+        alice_node = storjnode.network.BlockingNode(
+            self.__class__.btctxstore.create_key(),
+            bootstrap_nodes=[("240.0.0.0", 1337)],
+            refresh_neighbours_interval=interval
+        )
+        bob_node = storjnode.network.BlockingNode(
+            self.__class__.btctxstore.create_key(),
+            bootstrap_nodes=[("127.0.0.1", alice_node.port)],
+            refresh_neighbours_interval=interval
+        )
+        time.sleep(interval * 2)  # wait until network overlay stable, 2 peers
+        try:
+            alice_node.send_direct_message(bob_node.get_id(), "hi bob")
+            self.assertTrue(bob_node.has_messages())
+            bob_node.send_direct_message(alice_node.get_id(), "hi alice")
+            self.assertTrue(alice_node.has_messages())
+        finally:
+            alice_node.stop()
+            bob_node.stop()
+
     def test_dbg_has_public_ip(self):  # for coverage
         random_peer = random.choice(self.swarm)
         result = random_peer.dbg_has_public_ip()
@@ -167,6 +189,14 @@ class TestBlockingNode(unittest.TestCase):
         finally:
             alice_node.stop()
             bob_node.stop()
+
+    @unittest.skip("not implemented")
+    def test_receive_invavid_hop_limit(self):
+        pass  # FIXME test drop message if max hops exceeded or less than 0
+
+    @unittest.skip("not implemented")
+    def test_receive_invalid_distance(self):
+        pass  # FIXME test do not relay away from dest
 
     #########################
     # test direct messaging #
