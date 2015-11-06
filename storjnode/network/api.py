@@ -43,17 +43,19 @@ class BlockingNode(object):
     """
 
     def __init__(self, key, ksize=20, port=None, bootstrap_nodes=None,
-                 storage=None, message_timeout=30, max_messages=1024):
+                 storage=None, message_timeout=30, max_messages=1024,
+                 refresh_neighbours_interval=0.0):
         """Create a blocking storjnode instance.
 
         Args:
-            key (str): Bitcoin wif/hwif to use for auth, encryption and node id.
-            ksize (int): The k parameter from the kademlia paper
-            port (port): Port to use for incoming packages, randomly by default.
+            key (str): Bitcoin wif/hwif for auth, encryption and node id.
+            ksize (int): The k parameter from the kademlia paper.
+            port (port): Port to for incoming packages, randomly by default.
             bootstrap_nodes [(ip, port), ...]: Known network node addresses as.
             storage: implements :interface:`~kademlia.storage.IStorage`
             message_timeout (int): Seconds until unprocessed messages dropped.
             max_messages (int): Max unprecessed messages, additional dropped.
+            refresh_neighbours_interval (float): Auto refresh neighbours.
         """
         assert(isinstance(ksize, int))
         assert(ksize > 0)
@@ -81,11 +83,16 @@ class BlockingNode(object):
             assert(0 <= other_port < 2 ** 16)
 
         # start dht node
-        self._server = StorjServer(key, ksize=ksize, storage=storage,
-                                   message_timeout=message_timeout,
-                                   max_messages=max_messages)
+        self._server = StorjServer(
+            key, ksize=ksize, storage=storage,
+            message_timeout=message_timeout, max_messages=max_messages,
+            refresh_neighbours_interval=refresh_neighbours_interval
+        )
         self._server.listen(self.port)
         self._server.bootstrap(bootstrap_nodes)
+
+    def refresh_neighbours(self):
+        self._server.refresh_neighbours()
 
     def get_known_peers(self):
         """Returns list of hex encoded node ids."""

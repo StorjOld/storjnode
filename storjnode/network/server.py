@@ -23,19 +23,22 @@ WALK_TIMEOUT = QUERY_TIMEOUT * 24
 class StorjServer(Server):
 
     def __init__(self, key, ksize=20, alpha=3, storage=None,
-                 message_timeout=30, max_messages=1024, default_hop_limit=64):
+                 message_timeout=30, max_messages=1024, default_hop_limit=64,
+                 refresh_neighbours_interval=0.0):
         """
         Create a server instance.  This will start listening on the given port.
 
         Args:
-            key: bitcoin wif/hwif to be used as id and for signing/encryption
-            ksize (int): The k parameter from the kademlia paper
+            key (str): Bitcoin wif/hwif for auth, encryption and node id.
+            ksize (int): The k parameter from the kademlia paper.
             alpha (int): The alpha parameter from the kademlia paper
             storage: implements :interface:`~kademlia.storage.IStorage`
             message_timeout: Seconds until unprocessed messages are dropped.
+            refresh_neighbours_interval (float): Auto refresh neighbours.
         """
         self._message_timeout = message_timeout
         self._default_hop_limit = default_hop_limit
+        self._refresh_neighbours_interval = refresh_neighbours_interval
 
         # TODO validate key is valid wif/hwif for mainnet or testnet
         testnet = False  # FIXME get from wif/hwif
@@ -68,12 +71,27 @@ class StorjServer(Server):
         self._cleanup_thread = threading.Thread(target=self._cleanup_loop)
         self._cleanup_thread.start()
 
+        # setup refresh neighbours thread
+        if self._refresh_neighbours_interval > 0:
+            self._refresh_thread_stop = False
+            self._refresh_thread = threading.Thread(target=self._refresh_loop)
+            self._refresh_thread.start()
+
     def stop(self):
+        if self._refresh_neighbours_interval > 0:
+            self._refresh_thread_stop = True
+            self._refresh_thread.join()
+
         self._relay_thread_stop = True
-        self._cleanup_thread_stop = True
         self._relay_thread.join()
+
+        self._cleanup_thread_stop = True
         self._cleanup_thread.join()
+
         # FIXME actually disconnect from port and stop properly
+
+    def refresh_neighbours(self):
+        self.bootstrap(self.bootstrappableNeighbors())
 
     def get_id(self):
         address = self._btctxstore.get_address(self._key)
@@ -159,6 +177,12 @@ class StorjServer(Server):
         # failed to relay message
         dest_hexid = binascii.hexlify(entry["dest"])
         self.log.debug("Failed to relay message for %s" % dest_hexid)
+
+    def _refresh_loop(self):
+        while not self._refresh_thread_stop:
+            # sleep first because of initial bootstrap
+            time.sleep(self._refresh_neighbours_interval)
+            self.refresh_neighbours()
 
     def _relay_loop(self):
         while not self._relay_thread_stop:
