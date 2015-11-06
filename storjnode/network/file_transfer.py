@@ -40,6 +40,8 @@ def process_transfers(client):
         if con not in client.con_transfer:
             client.con_transfer[con] = u""
         contract_id = client.con_transfer[con]
+        print("Contract id =")
+        print(contract_id)
         if len(contract_id) < 64:
             remaining = 64 - len(contract_id)
             partial = con.recv(remaining)
@@ -71,9 +73,15 @@ def process_transfers(client):
             if bytes_sent:
                 con_info["remaining"] -= bytes_sent
 
+            print("Remaining = ")
+            print(con_info["remaining"])
+
             # Everything uploaded.
             if not con_info["remaining"]:
                 client.queue_next_upload(con)
+
+                # Close con if no longer needed.
+                client.cleanup_transfers(con)
         else:
             print("Attempting to download.")
 
@@ -87,6 +95,9 @@ def process_transfers(client):
             if len(data):
                 con_info["remaining"] -= len(data)
                 client.save_data_chunk(contract["data_id"], data)
+
+            print("Remaining = ")
+            print(con_info["remaining"])
 
             # When done downloading close con.
             if not con_info["remaining"]:
@@ -104,6 +115,8 @@ def process_transfers(client):
                 # Ready for a new transfer (if there are any.)
                 client.con_transfer[con] = u""
 
+                # Close con if no longer needed.
+                client.cleanup_transfers(con)
 
 
 
@@ -131,7 +144,7 @@ class FileTransfer:
                 self.storage_path = "%APPDATA%\\Storj\\storage"
 
             if platform.system() == "Linux":
-                self.storage_path = "~/.Storage/storage"
+                self.storage_path = "~/Storj/storage"
 
         # Does the path exist? If not create it.
         self.storage_path = map_path(self.storage_path)
@@ -161,6 +174,29 @@ class FileTransfer:
         # (Never try to download multiple copies of the same thing at once.)
         self.downloading = {}
 
+    def cleanup_transfers(self, con):
+        more_queued = 0
+        for contract_id in list(self.con_info[con]):
+            con_info = self.con_info[con][contract_id]
+            if con_info["remaining"]:
+                more_queued = 1
+                break
+
+        # Close con - there's nothing left to download.
+        if not more_queued:
+            # Cleanup con transfers.
+            if con in self.con_transfer:
+                del self.con_transfer[con]
+
+            # Cleanup con_info.
+            if con in self.con_info:
+                del self.con_info[con]
+
+            # Todo: cleanup contract + handshake state.
+
+            con.close()
+
+
     def debug_print(self, msg):
         if self.debug:
             print("> " + str(msg))
@@ -172,10 +208,6 @@ class FileTransfer:
                 self.con_transfer[con] = contract_id
                 con.send(contract_id, send_all=1)
                 return
-
-        # No more uploads.
-        con.close()
-        del self.con_transfer[con]
 
     def is_valid_syn(self, msg):
         # List of expected fields.
@@ -532,6 +564,11 @@ class FileTransfer:
                 sha256.update(data)
 
         return sha256.hexdigest()
+
+    def remove_file_from_storage(self, data_id):
+        path = self.get_data_path(data_id)
+        if os.path.isfile(path):
+            os.remove(path)
 
     def move_file_to_storage(self, path):
         file_name = self.hash_file(path)
