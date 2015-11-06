@@ -64,29 +64,33 @@ class StorjProtocol(KademliaProtocol):
 
     def rpc_relay_message(self, sender, sender_id, dest_id,
                           hop_limit, message):
-
-        hex_dest_id = binascii.hexlify(dest_id)
-        hex_sender_id = binascii.hexlify(sender_id)
+        # FIXME self.welcomeIfNewNode(Node(sender_id, sender[0], sender[1]))
 
         msg = "Got relay message from {0} at {1} for {2} with limit {3}."
-        self.log.debug(msg.format(hex_sender_id, sender,
-                                  hex_dest_id, hop_limit))
-        # FIXME self.welcomeIfNewNode(Node(sender_id, sender[0], sender[1]))
-        queued = False
+        self.log.debug(msg.format(binascii.hexlify(sender_id), sender,
+                                  binascii.hexlify(dest_id), hop_limit))
 
         # message is for this node
         if dest_id == self.sourceNode.id:
             queued = self.queue_received_message({
                 "source": None, "message": message, "timestamp": time.time()
             })
+            return (sender[0], sender[1]) if queued else None
+
+        # invalid hop limit
+        if not (0 < hop_limit <= self.max_hop_limit):
+            return None
+
+        # do not relay away from dest
+        sender_distance = Node(sender_id).distanceTo(Node(dest_id))
+        our_distance = self.sourceNode.distanceTo(Node(dest_id))
+        if our_distance >= sender_distance:  
+            return None
 
         # add to relay queue
-        elif 0 < hop_limit <= self.max_hop_limit:
-            # FIXME only add if ownid between sender and dest
-            queued = self.queue_relay_message({
-                "dest": dest_id, "message": message, "hop_limit": hop_limit - 1
-            })
-
+        queued = self.queue_relay_message({
+            "dest": dest_id, "message": message, "hop_limit": hop_limit - 1
+        })
         return (sender[0], sender[1]) if queued else None
 
     def rpc_direct_message(self, sender, nodeid, message):

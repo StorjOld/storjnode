@@ -10,8 +10,8 @@ from crochet import setup
 setup()  # start twisted via crochet
 
 # change timeouts because everything is local
-QUERY_TIMEOUT = QUERY_TIMEOUT / 2.5
-WALK_TIMEOUT = WALK_TIMEOUT / 2.5
+QUERY_TIMEOUT = QUERY_TIMEOUT / 2
+WALK_TIMEOUT = WALK_TIMEOUT / 2
 
 TEST_MESSAGE_TIMEOUT = 5
 TEST_SWARM_SIZE = 64  # tested up to 256
