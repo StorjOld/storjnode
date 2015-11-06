@@ -29,7 +29,7 @@ class TestBlockingNode(unittest.TestCase):
         for i in range(TEST_SWARM_SIZE):
 
             # isolate swarm
-            bootstrap_nodes = [("127.0.0.1", 3000 + x) for x in range(i)][-1:]
+            bootstrap_nodes = [("127.0.0.1", 3000 + x) for x in range(i)][-20:]
 
             # create node
             node = storjnode.network.BlockingNode(
