@@ -12,6 +12,7 @@ import storjnode
 import btctxstore
 import sys
 import random
+from storjnode.network import WALK_TIMEOUT
 from crochet import setup, TimeoutError
 setup()  # start twisted via crochet
 
@@ -305,24 +306,14 @@ def setup_node(args):
     bootstrap_nodes = _get_bootstrap_nodes(args)
     return storjnode.network.BlockingNode(
         node_key, port=dht_port, bootstrap_nodes=bootstrap_nodes,
-        refresh_neighbours_interval=storjnode.network.server.WALK_TIMEOUT
+        refresh_neighbours_interval=WALK_TIMEOUT
     )
 
 
-def setup_file_transfer_client(args):
+def setup_file_transfer_client(args, node):
 
-    #Setup direct connect.
-    wallet = btctxstore.BtcTxStore(testnet=True, dryrun=True)
-    if args["passive_port"] is None:
-        #passive_port = random.randport(4000, 68000)
-        passive_port = random.choice(range(1024, 49151))  # randomish user port
-    else:
-        passive_port = args["passive_port"]
-
-    if args["passive_bind"] is not None:
-        passive_bind = args["passive_bind"]
-    else:
-        passive_bind = "0.0.0.0"
+    passive_port = args["passive_port"] or random.choice(range(1024, 49151))
+    passive_bind = args["passive_bind"] or "0.0.0.0"
 
     direct_net = Net(
         net_type="direct",
@@ -335,7 +326,7 @@ def setup_file_transfer_client(args):
     #File transfer client.
     return FileTransfer(
         net=direct_net,
-        wallet=wallet,
+        wif=node.get_key(),
         storage_path=args["storage_path"]
     )
 
@@ -349,10 +340,10 @@ def main(args):
         return
 
     node = setup_node(args)
-    client = setup_file_transfer_client(args)
+    client = setup_file_transfer_client(args, node)
 
-    print("Giving node 120sec to find peers ...")
-    time.sleep(120)
+    print("Waiting %fsec to find peers ..." % (WALK_TIMEOUT / 4))
+    time.sleep(WALK_TIMEOUT)
 
     if command == "run":
         command_run(node, client, args)

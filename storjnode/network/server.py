@@ -46,7 +46,7 @@ class StorjServer(Server):
 
         # allow hwifs
         is_hwif = self._btctxstore.validate_wallet(key)
-        self._key = self._btctxstore.get_key(key) if is_hwif else key
+        self.key = self._btctxstore.get_key(key) if is_hwif else key
 
         # XXX Server.__init__ cannot call super because of StorjProtocol
         # passing the protocol class should be added upstream
@@ -91,10 +91,11 @@ class StorjServer(Server):
         # FIXME actually disconnect from port and stop properly
 
     def refresh_neighbours(self):
+        self.log.debug("Refreshing neighbours ...")
         self.bootstrap(self.bootstrappableNeighbors())
 
     def get_id(self):
-        address = self._btctxstore.get_address(self._key)
+        address = self._btctxstore.get_address(self.key)
         return a2b_hashed_base58(address)[1:]  # remove network prefix
 
     def get_known_peers(self):

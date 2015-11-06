@@ -103,6 +103,10 @@ class BlockingNode(object):
         """Stop storj node."""
         self._server.stop()
 
+    def get_key(self):
+        """Returns Bitcoin wif for auth, encryption and node id"""
+        return self._server.key
+
     def get_id(self):
         """Returns 160bit node id as bytes."""
         return self._server.get_id()
