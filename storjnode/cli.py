@@ -1,19 +1,13 @@
 import time
 
-# File transfer.
-from .network.file_transfer import FileTransfer, process_transfers
-from pyp2p.unl import UNL, is_valid_unl
-from pyp2p.net import Net
-from pyp2p.dht_msg import DHT
-
 import binascii
 import argparse
 import storjnode
 import btctxstore
 import sys
-import random
 import pprint
 from storjnode.network import WALK_TIMEOUT
+from pyp2p.unl import UNL
 from crochet import setup, TimeoutError
 setup()  # start twisted via crochet
 
@@ -22,16 +16,16 @@ def _add_programm_args(parser):
 
     # port
     default = None
-    parser.add_argument("--dht_port", default=default, type=int,
+    parser.add_argument("--udp_port", default=default, type=int,
                         help="Node DHT port, random user port by default.")
 
     parser.add_argument("--passive_port", default=default, type=int,
                         help=("Port to receive inbound TCP connections on"
-                              " when nodes direct connect to us."))
+                              " when nodes direct connect."))
 
     parser.add_argument("--passive_bind", default=default,
                         help=("LAN IP to receive inbound TCP connections on"
-                              " when nodes direct connect to us."))
+                              " when nodes direct connect."))
 
     parser.add_argument("--storage_path", default=default,
                         help="Where to store files hosted.")
@@ -153,6 +147,7 @@ def _add_showunl(command_parser):
         "showunl", help="Generate a Universal Node Locator."
     )
 
+
 def _add_deconstruct_unl(command_parser):
     parser = command_parser.add_parser(
         "deconstruct_unl", help="Deconstructs a Universal Node Locator."
@@ -203,11 +198,11 @@ def _parse_args(args):
     return command, arguments
 
 
-def command_run(node, client, args):
+def command_run(node, args):
     args["id"] = binascii.hexlify(node.get_id())
-    args["dht_port"] = node.port
-    print("Running node on port {dht_port} with id {id}".format(**args))
-    print("Direct connect UNL = " + client.net.unl.value)
+    args["udp_port"] = node.port
+    print("Running node on port {udp_port} with id {id}".format(**args))
+    print("Direct connect UNL = " + node.get_unl())
     while True:
         time.sleep(0.5)
         for received in node.get_messages():
@@ -219,7 +214,7 @@ def command_run(node, client, args):
             else:
                 print("Received relayed message: {0}".format(message))
 
-        process_transfers(client)
+        node.process_data_transfers()
 
 
 def command_put(node, args):
@@ -279,63 +274,35 @@ def command_showtype(node):
         print("Timeout error!")
 
 
-def command_upload(client, args):
-    client.data_request(
-        "upload",
+def command_upload(node, args):
+    node.send_data(
         args["data_id"],
         int(args["file_size"]),
         args["node_unl"]
     )
 
-    while 1:
-        time.sleep(0.5)
-        process_transfers(client)
 
-
-def command_download(client, args):
+def command_download(node, args):
     print(args["data_id"])
     print(args["file_size"])
     print(args["node_unl"])
-
-    client.data_request(
-        "download",
+    node.request_data(
         args["data_id"],
         int(args["file_size"]),
         args["node_unl"]
     )
-
-    while 1:
-        time.sleep(0.5)
-        process_transfers(client)
 
 
 def setup_node(args):
     node_key = _get_node_key(args)
-    dht_port = args["dht_port"]
+    udp_port = args["udp_port"]
     bootstrap_nodes = _get_bootstrap_nodes(args)
     return storjnode.network.BlockingNode(
-        node_key, port=dht_port, bootstrap_nodes=bootstrap_nodes,
-        refresh_neighbours_interval=WALK_TIMEOUT
-    )
-
-
-def setup_file_transfer_client(args, node):
-
-    passive_port = args["passive_port"] or random.choice(range(1024, 49151))
-    passive_bind = args["passive_bind"] or "0.0.0.0"
-
-    direct_net = Net(
-        net_type="direct",
-        dht_node=DHT(),
-        debug=1,
-        passive_port=passive_port,
-        passive_bind=passive_bind
-    )
-
-    #File transfer client.
-    return FileTransfer(
-        net=direct_net,
-        storage_path=args["storage_path"]
+        node_key, port=udp_port, bootstrap_nodes=bootstrap_nodes,
+        refresh_neighbours_interval=WALK_TIMEOUT,
+        storage_path=args["storage_path"],
+        passive_port=args["passive_port"],
+        passive_bind=args["passive_bind"]
     )
 
 
@@ -347,17 +314,17 @@ def main(args):
         print("v{0}".format(storjnode.__version__))
         return
     if command == "deconstruct_unl":
-        pprint.PrettyPrinter(indent=4).pprint(UNL(value=args["unl"]).deconstruct())
+        pprint.PrettyPrinter(indent=4).pprint(
+            UNL(value=args["unl"]).deconstruct()
+        )
         return
 
     node = setup_node(args)
-    client = setup_file_transfer_client(args, node)
-
     print("Waiting %fsec to find peers ..." % (WALK_TIMEOUT / 4))
     time.sleep(WALK_TIMEOUT)
 
     if command == "run":
-        command_run(node, client, args)
+        command_run(node, args)
     elif command == "put":
         command_put(node, args)
     elif command == "get":
@@ -373,14 +340,13 @@ def main(args):
 
     # TCP networking / file transfer commands.
     elif command == "host_file":
-        print(client.move_file_to_storage(args["path"]))
+        print(node.move_file_to_storage(args["path"]))
     elif command == "showunl":
-        print("UNL = " + client.net.unl.value)
+        print("UNL = " + node.get_unl())
     elif command == "upload":
-        command_upload(client, args)
+        command_upload(node, args)
     elif command == "download":
-        command_download(client, args)
+        command_download(node, args)
 
     print("Stopping node")
-    client.net.stop()
     node.stop()
