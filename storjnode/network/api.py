@@ -10,7 +10,6 @@ from storjnode.network.server import StorjServer, QUERY_TIMEOUT, WALK_TIMEOUT
 # File transfer.
 from storjnode.network.file_transfer import FileTransfer, process_transfers
 from pyp2p.net import Net
-from pyp2p.dht_msg import DHT
 
 
 DEFAULT_BOOTSTRAP_NODES = [
@@ -126,11 +125,12 @@ class BlockingNode(object):
         self._data_transfer = FileTransfer(
             net=Net(
                 net_type="direct",
-                dht_node=DHT(),
+                dht_node=self,
                 debug=1,
                 passive_port=passive_port,
                 passive_bind=passive_bind
             ),
+            wif=self._server.key,  # use same key as dht
             storage_path=storage_path
         )
 

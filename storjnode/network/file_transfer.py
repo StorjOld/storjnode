@@ -11,6 +11,7 @@ import logging
 
 from collections import OrderedDict
 from btctxstore import BtcTxStore
+from storjnode.util import ensure_path_exists
 import time
 import json
 import hashlib
@@ -124,10 +125,6 @@ def process_transfers(client):
 
 
 
-def map_path(path):
-    return os.path.realpath(os.path.expandvars(os.path.expanduser(path)))
-
-
 class FileTransfer:
     def __init__(self, net, wif=None, storage_path=None):
         # Accept direct connections.
@@ -138,22 +135,10 @@ class FileTransfer:
         self.wif = wif or self.wallet.create_key()
 
         # Where will the data be stored?
-        self.storage_path = storage_path
-        if self.storage_path is None:
-            if platform.system() == "Darwin":
-                self.storage_path = "~/Library/Application Support/"
-                self.storage_path += "Storj/storage"
-
-            if platform.system() == "Windows":
-                self.storage_path = "%APPDATA%\\Storj\\storage"
-
-            if platform.system() == "Linux":
-                self.storage_path = "~/Storj/storage"
+        assert(self.storage_path is not None)
 
         # Does the path exist? If not create it.
-        self.storage_path = map_path(self.storage_path)
-        if not os.path.isdir(self.storage_path):
-            os.makedirs(self.storage_path)
+        ensure_path_exists(self.storage_path)
 
         # Start networking.
         if not self.net.is_net_started:

@@ -12,6 +12,10 @@ from crochet import setup, TimeoutError
 setup()  # start twisted via crochet
 
 
+DEFAULT_APP_HOME = os.path.join(os.path.expanduser("~"), ".storj")              
+DEFAULT_STORE_PATH = os.path.join(DEFAULT_APP_HOME, "store")                    
+
+
 def _add_programm_args(parser):
 
     # port
@@ -27,8 +31,10 @@ def _add_programm_args(parser):
                         help=("LAN IP to receive inbound TCP connections on"
                               " when nodes direct connect."))
 
+    default = DEFAULT_STORE_PATH
+    msg = "Where to store files hosted, default: {0}."
     parser.add_argument("--storage_path", default=default,
-                        help="Where to store files hosted.")
+                        help=msg.format(default))
 
     # bootstrap
     default = None
