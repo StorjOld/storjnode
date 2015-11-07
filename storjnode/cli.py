@@ -12,6 +12,7 @@ import storjnode
 import btctxstore
 import sys
 import random
+import pprint
 from storjnode.network import WALK_TIMEOUT
 from crochet import setup, TimeoutError
 setup()  # start twisted via crochet
@@ -152,6 +153,13 @@ def _add_showunl(command_parser):
         "showunl", help="Generate a Universal Node Locator."
     )
 
+def _add_deconstruct_unl(command_parser):
+    parser = command_parser.add_parser(
+        "deconstruct_unl", help="Deconstructs a Universal Node Locator."
+    )
+
+    parser.add_argument("unl", help="Base64 encoded UNL to deconstruct.")
+
 
 def _add_showtype(command_parser):
     msg = "Show if public node with internet visible IP or private node."
@@ -182,6 +190,7 @@ def _parse_args(args):
     _add_direct_message(command_parser)
     _add_relay_message(command_parser)
     _add_showunl(command_parser)
+    _add_deconstruct_unl(command_parser)
     _add_host_file(command_parser)
     _add_upload(command_parser)
     _add_download(command_parser)
@@ -337,6 +346,9 @@ def main(args):
     # show version
     if command == "version":
         print("v{0}".format(storjnode.__version__))
+        return
+    if command == "deconstruct_unl":
+        pprint.PrettyPrinter(indent=4).pprint(UNL(value=args["unl"]).deconstruct())
         return
 
     node = setup_node(args)

@@ -134,7 +134,7 @@ class FileTransfer:
         self.net = net
 
         # Used for signing messages.
-        self.wallet = btctxstore.BtcTxStore(testnet=True, dryrun=True)
+        self.wallet = BtcTxStore(testnet=True, dryrun=True)
         self.wif = wif
 
         # Where will the data be stored?
@@ -175,7 +175,7 @@ class FileTransfer:
         # (Never try to download multiple copies of the same thing at once.)
         self.downloading = {}
 
-    def cleanup_transfers(self, con):
+    def is_queued(self, con):
         more_queued = 0
         for contract_id in list(self.con_info[con]):
             con_info = self.con_info[con][contract_id]
@@ -183,8 +183,11 @@ class FileTransfer:
                 more_queued = 1
                 break
 
+        return more_queued
+
+    def cleanup_transfers(self, con):
         # Close con - there's nothing left to download.
-        if not more_queued:
+        if not self.is_queued(con):
             # Cleanup con transfers.
             if con in self.con_transfer:
                 del self.con_transfer[con]
@@ -194,9 +197,6 @@ class FileTransfer:
                 del self.con_info[con]
 
             # Todo: cleanup contract + handshake state.
-
-            con.close()
-
 
     def queue_next_upload(self, con):
         for contract_id in list(self.con_info[con]):
@@ -468,7 +468,7 @@ class FileTransfer:
         else:
             msg = str(contract)
 
-        msg = binascii.hexlify(msg)
+        msg = binascii.hexlify(msg).decode("utf-8")
         sig = self.wallet.sign_data(self.wif, msg)
 
         if sys.version_info >= (3, 0, 0):
@@ -487,7 +487,7 @@ class FileTransfer:
         else:
             msg = str(contract)
 
-        msg = binascii.hexlify(msg)
+        msg = binascii.hexlify(msg).decode("utf-8")
         address = self.wallet.get_address(self.wif)
 
         ret = self.wallet.verify_signature(address, sig, msg)
@@ -606,7 +606,7 @@ if __name__ == "__main__":
             passive_port=60400,
             dht_node=pyp2p.dht_msg.DHT(),
         ),
-        wallet=alice_wallet,
+        wif=alice_wallet,
         storage_path="/home/laurence/Storj/Alice"
     )
 
@@ -625,7 +625,7 @@ if __name__ == "__main__":
             passive_port=60401,
             dht_node=pyp2p.dht_msg.DHT(),
         ),
-        wallet=bob_wallet,
+        wif=bob_wallet,
         storage_path="/home/laurence/Storj/Bob"
     )
 
