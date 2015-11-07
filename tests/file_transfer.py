@@ -14,7 +14,7 @@ setup()
 class TestFileTransfer(unittest.TestCase):
     def test_sequential_upload_and_download(self):
         test_node = {
-            "unl": "TODO: add this",
+            "unl": "",
             "web": "http://162.218.239.6/"
         }
 
@@ -74,7 +74,13 @@ class TestFileTransfer(unittest.TestCase):
         # Process file transfers.
         duration = 10
         timeout = time.time() + duration
-        while time.time() <= timeout or not client.is_queued(con):
+        while time.time() <= timeout:
+            if client.net.get_connection_no():
+                cons = client.net.outbound + client.net.inbound
+                con = cons[0]
+                if not client.is_queued(con):
+                    break
+
             process_transfers(client)
             time.sleep(0.5)
 
@@ -107,7 +113,13 @@ class TestFileTransfer(unittest.TestCase):
         # Process file transfers.
         duration = 10
         timeout = time.time() + duration
-        while time.time() <= timeout or not client.is_queued(con):
+        while time.time() <= timeout:
+            if client.net.get_connection_no():
+                cons = client.net.outbound + client.net.inbound
+                con = cons[0]
+                if not client.is_queued(con):
+                    break
+
             process_transfers(client)
             time.sleep(0.5)
 

@@ -129,13 +129,13 @@ def map_path(path):
 
 
 class FileTransfer:
-    def __init__(self, net, wif, storage_path=None):
+    def __init__(self, net, wif=None, storage_path=None):
         # Accept direct connections.
         self.net = net
 
         # Used for signing messages.
         self.wallet = BtcTxStore(testnet=True, dryrun=True)
-        self.wif = wif
+        self.wif = wif or self.wallet.create_key()
 
         # Where will the data be stored?
         self.storage_path = storage_path
@@ -606,7 +606,7 @@ if __name__ == "__main__":
             passive_port=60400,
             dht_node=pyp2p.dht_msg.DHT(),
         ),
-        wif=alice_wallet,
+        wif=alice_wallet.create_key(),
         storage_path="/home/laurence/Storj/Alice"
     )
 
@@ -625,7 +625,7 @@ if __name__ == "__main__":
             passive_port=60401,
             dht_node=pyp2p.dht_msg.DHT(),
         ),
-        wif=bob_wallet,
+        wif=bob_wallet.create_key(),
         storage_path="/home/laurence/Storj/Bob"
     )
 

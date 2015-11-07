@@ -335,7 +335,6 @@ def setup_file_transfer_client(args, node):
     #File transfer client.
     return FileTransfer(
         net=direct_net,
-        wif=node.get_key(),
         storage_path=args["storage_path"]
     )
 
