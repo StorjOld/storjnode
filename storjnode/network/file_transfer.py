@@ -182,6 +182,7 @@ class FileTransfer:
         self.wif = wif or self.wallet.create_key()
 
         # Where will the data be stored?
+        self.storage_path = storage_path
         assert(self.storage_path is not None)
 
         # Does the path exist? If not create it.

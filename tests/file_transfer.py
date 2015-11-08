@@ -1,5 +1,5 @@
 import storjnode
-from storjnode.network.file_transfer import map_path, FileTransfer, process_transfers
+from storjnode.network.file_transfer import FileTransfer, process_transfers
 import btctxstore
 import pyp2p
 import random
@@ -10,6 +10,15 @@ import requests
 import unittest
 from crochet import setup
 setup()
+
+def map_path(path):
+    return os.path.realpath \
+    (
+        os.path.expandvars \
+        (
+            os.path.expanduser(path)
+        )
+    )
 
 def multiple_transfers():
     test_node = {
@@ -48,6 +57,7 @@ def multiple_transfers():
             debug=1
         ),
         wif=wif,
+        storage_path="/home/laurence/Storj/storage"
     )
 
     # Make random file in home directory.

@@ -9,6 +9,7 @@ import pprint
 from storjnode.network import WALK_TIMEOUT
 from pyp2p.unl import UNL
 from crochet import setup, TimeoutError
+import os
 setup()  # start twisted via crochet
 
 
