@@ -61,6 +61,10 @@ class StorjServer(Server):
         )
         self.refreshLoop = LoopingCall(self.refreshTable).start(3600)
 
+        self._start_threads()
+
+    def _start_threads(self):
+
         # setup relay message thread
         self._relay_thread_stop = False
         self._relay_thread = threading.Thread(target=self._relay_loop)
@@ -182,6 +186,7 @@ class StorjServer(Server):
     def _refresh_loop(self):
         while not self._refresh_thread_stop:
             # sleep first because of initial bootstrap
+            # FIXME loop quicker by saving next refresh time, for faster stop
             time.sleep(self._refresh_neighbours_interval)
             self.refresh_neighbours()
 

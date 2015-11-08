@@ -1,9 +1,15 @@
+import time
 import binascii
 import random
 from graphviz import Digraph
 from crochet import wait_for
 from storjnode.util import valid_ip
 from storjnode.network.server import StorjServer, QUERY_TIMEOUT, WALK_TIMEOUT
+
+
+# File transfer.
+from storjnode.network.file_transfer import FileTransfer, process_transfers
+from pyp2p.net import Net
 
 
 DEFAULT_BOOTSTRAP_NODES = [
@@ -44,18 +50,22 @@ class BlockingNode(object):
 
     def __init__(self, key, ksize=20, port=None, bootstrap_nodes=None,
                  storage=None, message_timeout=30, max_messages=1024,
-                 refresh_neighbours_interval=0.0):
+                 refresh_neighbours_interval=0.0, storage_path=None,
+                 passive_port=None, passive_bind=None):
         """Create a blocking storjnode instance.
 
         Args:
             key (str): Bitcoin wif/hwif for auth, encryption and node id.
             ksize (int): The k parameter from the kademlia paper.
             port (port): Port to for incoming packages, randomly by default.
+            passive_port (int): Port to receive inbound TCP connections on.
+            passive_bind (ip): LAN IP to receive inbound TCP connections on.
             bootstrap_nodes [(ip, port), ...]: Known network node addresses as.
             storage: implements :interface:`~kademlia.storage.IStorage`
             message_timeout (int): Seconds until unprocessed messages dropped.
             max_messages (int): Max unprecessed messages, additional dropped.
             refresh_neighbours_interval (float): Auto refresh neighbours.
+            storage_path: FIXME replace with storage service
         """
         assert(isinstance(ksize, int))
         assert(ksize > 0)
@@ -64,12 +74,24 @@ class BlockingNode(object):
         assert(isinstance(message_timeout, int))
         assert(isinstance(max_messages, int))
 
-        # validate port
-        if port is None:  # randomish user port by default
-            port = random.choice(range(1024, 49151))  # pragma: no cover
+        # validate port (randomish user port by default)
+        port = port or random.choice(range(1024, 49151))
         assert(isinstance(port, int))
         assert(0 <= port < 2 ** 16)
         self.port = port
+
+        # passive port (randomish user port by default)
+        passive_port = passive_port or random.choice(range(1024, 49151))
+        assert(isinstance(port, int))
+        assert(0 <= port < 2 ** 16)
+
+        # FIXME chance of same port and passive_port being the same
+        # FIXME exclude ports already being used on the machine
+
+        # passive bind
+        # FIXME just use storjnode.util.get_inet_facing_ip ?
+        passive_bind = passive_bind or "0.0.0.0"
+        assert(valid_ip(passive_bind))
 
         # validate bootstrap_nodes
         if bootstrap_nodes is None:
@@ -82,7 +104,14 @@ class BlockingNode(object):
             assert(isinstance(other_port, int))
             assert(0 <= other_port < 2 ** 16)
 
-        # start dht node
+        # start dht server and data transfer client
+        self._setup_server(key, ksize, storage, message_timeout, max_messages,
+                           refresh_neighbours_interval, bootstrap_nodes)
+        self._setup_data_transfer_client(storage_path, passive_port,
+                                         passive_bind)
+
+    def _setup_server(self, key, ksize, storage, message_timeout, max_messages,
+                      refresh_neighbours_interval, bootstrap_nodes):
         self._server = StorjServer(
             key, ksize=ksize, storage=storage,
             message_timeout=message_timeout, max_messages=max_messages,
@@ -90,6 +119,44 @@ class BlockingNode(object):
         )
         self._server.listen(self.port)
         self._server.bootstrap(bootstrap_nodes)
+
+    def _setup_data_transfer_client(self, storage_path, passive_port,
+                                    passive_bind):
+        self._data_transfer = FileTransfer(
+            net=Net(
+                net_type="direct",
+                dht_node=self,
+                debug=1,
+                passive_port=passive_port,
+                passive_bind=passive_bind
+            ),
+            wif=self._server.key,  # use same key as dht
+            storage_path=storage_path
+        )
+
+    def get_unl(self):
+        return self._data_transfer.net.unl.value
+
+    def move_to_storage(self, path):
+        # FIXME remove and have callers use storage service instead
+        return self._data_transfer.move_file_to_storage(path)
+
+    def send_data(self, data_id, size, node_unl):
+        self._data_transfer.data_request("upload", data_id, size, node_unl)
+        while 1:  # FIXME terminate when transfered
+            time.sleep(0.5)
+            process_transfers(self._data_transfer)
+        # FIXME return error or success status/reason
+
+    def request_data(self, data_id, size, node_unl):
+        self._data_transfer.data_request("download", data_id, size, node_unl)
+        while 1:  # FIXME terminate when transfered
+            time.sleep(0.5)
+            process_transfers(self._data_transfer)
+        # FIXME return error or success status/reason
+
+    def process_data_transfers(self):
+        process_transfers(self._data_transfer)
 
     def refresh_neighbours(self):
         self._server.refresh_neighbours()
@@ -102,6 +169,7 @@ class BlockingNode(object):
     def stop(self):
         """Stop storj node."""
         self._server.stop()
+        self._data_transfer.net.stop()
 
     def get_key(self):
         """Returns Bitcoin wif for auth, encryption and node id"""
@@ -128,6 +196,11 @@ class BlockingNode(object):
     def has_messages(self):
         """Returns True if this node has received messages."""
         return self._server.has_messages()
+
+    # FIXME add message dispatcher to set on_message callbacks,
+    # this may prove to be far more prictical and efficient then constantly
+    # polling that way several service can listen for messages concerning them.
+    # This will also mitigate the problem of the received queue filling up.
 
     def get_messages(self):
         """Get list of messages received since this method was last called.
