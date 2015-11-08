@@ -22,7 +22,7 @@ def map_path(path):
 
 def multiple_transfers():
     test_node = {
-        "unl": "AWVRcVVhRXVIRlVWNGhEZWVDQ2tTcGdt8OsG79qiBu/aonuWPlYAAAAASMkFxFIppGI=",
+        "unl": "AWVRcVVhRXVIRlVWNGhEZWVDQ2tTcGdt8OsG79qiBu/aohkOP1YAAAAAiJCD36pqWoo=",
         "web": "http://162.218.239.6/"
     }
 
@@ -60,6 +60,8 @@ def multiple_transfers():
         storage_path="/home/laurence/Storj/storage"
     )
 
+    print("Net started")
+
     # Make random file in home directory.
     rand_file_infos = [make_random_file(), make_random_file()]
 
@@ -70,8 +72,8 @@ def multiple_transfers():
     ]
 
     # Delete original file.
-    #os.remove(rand_file_infos[0]["path"])
-    #os.remove(rand_file_infos[1]["path"])
+    os.remove(rand_file_infos[0]["path"])
+    os.remove(rand_file_infos[1]["path"])
 
     # Upload file from storage.
     for file_info in file_infos:
@@ -85,9 +87,9 @@ def multiple_transfers():
     # Process file transfers.
     duration = 40
     timeout = time.time() + duration
-    while time.time() <= timeout:
+    while time.time() <= timeout or client.is_queued():
         process_transfers(client)
-        time.sleep(0.5)
+        time.sleep(0.02)
 
     # Check upload exists.
     for i in range(0, 2):
@@ -106,7 +108,6 @@ def multiple_transfers():
 
     # Download file from storage.
     print("Testing download.")
-    time.sleep(5)
     for file_info in file_infos:
         client.data_request(
             "download",
@@ -118,9 +119,9 @@ def multiple_transfers():
     # Process file transfers.
     duration = 40
     timeout = time.time() + duration
-    while time.time() <= timeout:
+    while time.time() <= timeout or client.is_queued():
         process_transfers(client)
-        time.sleep(0.5)
+        time.sleep(0.02)
 
     # Check we received this file.
     for i in range(0, 2):
@@ -147,5 +148,4 @@ class test_file_transfer(unittest.TestCase):
 
 
 if __name__ == "__main__":
-    #unittest.main()
-    multiple_transfers()
+    unittest.main()

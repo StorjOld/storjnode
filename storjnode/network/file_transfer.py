@@ -3,6 +3,9 @@ Issues:
     * Delete con_info and con_transfers when con is closed
     * Should contract also be deleted when its transfered? Prob
     * To do: add a clean up routine based on old cons
+
+    * If you do a session with this and transfer a series of files down the con, finish, close your side. Then reconnect and start a new session you can succeed with upload (but then not download.) The temp work around is to close old connections but at some point the underlying issue as to why connection reuse doesnt work should be investigated.
+        * Another work around would be to change the code that identifies duplicate connections in URL and change it based on source:IP instead of just IP .. that would probably be a better solution
 """
 
 import pyp2p.unl
@@ -20,25 +23,14 @@ import sys
 import os
 import shutil
 import binascii
+import socket
+import errno
 import platform
 from threading import Lock
 
 
 mutex = Lock()
 log = logging.getLogger(__name__)
-
-def print_out(msg):
-    print(msg)
-
-class log_monkey():
-    def __init__(self):
-        self.info = None
-        self.debug = None
-
-log = log_monkey()
-
-log.info = print_out
-log.debug = print_out
 
 def process_transfers(client):
     # Process contract messages.
@@ -61,6 +53,13 @@ def process_transfers(client):
 
         # Wait until there's new transfers to process.
         if not client.is_queued(con):
+            # Socket has hung ungracefully.
+            duration = time.time() - con.alive
+            if duration >= 5.0:
+                log.info("Ungraceful socket close")
+                con.close()
+                break
+
             log.info("Not queued: skipping")
             continue
 
@@ -74,10 +73,10 @@ def process_transfers(client):
         log.info(contract_id)
         if len(contract_id) < 64:
             remaining = 64 - len(contract_id)
-            print("Blocking = " + str(con.blocking))
+            log.info("Blocking = " + str(con.blocking))
             partial = con.recv(remaining)
-            print("Contract id chunk = " + partial)
-            print("Connected = " + str(con.connected))
+            log.info("Contract id chunk = " + partial)
+            log.info("Connected = " + str(con.connected))
             if not len(partial):
                 log.info("Did not receive contract id")
                 continue
@@ -152,8 +151,8 @@ def process_transfers(client):
                 path = client.get_data_path(data_id)
                 found_hash = client.hash_file(path)
                 if found_hash != data_id:
-                    print(found_hash)
-                    print(data_id)
+                    log.info(found_hash)
+                    log.info(data_id)
                     log.info("Error: downloaded file doesn't hash right!")
                     # os.remove(path)
 
@@ -162,7 +161,7 @@ def process_transfers(client):
 
         their_unl = client.get_their_unl(contract)
         is_master = client.net.unl.is_master(their_unl)
-        print("Is master = " + str(is_master))
+        log.info("Is master = " + str(is_master))
         if transfer_complete:
             if is_master:
                 client.queue_next_transfer(con)
@@ -216,18 +215,23 @@ class FileTransfer:
 
         return their_unl
 
-    def is_queued(self, con):
-        if con not in self.con_info:
-            return 0
+    def is_queued(self, con=None):
+        if con is not None:
+            if con not in self.con_info:
+                return 0
 
-        more_queued = 0
-        for contract_id in list(self.con_info[con]):
-            con_info = self.con_info[con][contract_id]
-            if con_info["remaining"]:
-                more_queued = 1
-                break
+        if con is None:
+            con_list = list(self.con_info)
+        else:
+            con_list = [con]
 
-        return more_queued
+        for con in con_list:
+            for contract_id in list(self.con_info[con]):
+                con_info = self.con_info[con][contract_id]
+                if con_info["remaining"]:
+                    return 1
+
+        return 0
 
     def cleanup_transfers(self, con):
         # Close con - there's nothing left to download.
@@ -243,7 +247,7 @@ class FileTransfer:
             # Todo: cleanup contract + handshake state.
 
     def queue_next_transfer(self, con):
-        print("Queing next transfer")
+        log.info("Queing next transfer")
         for contract_id in list(self.con_info[con]):
             con_info = self.con_info[con][contract_id]
             if con_info["remaining"]:
@@ -353,7 +357,7 @@ class FileTransfer:
                 # Queue first transfer.
                 their_unl = self.get_their_unl(contract)
                 is_master = self.net.unl.is_master(their_unl)
-                print("Is master = " + str(is_master))
+                log.info("Is master = " + str(is_master))
                 if con not in self.con_transfer:
                     if is_master:
                         # A transfer to queue processing.
@@ -362,9 +366,11 @@ class FileTransfer:
                         # A transfer to receive (unknown.)
                         self.con_transfer[con] = u""
                 else:
-                    if is_master:
-                        if self.con_transfer[con] == u"0" * 64:
+                    if self.con_transfer[con] == u"0" * 64:
+                        if is_master:
                             self.queue_next_transfer(con)
+                        else:
+                            self.con_transfer[con] = u""
 
                 mutex.release()
 
@@ -661,8 +667,8 @@ class FileTransfer:
         return buf
 
     def save_data_chunk(self, data_id, chunk):
-        print("Saving data chunk for " + str(data_id))
-        print("of size + " + str(len(chunk)))
+        log.info("Saving data chunk for " + str(data_id))
+        log.info("of size + " + str(len(chunk)))
         path = self.get_data_path(data_id)
         fp = open(path, "ab")
         fp.write(chunk)
