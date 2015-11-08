@@ -2,6 +2,7 @@
 Issues:
     * Delete con_info and con_transfers when con is closed
     * Should contract also be deleted when its transfered? Prob
+    * To do: add a clean up routine based on old cons
 """
 
 import pyp2p.unl
@@ -19,10 +20,24 @@ import os
 import shutil
 import binascii
 import platform
+from threading import Lock
 
 
+mutex = Lock()
 log = logging.getLogger(__name__)
 
+def print_out(msg):
+    print(msg)
+
+class log_monkey():
+    def __init__(self):
+        self.info = None
+        self.debug = None
+
+log = log_monkey()
+
+log.info = print_out
+log.debug = print_out
 
 def process_transfers(client):
     # Process contract messages.
@@ -30,6 +45,9 @@ def process_transfers(client):
         for msg in client.net.dht_node.get_messages():
             log.info(msg)
             client.protocol(msg)
+
+    # Process new connections.
+    client.net.synchronize()
 
     # Process connections.
     for con in client.net:
@@ -40,20 +58,41 @@ def process_transfers(client):
             log.info("Con not in con_info")
             continue
 
+        # Wait until there's new transfers to process.
+        if not client.is_queued(con):
+            log.info("Not queued: skipping")
+            continue
+
         # Get active contract ID.
         if con not in client.con_transfer:
-            client.con_transfer[con] = u""
+            log.info("Con not in con_Transfer")
+            continue
+
         contract_id = client.con_transfer[con]
         log.info("Contract id =")
         log.info(contract_id)
         if len(contract_id) < 64:
             remaining = 64 - len(contract_id)
+            print("Blocking = " + str(con.blocking))
             partial = con.recv(remaining)
+            print("Contract id chunk = " + partial)
+            print("Connected = " + str(con.connected))
+            if not len(partial):
+                log.info("Did not receive contract id")
+                continue
+
             client.con_transfer[con] += partial
             log.info("Skipping contract id.")
             continue
 
+        # Reached end of transfer queue.
+        if contract_id == u"0" * 64:
+            log.info("Skippng end of queue")
+            continue
+
         # Anything left to do?
+        if contract_id not in client.con_info[con]:
+            continue
         con_info = client.con_info[con][contract_id]
         if not con_info["remaining"]:
             log.info("Skipping remaining.")
@@ -61,6 +100,7 @@ def process_transfers(client):
 
         # Upload.
         contract = client.contracts[contract_id]
+        transfer_complete = 0
         if client.net.unl == pyp2p.unl.UNL(value=contract["host_unl"]):
             log.info("Uploading: Found our UNL")
 
@@ -82,10 +122,7 @@ def process_transfers(client):
 
             # Everything uploaded.
             if not con_info["remaining"]:
-                client.queue_next_upload(con)
-
-                # Close con if no longer needed.
-                client.cleanup_transfers(con)
+                transfer_complete = 1
         else:
             log.info("Attempting to download.")
 
@@ -112,15 +149,25 @@ def process_transfers(client):
 
                 # Delete file if it doesn't hash right!
                 path = client.get_data_path(data_id)
-                if client.hash_file(path) != data_id:
+                found_hash = client.hash_file(path)
+                if found_hash != data_id:
+                    print(found_hash)
+                    print(data_id)
                     log.info("Error: downloaded file doesn't hash right!")
-                    os.remove(path)
+                    # os.remove(path)
 
                 # Ready for a new transfer (if there are any.)
+                transfer_complete = 1
+
+        their_unl = client.get_their_unl(contract)
+        is_master = client.net.unl.is_master(their_unl)
+        print("Is master = " + str(is_master))
+        if transfer_complete:
+            if is_master:
+                client.queue_next_transfer(con)
+            else:
                 client.con_transfer[con] = u""
 
-                # Close con if no longer needed.
-                client.cleanup_transfers(con)
 
 
 
@@ -175,7 +222,18 @@ class FileTransfer:
         # (Never try to download multiple copies of the same thing at once.)
         self.downloading = {}
 
+    def get_their_unl(self, contract):
+        if self.net.unl == pyp2p.unl.UNL(value=contract["dest_unl"]):
+            their_unl = contract["src_unl"]
+        else:
+            their_unl = contract["dest_unl"]
+
+        return their_unl
+
     def is_queued(self, con):
+        if con not in self.con_info:
+            return 0
+
         more_queued = 0
         for contract_id in list(self.con_info[con]):
             con_info = self.con_info[con][contract_id]
@@ -198,13 +256,17 @@ class FileTransfer:
 
             # Todo: cleanup contract + handshake state.
 
-    def queue_next_upload(self, con):
+    def queue_next_transfer(self, con):
+        print("Queing next transfer")
         for contract_id in list(self.con_info[con]):
             con_info = self.con_info[con][contract_id]
             if con_info["remaining"]:
                 self.con_transfer[con] = contract_id
                 con.send(contract_id, send_all=1)
                 return
+
+        # Mark end of transfers.
+        self.con_transfer[con] = u"0" * 64
 
     def is_valid_syn(self, msg):
         # List of expected fields.
@@ -274,8 +336,13 @@ class FileTransfer:
         # Associate TCP con with contract.
         def success_wrapper(self, contract_id, host_unl):
             def success(con):
+                mutex.acquire()
+                log.info("IN SUCCESS CALLBACK")
+                log.info("Success() contract_id = " + str(contract_id))
+
                 # Associate TCP con with contract.
-                file_size = self.contracts[contract_id]["file_size"]
+                contract = self.contracts[contract_id]
+                file_size = contract["file_size"]
 
                 # Store con association.
                 if con not in self.con_info:
@@ -289,14 +356,31 @@ class FileTransfer:
                     }
 
                 # Record download state.
-                data_id = self.contracts[contract_id]["data_id"]
+                data_id = contract["data_id"]
                 if self.net.unl != pyp2p.unl.UNL(value=host_unl):
+                    log.info("Success: download")
                     self.downloading[data_id] = 1
                 else:
                     # Set initial upload for this con.
-                    if con not in self.con_transfer:
-                        self.con_transfer[con] = contract_id
-                        con.send(contract_id, send_all=1)
+                    log.info("Success: upload")
+
+                # Queue first transfer.
+                their_unl = self.get_their_unl(contract)
+                is_master = self.net.unl.is_master(their_unl)
+                print("Is master = " + str(is_master))
+                if con not in self.con_transfer:
+                    if is_master:
+                        # A transfer to queue processing.
+                        self.queue_next_transfer(con)
+                    else:
+                        # A transfer to receive (unknown.)
+                        self.con_transfer[con] = u""
+                else:
+                    if is_master:
+                        if self.con_transfer[con] == u"0" * 64:
+                            self.queue_next_transfer(con)
+
+                mutex.release()
 
             return success
 
@@ -584,16 +668,18 @@ class FileTransfer:
     def get_data_chunk(self, data_id, position, chunk_size=1048576):
         path = self.get_data_path(data_id)
         buf = b""
-        with open(path, "rb") as fp:
-            fp.seek(position, 0)
-            buf = fp.read(chunk_size)
+        fp = open(path, "rb")
+        fp.seek(position, 0)
+        buf = fp.read(chunk_size)
 
         return buf
 
     def save_data_chunk(self, data_id, chunk):
+        print("Saving data chunk for " + str(data_id))
+        print("of size + " + str(len(chunk)))
         path = self.get_data_path(data_id)
-        with open(path, "ab") as fp:
-            fp.write(chunk)
+        fp = open(path, "ab")
+        fp.write(chunk)
 
 if __name__ == "__main__":
     # Alice sample node.
