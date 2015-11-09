@@ -204,22 +204,23 @@ def _parse_args(args):
     return command, arguments
 
 
+def on_message(source, message)
+    if source is not None:
+        peerid = binascii.hexlify(source)
+        msg = "Received direct message from {0}: {1}"
+        print(msg.format(peerid, message))
+    else:
+        print("Received relayed message: {0}".format(message))
+
+
 def command_run(node, args):
     args["id"] = binascii.hexlify(node.get_id())
     args["udp_port"] = node.port
     print("Running node on port {udp_port} with id {id}".format(**args))
     print("Direct connect UNL = " + node.get_unl())
+    node.add_message_handler(on_message)
     while True:
         time.sleep(0.5)
-        for received in node.get_messages():
-            message = received["message"]
-            if received["source"] is not None:
-                peerid = binascii.hexlify(received["source"].id)
-                msg = "Received direct message from {0}: {1}"
-                print(msg.format(peerid, message))
-            else:
-                print("Received relayed message: {0}".format(message))
-
         node.process_data_transfers()
 
 

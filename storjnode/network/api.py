@@ -111,9 +111,8 @@ class Node(object):
         # start services
         self._setup_server(key, ksize, storage, max_messages,
                            refresh_neighbours_interval, bootstrap_nodes)
-        # FIXME self._setup_data_transfer_client(storage_path, passive_port,
-        # FIXME                                  passive_bind)
-
+        self._setup_data_transfer_client(storage_path, passive_port,
+                                         passive_bind)
         self._setup_message_dispatcher()
 
     def _setup_message_dispatcher(self):
@@ -152,7 +151,7 @@ class Node(object):
         self._message_dispatcher_thread_stop = True
         self._message_dispatcher_thread.join()
         self.server.stop()
-        # FIXME self._data_transfer.net.stop()
+        self._data_transfer.net.stop()
 
     ##################
     # node interface #
@@ -225,12 +224,25 @@ class Node(object):
     #######################
 
     def async_direct_message(self, nodeid, message):
-        # FIXME add doc string
+        """Send direct message to a node and return a defered result.
+
+        Spidercrawls the network to find the node and sends the message
+        directly. This will fail if the node is behind a NAT and doesn't
+        have a public ip.
+
+        Args:
+            nodeid: 160bit nodeid of the reciever as bytes
+            message: iu-msgpack-python serializable message data
+
+        Returns:
+            A twisted.internet.defer.Deferred that resloves to
+            own transport address (ip, port) if successfull else None
+        """
         return self.server.direct_message(nodeid, message)
 
     @wait_for(timeout=WALK_TIMEOUT)
     def direct_message(self, nodeid, message):
-        """Send direct message to a node.
+        """Send direct message to a node and block until complete.
 
         Spidercrawls the network to find the node and sends the message
         directly. This will fail if the node is behind a NAT and doesn't
@@ -285,11 +297,27 @@ class Node(object):
             time.sleep(0.05)
 
     def add_message_handler(self, handler):
-        # FIXME add doc string
+        """Add message handler to be call when a message is received.
+
+        The handler must be callable and accept two arguments. The first
+        argument is the source id and the second the message. The source id
+        will be None if it was a relay message.
+        
+        Example:
+           node = Node()
+           def on_message(source_id, message):
+               t = "relay" if source_id is None else "direct"
+               print("Received {0} message: {1}".format(t, message))
+           node.add_message_handler(handler)
+        """
         self._message_handlers.add(handler)
 
     def remove_message_handler(self, handler):
-        # FIXME add doc string
+        """Remove a message handler from the Node.
+        
+        Raises:
+            KeyError if handler was not previously added.
+        """
         self._message_handlers.remove(handler)
 
     ##############################
