@@ -204,7 +204,7 @@ def _parse_args(args):
     return command, arguments
 
 
-def on_message(source, message)
+def on_message(source, message):
     if source is not None:
         peerid = binascii.hexlify(source)
         msg = "Received direct message from {0}: {1}"

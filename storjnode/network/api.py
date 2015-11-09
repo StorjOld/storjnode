@@ -191,9 +191,9 @@ class Node(object):
         """
         return self.server.dbg_has_public_ip()
 
-    ###########################
-    # data transfer interface #
-    ###########################
+    ######################################
+    # depricated data transfer interface #
+    ######################################
 
     def move_to_storage(self, path):
         # FIXME remove and have callers use storage service instead
@@ -218,6 +218,72 @@ class Node(object):
 
     def process_data_transfers(self):
         process_transfers(self._data_transfer)
+
+    ###########################
+    # data transfer interface #
+    ###########################
+
+    def async_request_data_transfer(self, data_id, peer_id, direction):
+        """Request data be transfered to or from a peer.
+
+        Args:
+            data_id: The sha256 sum of the data to be transfered.
+            peer_id: The node id of the peer to get the data from.
+            direction: "send" to peer or "receive" from peer
+
+        Returns:
+            A twisted.internet.defer.Deferred that resloves to
+            own transport address (ip, port) if successfull else None
+
+        Raises:
+            RequestDenied: If the peer denied your request to transfer data.
+            TransferError: If the data not transfered for other reasons.
+        """
+        pass  # TODO implement
+
+    def sync_request_data_transfer(self, data_id, peer_id, direction):
+        """Request data be transfered to or from a peer.
+
+        This call will block until the data has been transfered full or failed.
+
+        Args:
+            data_id: The sha256 sum of the data to be transfered.
+            peer_id: The node id of the peer to get the data from.
+            direction: "send" to peer or "receive" from peer
+
+        Raises:
+            RequestDenied: If the peer denied your request to transfer data.
+            TransferError: If the data not transfered for other reasons.
+        """
+        pass  # TODO implement
+
+    def add_transfer_request_handler(self, handler):
+        """Add an allow transfer request handler.
+
+        If any handler returns True the request will be accepted.
+        The handler must be callable and accept three arguments. The first
+        argument is the requesting peer id and the second the data id and
+        the third is the direction. The direction parameter will be the
+        oposatle of the requesters direction.
+
+        Example:
+            def on_transfer_request(requesting_peer_id, data_id, direction):
+                # This handler  will accept everything but send nothing.
+                return direction == "receive"
+            node = Node()
+            node.add_allow_transfer_handler(on_transfer_request)
+        """
+        pass  # TODO implement
+
+    def remove_transfer_request_handler(self, handler):
+        """Remove a allow transfer request handler from the Node.
+
+        Raises:
+            KeyError if handler was not previously added.
+        """
+        pass  # TODO implement
+
+    # TODO add handlers for transfer complete
 
     #######################
     # messaging interface #
@@ -284,7 +350,7 @@ class Node(object):
     def _dispatch_message(self, received, handler):
         try:
             source = received["source"].id if received["source"] else None
-            handler(received["source"], received["message"])
+            handler(source, received["message"])
         except Exception as e:
             msg = "Message handler raised exception: {0}"
             log.error(msg.format(repr(e)))
@@ -302,7 +368,7 @@ class Node(object):
         The handler must be callable and accept two arguments. The first
         argument is the source id and the second the message. The source id
         will be None if it was a relay message.
-        
+
         Example:
            node = Node()
            def on_message(source_id, message):
@@ -314,7 +380,7 @@ class Node(object):
 
     def remove_message_handler(self, handler):
         """Remove a message handler from the Node.
-        
+
         Raises:
             KeyError if handler was not previously added.
         """
@@ -404,94 +470,94 @@ class Node(object):
         for k in f:
             self[k] = f[k]
 
-    def values(self):
-        """Not implemented by design, keyset to big."""
-        raise NotImplementedError()  # pragma: no cover
+#   def values(self):
+#       """Not implemented by design, keyset to big."""
+#       raise NotImplementedError()  # pragma: no cover
 
-    def viewitems(self):
-        """Not implemented by design, keyset to big."""
-        raise NotImplementedError()  # pragma: no cover
+#   def viewitems(self):
+#       """Not implemented by design, keyset to big."""
+#       raise NotImplementedError()  # pragma: no cover
 
-    def viewkeys(self):
-        """Not implemented by design, keyset to big."""
-        raise NotImplementedError()  # pragma: no cover
+#   def viewkeys(self):
+#       """Not implemented by design, keyset to big."""
+#       raise NotImplementedError()  # pragma: no cover
 
-    def viewvalues(self):
-        """Not implemented by design, keyset to big."""
-        raise NotImplementedError()  # pragma: no cover
+#   def viewvalues(self):
+#       """Not implemented by design, keyset to big."""
+#       raise NotImplementedError()  # pragma: no cover
 
-    def __cmp__(self, other):
-        """Not implemented by design, keyset to big."""
-        raise NotImplementedError()  # pragma: no cover
+#   def __cmp__(self, other):
+#       """Not implemented by design, keyset to big."""
+#       raise NotImplementedError()  # pragma: no cover
 
-    def __eq__(self, other):
-        """Not implemented by design, keyset to big."""
-        raise NotImplementedError()  # pragma: no cover
+#   def __eq__(self, other):
+#       """Not implemented by design, keyset to big."""
+#       raise NotImplementedError()  # pragma: no cover
 
-    def __ge__(self, other):
-        """Not implemented by design, keyset to big."""
-        raise NotImplementedError()  # pragma: no cover
+#   def __ge__(self, other):
+#       """Not implemented by design, keyset to big."""
+#       raise NotImplementedError()  # pragma: no cover
 
-    def __gt__(self, other):
-        """Not implemented by design, keyset to big."""
-        raise NotImplementedError()  # pragma: no cover
+#   def __gt__(self, other):
+#       """Not implemented by design, keyset to big."""
+#       raise NotImplementedError()  # pragma: no cover
 
-    def __le__(self, other):
-        """Not implemented by design, keyset to big."""
-        raise NotImplementedError()  # pragma: no cover
+#   def __le__(self, other):
+#       """Not implemented by design, keyset to big."""
+#       raise NotImplementedError()  # pragma: no cover
 
-    def __len__(self):
-        """Not implemented by design, keyset to big."""
-        raise NotImplementedError()  # pragma: no cover
+#   def __len__(self):
+#       """Not implemented by design, keyset to big."""
+#       raise NotImplementedError()  # pragma: no cover
 
-    def __lt__(self, other):
-        """Not implemented by design, keyset to big."""
-        raise NotImplementedError()  # pragma: no cover
+#   def __lt__(self, other):
+#       """Not implemented by design, keyset to big."""
+#       raise NotImplementedError()  # pragma: no cover
 
-    def __ne__(self, other):
-        """Not implemented by design, keyset to big."""
-        raise NotImplementedError()  # pragma: no cover
+#   def __ne__(self, other):
+#       """Not implemented by design, keyset to big."""
+#       raise NotImplementedError()  # pragma: no cover
 
-    def clear(self):
-        """Not implemented by design, keyset to big."""
-        raise NotImplementedError()  # pragma: no cover
+#   def clear(self):
+#       """Not implemented by design, keyset to big."""
+#       raise NotImplementedError()  # pragma: no cover
 
-    def copy(self):
-        """Not implemented by design, keyset to big."""
-        raise NotImplementedError()  # pragma: no cover
+#   def copy(self):
+#       """Not implemented by design, keyset to big."""
+#       raise NotImplementedError()  # pragma: no cover
 
-    def items(self):
-        """Not implemented by design, keyset to big."""
-        raise NotImplementedError()  # pragma: no cover
+#   def items(self):
+#       """Not implemented by design, keyset to big."""
+#       raise NotImplementedError()  # pragma: no cover
 
-    def iteritems(self):
-        """Not implemented by design, keyset to big."""
-        raise NotImplementedError()  # pragma: no cover
+#   def iteritems(self):
+#       """Not implemented by design, keyset to big."""
+#       raise NotImplementedError()  # pragma: no cover
 
-    def iterkeys(self):
-        """Not implemented by design, keyset to big."""
-        raise NotImplementedError()  # pragma: no cover
+#   def iterkeys(self):
+#       """Not implemented by design, keyset to big."""
+#       raise NotImplementedError()  # pragma: no cover
 
-    def itervalues(self):
-        """Not implemented by design, keyset to big."""
-        raise NotImplementedError()  # pragma: no cover
+#   def itervalues(self):
+#       """Not implemented by design, keyset to big."""
+#       raise NotImplementedError()  # pragma: no cover
 
-    def keys(self):
-        """Not implemented by design, keyset to big."""
-        raise NotImplementedError()  # pragma: no cover
+#   def keys(self):
+#       """Not implemented by design, keyset to big."""
+#       raise NotImplementedError()  # pragma: no cover
 
-    def __iter__(self):
-        """Not implemented by design, keyset to big."""
-        raise NotImplementedError()  # pragma: no cover
+#   def __iter__(self):
+#       """Not implemented by design, keyset to big."""
+#       raise NotImplementedError()  # pragma: no cover
 
-    def __delitem__(self, y):
-        """Not implemented by design, write only."""
-        raise NotImplementedError()  # pragma: no cover
+#   def __delitem__(self, y):
+#       """Not implemented by design, write only."""
+#       raise NotImplementedError()  # pragma: no cover
 
-    def pop(self, k, d=None):
-        """Not implemented by design, write only."""
-        raise NotImplementedError()  # pragma: no cover
+#   def pop(self, k, d=None):
+#       """Not implemented by design, write only."""
+#       raise NotImplementedError()  # pragma: no cover
 
-    def popitem(self):
-        """Not implemented by design, write only."""
-        raise NotImplementedError()  # pragma: no cover
+#   def popitem(self):
+#       """Not implemented by design, write only."""
+#       raise NotImplementedError()  # pragma: no cover
