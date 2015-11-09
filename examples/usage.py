@@ -8,7 +8,7 @@ setup()  # start twisted via crochet
 
 # start node (use bitcoin wif or hwif as node key)
 node_key = "KzygUeD8qXaKBFdJWMk9c6AVib89keoZFBNdFBsj73kYZfAc4n1j"
-node = storjnode.network.BlockingNode(node_key)
+node = storjnode.network.Node(node_key)
 
 print("Giving nodes some time to find peers.")
 time.sleep(30)

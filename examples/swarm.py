@@ -53,7 +53,7 @@ if __name__ == "__main__":
     for i in range(arguments["size"]):
         port = arguments["ports"] + i
         node_key = btctxstore.create_key()
-        peer = storjnode.network.BlockingNode(node_key, port=port,
+        peer = storjnode.network.Node(node_key, port=port,
                                               bootstrap_nodes=bootstrap_nodes)
         swarm.append(peer)
         print("Started peer {0} on port {1}.".format(i, port))

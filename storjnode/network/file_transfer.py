@@ -525,7 +525,7 @@ class FileTransfer:
     def send_msg(self, dict_obj, unl):
         node_id = self.net.unl.deconstruct(unl)["node_id"]
         msg = json.dumps(dict_obj, ensure_ascii=True)
-        self.net.dht_node.send_direct_message(
+        self.net.dht_node.direct_message(
             node_id,
             msg
         )

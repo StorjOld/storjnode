@@ -12,9 +12,8 @@ from crochet import setup, TimeoutError
 import os
 setup()  # start twisted via crochet
 
+from storjnode.common import DEFAULT_STORE_PATH
 
-DEFAULT_APP_HOME = os.path.join(os.path.expanduser("~"), ".storj")              
-DEFAULT_STORE_PATH = os.path.join(DEFAULT_APP_HOME, "store")                    
 
 
 def _add_programm_args(parser):
@@ -244,7 +243,7 @@ def command_get(node, args):
 def command_direct_message(node, args):
     try:
         peerid = binascii.unhexlify(args["id"])
-        result = node.send_direct_message(peerid, args["message"])
+        result = node.direct_message(peerid, args["message"])
         if result is None:
             print("Unsuccessfully sent!")
         else:
@@ -255,7 +254,7 @@ def command_direct_message(node, args):
 
 def command_relay_message(node, args):
     peerid = binascii.unhexlify(args["id"])
-    node.send_relay_message(peerid, args["message"])
+    node.relay_message(peerid, args["message"])
     print("Queued relay message.")
     time.sleep(5)  # give time for queue to be processed
 
@@ -304,7 +303,7 @@ def setup_node(args):
     node_key = _get_node_key(args)
     udp_port = args["udp_port"]
     bootstrap_nodes = _get_bootstrap_nodes(args)
-    return storjnode.network.BlockingNode(
+    return storjnode.network.Node(
         node_key, port=udp_port, bootstrap_nodes=bootstrap_nodes,
         refresh_neighbours_interval=WALK_TIMEOUT,
         storage_path=args["storage_path"],

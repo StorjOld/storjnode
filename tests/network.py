@@ -1,5 +1,8 @@
 import os
+import threading
+import tempfile
 import time
+import shutil
 import binascii
 import random
 import unittest
@@ -16,9 +19,10 @@ WALK_TIMEOUT = WALK_TIMEOUT / 2
 TEST_MESSAGE_TIMEOUT = 5
 TEST_SWARM_SIZE = 64  # tested up to 256
 TEST_MAX_MESSAGES = 2
+TEST_STORAGE_DIR = tempfile.mkdtemp()
 
 
-class TestBlockingNode(unittest.TestCase):
+class TestNode(unittest.TestCase):
 
     @classmethod
     def setUpClass(cls):
@@ -32,11 +36,11 @@ class TestBlockingNode(unittest.TestCase):
             bootstrap_nodes = [("127.0.0.1", 3000 + x) for x in range(i)][-20:]
 
             # create node
-            node = storjnode.network.BlockingNode(
+            node = storjnode.network.Node(
                 cls.btctxstore.create_wallet(), port=(3000 + i),
                 bootstrap_nodes=bootstrap_nodes,
-                message_timeout=TEST_MESSAGE_TIMEOUT,
-                max_messages=TEST_MAX_MESSAGES
+                max_messages=TEST_MAX_MESSAGES,
+                storage_path=TEST_STORAGE_DIR,
             )
             cls.swarm.append(node)
 
@@ -49,9 +53,6 @@ class TestBlockingNode(unittest.TestCase):
         for node in cls.swarm:
             node.refresh_neighbours()
         time.sleep(WALK_TIMEOUT)
-        #for node in cls.swarm:
-        #    node.refresh_neighbours()
-        #time.sleep(WALK_TIMEOUT)
 
         #print("TEST: generating swarm graph")
         #name = "unittest_network_" + str(datetime.datetime.now())
@@ -64,6 +65,7 @@ class TestBlockingNode(unittest.TestCase):
         print("TEST: stopping swarm")
         for node in cls.swarm:
             node.stop()
+        shutil.rmtree(TEST_STORAGE_DIR)
 
     #################################
     # test util and debug functions #
@@ -71,22 +73,31 @@ class TestBlockingNode(unittest.TestCase):
 
     def test_refresh_neighbours_thread(self):
         interval = QUERY_TIMEOUT * 2
-        alice_node = storjnode.network.BlockingNode(
+        alice_node = storjnode.network.Node(
             self.__class__.btctxstore.create_key(),
             bootstrap_nodes=[("240.0.0.0", 1337)],
+            max_messages=TEST_MAX_MESSAGES,
             refresh_neighbours_interval=interval
         )
-        bob_node = storjnode.network.BlockingNode(
+        alice_received = threading.Event()
+        alice_node.add_message_handler(lambda s, m: alice_received.set())
+
+        bob_node = storjnode.network.Node(
             self.__class__.btctxstore.create_key(),
             bootstrap_nodes=[("127.0.0.1", alice_node.port)],
+            max_messages=TEST_MAX_MESSAGES,
             refresh_neighbours_interval=interval
         )
+        bob_received = threading.Event()
+        bob_node.add_message_handler(lambda s, m: bob_received.set())
         time.sleep(interval * 2)  # wait until network overlay stable, 2 peers
         try:
-            alice_node.send_direct_message(bob_node.get_id(), "hi bob")
-            self.assertTrue(bob_node.has_messages())
-            bob_node.send_direct_message(alice_node.get_id(), "hi alice")
-            self.assertTrue(alice_node.has_messages())
+            alice_node.direct_message(bob_node.get_id(), "hi bob")
+            time.sleep(0.1)  # wait for despatcher
+            self.assertTrue(bob_received.isSet())
+            bob_node.direct_message(alice_node.get_id(), "hi alice")
+            time.sleep(0.1)  # wait for despatcher
+            self.assertTrue(alice_received.isSet())
         finally:
             alice_node.stop()
             bob_node.stop()
@@ -110,17 +121,19 @@ class TestBlockingNode(unittest.TestCase):
     def _test_relay_message(self, sender, receiver, success_expected):
         testmessage = binascii.hexlify(os.urandom(32))
         receiver_id = receiver.get_id()
-        sender.send_relay_message(receiver_id, testmessage)
+        sender.relay_message(receiver_id, testmessage)
+        received = []
+        receiver.add_message_handler(lambda s, m: received.append(
+            {"source": s, "message": m}
+        ))
         time.sleep(QUERY_TIMEOUT)  # wait until relayed
 
         if not success_expected:
-            self.assertFalse(receiver.has_messages())
+            self.assertEqual(len(received), 0)
 
         else:  # success expected
 
             # check one message received
-            self.assertTrue(receiver.has_messages())
-            received = receiver.get_messages()
             self.assertEqual(len(received), 1)
 
             # check if correct message received
@@ -151,41 +164,47 @@ class TestBlockingNode(unittest.TestCase):
     def test_relay_message_to_void(self):  # for coverage
         random_peer = random.choice(self.swarm)
         void_id = b"void" * 5
-        random_peer.send_relay_message(void_id, "into the void")
+        random_peer.relay_message(void_id, "into the void")
         time.sleep(QUERY_TIMEOUT)  # wait until relayed
 
     def test_max_relay_messages(self):  # for coverage
         random_peer = random.choice(self.swarm)
         void_id = b"void" * 5
 
-        queued = random_peer.send_relay_message(void_id, "into the void")
+        queued = random_peer.relay_message(void_id, "into the void")
         self.assertTrue(queued)
-        queued = random_peer.send_relay_message(void_id, "into the void")
+        queued = random_peer.relay_message(void_id, "into the void")
         self.assertTrue(queued)
 
         # XXX chance of failure if queue is processed during test
-        queued = random_peer.send_relay_message(void_id, "into the void")
+        queued = random_peer.relay_message(void_id, "into the void")
         self.assertFalse(queued)  # relay queue full
 
         time.sleep(QUERY_TIMEOUT)  # wait until relayed
 
     def test_relay_message_full_duplex(self):
-        alice_node = storjnode.network.BlockingNode(
+        alice_node = storjnode.network.Node(
             self.__class__.btctxstore.create_key(),
-            bootstrap_nodes=[("240.0.0.0", 1337)]
+            bootstrap_nodes=[("240.0.0.0", 1337)],
+            max_messages=TEST_MAX_MESSAGES,
         )
-        bob_node = storjnode.network.BlockingNode(
+        alice_received = threading.Event()
+        alice_node.add_message_handler(lambda s, m: alice_received.set())
+        bob_node = storjnode.network.Node(
             self.__class__.btctxstore.create_key(),
-            bootstrap_nodes=[("127.0.0.1", alice_node.port)]
+            bootstrap_nodes=[("127.0.0.1", alice_node.port)],
+            max_messages=TEST_MAX_MESSAGES,
         )
+        bob_received = threading.Event()
+        bob_node.add_message_handler(lambda s, m: bob_received.set())
         time.sleep(QUERY_TIMEOUT)  # wait until network overlay stable, 2 peers
         try:
-            alice_node.send_relay_message(bob_node.get_id(), "hi bob")
+            alice_node.relay_message(bob_node.get_id(), "hi bob")
             time.sleep(QUERY_TIMEOUT)  # wait until relayed
-            self.assertTrue(bob_node.has_messages())
-            bob_node.send_relay_message(alice_node.get_id(), "hi alice")
+            self.assertTrue(bob_received.isSet())
+            bob_node.relay_message(alice_node.get_id(), "hi alice")
             time.sleep(QUERY_TIMEOUT)  # wait until relayed
-            self.assertTrue(alice_node.has_messages())
+            self.assertTrue(alice_received.isSet())
         finally:
             alice_node.stop()
             bob_node.stop()
@@ -205,11 +224,17 @@ class TestBlockingNode(unittest.TestCase):
     def _test_direct_message(self, sender, receiver, success_expected):
         testmessage = binascii.hexlify(os.urandom(32))
         receiver_id = receiver.get_id()
-        sender_address = sender.send_direct_message(receiver_id, testmessage)
+        received = []
+        receiver.add_message_handler(lambda s, m: received.append(
+            {"source": s, "message": m}
+        ))
+
+        sender_address = sender.direct_message(receiver_id, testmessage)
+        time.sleep(0.1)  # wait for despatcher
 
         if not success_expected:
             self.assertTrue(sender_address is None)  # was not received
-            self.assertFalse(receiver.has_messages())
+            self.assertEqual(len(received), 0)
 
         else:  # success expected
 
@@ -223,8 +248,6 @@ class TestBlockingNode(unittest.TestCase):
             self.assertTrue(port >= 0 and port <= 2**16)
 
             # check one message received
-            self.assertTrue(receiver.has_messages())
-            received = receiver.get_messages()
             self.assertEqual(len(received), 1)
 
             # check if correct message received
@@ -244,7 +267,7 @@ class TestBlockingNode(unittest.TestCase):
         testmessage = binascii.hexlify(os.urandom(32))
         receiver_id = binascii.unhexlify("DEADBEEF" * 5)
         sender = self.swarm[0]
-        result = sender.send_direct_message(receiver_id, testmessage)
+        result = sender.direct_message(receiver_id, testmessage)
         self.assertTrue(result is None)
 
     def test_direct_message_self(self):
@@ -262,70 +285,78 @@ class TestBlockingNode(unittest.TestCase):
             print(msg.format(sender.get_hex_id(), receiver.get_hex_id()))
             self._test_direct_message(sender, receiver, sender is not receiver)
 
-    def test_stale_messages_dropped(self):
-        testmessage = binascii.hexlify(os.urandom(32))
-        sender = self.swarm[0]
-        receiver = self.swarm[TEST_SWARM_SIZE - 1]
-        receiver_id = receiver.get_id()
-        sender_address = sender.send_direct_message(receiver_id, testmessage)
-
-        self.assertTrue(sender_address is not None)  # was received
-        self.assertTrue(receiver.has_messages())  # check one message received
-        time.sleep(TEST_MESSAGE_TIMEOUT + 1)  # wait until stale
-        self.assertFalse(receiver.has_messages())  # check message was dropped
-
     def test_direct_message_to_void(self):  # for coverage
-        peer = storjnode.network.BlockingNode(
+        peer = storjnode.network.Node(
             self.__class__.btctxstore.create_wallet(),
             bootstrap_nodes=[("240.0.0.0", 1337)],  # isolated peer
+            max_messages=TEST_MAX_MESSAGES,
         )
         try:
             void_id = b"void" * 5
-            result = peer.send_direct_message(void_id, "into the void")
+            result = peer.direct_message(void_id, "into the void")
+            time.sleep(0.1)  # wait for despatcher
             self.assertTrue(result is None)
         finally:
             peer.stop()
 
     def test_direct_message_full_duplex(self):
-        alice_node = storjnode.network.BlockingNode(
+        alice_node = storjnode.network.Node(
             self.__class__.btctxstore.create_key(),
-            bootstrap_nodes=[("240.0.0.0", 1337)]
+            bootstrap_nodes=[("240.0.0.0", 1337)],
+            max_messages=TEST_MAX_MESSAGES,
         )
-        bob_node = storjnode.network.BlockingNode(
+        alice_received = threading.Event()
+        alice_node.add_message_handler(lambda s, m: alice_received.set())
+        bob_node = storjnode.network.Node(
             self.__class__.btctxstore.create_key(),
-            bootstrap_nodes=[("127.0.0.1", alice_node.port)]
+            bootstrap_nodes=[("127.0.0.1", alice_node.port)],
+            max_messages=TEST_MAX_MESSAGES,
         )
+        bob_received = threading.Event()
+        bob_node.add_message_handler(lambda s, m: bob_received.set())
         time.sleep(QUERY_TIMEOUT)  # wait until network overlay stable, 2 peers
         try:
-            alice_node.send_direct_message(bob_node.get_id(), "hi bob")
-            self.assertTrue(bob_node.has_messages())
-            bob_node.send_direct_message(alice_node.get_id(), "hi alice")
-            self.assertTrue(alice_node.has_messages())
+            alice_node.direct_message(bob_node.get_id(), "hi bob")
+            time.sleep(0.1)  # wait for despatcher
+            self.assertTrue(bob_received.isSet())
+            bob_node.direct_message(alice_node.get_id(), "hi alice")
+            time.sleep(0.1)  # wait for despatcher
+            self.assertTrue(alice_received.isSet())
         finally:
             alice_node.stop()
             bob_node.stop()
 
     def test_max_received_messages(self):
-        sender = self.swarm[0]
+        alice_node = storjnode.network.Node(
+            self.__class__.btctxstore.create_key(),
+            bootstrap_nodes=[("240.0.0.0", 1337)],
+            max_messages=TEST_MAX_MESSAGES,
+        )
+        bob_node = storjnode.network.Node(
+            self.__class__.btctxstore.create_key(),
+            bootstrap_nodes=[("127.0.0.1", alice_node.port)],
+            max_messages=TEST_MAX_MESSAGES,
+        )
+        time.sleep(QUERY_TIMEOUT)  # wait until network overlay stable, 2 peers
+        try:
+            # XXX stop dispatcher
+            bob_node._message_dispatcher_thread_stop = True
+            bob_node._message_dispatcher_thread.join()
 
-        receiver = self.swarm[TEST_SWARM_SIZE - 1]
-        receiver_id = receiver.get_id()
+            message_a = binascii.hexlify(os.urandom(32))
+            result = alice_node.direct_message(bob_node.get_id(), message_a)
+            self.assertTrue(result is not None)
 
-        message_a = binascii.hexlify(os.urandom(32))
-        message_b = binascii.hexlify(os.urandom(32))
-        message_c = binascii.hexlify(os.urandom(32))
+            message_b = binascii.hexlify(os.urandom(32))
+            result = alice_node.direct_message(bob_node.get_id(), message_b)
+            self.assertTrue(result is not None)
 
-        result = sender.send_direct_message(receiver_id, message_a)
-        self.assertTrue(result is not None)
-        result = sender.send_direct_message(receiver_id, message_b)
-        self.assertTrue(result is not None)
-        result = sender.send_direct_message(receiver_id, message_c)
-        self.assertTrue(result is None)
-
-        received = receiver.get_messages()
-        self.assertEqual(len(received), 2)
-        self.assertTrue(received[0]["message"] in [message_a, message_b])
-        self.assertTrue(received[1]["message"] in [message_a, message_b])
+            message_c = binascii.hexlify(os.urandom(32))
+            result = alice_node.direct_message(bob_node.get_id(), message_c)
+            self.assertEqual(result, None)
+        finally:
+            alice_node.stop()
+            bob_node.stop()
 
     ###############################
     # test distributed hash table #

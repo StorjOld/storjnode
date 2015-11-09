@@ -23,7 +23,7 @@ WALK_TIMEOUT = QUERY_TIMEOUT * 24
 class StorjServer(Server):
 
     def __init__(self, key, ksize=20, alpha=3, storage=None,
-                 message_timeout=30, max_messages=1024, default_hop_limit=64,
+                 max_messages=1024, default_hop_limit=64,
                  refresh_neighbours_interval=0.0):
         """
         Create a server instance.  This will start listening on the given port.
@@ -33,10 +33,8 @@ class StorjServer(Server):
             ksize (int): The k parameter from the kademlia paper.
             alpha (int): The alpha parameter from the kademlia paper
             storage: implements :interface:`~kademlia.storage.IStorage`
-            message_timeout: Seconds until unprocessed messages are dropped.
             refresh_neighbours_interval (float): Auto refresh neighbours.
         """
-        self._message_timeout = message_timeout
         self._default_hop_limit = default_hop_limit
         self._refresh_neighbours_interval = refresh_neighbours_interval
 
@@ -70,11 +68,6 @@ class StorjServer(Server):
         self._relay_thread = threading.Thread(target=self._relay_loop)
         self._relay_thread.start()
 
-        # setup cleanup thread (removes stale messages)
-        self._cleanup_thread_stop = False
-        self._cleanup_thread = threading.Thread(target=self._cleanup_loop)
-        self._cleanup_thread.start()
-
         # setup refresh neighbours thread
         if self._refresh_neighbours_interval > 0:
             self._refresh_thread_stop = False
@@ -88,9 +81,6 @@ class StorjServer(Server):
 
         self._relay_thread_stop = True
         self._relay_thread.join()
-
-        self._cleanup_thread_stop = True
-        self._cleanup_thread.join()
 
         # FIXME actually disconnect from port and stop properly
 
@@ -112,7 +102,7 @@ class StorjServer(Server):
     def get_messages(self):
         return self.protocol.get_messages()
 
-    def send_relay_message(self, nodeid, message):
+    def relay_message(self, nodeid, message):
         """Send relay message to a node.
 
         Queues a message to be relayed accross the network. Relay messages are
@@ -197,16 +187,7 @@ class StorjServer(Server):
                 self._relay_message(entry)
             time.sleep(0.05)
 
-    def _cleanup_loop(self):
-        while not self._cleanup_thread_stop:
-            for entry in self.get_messages():
-                if time.time() - entry["timestamp"] < self._message_timeout:
-                    self.protocol.queue_received_message(entry)
-                else:
-                    self.log.debug("Dropping stale received message")
-            time.sleep(0.5)
-
-    def send_direct_message(self, nodeid, message):
+    def direct_message(self, nodeid, message):
         """Send direct message to a node.
 
         Spidercrawls the network to find the node and sends the message

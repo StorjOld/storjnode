@@ -141,7 +141,7 @@ Starting and using a node in python.
 
     # start node (use bitcoin wif or hwif as node key)
     node_key = "KzygUeD8qXaKBFdJWMk9c6AVib89keoZFBNdFBsj73kYZfAc4n1j"
-    node = storjnode.network.BlockingNode(node_key)
+    node = storjnode.network.Node(node_key)
 
     print("Giving nodes some time to find peers.")
     time.sleep(30)
@@ -191,12 +191,12 @@ different ports.
 
     # create alice node (with bitcoin wif as node key)
     alice_key = "Kyh4a6zF1TkBZW6gyzwe7XRVtJ18Y75C2bC2d9axeWZnoUdAVXYc"
-    alice_node = storjnode.network.BlockingNode(alice_key)
+    alice_node = storjnode.network.Node(alice_key)
 
     # create bob node (with bitcoin hwif as node key)
     bob_key = ("xprv9s21ZrQH143K3uzRG1qUPdYhVZG1TAxQ9bLTWZuFf1FHR5hiWuRf"
                "o2L2ZNoUX9BW17guAbMXqHjMJXBFvuTBD2WWvRT3zNbtVJ1S7yxUvWd")
-    bob_node = storjnode.network.BlockingNode(bob_key)
+    bob_node = storjnode.network.Node(bob_key)
 
     print("Giving nodes some time to find peers.")
     time.sleep(30)
@@ -241,14 +241,14 @@ doesn't have a public ip.
 
     # create alice node (with bitcoin wif as node key)
     alice_key = "Kyh4a6zF1TkBZW6gyzwe7XRVtJ18Y75C2bC2d9axeWZnoUdAVXYc"
-    alice_node = storjnode.network.BlockingNode(
+    alice_node = storjnode.network.Node(
         alice_key, bootstrap_nodes=[("240.0.0.0", 1337)]
     )
 
     # create bob node (with bitcoin hwif as node key)
     bob_key = ("xprv9s21ZrQH143K3uzRG1qUPdYhVZG1TAxQ9bLTWZuFf1FHR5hiWuRf"
                "o2L2ZNoUX9BW17guAbMXqHjMJXBFvuTBD2WWvRT3zNbtVJ1S7yxUvWd")
-    bob_node = storjnode.network.BlockingNode(
+    bob_node = storjnode.network.Node(
         bob_key, bootstrap_nodes=[("127.0.0.1", alice_node.port)]
     )
 
@@ -256,7 +256,7 @@ doesn't have a public ip.
 
     try:
         # send direct message (blocking call)
-        alice_node.send_direct_message(bob_node.get_id(), "hi bob")
+        alice_node.direct_message(bob_node.get_id(), "hi bob")
         if bob_node.has_messages():
             print("bob received:", bob_node.get_messages())
         else:
@@ -292,14 +292,14 @@ it is connected to the network.
 
     # create alice node (with bitcoin wif as node key)
     alice_key = "Kyh4a6zF1TkBZW6gyzwe7XRVtJ18Y75C2bC2d9axeWZnoUdAVXYc"
-    alice_node = storjnode.network.BlockingNode(
+    alice_node = storjnode.network.Node(
         alice_key#, bootstrap_nodes=[("240.0.0.0", 1337)]  # isolate
     )
 
     # create bob node (with bitcoin hwif as node key)
     bob_key = ("xprv9s21ZrQH143K3uzRG1qUPdYhVZG1TAxQ9bLTWZuFf1FHR5hiWuRf"
                "o2L2ZNoUX9BW17guAbMXqHjMJXBFvuTBD2WWvRT3zNbtVJ1S7yxUvWd")
-    bob_node = storjnode.network.BlockingNode(
+    bob_node = storjnode.network.Node(
         bob_key#, bootstrap_nodes=[("127.0.0.1", alice_node.port)]  # isolate
     )
 
@@ -308,7 +308,7 @@ it is connected to the network.
 
     try:
         # send relayed message (non blocking call)
-        bob_node.send_relay_message(alice_node.get_id(), "hi alice")
+        bob_node.relay_message(alice_node.get_id(), "hi alice")
         time.sleep(10)  # wait for it to be relayed
         if alice_node.has_messages():
             print("alice received:", alice_node.get_messages())
