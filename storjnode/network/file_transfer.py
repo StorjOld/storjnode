@@ -26,18 +26,35 @@ import binascii
 import socket
 import errno
 import platform
+import requests.exceptions
 from threading import Lock
 
 
 mutex = Lock()
 log = logging.getLogger(__name__)
 
+def print_out(msg):
+    print(msg)
+
+class log_monkey():
+    def __init__(self):
+        self.info = None
+        self.debug = None
+
+log = log_monkey()
+
+log.info = print_out
+log.debug = print_out
+
 def process_transfers(client):
     # Process contract messages.
-    if client.net.dht_node.has_messages():
-        for msg in client.net.dht_node.get_messages():
-            log.info(msg)
-            client.protocol(msg)
+    try:
+        if client.net.dht_node.has_messages():
+            for msg in client.net.dht_node.get_messages():
+                log.info(msg)
+                client.protocol(msg)
+    except requests.exceptions.ConnectTimeout:
+        pass
 
     # Process new connections.
     client.net.synchronize()
@@ -55,7 +72,7 @@ def process_transfers(client):
         if not client.is_queued(con):
             # Socket has hung ungracefully.
             duration = time.time() - con.alive
-            if duration >= 5.0:
+            if duration >= 60.0:
                 log.info("Ungraceful socket close")
                 con.close()
                 break
@@ -454,7 +471,8 @@ class FileTransfer:
                         contract["host_unl"]
                     )
                 },
-                force_master=0
+                force_master=0,
+                nonce=contract_id
             )
 
             # Send reply.
@@ -505,7 +523,8 @@ class FileTransfer:
                         contract["host_unl"]
                     )
                 },
-                force_master=0
+                force_master=0,
+                nonce=contract_id
             )
 
             log.info("ACK")

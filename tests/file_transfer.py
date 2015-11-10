@@ -11,6 +11,19 @@ import unittest
 from crochet import setup
 setup()
 
+def print_out(msg):
+    print(msg)
+
+class log_monkey():
+    def __init__(self):
+        self.info = None
+        self.debug = None
+
+log = log_monkey()
+
+log.info = print_out
+log.debug = print_out
+
 def map_path(path):
     return os.path.realpath \
     (
@@ -140,7 +153,7 @@ def multiple_transfers():
     # Stop networking.
     client.net.stop()
 
-    print("Upload succeeded.")
+    print("Download succeeded.")
 
 class test_file_transfer(unittest.TestCase):
     def test_multiple_transfers(self):
