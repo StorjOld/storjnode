@@ -33,19 +33,6 @@ from threading import Lock
 mutex = Lock()
 log = logging.getLogger(__name__)
 
-def print_out(msg):
-    print(msg)
-
-class log_monkey():
-    def __init__(self):
-        self.info = None
-        self.debug = None
-
-log = log_monkey()
-
-log.info = print_out
-log.debug = print_out
-
 def process_transfers(client):
     # Process contract messages.
     try:
