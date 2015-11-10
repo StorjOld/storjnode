@@ -12,6 +12,7 @@ from storjnode.network.server import QUERY_TIMEOUT, WALK_TIMEOUT
 from crochet import setup
 setup()  # start twisted via crochet
 
+
 # change timeouts because everything is local
 QUERY_TIMEOUT = QUERY_TIMEOUT / 2
 WALK_TIMEOUT = WALK_TIMEOUT / 2
@@ -77,6 +78,7 @@ class TestNode(unittest.TestCase):
             self.__class__.btctxstore.create_key(),
             bootstrap_nodes=[("240.0.0.0", 1337)],
             max_messages=TEST_MAX_MESSAGES,
+            storage_path=TEST_STORAGE_DIR,
             refresh_neighbours_interval=interval
         )
         alice_received = threading.Event()
@@ -86,6 +88,7 @@ class TestNode(unittest.TestCase):
             self.__class__.btctxstore.create_key(),
             bootstrap_nodes=[("127.0.0.1", alice_node.port)],
             max_messages=TEST_MAX_MESSAGES,
+            storage_path=TEST_STORAGE_DIR,
             refresh_neighbours_interval=interval
         )
         bob_received = threading.Event()
@@ -187,6 +190,7 @@ class TestNode(unittest.TestCase):
             self.__class__.btctxstore.create_key(),
             bootstrap_nodes=[("240.0.0.0", 1337)],
             max_messages=TEST_MAX_MESSAGES,
+            storage_path=TEST_STORAGE_DIR,
         )
         alice_received = threading.Event()
         alice_node.add_message_handler(lambda s, m: alice_received.set())
@@ -194,6 +198,7 @@ class TestNode(unittest.TestCase):
             self.__class__.btctxstore.create_key(),
             bootstrap_nodes=[("127.0.0.1", alice_node.port)],
             max_messages=TEST_MAX_MESSAGES,
+            storage_path=TEST_STORAGE_DIR,
         )
         bob_received = threading.Event()
         bob_node.add_message_handler(lambda s, m: bob_received.set())
@@ -250,13 +255,10 @@ class TestNode(unittest.TestCase):
             # check one message received
             self.assertEqual(len(received), 1)
 
-            # check if correct message received
+            # check if message and sender match
             source, message = received[0]["source"], received[0]["message"]
             self.assertEqual(testmessage, message)
-
-            # check if message and sender ip/port match
-            self.assertEqual(ip, source.ip)
-            self.assertEqual(port, source.port)
+            self.assertEqual(source, sender.get_id())
 
     def test_direct_messaging_success(self):
         sender = self.swarm[0]
@@ -290,6 +292,7 @@ class TestNode(unittest.TestCase):
             self.__class__.btctxstore.create_wallet(),
             bootstrap_nodes=[("240.0.0.0", 1337)],  # isolated peer
             max_messages=TEST_MAX_MESSAGES,
+            storage_path=TEST_STORAGE_DIR,
         )
         try:
             void_id = b"void" * 5
@@ -304,6 +307,7 @@ class TestNode(unittest.TestCase):
             self.__class__.btctxstore.create_key(),
             bootstrap_nodes=[("240.0.0.0", 1337)],
             max_messages=TEST_MAX_MESSAGES,
+            storage_path=TEST_STORAGE_DIR,
         )
         alice_received = threading.Event()
         alice_node.add_message_handler(lambda s, m: alice_received.set())
@@ -311,6 +315,7 @@ class TestNode(unittest.TestCase):
             self.__class__.btctxstore.create_key(),
             bootstrap_nodes=[("127.0.0.1", alice_node.port)],
             max_messages=TEST_MAX_MESSAGES,
+            storage_path=TEST_STORAGE_DIR,
         )
         bob_received = threading.Event()
         bob_node.add_message_handler(lambda s, m: bob_received.set())
@@ -331,11 +336,13 @@ class TestNode(unittest.TestCase):
             self.__class__.btctxstore.create_key(),
             bootstrap_nodes=[("240.0.0.0", 1337)],
             max_messages=TEST_MAX_MESSAGES,
+            storage_path=TEST_STORAGE_DIR,
         )
         bob_node = storjnode.network.Node(
             self.__class__.btctxstore.create_key(),
             bootstrap_nodes=[("127.0.0.1", alice_node.port)],
             max_messages=TEST_MAX_MESSAGES,
+            storage_path=TEST_STORAGE_DIR,
         )
         time.sleep(QUERY_TIMEOUT)  # wait until network overlay stable, 2 peers
         try:
