@@ -12,7 +12,7 @@ from crochet import setup, TimeoutError
 import os
 setup()  # start twisted via crochet
 
-from storjnode.common import DEFAULT_STORE_PATH
+from .common import DEFAULT_STORE_PATH
 
 
 

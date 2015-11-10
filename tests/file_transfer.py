@@ -90,7 +90,7 @@ def multiple_transfers():
     timeout = time.time() + duration
     while time.time() <= timeout or client.is_queued():
         process_transfers(client)
-        time.sleep(0.02)
+        time.sleep(0.002)
 
     # Check upload exists.
     for i in range(0, 2):
@@ -122,7 +122,7 @@ def multiple_transfers():
     timeout = time.time() + duration
     while time.time() <= timeout or client.is_queued():
         process_transfers(client)
-        time.sleep(0.02)
+        time.sleep(0.002)
 
     # Check we received this file.
     for i in range(0, 2):
