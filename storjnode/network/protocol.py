@@ -45,18 +45,18 @@ class StorjProtocol(KademliaProtocol):
     def get_messages(self):
         return util.empty_queue(self.messages_received)
 
-    def queue_relay_message(self, message):
+    def queue_relay_message(self, entry):
         try:
-            self.messages_relay.put_nowait(message)
+            self.messages_relay.put_nowait(entry)
             return True
         except Full:
             msg = "Relay message queue full, dropping message for %s"
-            self.log.warning(msg % binascii.hexlify(message["dest"]))
+            self.log.warning(msg % binascii.hexlify(entry["dest"]))
             return False
 
-    def queue_received_message(self, message):
+    def queue_received_message(self, entry):
         try:
-            self.messages_received.put_nowait(message)
+            self.messages_received.put_nowait(entry)
             return True
         except Full:
             self.log.warning("Received message queue full, dropping message.")
@@ -74,7 +74,7 @@ class StorjProtocol(KademliaProtocol):
         # message is for this node
         if dest_id == self.sourceNode.id:
             queued = self.queue_received_message({
-                "source": None, "message": message, "timestamp": time.time()
+                "source": None, "message": message
             })
             return (sender[0], sender[1]) if queued else None
 
@@ -97,14 +97,14 @@ class StorjProtocol(KademliaProtocol):
         })
         return (sender[0], sender[1]) if queued else None
 
-    def rpc_direct_message(self, sender, nodeid, message):
+    def rpc_direct_message(self, sender, sender_id, message):
         self.log.debug("Got direct message from {0} at {1}".format(
-            binascii.hexlify(nodeid), sender
+            binascii.hexlify(sender_id), sender
         ))
-        source = Node(nodeid, sender[0], sender[1])
+        source = Node(sender_id, sender[0], sender[1])
         # FIXME self.welcomeIfNewNode(source)
         queued = self.queue_received_message({
-            "source": source, "message": message, "timestamp": time.time()
+            "source": source, "message": message
         })
         return (sender[0], sender[1]) if queued else None
 
