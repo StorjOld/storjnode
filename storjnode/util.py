@@ -1,4 +1,9 @@
 import os
+import ctypes
+import os
+import platform
+import sys
+import psutil
 import socket
 import threading
 from crochet import wait_for
@@ -96,33 +101,56 @@ def baskets(items, count):
     return list(filter(None, _baskets))
 
 
-# FIXME breaks windows build and is not needed yet.
-#import psutil
-#def get_fs_type(path):
-#    """Returns: path filesystem type or None.
-#
-#    Example:
-#        > get_fs_type("/home")
-#        'ext4'
-#    """
-#    partitions = {}
-#    for partition in psutil.disk_partitions():
-#        partitions[partition.mountpoint] = (partition.fstype,
-#                                            partition.device)
-#    if path in partitions:
-#        return partitions[path][0]
-#    splitpath = path.split(os.sep)
-#    for i in range(len(splitpath), 0, -1):
-#        subpath = os.sep.join(splitpath[:i]) + os.sep
-#        if subpath in partitions:
-#            return partitions[subpath][0]
-#        subpath = os.sep.join(splitpath[:i])
-#        if subpath in partitions:
-#            return partitions[subpath][0]
-#    return None
+def get_fs_type(path):
+    """Returns: path filesystem type or None.
+
+    Example:
+        > get_fs_type("/home")
+        'ext4'
+    """
+    partitions = {}
+    for partition in psutil.disk_partitions():
+        partitions[partition.mountpoint] = (partition.fstype,
+                                            partition.device)
+    if path in partitions:
+        return partitions[path][0]
+    splitpath = path.split(os.sep)
+    for i in range(len(splitpath), 0, -1):
+        subpath = os.sep.join(splitpath[:i]) + os.sep
+        if subpath in partitions:
+            return partitions[subpath][0]
+        subpath = os.sep.join(splitpath[:i])
+        if subpath in partitions:
+            return partitions[subpath][0]
+    return None
+
+
+def get_free_space(dirname):  # source http://stackoverflow.com/a/2372171
+    """Return folder/drive free space (in megabytes)."""
+    if platform.system() == 'Windows':
+        free_bytes = ctypes.c_ulonglong(0)
+        ctypes.windll.kernel32.GetDiskFreeSpaceExW(
+            ctypes.c_wchar_p(dirname), None, None, ctypes.pointer(free_bytes)
+        )
+        return free_bytes.value
+    else:
+        st = os.statvfs(dirname)
+        return st.f_bavail * st.f_frsize
+
+
+def get_folder_size(start_path):  # source http://stackoverflow.com/a/1392549
+    """Returns the total size of all files in a directory."""
+    total_size = 0
+    for dirpath, dirnames, filenames in os.walk(start_path):
+        for f in filenames:
+            fp = os.path.join(dirpath, f)
+            total_size += os.path.getsize(fp)
+    return total_size
 
 
 def ensure_path_exists(path):
     """Creates need directories if they do not already exist."""
     if not os.path.exists(path):
         os.makedirs(path)
+    if not os.path.exists(path):
+        raise Exception("Creating path {0} failed!".format(path))

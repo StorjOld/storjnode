@@ -1,4 +1,5 @@
 btctxstore == 4.6.0
+psutil==3.2.2
 crochet==1.4.0
 kademlia >= 0.5
 netifaces >= 0.10.4

@@ -260,11 +260,10 @@ class Node(object):
     def add_transfer_request_handler(self, handler):
         """Add an allow transfer request handler.
 
-        If any handler returns True the request will be accepted.
-        The handler must be callable and accept three arguments. The first
-        argument is the requesting peer id and the second the data id and
-        the third is the direction. The direction parameter will be the
-        oposatle of the requesters direction.
+        If any handler returns True the transfer request will be accepted.
+        The handler must be callable and accept three arguments
+        (requesting_peer_id, data_id, direction). The direction parameter 
+        will be the oposatle of the requesters direction.
 
         Example:
             def on_transfer_request(requesting_peer_id, data_id, direction):

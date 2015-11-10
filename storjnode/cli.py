@@ -7,12 +7,12 @@ import btctxstore
 import sys
 import pprint
 from storjnode.network import WALK_TIMEOUT
+from storjnode.storage import DEFAULT_STORE_PATH
 from pyp2p.unl import UNL
 from crochet import setup, TimeoutError
 import os
 setup()  # start twisted via crochet
 
-from .common import DEFAULT_STORE_PATH
 
 
 
