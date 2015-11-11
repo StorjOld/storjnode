@@ -64,10 +64,15 @@ class TestManager(unittest.TestCase):
 
             # test success
             store_path = os.path.join(self.base_dir, "delta")
-            save_path = storjnode.storage.manager.add({store_path: None}, shard)
+            store_paths = {store_path: None}
+            save_path = storjnode.storage.manager.add(store_paths, shard)
             self.assertTrue(os.path.isfile(save_path))
             self.assertTrue(save_path.startswith(store_path))
             self.assertTrue(filecmp.cmp(self.test_shard_path, save_path))
+
+            # checks for existing file and skip if already added
+            store_path_b = storjnode.storage.manager.add(store_paths, shard)
+            self.assertEqual(save_path, store_path_b)
 
             # check limit reached
             def callback():
@@ -82,6 +87,13 @@ class TestManager(unittest.TestCase):
                 store_path = os.path.join(self.base_dir, "zeta")
                 storjnode.storage.manager.add({store_path: None}, mock_shard)
             self.assertRaises(MemoryError, callback)
+
+            # check use_folder_tree
+            store_path = os.path.join(self.base_dir, "iota")
+            store_paths = {store_path: {"use_folder_tree": True}}
+            save_path = storjnode.storage.manager.add(store_paths, shard)
+            relative_path = save_path[len(store_path)+1:]
+            self.assertEqual(len(relative_path.split(os.path.sep)), 23)
 
     def test_remove(self):
         with open(self.test_shard_path, "rb") as shard:

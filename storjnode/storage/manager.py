@@ -239,24 +239,24 @@ def find(store_paths, shard_id):
     return None
 
 
-def import_file(store_paths, source_path, max_shard_size=DEFAULT_SHARD_SIZE):
-    """Import a file into the store.
-
-    Args:
-        source_path: The path of the file to be imported.
-        max_shard_size: The maximum shard size.
-
-    Returns: A list of shard ids with the fist entry being the root shard.
-                All required shards to reconstruct a file can be obtained
-                from the root shard.
-    """
-    store_paths = setup(store_paths)  # setup if needed
-    # FIXME add encryption
-    # TODO implement
-
-
-def export_file(store_paths, root_shard_id, dest_path):
-    assert(storjnode.storage.shard.valid_id(root_shard_id))
-    store_paths = setup(store_paths)  # setup if needed
-    # FIXME add encryption
-    # TODO implement
+# def import_file(store_paths, source_path, max_shard_size=DEFAULT_SHARD_SIZE):
+#     """Import a file into the store.
+#
+#     Args:
+#         source_path: The path of the file to be imported.
+#         max_shard_size: The maximum shard size.
+#
+#     Returns: A list of shard ids with the fist entry being the root shard.
+#                 All required shards to reconstruct a file can be obtained
+#                 from the root shard.
+#     """
+#     store_paths = setup(store_paths)  # setup if needed
+#     # FIXME add encryption
+#     # TODO implement
+#
+#
+# def export_file(store_paths, root_shard_id, dest_path):
+#     assert(storjnode.storage.shard.valid_id(root_shard_id))
+#     store_paths = setup(store_paths)  # setup if needed
+#     # FIXME add encryption
+#     # TODO implement
