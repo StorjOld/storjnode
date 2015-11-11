@@ -8,6 +8,7 @@ import random
 import unittest
 import btctxstore
 import storjnode
+from pyp2p.lib import get_wan_ip
 from storjnode.network.server import QUERY_TIMEOUT, WALK_TIMEOUT
 from crochet import setup
 setup()  # start twisted via crochet
@@ -21,6 +22,7 @@ TEST_MESSAGE_TIMEOUT = 5
 TEST_SWARM_SIZE = 64  # tested up to 256
 TEST_MAX_MESSAGES = 2
 TEST_STORAGE_DIR = tempfile.mkdtemp()
+WAN_IP = get_wan_ip()
 
 
 class TestNode(unittest.TestCase):
@@ -42,6 +44,9 @@ class TestNode(unittest.TestCase):
                 bootstrap_nodes=bootstrap_nodes,
                 max_messages=TEST_MAX_MESSAGES,
                 storage_path=TEST_STORAGE_DIR,
+                nat_type="preserving",
+                node_type="passive",
+                wan_ip=WAN_IP
             )
             cls.swarm.append(node)
 
@@ -79,7 +84,10 @@ class TestNode(unittest.TestCase):
             bootstrap_nodes=[("240.0.0.0", 1337)],
             max_messages=TEST_MAX_MESSAGES,
             storage_path=TEST_STORAGE_DIR,
-            refresh_neighbours_interval=interval
+            refresh_neighbours_interval=interval,
+            nat_type="preserving",
+            node_type="passive",
+            wan_ip=WAN_IP
         )
         alice_received = threading.Event()
         alice_node.add_message_handler(lambda s, m: alice_received.set())
@@ -89,7 +97,10 @@ class TestNode(unittest.TestCase):
             bootstrap_nodes=[("127.0.0.1", alice_node.port)],
             max_messages=TEST_MAX_MESSAGES,
             storage_path=TEST_STORAGE_DIR,
-            refresh_neighbours_interval=interval
+            refresh_neighbours_interval=interval,
+            nat_type="preserving",
+            node_type="passive",
+            wan_ip=WAN_IP
         )
         bob_received = threading.Event()
         bob_node.add_message_handler(lambda s, m: bob_received.set())
@@ -191,6 +202,9 @@ class TestNode(unittest.TestCase):
             bootstrap_nodes=[("240.0.0.0", 1337)],
             max_messages=TEST_MAX_MESSAGES,
             storage_path=TEST_STORAGE_DIR,
+            nat_type="preserving",
+            node_type="passive",
+            wan_ip=WAN_IP
         )
         alice_received = threading.Event()
         alice_node.add_message_handler(lambda s, m: alice_received.set())
@@ -199,6 +213,9 @@ class TestNode(unittest.TestCase):
             bootstrap_nodes=[("127.0.0.1", alice_node.port)],
             max_messages=TEST_MAX_MESSAGES,
             storage_path=TEST_STORAGE_DIR,
+            nat_type="preserving",
+            node_type="passive",
+            wan_ip=WAN_IP
         )
         bob_received = threading.Event()
         bob_node.add_message_handler(lambda s, m: bob_received.set())
@@ -293,6 +310,9 @@ class TestNode(unittest.TestCase):
             bootstrap_nodes=[("240.0.0.0", 1337)],  # isolated peer
             max_messages=TEST_MAX_MESSAGES,
             storage_path=TEST_STORAGE_DIR,
+            nat_type="preserving",
+            node_type="passive",
+            wan_ip=WAN_IP
         )
         try:
             void_id = b"void" * 5
@@ -308,6 +328,9 @@ class TestNode(unittest.TestCase):
             bootstrap_nodes=[("240.0.0.0", 1337)],
             max_messages=TEST_MAX_MESSAGES,
             storage_path=TEST_STORAGE_DIR,
+            nat_type="preserving",
+            node_type="passive",
+            wan_ip=WAN_IP
         )
         alice_received = threading.Event()
         alice_node.add_message_handler(lambda s, m: alice_received.set())
@@ -316,6 +339,9 @@ class TestNode(unittest.TestCase):
             bootstrap_nodes=[("127.0.0.1", alice_node.port)],
             max_messages=TEST_MAX_MESSAGES,
             storage_path=TEST_STORAGE_DIR,
+            nat_type="preserving",
+            node_type="passive",
+            wan_ip=WAN_IP
         )
         bob_received = threading.Event()
         bob_node.add_message_handler(lambda s, m: bob_received.set())
@@ -337,12 +363,18 @@ class TestNode(unittest.TestCase):
             bootstrap_nodes=[("240.0.0.0", 1337)],
             max_messages=TEST_MAX_MESSAGES,
             storage_path=TEST_STORAGE_DIR,
+            nat_type="preserving",
+            node_type="passive",
+            wan_ip=WAN_IP
         )
         bob_node = storjnode.network.Node(
             self.__class__.btctxstore.create_key(),
             bootstrap_nodes=[("127.0.0.1", alice_node.port)],
             max_messages=TEST_MAX_MESSAGES,
             storage_path=TEST_STORAGE_DIR,
+            nat_type="preserving",
+            node_type="passive",
+            wan_ip=WAN_IP
         )
         time.sleep(QUERY_TIMEOUT)  # wait until network overlay stable, 2 peers
         try:

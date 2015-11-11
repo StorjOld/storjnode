@@ -149,4 +149,5 @@ class test_file_transfer(unittest.TestCase):
 
 
 if __name__ == "__main__":
-    unittest.main()
+    #unittest.main()
+    multiple_transfers()

@@ -56,7 +56,7 @@ class Node(object):
     def __init__(self, key, ksize=20, port=None, bootstrap_nodes=None,
                  storage=None, max_messages=1024,
                  refresh_neighbours_interval=0.0, storage_path=None,
-                 passive_port=None, passive_bind=None):
+                 passive_port=None, passive_bind=None, node_type="unknown", nat_type="unknown", wan_ip=None):
         """Create a blocking storjnode instance.
 
         Args:
@@ -112,7 +112,7 @@ class Node(object):
         self._setup_server(key, ksize, storage, max_messages,
                            refresh_neighbours_interval, bootstrap_nodes)
         self._setup_data_transfer_client(storage_path, passive_port,
-                                         passive_bind)
+                                         passive_bind, node_type, nat_type, wan_ip)
         self._setup_message_dispatcher()
 
     def _setup_message_dispatcher(self):
@@ -133,14 +133,17 @@ class Node(object):
         self.server.bootstrap(bootstrap_nodes)
 
     def _setup_data_transfer_client(self, storage_path, passive_port,
-                                    passive_bind):
+                                    passive_bind, node_type, nat_type, wan_ip):
         self._data_transfer = FileTransfer(
             net=Net(
                 net_type="direct",
-                dht_node=self,
+                node_type=node_type,
+                nat_type=nat_type,
+                dht_node=self.server,
                 debug=1,
                 passive_port=passive_port,
-                passive_bind=passive_bind
+                passive_bind=passive_bind,
+                wan_ip=wan_ip
             ),
             wif=self.server.key,  # use same key as dht
             storage_path=storage_path
