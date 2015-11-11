@@ -1,2 +1,2 @@
 from . shard import *  # NOQA
-from . store import *  # NOQA
+from . manager import *  # NOQA
