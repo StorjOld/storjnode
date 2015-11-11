@@ -42,8 +42,8 @@ def setup(store_paths=None):
     Example:
         import storjnode
         store_paths = {
-            "path/a": {"limit": 0, "use_folder_tree": False}
-            "path/b": {"limit": 2 ** 32, "use_folder_tree": True}
+            "path/alpha": {"limit": 0, "use_folder_tree": False}
+            "path/beta": {"limit": 2**32, "use_folder_tree": True}
         }
         normalized_paths = storjnode.storage.store.setup(store_paths)
     """
