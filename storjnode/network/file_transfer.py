@@ -38,9 +38,9 @@ def process_transfers(client):
     try:
         if client.net.dht_node.has_messages():
             for msg in client.net.dht_node.get_messages():
-                log.info(msg)
-                client.protocol(msg)
-    except requests.exceptions.ConnectTimeout:
+                log.info(msg["message"])
+                client.protocol(msg["message"])
+    except Exception:
         pass
 
     # Process new connections.
