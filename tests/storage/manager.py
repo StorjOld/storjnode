@@ -60,28 +60,57 @@ class TestManager(unittest.TestCase):
         self.assertEqual(normalized[gamma_path]["use_folder_tree"], False)
 
     def test_add(self):
+        with open(self.test_shard_path, "rb") as shard:
+
+            # test success
+            store_path = os.path.join(self.base_dir, "delta")
+            save_path = storjnode.storage.manager.add({store_path: None}, shard)
+            self.assertTrue(os.path.isfile(save_path))
+            self.assertTrue(save_path.startswith(store_path))
+            self.assertTrue(filecmp.cmp(self.test_shard_path, save_path))
+
+            # check limit reached
+            def callback():
+                store_path = os.path.join(self.base_dir, "epsilon")
+                store_paths = {store_path: {"limit": 1}}
+                storjnode.storage.manager.add(store_paths, shard)
+            self.assertRaises(MemoryError, callback)
+
+            # check not enough disc space
+            def callback():
+                mock_shard = MockShard(size=2**64)  # 16777216T
+                store_path = os.path.join(self.base_dir, "zeta")
+                storjnode.storage.manager.add({store_path: None}, mock_shard)
+            self.assertRaises(MemoryError, callback)
+
+    def test_remove(self):
+        with open(self.test_shard_path, "rb") as shard:
+            store_path = os.path.join(self.base_dir, "eta")
+            save_path = storjnode.storage.manager.add({store_path: None}, shard)
+            self.assertTrue(os.path.isfile(save_path))  # shard added
+            shard_id = storjnode.storage.shard.get_id(shard)
+            storjnode.storage.manager.remove({store_path: None}, shard_id)
+            self.assertFalse(os.path.isfile(save_path))  # shard removed
+
+    def test_get(self):
 
         # test success
-        shard = open(self.test_shard_path, "rb")
-        store_path = os.path.join(self.base_dir, "delta")
-        save_path = storjnode.storage.manager.add({store_path: None}, shard)
-        os.path.isfile(save_path)  # created file
-        save_path.startswith(store_path)  # saved in base dir
-        filecmp.cmp(self.test_shard_path, save_path)  # file is the same
-
-        # check limit reached
-        def callback():
-            store_path = os.path.join(self.base_dir, "epsilon")
-            store_paths = {store_path: {"limit": 1}}
+        store_paths = {os.path.join(self.base_dir, "theta"): None}
+        with open(self.test_shard_path, "rb") as shard:
             storjnode.storage.manager.add(store_paths, shard)
-        self.assertRaises(MemoryError, callback)
+            shard_id = storjnode.storage.shard.get_id(shard)
+            retreived = storjnode.storage.manager.get(store_paths, shard_id)
+            try:
+                shard.seek(0)
+                self.assertEqual(shard.read(), retreived.read())
+            finally:
+                retreived.close()
 
-        # check not enough disc space
+        # test failure
         def callback():
-            shard = MockShard(size=2**64)  # 16777216T
-            store_path = os.path.join(self.base_dir, "zeta")
-            storjnode.storage.manager.add({store_path: None}, shard)
-        self.assertRaises(MemoryError, callback)
+            shard_id = "deadbeef" * 8
+            storjnode.storage.manager.get(store_paths, shard_id)
+        self.assertRaises(KeyError, callback)
 
 
 if __name__ == "__main__":

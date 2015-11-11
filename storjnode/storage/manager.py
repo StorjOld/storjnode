@@ -104,18 +104,15 @@ def get(store_paths, shard_id):
         import storjnode
         id = "2c26b46b68ffc68ff99b453c1d30413413422d706483bfa0f98a5e886266e7ae"
         store_paths = {"path/alpha": None, "path/beta": None}
-        shard = storjnode.storage.store.add(store_paths, id)
+        shard = storjnode.storage.store.get(store_paths, id)
         # do something with the shard
         shard.close()
     """
-    assert(storjnode.storage.shard.valid_id(shard_id))
-    store_paths = setup(store_paths)  # setup if needed
-    for store_path, attributes in store_paths.items():
-        use_folder_tree = attributes["use_folder_tree"]
-        shard_path = _get_shard_path(store_path, shard_id, use_folder_tree)
-        if os.path.isfile(shard_path):
-            return open(shard_path, "rb")
-    raise KeyError("Shard {0} not found!".format(shard_id))
+    shard_path = find(store_paths, shard_id)
+    if shard_path is not None:
+        return open(shard_path, "rb")
+    else:
+        raise KeyError("Shard {0} not found!".format(shard_id))
 
 
 def add(store_paths, shard):
@@ -137,10 +134,9 @@ def add(store_paths, shard):
 
     Example:
         import storjnode
-        shard = open("path/to/loose/shard", "rb")
         store_paths = {"path/a": None, "path/b": None}
-        storjnode.storage.store.add(store_paths, shard)
-        shard.close()
+        with open("path/to/loose/shard", "rb") as shard:
+            storjnode.storage.store.add(store_paths, shard)
     """
     store_paths = setup(store_paths)  # setup if needed
     shard_id = storjnode.storage.shard.get_id(shard)
