@@ -25,7 +25,6 @@ TEST_STORAGE_DIR = tempfile.mkdtemp()
 WAN_IP = get_wan_ip()
 
 
-@unittest.skip("broken")
 class TestNode(unittest.TestCase):
 
     @classmethod
@@ -61,9 +60,9 @@ class TestNode(unittest.TestCase):
             node.refresh_neighbours()
         time.sleep(WALK_TIMEOUT)
 
-        #print("TEST: generating swarm graph")
-        #name = "unittest_network_" + str(datetime.datetime.now())
-        #storjnode.network.generate_graph(cls.swarm, name)
+        # print("TEST: generating swarm graph")
+        # name = "unittest_network_" + str(datetime.datetime.now())
+        # storjnode.network.generate_graph(cls.swarm, name)
 
         print("TEST: created swarm")
 
