@@ -27,7 +27,7 @@ def multiple_transfers():
         "web": "http://162.218.239.6/"
     }
 
-    def make_random_file(file_size=1024 * 100, directory="~/Storj"):
+    def make_random_file(file_size=1024 * 1, directory="~/Storj"):
         content = b""
         for i in range(0, file_size):
             code = int(random.randrange(0, 256))
@@ -64,17 +64,17 @@ def multiple_transfers():
     print("Net started")
 
     # Make random file in home directory.
-    rand_file_infos = [make_random_file(), make_random_file()]
+    rand_file_infos = [make_random_file()]
 
     # Move file to storage directory.
     file_infos = [
-        client.move_file_to_storage(rand_file_infos[0]["path"]),
-        client.move_file_to_storage(rand_file_infos[1]["path"])
+        client.move_file_to_storage(rand_file_infos[0]["path"])
     ]
 
     # Delete original file.
     os.remove(rand_file_infos[0]["path"])
-    os.remove(rand_file_infos[1]["path"])
+
+    print("Testing upload")
 
     # Upload file from storage.
     for file_info in file_infos:
@@ -86,14 +86,14 @@ def multiple_transfers():
         )
 
     # Process file transfers.
-    duration = 40
+    duration = 10
     timeout = time.time() + duration
     while time.time() <= timeout or client.is_queued():
         process_transfers(client)
         time.sleep(0.002)
 
     # Check upload exists.
-    for i in range(0, 2):
+    for i in range(0, 1):
         url = test_node["web"] + file_infos[i]["data_id"]
         r = requests.get(url, timeout=3)
         if r.status_code != 200:
@@ -105,7 +105,6 @@ def multiple_transfers():
 
     # Delete storage file copy.
     client.remove_file_from_storage(file_infos[0]["data_id"])
-    client.remove_file_from_storage(file_infos[1]["data_id"])
 
     # Download file from storage.
     print("Testing download.")
@@ -118,14 +117,14 @@ def multiple_transfers():
         )
 
     # Process file transfers.
-    duration = 40
+    duration = 10
     timeout = time.time() + duration
     while time.time() <= timeout or client.is_queued():
         process_transfers(client)
         time.sleep(0.002)
 
     # Check we received this file.
-    for i in range(0, 2):
+    for i in range(0, 1):
         path = client.get_data_path(file_infos[i]["data_id"])
         if not os.path.isfile(path):
             assert(0)
@@ -136,7 +135,6 @@ def multiple_transfers():
 
     # Delete storage file copy.
     client.remove_file_from_storage(file_infos[0]["data_id"])
-    client.remove_file_from_storage(file_infos[1]["data_id"])
 
     # Stop networking.
     client.net.stop()
@@ -149,5 +147,5 @@ class test_file_transfer(unittest.TestCase):
 
 
 if __name__ == "__main__":
-    #unittest.main()
-    multiple_transfers()
+    unittest.main()
+    # multiple_transfers()
