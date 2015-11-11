@@ -7,13 +7,10 @@ import btctxstore
 import sys
 import pprint
 from storjnode.network import WALK_TIMEOUT
-from storjnode.storage import DEFAULT_STORE_PATH
+from storjnode.storage.store import DEFAULT_STORE_PATH
 from pyp2p.unl import UNL
 from crochet import setup, TimeoutError
-import os
 setup()  # start twisted via crochet
-
-
 
 
 def _add_programm_args(parser):
@@ -281,6 +278,18 @@ def command_showtype(node):
         print("Timeout error!")
 
 
+def command_showid(node, args):
+    print("Node id: {0}".format(binascii.hexlify(node.get_id())))
+
+
+def command_host_file(node, args):
+    print(node.move_file_to_storage(args["path"]))
+
+
+def command_showunl(node, args):
+    print("UNL = " + node.get_unl())
+
+
 def command_upload(node, args):
     node.send_data(
         args["data_id"],
@@ -327,33 +336,23 @@ def main(args):
         return
 
     node = setup_node(args)
-    print("Waiting %fsec to find peers ..." % (WALK_TIMEOUT / 4))
+    print("Waiting %fsec to find peers ..." % WALK_TIMEOUT)
     time.sleep(WALK_TIMEOUT)
 
-    if command == "run":
-        command_run(node, args)
-    elif command == "put":
-        command_put(node, args)
-    elif command == "get":
-        command_get(node, args)
-    elif command == "direct_message":
-        command_direct_message(node, args)
-    elif command == "relay_message":
-        command_relay_message(node, args)
-    elif command == "showid":
-        print("Node id: {0}".format(binascii.hexlify(node.get_id())))
-    elif command == "showtype":
-        command_showtype(node)
-
-    # TCP networking / file transfer commands.
-    elif command == "host_file":
-        print(node.move_file_to_storage(args["path"]))
-    elif command == "showunl":
-        print("UNL = " + node.get_unl())
-    elif command == "upload":
-        command_upload(node, args)
-    elif command == "download":
-        command_download(node, args)
+    commands = {
+        "run": command_run,
+        "put": command_put,
+        "get": command_get,
+        "direct_message": command_direct_message,
+        "relay_message": command_relay_message,
+        "showid": command_showid,
+        "showtype": command_showtype,
+        "host_file": command_host_file,
+        "showunl": command_showunl,
+        "upload": command_upload,
+        "download": command_download,
+    }
+    commands[command](node, args)
 
     print("Stopping node")
     node.stop()

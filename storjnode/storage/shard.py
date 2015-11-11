@@ -1,7 +1,9 @@
+import re
 import hashlib
 
 
-# Shards are immutable, so keep this file functional!
+def valid_id(shard_id):
+    return bool(re.match(r"^[0-9abcdef]{64}$", shard_id))
 
 
 def get_size(shard):

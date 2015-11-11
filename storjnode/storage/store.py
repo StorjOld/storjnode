@@ -1,8 +1,7 @@
 import os
 import random
 import logging
-from storjnode import util
-from storjnode.storage.shard import Shard
+import storjnode
 
 
 DEFAULT_APP_HOME = os.path.join(os.path.expanduser("~"), ".storj")
@@ -14,141 +13,214 @@ DEFAULT_SHARD_SIZE = 1024 * 1024 * 128  # 128M
 log = logging.getLogger(__name__)
 
 
-class Store(object):
+def _get_shard_path(store_path, shard_id, use_folder_tree,
+                    create_needed_folders=False):
+    if use_folder_tree:
+        folders = os.path.join(*storjnode.util.chunks(shard_id, 3))
+        store_path = os.path.join(store_path, folders)
+        if create_needed_folders:
+            storjnode.util.ensure_path_exists(store_path)
+    return os.path.join(store_path, shard_id)
 
-    def __init__(self, paths=None):
-        """Storage manages shard storage and also has usefull shard functions.
 
-        Args:
-            paths: Mapping of storage folder paths to a dict of optional
-                   attributes. Attribute "limit" is the folder size limit in
-                   bytes. Attribute "use_folder_tree" will organize files in a
-                   folder tree (always on if path leads to a fat partition).
-                   {"folder/path": {"limit": 0, "use_folder_tree": False}}
+def setup(store_paths=None):
+    """Setup store so it can be use to store shards.
 
-        Example:
-            storage = Storage(paths={
-                "folder/path": {"limit": 0, "use_folder_tree": False}
-            })
-        """
-        self.paths = {}
-        paths = paths or DEFAULT_PATHS
-        for path, attributes in paths.items():
-            attributes = attributes or {}  # None allowed
+    This will validate the store paths and create any needed directories.
 
-            # check path
-            path = os.path.realpath(path)
-            util.ensure_path_exists(path)
+    Args:
+        store_paths: Mapping of storage paths to a dict of optional attributes.
+                     limit: The folder size limit in bytes, 0 for no limit.
+                     use_folder_tree: Files organized in a folder tree (always
+                                      on if path leads to a fat partition).
+    Returns:
+        The normalized store_paths with any missing attributes added.
 
-            # check limit
-            limit = attributes.get("limit", 0)
-            assert(isinstance(limit, int))
-            assert(limit >= 0)
-            available = util.get_free_space(path)
-            if limit > available:
-                msg = "Invalid storage limit for {0}: {1} > available {2}"
-                log.warning(msg.format(path, limit, available))
-                limit = available  # set to available if to large
-            limit = limit or available  # replace 0 with available
+    Raises:
+        AssertionError: If input not valid.
 
-            # check use_folder_tree
-            use_folder_tree = attributes.get("use_folder_tree", False)
-            if not use_folder_tree and util.get_fs_type(path) == "vfat":
-                use_folder_tree = True
+    Example:
+        import storjnode
+        store_paths = {
+            "path/a": {"limit": 0, "use_folder_tree": False}
+            "path/b": {"limit": 2 ** 32, "use_folder_tree": True}
+        }
+        normalized_paths = storjnode.storage.store.setup(store_paths)
+    """
+    normal_paths = {}
+    store_paths = store_paths or DEFAULT_PATHS
+    for path, attributes in store_paths.items():
+        attributes = attributes or {}  # None allowed
 
-            self.paths[path] = {
-                "use_folder_tree": use_folder_tree, "limit": limit
-            }
-            log.info("Storing data in '{0}'!".format(path))
-            log.info("Storage capacity {0}bytes!".format(self._path))
+        # check path
+        path = os.path.realpath(path)
+        storjnode.util.ensure_path_exists(path)
 
-    def get(self, shard_id):
-        """Retreives a shard from storage.
+        # check limit
+        limit = attributes.get("limit", 0)
+        assert(isinstance(limit, int))
+        assert(limit >= 0)
+        free = storjnode.util.get_free_space(path)
+        used = storjnode.util.get_folder_size(path)
+        available = (free + used)
+        if limit > available:
+            msg = ("Invalid storage limit for {0}: {1} > available {2}."
+                   "Using available {2}!")
+            log.warning(msg.format(path, limit, available))
+            limit = available  # set to available if to large
 
-        Returns:
-            A read only file like object for the shard, the caller is
-            responsable for closing the file object.
+        # check use_folder_tree
+        use_folder_tree = attributes.get("use_folder_tree", False)
+        if not use_folder_tree and storjnode.util.get_fs_type(path) == "vfat":
+            use_folder_tree = True
 
-        Raises:
-            KeyError: If shard was not found.
-        """
-        for store_path, attributes in self.paths.items():
-            use_folder_tree = attributes["use_folder_tree"]
-            shard_path = self._get_shard_path(
-                store_path, shard_id, use_folder_tree=use_folder_tree
-            )
-            if os.path.isfile(shard_path):
-                return Shard(open(shard_path, "rb"))
-        raise KeyError("Shard {0} not found!".format(shard_id))
+        normal_paths[path] = {
+            "use_folder_tree": use_folder_tree, "limit": limit
+        }
+        msg = "Storing data in '{0}' with a capacity of {1}bytes!"
+        log.info(msg.format(path, limit or available))
+    return normal_paths
 
-    def remove(shard_id):
-        """Remove a shard from the store."""
-        pass  # TODO implement
 
-    def import_file(self, source_path, max_shard_size=DEFAULT_SHARD_SIZE):
-        """Import a file into the store.
+def get(store_paths, shard_id):
+    """Retreives a shard from storage.
 
-        Args:
-            source_path: The path of the file to be imported.
-            max_shard_size: The maximum shard size.
+    Args:
+        store_paths: Mapping of storage paths to a dict of optional attributes.
+                     limit: The folder size limit in bytes, 0 for no limit.
+                     use_folder_tree: Files organized in a folder tree (always
+                                      on if path leads to a fat partition).
+        shard_id: Id of the shard to retreive.
 
-        Returns: A list of shard ids with the fist entry being the root shard.
-                 All required shards to reconstruct a file can be obtained
-                 from the root shard.
-        """
-        # FIXME add encryption
+    Returns:
+        A read only file object for the shard, the caller is responsable
+        for closing the file object.
 
-        pass  # TODO implement
+    Raises:
+        KeyError: If shard was not found.
+        AssertionError: If input not valid.
 
-    def export_file(self, root_shard_id, dest_path):
-        pass  # TODO implement
+    Example:
+        import storjnode
+        id = "2c26b46b68ffc68ff99b453c1d30413413422d706483bfa0f98a5e886266e7ae"
+        store_paths = {"path/a": None, "path/b": None}
+        shard = storjnode.storage.store.add(store_paths, id)
+        # do something with the shard
+        shard.close()
+    """
+    assert(storjnode.storage.shard.valid_id(shard_id))
+    store_paths = setup(store_paths)  # setup if needed
+    for store_path, attributes in store_paths.items():
+        use_folder_tree = attributes["use_folder_tree"]
+        shard_path = _get_shard_path(store_path, shard_id, use_folder_tree)
+        if os.path.isfile(shard_path):
+            return open(shard_path, "rb")
+    raise KeyError("Shard {0} not found!".format(shard_id))
 
-    def add(self, shard):
-        """ Add a shard to the storage.
 
-        """
-        shard_id = shard.get_id()
-        shard_size = shard.get_size()
+def add(store_paths, shard):
+    """ Add a shard to the storage.
 
-        # shuffle store paths to spread shards somewhat evenly
-        paths = self.paths.copy().items()
-        random.shuffle(paths)
-        for store_path, attributes in self.paths.items():
+    Args:
+        store_paths: Mapping of storage paths to a dict of optional attributes.
+                     limit: The folder size limit in bytes, 0 for no limit.
+                     use_folder_tree: Files organized in a folder tree (always
+                                      on if path leads to a fat partition).
+        shard: A file like object representing the shard.
 
-            # check if store path limit reached
-            store_path_size = util.get_folder_size(store_path)
-            free_store_path_space = attributes["limit"] - store_path_size
-            if shard_size > free_store_path_space:
-                msg = ("Not enough space in {3} to add {0}: "
-                       "Required {1} > {2} available.")
-                log.warning(msg.format(shard_id, shard_size,
-                                       free_store_path_space, store_path))
-                continue  # try next storepath
+    Raises:
+        MemoryError: If note enough storage to add shard.
+        AssertionError: If input not valid.
 
-            # check enough free disc space
-            free_space = util.get_free_space(store_path)
-            if shard_size > free_space:
-                msg = ("Not enough disc space to add {0}: "
-                       "Required {1} > {2} available.")
-                msg = msg.format(shard_id, shard_size, free_space)
-                log.error(msg)
-                raise MemoryError(msg)
+    Example:
+        import storjnode
+        shard = open("path/to/loose/shard", "rb")
+        store_paths = {"path/a": None, "path/b": None}
+        storjnode.storage.store.add(store_paths, shard)
+        shard.close()
+    """
+    store_paths = setup(store_paths)  # setup if needed
+    shard_id = shard.get_id()
+    shard_size = shard.get_size()
 
-            # save shard
-            use_folder_tree = attributes["use_folder_tree"]
-            shard_path = self._get_shard_path(
-                store_path, shard_id, use_folder_tree=use_folder_tree,
-                create_needed_folders=True
-            )
-            return shard.save(shard_path)
+    # shuffle store paths to spread shards somewhat evenly
+    paths = store_paths.items()
+    random.shuffle(paths)
+    for store_path, attributes in paths:
 
-        raise MemoryError("Not enough space to add {0}!".format(shard_id))
+        # check if store path limit reached
+        used = storjnode.util.get_folder_size(store_path)
+        available = attributes["limit"] - used
+        if shard_size > available:
+            msg = ("Store path limit reached for {3} cannot add {0}: "
+                   "Required {1} > {2} available.")
+            log.warning(msg.format(shard_id, shard_size, available, store_path))
+            continue  # try next storepath
 
-    def _get_shard_path(self, store_path, shard_id, use_folder_tree=False,
-                        create_needed_folders=False):
-        if use_folder_tree:
-            folders = os.path.join(*util.chunks(shard_id, 3))
-            store_path = os.path.join(store_path, folders)
-            if create_needed_folders:
-                util.ensure_path_exists(store_path)
-        return os.path.join(store_path, shard_id)
+        # check if enough free disc space
+        free_space = storjnode.util.get_free_space(store_path)
+        if shard_size > free_space:
+            msg = ("Not enough disc space to add {0}: "
+                   "Required {1} > {2} available.")
+            msg = msg.format(shard_id, shard_size, free_space)
+            log.warning(msg)
+            continue  # try next storepath
+
+        # save shard
+        use_folder_tree = attributes["use_folder_tree"]
+        shard_path = _get_shard_path(store_path, shard_id, use_folder_tree,
+                                     create_needed_folders=True)
+        return storjnode.storage.shard.save(shard, shard_path)
+
+    raise MemoryError("Not enough space to add {0}!".format(shard_id))
+
+
+def remove(store_paths, shard_id):
+    """Remove a shard from the store.
+
+    Args:
+        store_paths: Mapping of storage paths to a dict of optional attributes.
+                     limit: The folder size limit in bytes, 0 for no limit.
+                     use_folder_tree: Files organized in a folder tree (always
+                                      on if path leads to a fat partition).
+        shard_id: Id of the shard to be removed.
+
+    Raises:
+        AssertionError: If input not valid.
+
+    Example:
+        import storjnode
+        id = "2c26b46b68ffc68ff99b453c1d30413413422d706483bfa0f98a5e886266e7ae"
+        store_paths = {"path/a": None, "path/b": None}
+        storjnode.storage.store.remove(store_paths, id)
+    """
+    assert(storjnode.storage.shard.valid_id(shard_id))
+    store_paths = setup(store_paths)  # setup if needed
+    for store_path, attributes in store_paths.items():
+        use_folder_tree = attributes["use_folder_tree"]
+        shard_path = _get_shard_path(store_path, shard_id, use_folder_tree)
+        if os.path.isfile(shard_path):
+            return os.remove(shard_path)
+
+
+def import_file(store_paths, source_path, max_shard_size=DEFAULT_SHARD_SIZE):
+    """Import a file into the store.
+
+    Args:
+        source_path: The path of the file to be imported.
+        max_shard_size: The maximum shard size.
+
+    Returns: A list of shard ids with the fist entry being the root shard.
+                All required shards to reconstruct a file can be obtained
+                from the root shard.
+    """
+    store_paths = setup(store_paths)  # setup if needed
+    # FIXME add encryption
+    # TODO implement
+
+
+def export_file(store_paths, root_shard_id, dest_path):
+    assert(storjnode.storage.shard.valid_id(root_shard_id))
+    store_paths = setup(store_paths)  # setup if needed
+    # FIXME add encryption
+    # TODO implement
