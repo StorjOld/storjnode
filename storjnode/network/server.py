@@ -228,11 +228,17 @@ class StorjServer(Server):
     def get_hex_id(self):
         return binascii.hexlify(self.get_id())
 
-    def dbg_has_public_ip(self):
+    def has_public_ip(self):
         def handle(ips):
             self.log.debug("Internet visible IPs: %s" % ips)
             ip = util.get_inet_facing_ip()
             self.log.debug("Internet facing IP: %s" % ip)
             is_public = ip is not None and ip in ips
             return is_public
+        return self.inetVisibleIP().addCallback(handle)
+
+    def get_wan_ip(self):
+        def handle(ips):
+            ips = list(set(ips))
+            return ips[0] if len(ips) > 0 else None
         return self.inetVisibleIP().addCallback(handle)

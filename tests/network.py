@@ -116,9 +116,9 @@ class TestNode(unittest.TestCase):
             alice_node.stop()
             bob_node.stop()
 
-    def test_dbg_has_public_ip(self):  # for coverage
+    def test_has_public_ip(self):  # for coverage
         random_peer = random.choice(self.swarm)
-        result = random_peer.dbg_has_public_ip()
+        result = random_peer.sync_has_public_ip()
         self.assertTrue(isinstance(result, bool))
 
     def test_get_known_peers(self):  # for coverage

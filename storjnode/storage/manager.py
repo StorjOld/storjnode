@@ -10,7 +10,7 @@ DEFAULT_PATHS = {DEFAULT_STORE_PATH: {"limit": 0, "use_folder_tree": False}}
 DEFAULT_SHARD_SIZE = 1024 * 1024 * 128  # 128M
 
 
-log = logging.getLogger(__name__)
+_log = logging.getLogger(__name__)
 
 
 def _get_shard_path(store_path, shard_id, use_folder_tree,
@@ -66,19 +66,19 @@ def setup(store_paths=None):
         if limit > available:
             msg = ("Invalid storage limit for {0}: {1} > available {2}. "
                    "Using available {2}!")
-            log.warning(msg.format(path, limit, available))
+            _log.warning(msg.format(path, limit, available))
             limit = available  # set to available if to large
 
         # check use_folder_tree
         use_folder_tree = attributes.get("use_folder_tree", False)
         if not use_folder_tree and storjnode.util.get_fs_type(path) == "vfat":
-            use_folder_tree = True
+            use_folder_tree = True  # pragma: no cover
 
         normal_paths[path] = {
             "use_folder_tree": use_folder_tree, "limit": limit
         }
         msg = "Storing data in '{0}' with a capacity of {1}bytes!"
-        log.info(msg.format(path, limit or available))
+        _log.info(msg.format(path, limit or available))
     return normal_paths
 
 
@@ -159,7 +159,8 @@ def add(store_paths, shard):
         if limit > 0 and shard_size > available:
             msg = ("Store path limit reached for {3} cannot add {0}: "
                    "Required {1} > {2} available.")
-            log.warning(msg.format(shard_id, shard_size, available, store_path))
+            _log.warning(msg.format(shard_id, shard_size,
+                                    available, store_path))
             continue  # try next storepath
 
         # check if enough free disc space
@@ -168,7 +169,7 @@ def add(store_paths, shard):
             msg = ("Not enough disc space in {3} to add {0}: "
                    "Required {1} > {2} available.")
             msg = msg.format(shard_id, shard_size, free_space, store_path)
-            log.warning(msg)
+            _log.warning(msg)
             continue  # try next storepath
 
         # save shard
@@ -228,7 +229,6 @@ def find(store_paths, shard_id):
         shard_path = storjnode.storage.store.remove(store_paths, id)
         print("shard located at %s" % shard_path)
     """
-    # TODO doc string
     assert(storjnode.storage.shard.valid_id(shard_id))
     store_paths = setup(store_paths)  # setup if needed
     for store_path, attributes in store_paths.items():

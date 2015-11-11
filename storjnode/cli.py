@@ -1,5 +1,4 @@
 import time
-
 import binascii
 import argparse
 import storjnode
@@ -273,7 +272,7 @@ def _get_node_key(args):
 
 def command_showtype(node):
     try:
-        print("Public node!" if node.dbg_has_public_ip() else "Private node!")
+        print("Public node!" if node.sync_has_public_ip() else "Private node!")
     except TimeoutError:
         print("Timeout error!")
 
@@ -335,11 +334,13 @@ def main(args):
         )
         return
 
+    # setup
     node = setup_node(args)
     print("Waiting %fsec to find peers ..." % WALK_TIMEOUT)
     time.sleep(WALK_TIMEOUT)
 
-    commands = {
+    # run command
+    {
         "run": command_run,
         "put": command_put,
         "get": command_get,
@@ -351,8 +352,7 @@ def main(args):
         "showunl": command_showunl,
         "upload": command_upload,
         "download": command_download,
-    }
-    commands[command](node, args)
+    }[command](node, args)
 
     print("Stopping node")
     node.stop()

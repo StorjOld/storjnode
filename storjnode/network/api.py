@@ -47,6 +47,8 @@ def generate_graph(nodes, name):
     dot.render('%s.gv' % name, view=True)
 
 
+# FIXME replace with storage_paths and use storjnode.storage.manager
+
 class Node(object):
     """Storj network layer implementation.
 
@@ -55,8 +57,10 @@ class Node(object):
 
     def __init__(self, key, ksize=20, port=None, bootstrap_nodes=None,
                  storage=None, max_messages=1024,
-                 refresh_neighbours_interval=0.0, storage_path=None,
-                 passive_port=None, passive_bind=None, node_type="unknown", nat_type="unknown", wan_ip=None):
+                 refresh_neighbours_interval=0.0,
+                 storage_path=None,
+                 passive_port=None, passive_bind=None, node_type="unknown",
+                 nat_type="unknown", wan_ip=None):
         """Create a blocking storjnode instance.
 
         Args:
@@ -112,7 +116,8 @@ class Node(object):
         self._setup_server(key, ksize, storage, max_messages,
                            refresh_neighbours_interval, bootstrap_nodes)
         self._setup_data_transfer_client(storage_path, passive_port,
-                                         passive_bind, node_type, nat_type, wan_ip)
+                                         passive_bind, node_type, nat_type,
+                                         wan_ip)
         self._setup_message_dispatcher()
 
     def _setup_message_dispatcher(self):
@@ -179,20 +184,55 @@ class Node(object):
     def get_hex_id(self):
         return self.server.get_hex_id()
 
-    ###################
-    # debug interface #
-    ###################
+    ########################
+    # networking interface #
+    ########################
 
     @wait_for(timeout=QUERY_TIMEOUT)
-    def dbg_has_public_ip(self):
-        """Returns True if local IP is internet visible, otherwise False.
+    def sync_has_public_ip(self):
+        """Find out if this node has a public IP or is behind a NAT.
 
         The may false positive if you run other nodes on your local network.
+
+        Returns:
+            True if local IP is internet visible, otherwise False.
 
         Raises:
             crochet.TimeoutError after storjnode.network.server.QUERY_TIMEOUT
         """
-        return self.server.dbg_has_public_ip()
+        return self.async_has_public_ip()
+
+    def async_has_public_ip(self):
+        """Find out if this node has a public IP or is behind a NAT.
+
+        The may false positive if you run other nodes on your local network.
+
+        Returns:
+            A twisted.internet.defer.Deferred that resloves to
+            True if local IP is internet visible, otherwise False.
+        """
+        return self.server.has_public_ip()
+
+    @wait_for(timeout=QUERY_TIMEOUT)
+    def sync_get_wan_ip(self):
+        """Get the WAN IP of this Node.
+
+        Retruns:
+            The WAN IP or None.
+
+        Raises:
+            crochet.TimeoutError after storjnode.network.server.QUERY_TIMEOUT
+        """
+        return self.async_get_wan_ip()
+
+    def async_get_wan_ip(self):
+        """Get the WAN IP of this Node.
+
+        Retruns:
+            A twisted.internet.defer.Deferred that resloves to
+            The WAN IP or None.
+        """
+        return self.server.get_wan_ip()
 
     ######################################
     # depricated data transfer interface #
@@ -265,7 +305,7 @@ class Node(object):
 
         If any handler returns True the transfer request will be accepted.
         The handler must be callable and accept three arguments
-        (requesting_peer_id, data_id, direction). The direction parameter 
+        (requesting_peer_id, data_id, direction). The direction parameter
         will be the oposatle of the requesters direction.
 
         Example:
