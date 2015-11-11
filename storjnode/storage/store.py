@@ -2,13 +2,13 @@ import os
 import random
 import logging
 from storjnode import util
+from storjnode.storage.shard import Shard
 
 
 DEFAULT_APP_HOME = os.path.join(os.path.expanduser("~"), ".storj")
 DEFAULT_STORE_PATH = os.path.join(DEFAULT_APP_HOME, "store")
 DEFAULT_PATHS = {DEFAULT_STORE_PATH: {"limit": 0, "use_folder_tree": False}}
 DEFAULT_SHARD_SIZE = 1024 * 1024 * 128  # 128M
-DEFAULT_REDUNDANCY_LEVEL = 3
 
 
 log = logging.getLogger(__name__)
@@ -62,7 +62,7 @@ class Store(object):
             log.info("Storing data in '{0}'!".format(path))
             log.info("Storage capacity {0}bytes!".format(self._path))
 
-    def get(shard_id):
+    def get(self, shard_id):
         """Retreives a shard from storage.
 
         Returns:
@@ -85,33 +85,25 @@ class Store(object):
         """Remove a shard from the store."""
         pass  # TODO implement
 
-    def import_file(source_path, redundancy_level=DEFAULT_REDUNDANCY_LEVEL,
-                    max_shard_size=DEFAULT_SHARD_SIZE, shard_padding=True):
+    def import_file(self, source_path, max_shard_size=DEFAULT_SHARD_SIZE):
         """Import a file into the store.
-        
+
         Args:
-            source_path: The path of the file to import.
-            redundancy_level: TODO doc string
-            max_shard_size: The maximum shard size (must be a power of two).
-            shard_padding: Padd shard to the next power of two.
+            source_path: The path of the file to be imported.
+            max_shard_size: The maximum shard size.
 
-        Returns: A mapping of root shard ids to child shards with one root
-             shard for every redundancy level. If the file fit in a single
-             shard the child shards will be empty.
-
-        
+        Returns: A list of shard ids with the fist entry being the root shard.
+                 All required shards to reconstruct a file can be obtained
+                 from the root shard.
         """
         # FIXME add encryption
 
-
-
-        
         pass  # TODO implement
 
-    def export_file(root_shard_id, dest_path):
+    def export_file(self, root_shard_id, dest_path):
         pass  # TODO implement
 
-    def add(shard):
+    def add(self, shard):
         """ Add a shard to the storage.
 
         """
@@ -134,7 +126,7 @@ class Store(object):
                 continue  # try next storepath
 
             # check enough free disc space
-            free_space = get_free_space(store_path)
+            free_space = util.get_free_space(store_path)
             if shard_size > free_space:
                 msg = ("Not enough disc space to add {0}: "
                        "Required {1} > {2} available.")
@@ -158,7 +150,5 @@ class Store(object):
             folders = os.path.join(*util.chunks(shard_id, 3))
             store_path = os.path.join(store_path, folders)
             if create_needed_folders:
-                control.util.ensure_path_exists(store_path)
+                util.ensure_path_exists(store_path)
         return os.path.join(store_path, shard_id)
-
-
