@@ -53,11 +53,14 @@ class Node(object):
     Provides a blocking dict like interface to the DHT for ease of use.
     """
 
-    def __init__(self, key, ksize=20, port=None, bootstrap_nodes=None,
-                 storage=None,  # FIXME clarify that its DHT not shard storage
-                 max_messages=1024,
+    def __init__(self,
+                 # kademlia DHT args
+                 key, ksize=20, port=None, bootstrap_nodes=None,
+                 dht_storage=None, max_messages=1024,
                  refresh_neighbours_interval=0.0,
-                 storage_path=None,  # FIXME use storage_paths & storage module
+
+                 # data transfer args
+                 disable_data_transfer=False, store_config=None,
                  passive_port=None,
                  passive_bind=None,  # FIXME use utils.get_inet_facing_ip ?
                  node_type="unknown",  # FIMME what is this ?
@@ -69,30 +72,32 @@ class Node(object):
             key (str): Bitcoin wif/hwif for auth, encryption and node id.
             ksize (int): The k parameter from the kademlia paper.
             port (port): Port to for incoming packages, randomly by default.
-            passive_port (int): Port to receive inbound TCP connections on.
-            passive_bind (ip): LAN IP to receive inbound TCP connections on.
             bootstrap_nodes [(ip, port), ...]: Known network node addresses as.
-            storage: implements :interface:`~kademlia.storage.IStorage`
+            dht_storage: implements :interface:`~kademlia.storage.IStorage`
             max_messages (int): Max unprecessed messages, additional dropped.
             refresh_neighbours_interval (float): Auto refresh neighbours.
-            storage_path: FIXME replace with storage service
-        """
-        assert(isinstance(ksize, int))
-        assert(ksize > 0)
 
-        # validate max message
-        assert(isinstance(max_messages, int))
-        assert(max_messages >= 0)
+            disable_data_transfer: Disable data transfer for this node.
+            store_config: Dict of storage paths to optional attributes.
+                          limit: The dir size limit in bytes, 0 for no limit.
+                          use_folder_tree: Files organized in a folder tree
+                                           (always on for fat partitions).
+
+            passive_port (int): Port to receive inbound TCP connections on.
+            passive_bind (ip): LAN IP to receive inbound TCP connections on.
+            node_type: TODO doc string
+            nat_type: TODO doc string
+            wan_ip: TODO doc string
+        """
+        self.disable_data_transfer = bool(disable_data_transfer)
 
         # validate port (randomish user port by default)
         port = port or random.choice(range(1024, 49151))
-        assert(isinstance(port, int))
         assert(0 <= port < 2 ** 16)
         self.port = port
 
         # passive port (randomish user port by default)
         passive_port = passive_port or random.choice(range(1024, 49151))
-        assert(isinstance(port, int))
         assert(0 <= port < 2 ** 16)
 
         # FIXME chance of same port and passive_port being the same
@@ -115,11 +120,13 @@ class Node(object):
             assert(0 <= other_port < 2 ** 16)
 
         # start services
-        self._setup_server(key, ksize, storage, max_messages,
+        self._setup_server(key, ksize, dht_storage, max_messages,
                            refresh_neighbours_interval, bootstrap_nodes)
-        self._setup_data_transfer_client(storage_path, passive_port,
-                                         passive_bind, node_type, nat_type,
-                                         wan_ip)
+
+        if not self.disable_data_transfer:
+            self._setup_data_transfer_client(store_config, passive_port,
+                                            passive_bind, node_type, nat_type,
+                                            wan_ip)
         self._setup_message_dispatcher()
 
     def _setup_message_dispatcher(self):
@@ -139,7 +146,7 @@ class Node(object):
         self.server.listen(self.port)
         self.server.bootstrap(bootstrap_nodes)
 
-    def _setup_data_transfer_client(self, storage_path, passive_port,
+    def _setup_data_transfer_client(self, store_config, passive_port,
                                     passive_bind, node_type, nat_type, wan_ip):
         self._data_transfer = FileTransfer(
             net=Net(
@@ -153,7 +160,7 @@ class Node(object):
                 wan_ip=wan_ip
             ),
             wif=self.server.key,  # use same key as dht
-            storage_path=storage_path
+            store_config=store_config
         )
 
     def stop(self):
@@ -161,7 +168,8 @@ class Node(object):
         self._message_dispatcher_thread_stop = True
         self._message_dispatcher_thread.join()
         self.server.stop()
-        self._data_transfer.net.stop()
+        if not self.disable_data_transfer:
+            self._data_transfer.net.stop()
 
     ##################
     # node interface #
@@ -241,10 +249,14 @@ class Node(object):
     ######################################
 
     def move_to_storage(self, path):
+        if self.disable_data_transfer:
+            raise Exception("Data transfer disabled!")
         # FIXME remove and have callers use storage service instead
         return self._data_transfer.move_file_to_storage(path)
 
     def send_data(self, data_id, size, node_unl):
+        if self.disable_data_transfer:
+            raise Exception("Data transfer disabled!")
         self._data_transfer.data_request("upload", data_id, size, node_unl)
         while 1:  # FIXME terminate when transfered
             time.sleep(0.5)
@@ -252,6 +264,8 @@ class Node(object):
         # FIXME return error or success status/reason
 
     def request_data(self, data_id, size, node_unl):
+        if self.disable_data_transfer:
+            raise Exception("Data transfer disabled!")
         self._data_transfer.data_request("download", data_id, size, node_unl)
         while 1:  # FIXME terminate when transfered
             time.sleep(0.5)
@@ -259,9 +273,13 @@ class Node(object):
         # FIXME return error or success status/reason
 
     def get_unl(self):
+        if self.disable_data_transfer:
+            raise Exception("Data transfer disabled!")
         return self._data_transfer.net.unl.value
 
     def process_data_transfers(self):
+        if self.disable_data_transfer:
+            raise Exception("Data transfer disabled!")
         process_transfers(self._data_transfer)
 
     ###########################
@@ -284,6 +302,8 @@ class Node(object):
             RequestDenied: If the peer denied your request to transfer data.
             TransferError: If the data not transfered for other reasons.
         """
+        if self.disable_data_transfer:
+            raise Exception("Data transfer disabled!")
         pass  # TODO implement
 
     def sync_request_data_transfer(self, data_id, peer_id, direction):
@@ -300,6 +320,8 @@ class Node(object):
             RequestDenied: If the peer denied your request to transfer data.
             TransferError: If the data not transfered for other reasons.
         """
+        if self.disable_data_transfer:
+            raise Exception("Data transfer disabled!")
         pass  # TODO implement
 
     def add_transfer_request_handler(self, handler):
@@ -317,6 +339,8 @@ class Node(object):
             node = Node()
             node.add_allow_transfer_handler(on_transfer_request)
         """
+        if self.disable_data_transfer:
+            raise Exception("Data transfer disabled!")
         pass  # TODO implement
 
     def remove_transfer_request_handler(self, handler):
@@ -325,6 +349,8 @@ class Node(object):
         Raises:
             KeyError if handler was not previously added.
         """
+        if self.disable_data_transfer:
+            raise Exception("Data transfer disabled!")
         pass  # TODO implement
 
     # TODO add handlers for transfer complete

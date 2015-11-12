@@ -43,7 +43,7 @@ class TestNode(unittest.TestCase):
                 cls.btctxstore.create_wallet(), port=(3000 + i),
                 bootstrap_nodes=bootstrap_nodes,
                 max_messages=TEST_MAX_MESSAGES,
-                storage_path=TEST_STORAGE_DIR,
+                store_config={TEST_STORAGE_DIR: None},
                 nat_type="preserving",
                 node_type="passive",
                 wan_ip=WAN_IP
@@ -55,6 +55,9 @@ class TestNode(unittest.TestCase):
 
         # stabalize network overlay
         print("TEST: stabalize network overlay")
+        time.sleep(WALK_TIMEOUT)
+        for node in cls.swarm:
+            node.refresh_neighbours()
         time.sleep(WALK_TIMEOUT)
         for node in cls.swarm:
             node.refresh_neighbours()
@@ -83,7 +86,7 @@ class TestNode(unittest.TestCase):
             self.__class__.btctxstore.create_key(),
             bootstrap_nodes=[("240.0.0.0", 1337)],
             max_messages=TEST_MAX_MESSAGES,
-            storage_path=TEST_STORAGE_DIR,
+            store_config={TEST_STORAGE_DIR: None},
             refresh_neighbours_interval=interval,
             nat_type="preserving",
             node_type="passive",
@@ -96,7 +99,7 @@ class TestNode(unittest.TestCase):
             self.__class__.btctxstore.create_key(),
             bootstrap_nodes=[("127.0.0.1", alice_node.port)],
             max_messages=TEST_MAX_MESSAGES,
-            storage_path=TEST_STORAGE_DIR,
+            store_config={TEST_STORAGE_DIR: None},
             refresh_neighbours_interval=interval,
             nat_type="preserving",
             node_type="passive",
@@ -201,7 +204,7 @@ class TestNode(unittest.TestCase):
             self.__class__.btctxstore.create_key(),
             bootstrap_nodes=[("240.0.0.0", 1337)],
             max_messages=TEST_MAX_MESSAGES,
-            storage_path=TEST_STORAGE_DIR,
+            store_config={TEST_STORAGE_DIR: None},
             nat_type="preserving",
             node_type="passive",
             wan_ip=WAN_IP
@@ -212,7 +215,7 @@ class TestNode(unittest.TestCase):
             self.__class__.btctxstore.create_key(),
             bootstrap_nodes=[("127.0.0.1", alice_node.port)],
             max_messages=TEST_MAX_MESSAGES,
-            storage_path=TEST_STORAGE_DIR,
+            store_config={TEST_STORAGE_DIR: None},
             nat_type="preserving",
             node_type="passive",
             wan_ip=WAN_IP
@@ -309,7 +312,7 @@ class TestNode(unittest.TestCase):
             self.__class__.btctxstore.create_wallet(),
             bootstrap_nodes=[("240.0.0.0", 1337)],  # isolated peer
             max_messages=TEST_MAX_MESSAGES,
-            storage_path=TEST_STORAGE_DIR,
+            store_config={TEST_STORAGE_DIR: None},
             nat_type="preserving",
             node_type="passive",
             wan_ip=WAN_IP
@@ -327,7 +330,7 @@ class TestNode(unittest.TestCase):
             self.__class__.btctxstore.create_key(),
             bootstrap_nodes=[("240.0.0.0", 1337)],
             max_messages=TEST_MAX_MESSAGES,
-            storage_path=TEST_STORAGE_DIR,
+            store_config={TEST_STORAGE_DIR: None},
             nat_type="preserving",
             node_type="passive",
             wan_ip=WAN_IP
@@ -338,7 +341,7 @@ class TestNode(unittest.TestCase):
             self.__class__.btctxstore.create_key(),
             bootstrap_nodes=[("127.0.0.1", alice_node.port)],
             max_messages=TEST_MAX_MESSAGES,
-            storage_path=TEST_STORAGE_DIR,
+            store_config={TEST_STORAGE_DIR: None},
             nat_type="preserving",
             node_type="passive",
             wan_ip=WAN_IP
@@ -362,7 +365,7 @@ class TestNode(unittest.TestCase):
             self.__class__.btctxstore.create_key(),
             bootstrap_nodes=[("240.0.0.0", 1337)],
             max_messages=TEST_MAX_MESSAGES,
-            storage_path=TEST_STORAGE_DIR,
+            store_config={TEST_STORAGE_DIR: None},
             nat_type="preserving",
             node_type="passive",
             wan_ip=WAN_IP
@@ -371,7 +374,7 @@ class TestNode(unittest.TestCase):
             self.__class__.btctxstore.create_key(),
             bootstrap_nodes=[("127.0.0.1", alice_node.port)],
             max_messages=TEST_MAX_MESSAGES,
-            storage_path=TEST_STORAGE_DIR,
+            store_config={TEST_STORAGE_DIR: None},
             nat_type="preserving",
             node_type="passive",
             wan_ip=WAN_IP

@@ -12,26 +12,21 @@ import pyp2p.unl
 import pyp2p.net
 import pyp2p.dht_msg
 import logging
-
+import storjnode
 from collections import OrderedDict
 from btctxstore import BtcTxStore
-from storjnode.util import ensure_path_exists
 import time
 import json
 import hashlib
 import sys
 import os
-import shutil
 import binascii
-import socket
-import errno
-import platform
-import requests.exceptions
 from threading import Lock
 
 
 mutex = Lock()
 log = logging.getLogger(__name__)
+
 
 def process_transfers(client):
     # Process contract messages.
@@ -152,7 +147,7 @@ def process_transfers(client):
                     del client.downloading[data_id]
 
                 # Delete file if it doesn't hash right!
-                path = client.get_data_path(data_id)
+                path = storjnode.storage.manager.find(client.store_config, data_id)
                 found_hash = client.hash_file(path)
                 if found_hash != data_id:
                     log.info(found_hash)
@@ -173,10 +168,8 @@ def process_transfers(client):
                 client.con_transfer[con] = u""
 
 
-
-
 class FileTransfer:
-    def __init__(self, net, wif=None, storage_path=None):
+    def __init__(self, net, wif=None, store_config=None):
         # Accept direct connections.
         self.net = net
 
@@ -185,11 +178,7 @@ class FileTransfer:
         self.wif = wif or self.wallet.create_key()
 
         # Where will the data be stored?
-        self.storage_path = storage_path
-        assert(self.storage_path is not None)
-
-        # Does the path exist? If not create it.
-        ensure_path_exists(self.storage_path)
+        self.store_config = store_config
 
         # Start networking.
         if not self.net.is_net_started:
@@ -301,8 +290,9 @@ class FileTransfer:
         # Are we the host?
         if self.net.unl == pyp2p.unl.UNL(value=msg[u"host_unl"]):
             # Then check we have this file.
-            path = self.get_data_path(msg[u"data_id"])
-            if not os.path.isfile(path):
+            path = storjnode.storage.manager.find(self.store_config,
+                                                  msg[u"data_id"])
+            if path is None:
                 log.debug("Failed to find file we're uploading")
                 return 0
 
@@ -312,8 +302,9 @@ class FileTransfer:
                 return 0
         else:
             # Do we already have this file?
-            path = self.get_data_path(msg[u"data_id"])
-            if os.path.isfile(path):
+            path = storjnode.storage.manager.find(self.store_config,
+                                                  msg[u"data_id"])
+            if path is not None:
                 log.debug("Attempting to download file we already have")
                 return 0
 
@@ -516,11 +507,6 @@ class FileTransfer:
 
             log.info("ACK")
 
-    def get_data_path(self, data_id):
-        path = os.path.join(self.storage_path, data_id)
-
-        return path
-
     def save_contract(self, contract):
         # Record contract details.
         contract_id = self.contract_id(contract)
@@ -645,26 +631,18 @@ class FileTransfer:
         return sha256.hexdigest()
 
     def remove_file_from_storage(self, data_id):
-        path = self.get_data_path(data_id)
-        if os.path.isfile(path):
-            os.remove(path)
+        storjnode.storage.manager.remove(self.store_config, data_id)
 
     def move_file_to_storage(self, path):
-        file_name = self.hash_file(path)
-        destination = self.get_data_path(file_name)
-        if not os.path.isfile(destination):
-            shutil.copyfile(path, destination)
-
-        file_size = os.path.getsize(path)
-        ret = {
-            "file_size": file_size,
-            "data_id": file_name
-        }
-
-        return ret
+        with open(path, "rb") as shard:
+            storjnode.storage.manager.add(self.store_config, shard)
+            return {
+                "file_size": storjnode.storage.shard.get_size(shard),
+                "data_id": storjnode.storage.shard.get_id(shard)
+            }
 
     def get_data_chunk(self, data_id, position, chunk_size=1048576):
-        path = self.get_data_path(data_id)
+        path = storjnode.storage.manager.find(self.store_config, data_id)
         buf = b""
         fp = open(path, "rb")
         fp.seek(position, 0)
@@ -675,7 +653,7 @@ class FileTransfer:
     def save_data_chunk(self, data_id, chunk):
         log.info("Saving data chunk for " + str(data_id))
         log.info("of size + " + str(len(chunk)))
-        path = self.get_data_path(data_id)
+        path = storjnode.storage.manager.find(self.store_config, data_id)
         fp = open(path, "ab")
         fp.write(chunk)
 
@@ -691,7 +669,7 @@ if __name__ == "__main__":
             dht_node=pyp2p.dht_msg.DHT(),
         ),
         wif=alice_wallet.create_key(),
-        storage_path="/home/laurence/Storj/Alice"
+        store_config = { "/home/laurence/Storj/Alice": None }  # FIXME use temppath
     )
 
     # ed980e5ef780d5b9ca1a6200a03302f2a91223044bc63dacc6d9f07eead663ab
@@ -710,7 +688,7 @@ if __name__ == "__main__":
             dht_node=pyp2p.dht_msg.DHT(),
         ),
         wif=bob_wallet.create_key(),
-        storage_path="/home/laurence/Storj/Bob"
+        store_config = { "/home/laurence/Storj/Bob": None }  # FIXME use temppath
     )
 
     log.info(alice.net.unl.deconstruct())
@@ -733,8 +711,6 @@ if __name__ == "__main__":
         2631451,
         bob.net.unl.value
     )
-
-
 
     """
     alice.data_request(

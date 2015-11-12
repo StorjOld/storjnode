@@ -23,33 +23,33 @@ def _get_shard_path(store_path, shard_id, use_folder_tree,
     return os.path.join(store_path, shard_id)
 
 
-def setup(store_paths=None):
+def setup(store_config=None):
     """Setup store so it can be use to store shards.
 
     This will validate the store paths and create any needed directories.
 
     Args:
-        store_paths: Mapping of storage paths to a dict of optional attributes.
-                     limit: The folder size limit in bytes, 0 for no limit.
-                     use_folder_tree: Files organized in a folder tree (always
-                                      on if path leads to a fat partition).
+        store_config: Dict of storage paths to optional attributes.
+                      limit: The dir size limit in bytes, 0 for no limit.
+                      use_folder_tree: Files organized in a folder tree
+                                       (always on for fat partitions).
     Returns:
-        The normalized store_paths with any missing attributes added.
+        The normalized store_config with any missing attributes added.
 
     Raises:
         AssertionError: If input not valid.
 
     Example:
         import storjnode
-        store_paths = {
+        store_config = {
             "path/alpha": {"limit": 0, "use_folder_tree": False}
             "path/beta": {"limit": 2**32, "use_folder_tree": True}
         }
-        normalized_paths = storjnode.storage.store.setup(store_paths)
+        normalized_paths = storjnode.storage.store.setup(store_config)
     """
     normal_paths = {}
-    store_paths = store_paths or DEFAULT_PATHS
-    for path, attributes in store_paths.items():
+    store_config = store_config or DEFAULT_PATHS
+    for path, attributes in store_config.items():
         attributes = attributes or {}  # None allowed
 
         # check path
@@ -82,14 +82,14 @@ def setup(store_paths=None):
     return normal_paths
 
 
-def get(store_paths, shard_id):
+def get(store_config, shard_id):
     """Retreives a shard from storage.
 
     Args:
-        store_paths: Mapping of storage paths to a dict of optional attributes.
-                     limit: The folder size limit in bytes, 0 for no limit.
-                     use_folder_tree: Files organized in a folder tree (always
-                                      on if path leads to a fat partition).
+        store_config: Dict of storage paths to optional attributes.
+                      limit: The dir size limit in bytes, 0 for no limit.
+                      use_folder_tree: Files organized in a folder tree
+                                       (always on for fat partitions).
         shard_id: Id of the shard to retreive.
 
     Returns:
@@ -103,26 +103,26 @@ def get(store_paths, shard_id):
     Example:
         import storjnode
         id = "2c26b46b68ffc68ff99b453c1d30413413422d706483bfa0f98a5e886266e7ae"
-        store_paths = {"path/alpha": None, "path/beta": None}
-        shard = storjnode.storage.store.get(store_paths, id)
+        store_config = {"path/alpha": None, "path/beta": None}
+        shard = storjnode.storage.store.get(store_config, id)
         # do something with the shard
         shard.close()
     """
-    shard_path = find(store_paths, shard_id)
+    shard_path = find(store_config, shard_id)
     if shard_path is not None:
         return open(shard_path, "rb")
     else:
         raise KeyError("Shard {0} not found!".format(shard_id))
 
 
-def add(store_paths, shard):
+def add(store_config, shard):
     """ Add a shard to the storage.
 
     Args:
-        store_paths: Mapping of storage paths to a dict of optional attributes.
-                     limit: The folder size limit in bytes, 0 for no limit.
-                     use_folder_tree: Files organized in a folder tree (always
-                                      on if path leads to a fat partition).
+        store_config: Dict of storage paths to optional attributes.
+                      limit: The dir size limit in bytes, 0 for no limit.
+                      use_folder_tree: Files organized in a folder tree
+                                       (always on for fat partitions).
         shard: A file like object representing the shard.
 
     Returns:
@@ -134,23 +134,23 @@ def add(store_paths, shard):
 
     Example:
         import storjnode
-        store_paths = {"path/a": None, "path/b": None}
+        store_config = {"path/a": None, "path/b": None}
         with open("path/to/loose/shard", "rb") as shard:
-            storjnode.storage.store.add(store_paths, shard)
+            storjnode.storage.store.add(store_config, shard)
     """
-    store_paths = setup(store_paths)  # setup if needed
+    store_config = setup(store_config)  # setup if needed
     shard_id = storjnode.storage.shard.get_id(shard)
     shard_size = storjnode.storage.shard.get_size(shard)
 
     # check if already in storage
-    shard_path = find(store_paths, shard_id)
+    shard_path = find(store_config, shard_id)
     if shard_path is not None:
         return shard_path
 
     # shuffle store paths to spread shards somewhat evenly
-    paths = store_paths.items()
-    random.shuffle(paths)
-    for store_path, attributes in paths:
+    items = store_config.items()
+    random.shuffle(items)
+    for store_path, attributes in items:
 
         # check if store path limit reached
         limit = attributes["limit"]
@@ -182,14 +182,14 @@ def add(store_paths, shard):
     raise MemoryError("Not enough space to add {0}!".format(shard_id))
 
 
-def remove(store_paths, shard_id):
+def remove(store_config, shard_id):
     """Remove a shard from the store.
 
     Args:
-        store_paths: Mapping of storage paths to a dict of optional attributes.
-                     limit: The folder size limit in bytes, 0 for no limit.
-                     use_folder_tree: Files organized in a folder tree (always
-                                      on if path leads to a fat partition).
+        store_config: Dict of storage paths to optional attributes.
+                      limit: The dir size limit in bytes, 0 for no limit.
+                      use_folder_tree: Files organized in a folder tree
+                                       (always on for fat partitions).
         shard_id: Id of the shard to be removed.
 
     Raises:
@@ -198,22 +198,22 @@ def remove(store_paths, shard_id):
     Example:
         import storjnode
         id = "2c26b46b68ffc68ff99b453c1d30413413422d706483bfa0f98a5e886266e7ae"
-        store_paths = {"path/alpha": None, "path/beta": None}
-        storjnode.storage.store.remove(store_paths, id)
+        store_config = {"path/alpha": None, "path/beta": None}
+        storjnode.storage.store.remove(store_config, id)
     """
-    shard_path = find(store_paths, shard_id)
+    shard_path = find(store_config, shard_id)
     if shard_path is not None:
         return os.remove(shard_path)
 
 
-def find(store_paths, shard_id):
+def find(store_config, shard_id):
     """Find the path of a shard.
 
     Args:
-        store_paths: Mapping of storage paths to a dict of optional attributes.
-                     limit: The folder size limit in bytes, 0 for no limit.
-                     use_folder_tree: Files organized in a folder tree (always
-                                      on if path leads to a fat partition).
+        store_config: Dict of storage paths to optional attributes.
+                      limit: The dir size limit in bytes, 0 for no limit.
+                      use_folder_tree: Files organized in a folder tree
+                                       (always on for fat partitions).
         shard_id: Id of the shard to find.
 
     Returns:
@@ -225,13 +225,13 @@ def find(store_paths, shard_id):
     Example:
         import storjnode
         id = "2c26b46b68ffc68ff99b453c1d30413413422d706483bfa0f98a5e886266e7ae"
-        store_paths = {"path/alpha": None, "path/beta": None}
-        shard_path = storjnode.storage.store.remove(store_paths, id)
+        store_config = {"path/alpha": None, "path/beta": None}
+        shard_path = storjnode.storage.store.remove(store_config, id)
         print("shard located at %s" % shard_path)
     """
     assert(storjnode.storage.shard.valid_id(shard_id))
-    store_paths = setup(store_paths)  # setup if needed
-    for store_path, attributes in store_paths.items():
+    store_config = setup(store_config)  # setup if needed
+    for store_path, attributes in store_config.items():
         use_folder_tree = attributes["use_folder_tree"]
         shard_path = _get_shard_path(store_path, shard_id, use_folder_tree)
         if os.path.isfile(shard_path):
@@ -239,7 +239,7 @@ def find(store_paths, shard_id):
     return None
 
 
-# def import_file(store_paths, source_path, max_shard_size=DEFAULT_SHARD_SIZE):
+# def import_file(store_config, source_path, max_shard_size=DEFAULT_SHARD_SIZE):
 #     """Import a file into the store.
 #
 #     Args:
@@ -250,13 +250,13 @@ def find(store_paths, shard_id):
 #                 All required shards to reconstruct a file can be obtained
 #                 from the root shard.
 #     """
-#     store_paths = setup(store_paths)  # setup if needed
+#     store_config = setup(store_config)  # setup if needed
 #     # FIXME add encryption
 #     # TODO implement
 #
 #
-# def export_file(store_paths, root_shard_id, dest_path):
+# def export_file(store_config, root_shard_id, dest_path):
 #     assert(storjnode.storage.shard.valid_id(root_shard_id))
-#     store_paths = setup(store_paths)  # setup if needed
+#     store_config = setup(store_config)  # setup if needed
 #     # FIXME add encryption
 #     # TODO implement

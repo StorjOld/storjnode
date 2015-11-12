@@ -35,12 +35,12 @@ class TestManager(unittest.TestCase):
         alpha_path = os.path.join(self.base_dir, "alpha")
         beta_path = os.path.join(self.base_dir, "beta")
         gamma_path = os.path.join(self.base_dir, "gamma")
-        store_paths = {
+        store_config = {
             alpha_path: {"limit": 2**24, "use_folder_tree": True},  # 16M
             beta_path: {"limit": 2**64},  # 16777216T
             gamma_path: None,
         }
-        normalized = storjnode.storage.manager.setup(store_paths)
+        normalized = storjnode.storage.manager.setup(store_config)
 
         # check directories created
         for path in normalized.keys():
@@ -64,21 +64,21 @@ class TestManager(unittest.TestCase):
 
             # test success
             store_path = os.path.join(self.base_dir, "delta")
-            store_paths = {store_path: None}
-            save_path = storjnode.storage.manager.add(store_paths, shard)
+            store_config = {store_path: None}
+            save_path = storjnode.storage.manager.add(store_config, shard)
             self.assertTrue(os.path.isfile(save_path))
             self.assertTrue(save_path.startswith(store_path))
             self.assertTrue(filecmp.cmp(self.test_shard_path, save_path))
 
             # checks for existing file and skip if already added
-            store_path_b = storjnode.storage.manager.add(store_paths, shard)
+            store_path_b = storjnode.storage.manager.add(store_config, shard)
             self.assertEqual(save_path, store_path_b)
 
             # check limit reached
             def callback():
                 store_path = os.path.join(self.base_dir, "epsilon")
-                store_paths = {store_path: {"limit": 1}}
-                storjnode.storage.manager.add(store_paths, shard)
+                store_config = {store_path: {"limit": 1}}
+                storjnode.storage.manager.add(store_config, shard)
             self.assertRaises(MemoryError, callback)
 
             # check not enough disc space
@@ -90,8 +90,8 @@ class TestManager(unittest.TestCase):
 
             # check use_folder_tree
             store_path = os.path.join(self.base_dir, "iota")
-            store_paths = {store_path: {"use_folder_tree": True}}
-            save_path = storjnode.storage.manager.add(store_paths, shard)
+            store_config = {store_path: {"use_folder_tree": True}}
+            save_path = storjnode.storage.manager.add(store_config, shard)
             relative_path = save_path[len(store_path)+1:]
             self.assertEqual(len(relative_path.split(os.path.sep)), 23)
 
@@ -107,11 +107,11 @@ class TestManager(unittest.TestCase):
     def test_get(self):
 
         # test success
-        store_paths = {os.path.join(self.base_dir, "theta"): None}
+        store_config = {os.path.join(self.base_dir, "theta"): None}
         with open(self.test_shard_path, "rb") as shard:
-            storjnode.storage.manager.add(store_paths, shard)
+            storjnode.storage.manager.add(store_config, shard)
             shard_id = storjnode.storage.shard.get_id(shard)
-            retreived = storjnode.storage.manager.get(store_paths, shard_id)
+            retreived = storjnode.storage.manager.get(store_config, shard_id)
             try:
                 shard.seek(0)
                 self.assertEqual(shard.read(), retreived.read())
@@ -121,7 +121,7 @@ class TestManager(unittest.TestCase):
         # test failure
         def callback():
             shard_id = "deadbeef" * 8
-            storjnode.storage.manager.get(store_paths, shard_id)
+            storjnode.storage.manager.get(store_config, shard_id)
         self.assertRaises(KeyError, callback)
 
 
