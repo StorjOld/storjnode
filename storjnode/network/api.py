@@ -47,8 +47,6 @@ def generate_graph(nodes, name):
     dot.render('%s.gv' % name, view=True)
 
 
-# FIXME replace with storage_paths and use storjnode.storage.manager
-
 class Node(object):
     """Storj network layer implementation.
 
@@ -56,11 +54,15 @@ class Node(object):
     """
 
     def __init__(self, key, ksize=20, port=None, bootstrap_nodes=None,
-                 storage=None, max_messages=1024,
+                 storage=None,  # FIXME clarify that its DHT not shard storage
+                 max_messages=1024,
                  refresh_neighbours_interval=0.0,
-                 storage_path=None,
-                 passive_port=None, passive_bind=None, node_type="unknown",
-                 nat_type="unknown", wan_ip=None):
+                 storage_path=None,  # FIXME use storage_paths & storage module
+                 passive_port=None,
+                 passive_bind=None,  # FIXME use utils.get_inet_facing_ip ?
+                 node_type="unknown",  # FIMME what is this ?
+                 nat_type="unknown",  # FIXME what is this ?
+                 wan_ip=None):  # FIXME replace with sync_get_wan_ip calls
         """Create a blocking storjnode instance.
 
         Args:
