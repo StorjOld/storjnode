@@ -4,15 +4,21 @@ Issues:
     * Should contract also be deleted when its transfered? Prob
     * To do: add a clean up routine based on old cons
 
-    * If you do a session with this and transfer a series of files down the con, finish, close your side. Then reconnect and start a new session you can succeed with upload (but then not download.) The temp work around is to close old connections but at some point the underlying issue as to why connection reuse doesnt work should be investigated.
-        * Another work around would be to change the code that identifies duplicate connections in URL and change it based on source:IP instead of just IP .. that would probably be a better solution
+    * If you do a session with this and transfer a series of files down the con,
+      finish, close your side. Then reconnect and start a new session you can
+      succeed with upload (but then not download.) The temp work around is to
+      close old connections but at some point the underlying issue as to why
+      connection reuse doesnt work should be investigated.
+    * Another work around would be to change the code that identifies duplicate
+      connections in URL and change it based on source:IP instead of
+      just IP .. that would probably be a better solution
 """
 
 import pyp2p.unl
 import pyp2p.net
 import pyp2p.dht_msg
 import logging
-import storjnode
+import storjnode import storage
 from collections import OrderedDict
 from btctxstore import BtcTxStore
 import time
@@ -147,13 +153,13 @@ def process_transfers(client):
                     del client.downloading[data_id]
 
                 # Delete file if it doesn't hash right!
-                path = storjnode.storage.manager.find(client.store_config, data_id)
-                found_hash = client.hash_file(path)
+                with storage.manager.open(client.store_config, data_id) as shard:
+                    found_hash = storage.shard.get_id(shard)
                 if found_hash != data_id:
                     log.info(found_hash)
                     log.info(data_id)
                     log.info("Error: downloaded file doesn't hash right!")
-                    # os.remove(path)
+                    storage.manager.remove(client.store_config, data_id)
 
                 # Ready for a new transfer (if there are any.)
                 transfer_complete = 1
@@ -290,7 +296,7 @@ class FileTransfer:
         # Are we the host?
         if self.net.unl == pyp2p.unl.UNL(value=msg[u"host_unl"]):
             # Then check we have this file.
-            path = storjnode.storage.manager.find(self.store_config,
+            path = storage.manager.find(self.store_config,
                                                   msg[u"data_id"])
             if path is None:
                 log.debug("Failed to find file we're uploading")
@@ -302,7 +308,7 @@ class FileTransfer:
                 return 0
         else:
             # Do we already have this file?
-            path = storjnode.storage.manager.find(self.store_config,
+            path = storage.manager.find(self.store_config,
                                                   msg[u"data_id"])
             if path is not None:
                 log.debug("Attempting to download file we already have")
@@ -617,45 +623,32 @@ class FileTransfer:
         # Update handshake.
         self.handshake[contract_id] = "SYN"
 
-    def hash_file(self, path):
-        sha256 = hashlib.sha256()
-        buf_size = 1048576  # 1 MB
-        with open(path, 'rb') as fp:
-            while True:
-                data = fp.read(buf_size)
-                if not data:
-                    break
-
-                sha256.update(data)
-
-        return sha256.hexdigest()
-
     def remove_file_from_storage(self, data_id):
-        storjnode.storage.manager.remove(self.store_config, data_id)
+        storage.manager.remove(self.store_config, data_id)
 
     def move_file_to_storage(self, path):
         with open(path, "rb") as shard:
-            storjnode.storage.manager.add(self.store_config, shard)
+            storage.manager.add(self.store_config, shard)
             return {
-                "file_size": storjnode.storage.shard.get_size(shard),
-                "data_id": storjnode.storage.shard.get_id(shard)
+                "file_size": storage.shard.get_size(shard),
+                "data_id": storage.shard.get_id(shard)
             }
 
     def get_data_chunk(self, data_id, position, chunk_size=1048576):
-        path = storjnode.storage.manager.find(self.store_config, data_id)
+        path = storage.manager.find(self.store_config, data_id)
         buf = b""
-        fp = open(path, "rb")
-        fp.seek(position, 0)
-        buf = fp.read(chunk_size)
+        with open(path, "rb") as fp:
+            fp.seek(position, 0)
+            buf = fp.read(chunk_size)
 
-        return buf
+            return buf
 
     def save_data_chunk(self, data_id, chunk):
         log.info("Saving data chunk for " + str(data_id))
         log.info("of size + " + str(len(chunk)))
-        path = storjnode.storage.manager.find(self.store_config, data_id)
-        fp = open(path, "ab")
-        fp.write(chunk)
+        path = storage.manager.find(self.store_config, data_id)
+        with open(path, "ab") as fp:
+            fp.write(chunk)
 
 if __name__ == "__main__":
     # Alice sample node.

@@ -111,12 +111,9 @@ class TestManager(unittest.TestCase):
         with open(self.test_shard_path, "rb") as shard:
             storjnode.storage.manager.add(store_config, shard)
             shard_id = storjnode.storage.shard.get_id(shard)
-            retreived = storjnode.storage.manager.get(store_config, shard_id)
-            try:
+            with storjnode.storage.manager.get(store_config, shard_id) as retreived:
                 shard.seek(0)
                 self.assertEqual(shard.read(), retreived.read())
-            finally:
-                retreived.close()
 
         # test failure
         def callback():

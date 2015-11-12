@@ -82,7 +82,7 @@ def setup(store_config=None):
     return normal_paths
 
 
-def get(store_config, shard_id):
+def open(store_config, shard_id):
     """Retreives a shard from storage.
 
     Args:
@@ -104,9 +104,8 @@ def get(store_config, shard_id):
         import storjnode
         id = "2c26b46b68ffc68ff99b453c1d30413413422d706483bfa0f98a5e886266e7ae"
         store_config = {"path/alpha": None, "path/beta": None}
-        shard = storjnode.storage.store.get(store_config, id)
-        # do something with the shard
-        shard.close()
+        with storjnode.storage.store.open(store_config, id) as shard:
+            print(storjnode.storage.shard.get_id(shard)
     """
     shard_path = find(store_config, shard_id)
     if shard_path is not None:
