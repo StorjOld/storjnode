@@ -26,7 +26,8 @@ class MockShard(object):
 class TestManager(unittest.TestCase):
 
     def setUp(self):
-        self.test_shard_path = storjnode.util.map_path(os.path.join("..", "test.shard"))
+        this_dir = os.path.dirname(os.path.abspath(storjnode.util.__file__))
+        self.test_shard_path = storjnode.util.map_path(os.path.join(this_dir, "../", "tests/" "test.shard"))
         self.base_dir = tempfile.mkdtemp()
 
     def tearDown(self):
