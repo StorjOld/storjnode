@@ -3,17 +3,19 @@ import filecmp
 import tempfile
 import unittest
 import storjnode
-import storjnode.util
-import storjnode.storage
+
+
+PROJECT_DIR = os.path.dirname(os.path.dirname(storjnode.__file__))
+SHARD_PATH = storjnode.util.full_path(
+    os.path.join(PROJECT_DIR, "tests", "storage", "test.shard")
+)
 
 
 class TestShard(unittest.TestCase):
 
     def setUp(self):
-        this_dir = os.path.dirname(os.path.abspath(storjnode.util.__file__))
-        self.shard_path = storjnode.util.map_path(os.path.join(this_dir, "../", "tests/" "test.shard"))
-        assert(os.path.isfile(self.shard_path))
-        self.shard = open(self.shard_path, "rb")
+        assert(os.path.isfile(SHARD_PATH))
+        self.shard = open(SHARD_PATH, "rb")
 
     def tearDown(self):
         self.shard.close()
@@ -61,7 +63,7 @@ class TestShard(unittest.TestCase):
     def test_save(self):
         save_path = tempfile.mktemp()
         storjnode.storage.shard.save(self.shard, save_path)
-        filecmp.cmp(self.shard_path, save_path)
+        filecmp.cmp(SHARD_PATH, save_path)
         os.remove(save_path)
 
 

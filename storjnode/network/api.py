@@ -31,6 +31,7 @@ DEFAULT_BOOTSTRAP_NODES = [
 
 log = logging.getLogger(__name__)
 
+
 def generate_graph(nodes, name):
     network = dict(map(lambda n: (n.get_hex_id(), n.get_known_peers()), nodes))
     dot = Digraph(comment=name, engine="circo")

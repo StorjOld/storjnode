@@ -4,8 +4,13 @@ import shutil
 import unittest
 import tempfile
 import storjnode
-import storjnode.storage
-import storjnode.util
+
+
+PROJECT_DIR = os.path.dirname(os.path.dirname(storjnode.__file__))
+SHARD_PATH = storjnode.util.full_path(
+    os.path.join(PROJECT_DIR, "tests", "storage", "test.shard")
+)
+
 
 class MockShard(object):
 
@@ -26,8 +31,7 @@ class MockShard(object):
 class TestManager(unittest.TestCase):
 
     def setUp(self):
-        this_dir = os.path.dirname(os.path.abspath(storjnode.util.__file__))
-        self.test_shard_path = storjnode.util.map_path(os.path.join(this_dir, "../", "tests/" "test.shard"))
+        assert(os.path.isfile(SHARD_PATH))
         self.base_dir = tempfile.mkdtemp()
 
     def tearDown(self):
@@ -62,7 +66,7 @@ class TestManager(unittest.TestCase):
         self.assertEqual(normalized[gamma_path]["use_folder_tree"], False)
 
     def test_add(self):
-        with open(self.test_shard_path, "rb") as shard:
+        with open(SHARD_PATH, "rb") as shard:
 
             # test success
             store_path = os.path.join(self.base_dir, "delta")
@@ -70,7 +74,7 @@ class TestManager(unittest.TestCase):
             save_path = storjnode.storage.manager.add(store_config, shard)
             self.assertTrue(os.path.isfile(save_path))
             self.assertTrue(save_path.startswith(store_path))
-            self.assertTrue(filecmp.cmp(self.test_shard_path, save_path))
+            self.assertTrue(filecmp.cmp(SHARD_PATH, save_path))
 
             # checks for existing file and skip if already added
             store_path_b = storjnode.storage.manager.add(store_config, shard)
@@ -98,7 +102,7 @@ class TestManager(unittest.TestCase):
             self.assertEqual(len(relative_path.split(os.path.sep)), 23)
 
     def test_remove(self):
-        with open(self.test_shard_path, "rb") as shard:
+        with open(SHARD_PATH, "rb") as shard:
             store_path = os.path.join(self.base_dir, "eta")
             save_path = storjnode.storage.manager.add({store_path: None}, shard)
             self.assertTrue(os.path.isfile(save_path))  # shard added
@@ -106,12 +110,11 @@ class TestManager(unittest.TestCase):
             storjnode.storage.manager.remove({store_path: None}, shard_id)
             self.assertFalse(os.path.isfile(save_path))  # shard removed
 
-    """
     def test_get(self):
 
         # test success
         store_config = {os.path.join(self.base_dir, "theta"): None}
-        with open(self.test_shard_path, "rb") as shard:
+        with open(SHARD_PATH, "rb") as shard:
             storjnode.storage.manager.add(store_config, shard)
             shard_id = storjnode.storage.shard.get_id(shard)
             with storjnode.storage.manager.open(store_config, shard_id) as retreived:
@@ -121,9 +124,8 @@ class TestManager(unittest.TestCase):
         # test failure
         def callback():
             shard_id = "deadbeef" * 8
-            storjnode.storage.manager.get(store_config, shard_id)
+            storjnode.storage.manager.open(store_config, shard_id)
         self.assertRaises(KeyError, callback)
-    """
 
 
 if __name__ == "__main__":

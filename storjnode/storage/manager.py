@@ -11,6 +11,7 @@ DEFAULT_SHARD_SIZE = 1024 * 1024 * 128  # 128M
 
 
 _log = logging.getLogger(__name__)
+_builtin_open = open
 
 
 def _get_shard_path(store_path, shard_id, use_folder_tree,
@@ -109,7 +110,7 @@ def open(store_config, shard_id):
     """
     shard_path = find(store_config, shard_id)
     if shard_path is not None:
-        return open(shard_path, "rb")
+        return _builtin_open(shard_path, "rb")
     else:
         raise KeyError("Shard {0} not found!".format(shard_id))
 
