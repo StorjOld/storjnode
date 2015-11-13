@@ -16,7 +16,6 @@ if os.name == 'nt' and 'py2exe' in sys.argv:
         "bundle_files": 2,  # This tells py2exe to bundle everything
     }}
 
-
 exec(open('storjnode/version.py').read())  # load __version__
 SCRIPT = os.path.join('storjnode', 'bin', 'storjnode')
 

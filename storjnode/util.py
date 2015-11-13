@@ -8,6 +8,15 @@ import socket
 import threading
 from crochet import wait_for
 
+# Resolves, sym links, rel paths, variables, and tilds to abs paths.
+def map_path(path):
+    return os.path.realpath \
+    (
+        os.path.expandvars \
+        (
+            os.path.expanduser(path)
+        )
+    )
 
 def wait_for_defered(defered, timeout=5.0):
     """ Wait until defered resolves or fail if timeout exceeded.

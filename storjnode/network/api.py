@@ -3,8 +3,9 @@ import threading
 import binascii
 import random
 import logging
+from btctxstore import BtcTxStore
 from graphviz import Digraph
-from crochet import wait_for
+from crochet import wait_for, run_in_reactor
 from storjnode.util import valid_ip
 from storjnode.network.server import StorjServer, QUERY_TIMEOUT, WALK_TIMEOUT
 
@@ -12,6 +13,7 @@ from storjnode.network.server import StorjServer, QUERY_TIMEOUT, WALK_TIMEOUT
 # File transfer.
 from storjnode.network.file_transfer import FileTransfer, process_transfers
 from pyp2p.net import Net
+from pyp2p.dht_msg import DHT as SimDHT
 
 
 DEFAULT_BOOTSTRAP_NODES = [
@@ -28,7 +30,6 @@ DEFAULT_BOOTSTRAP_NODES = [
 
 
 log = logging.getLogger(__name__)
-
 
 def generate_graph(nodes, name):
     network = dict(map(lambda n: (n.get_hex_id(), n.get_known_peers()), nodes))
@@ -153,13 +154,14 @@ class Node(object):
                 net_type="direct",
                 node_type=node_type,
                 nat_type=nat_type,
-                dht_node=self.server,
+                dht_node=SimDHT(), # Replace with self.server later on.
                 debug=1,
                 passive_port=passive_port,
                 passive_bind=passive_bind,
                 wan_ip=wan_ip
             ),
-            wif=self.server.key,  # use same key as dht
+            # The old code wasn't working ...
+            wif=BtcTxStore(testnet=True, dryrun=True).create_key(),  # use same key as dht
             store_config=store_config
         )
 
@@ -257,9 +259,10 @@ class Node(object):
     def send_data(self, data_id, size, node_unl):
         if self.disable_data_transfer:
             raise Exception("Data transfer disabled!")
+        print("Attempting to send data request")
         self._data_transfer.data_request("upload", data_id, size, node_unl)
         while 1:  # FIXME terminate when transfered
-            time.sleep(0.5)
+            time.sleep(0.002)
             process_transfers(self._data_transfer)
         # FIXME return error or success status/reason
 
@@ -268,7 +271,7 @@ class Node(object):
             raise Exception("Data transfer disabled!")
         self._data_transfer.data_request("download", data_id, size, node_unl)
         while 1:  # FIXME terminate when transfered
-            time.sleep(0.5)
+            time.sleep(0.002)
             process_transfers(self._data_transfer)
         # FIXME return error or success status/reason
 
@@ -277,10 +280,15 @@ class Node(object):
             raise Exception("Data transfer disabled!")
         return self._data_transfer.net.unl.value
 
+    @run_in_reactor
     def process_data_transfers(self):
         if self.disable_data_transfer:
             raise Exception("Data transfer disabled!")
-        process_transfers(self._data_transfer)
+
+        time.sleep(5) # Give enough time to copy UNL.
+        while 1:
+            process_transfers(self._data_transfer)
+            time.sleep(0.002)
 
     ###########################
     # data transfer interface #

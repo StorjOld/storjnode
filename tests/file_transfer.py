@@ -1,5 +1,6 @@
 import storjnode
 from storjnode.network.file_transfer import FileTransfer, process_transfers
+import storjnode.storage as storage
 import btctxstore
 import pyp2p
 import random
@@ -48,6 +49,7 @@ def multiple_transfers():
     # Sample node.
     wallet = btctxstore.BtcTxStore(testnet=True, dryrun=True)
     wif = wallet.get_key(wallet.create_wallet())
+    store_config = {"/home/laurence/Storj/storage": {"limit": 0}}
     client = FileTransfer(
         pyp2p.net.Net(
             node_type="simultaneous",
@@ -58,7 +60,7 @@ def multiple_transfers():
             debug=1
         ),
         wif=wif,
-        storage_path="/home/laurence/Storj/storage"
+        store_config=store_config
     )
 
     print("Net started")
@@ -125,7 +127,7 @@ def multiple_transfers():
 
     # Check we received this file.
     for i in range(0, 1):
-        path = client.get_data_path(file_infos[i]["data_id"])
+        path = storage.manager.find(store_config, file_infos[i]["data_id"])
         if not os.path.isfile(path):
             assert(0)
         else:
@@ -147,5 +149,5 @@ class test_file_transfer(unittest.TestCase):
 
 
 if __name__ == "__main__":
-    unittest.main()
-    # multiple_transfers()
+    #unittest.main()
+    multiple_transfers()

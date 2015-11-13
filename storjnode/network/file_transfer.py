@@ -18,9 +18,10 @@ import pyp2p.unl
 import pyp2p.net
 import pyp2p.dht_msg
 import logging
-import storjnode import storage
+import storjnode.storage as storage
 from collections import OrderedDict
 from btctxstore import BtcTxStore
+import tempfile
 import time
 import json
 import hashlib
@@ -31,17 +32,24 @@ from threading import Lock
 
 
 mutex = Lock()
-log = logging.getLogger(__name__)
+
+DEBUG_MODE = 1
+def debug_print(msg):
+    if DEBUG_MODE:
+        print(msg)
 
 
 def process_transfers(client):
+    debug_print("In process transfers")
+
     # Process contract messages.
     try:
         if client.net.dht_node.has_messages():
             for msg in client.net.dht_node.get_messages():
-                log.info(msg["message"])
+                debug_print("Processing: " + msg["message"])
                 client.protocol(msg["message"])
-    except Exception:
+    except Exception as e:
+        debug_print(e)
         pass
 
     # Process new connections.
@@ -49,11 +57,11 @@ def process_transfers(client):
 
     # Process connections.
     for con in client.net:
-        log.info("In con.")
+        debug_print("In con.")
 
         # This is an new (or old) connection.
         if con not in client.con_info:
-            log.info("Con not in con_info")
+            debug_print("Con not in con_info")
             continue
 
         # Wait until there's new transfers to process.
@@ -61,38 +69,38 @@ def process_transfers(client):
             # Socket has hung ungracefully.
             duration = time.time() - con.alive
             if duration >= 60.0:
-                log.info("Ungraceful socket close")
+                debug_print("Ungraceful socket close")
                 con.close()
                 break
 
-            log.info("Not queued: skipping")
+            debug_print("Not queued: skipping")
             continue
 
         # Get active contract ID.
         if con not in client.con_transfer:
-            log.info("Con not in con_Transfer")
+            debug_print("Con not in con_Transfer")
             continue
 
         contract_id = client.con_transfer[con]
-        log.info("Contract id =")
-        log.info(contract_id)
+        debug_print("Contract id =")
+        debug_print(contract_id)
         if len(contract_id) < 64:
             remaining = 64 - len(contract_id)
-            log.info("Blocking = " + str(con.blocking))
+            debug_print("Blocking = " + str(con.blocking))
             partial = con.recv(remaining)
-            log.info("Contract id chunk = " + partial)
-            log.info("Connected = " + str(con.connected))
+            debug_print("Contract id chunk = " + partial)
+            debug_print("Connected = " + str(con.connected))
             if not len(partial):
-                log.info("Did not receive contract id")
+                debug_print("Did not receive contract id")
                 continue
 
             client.con_transfer[con] += partial
-            log.info("Skipping contract id.")
+            debug_print("Skipping contract id.")
             continue
 
         # Reached end of transfer queue.
         if contract_id == u"0" * 64:
-            log.info("Skippng end of queue")
+            debug_print("Skippng end of queue")
             continue
 
         # Anything left to do?
@@ -100,14 +108,14 @@ def process_transfers(client):
             continue
         con_info = client.con_info[con][contract_id]
         if not con_info["remaining"]:
-            log.info("Skipping remaining.")
+            debug_print("Skipping remaining.")
             continue
 
         # Upload.
         contract = client.contracts[contract_id]
         transfer_complete = 0
         if client.net.unl == pyp2p.unl.UNL(value=contract["host_unl"]):
-            log.info("Uploading: Found our UNL")
+            debug_print("Uploading: Found our UNL")
 
             # Get next chunk from file.
             position = contract["file_size"] - con_info["remaining"]
@@ -118,55 +126,63 @@ def process_transfers(client):
 
             # Upload chunk binary to socket.
             bytes_sent = con.send(data_chunk)
-            log.info(bytes_sent)
+            debug_print(bytes_sent)
             if bytes_sent:
                 con_info["remaining"] -= bytes_sent
 
-            log.info("Remaining = ")
-            log.info(con_info["remaining"])
+            debug_print("Remaining = ")
+            debug_print(con_info["remaining"])
 
             # Everything uploaded.
             if not con_info["remaining"]:
                 transfer_complete = 1
         else:
-            log.info("Attempting to download.")
+            debug_print("Attempting to download.")
 
             # Download.
             data = con.recv(
                 con_info["remaining"],
                 encoding="ascii"
             )
-            log.info(con.connected)
+            debug_print(con.connected)
 
             if len(data):
                 con_info["remaining"] -= len(data)
                 client.save_data_chunk(contract["data_id"], data)
 
-            log.info("Remaining = ")
-            log.info(con_info["remaining"])
+            debug_print("Remaining = ")
+            debug_print(con_info["remaining"])
 
             # When done downloading close con.
             if not con_info["remaining"]:
-                # Remove that we're downloading this.
+                # Check download.
                 data_id = contract["data_id"]
-                if data_id in client.downloading:
-                    del client.downloading[data_id]
-
-                # Delete file if it doesn't hash right!
-                with storage.manager.open(client.store_config, data_id) as shard:
+                temp_path = client.downloading[data_id]
+                with open(temp_path, "rw") as shard:
+                    # Delete file if it doesn't hash right!
                     found_hash = storage.shard.get_id(shard)
-                if found_hash != data_id:
-                    log.info(found_hash)
-                    log.info(data_id)
-                    log.info("Error: downloaded file doesn't hash right!")
-                    storage.manager.remove(client.store_config, data_id)
+                    if found_hash != data_id:
+                        debug_print(found_hash)
+                        debug_print(data_id)
+                        debug_print("Error: downloaded file doesn't hash right!")
+                        os.remove(temp_path)
+                        continue
+
+                    # Move shard to storage.
+                    storage.manager.add(
+                        client.store_config,
+                        shard
+                    )
+
+                # Remove that we're downloading this.
+                del client.downloading[data_id]
 
                 # Ready for a new transfer (if there are any.)
                 transfer_complete = 1
 
         their_unl = client.get_their_unl(contract)
         is_master = client.net.unl.is_master(their_unl)
-        log.info("Is master = " + str(is_master))
+        debug_print("Is master = " + str(is_master))
         if transfer_complete:
             if is_master:
                 client.queue_next_transfer(con)
@@ -185,6 +201,7 @@ class FileTransfer:
 
         # Where will the data be stored?
         self.store_config = store_config
+        assert(len(list(store_config)))
 
         # Start networking.
         if not self.net.is_net_started:
@@ -246,7 +263,7 @@ class FileTransfer:
             # Todo: cleanup contract + handshake state.
 
     def queue_next_transfer(self, con):
-        log.info("Queing next transfer")
+        debug_print("Queing next transfer")
         for contract_id in list(self.con_info[con]):
             con_info = self.con_info[con][contract_id]
             if con_info["remaining"]:
@@ -271,15 +288,15 @@ class FileTransfer:
 
         # Check all fields exist.
         if not all(key in msg for key in syn_schema):
-            log.debug("Missing required key.")
+            debug_print("Missing required key.")
             return 0
 
         # Check the UNLs are valid.
         unl_tuple = (u"host_unl", u"dest_unl", u"src_unl")
         for unl_key in unl_tuple:
             if not pyp2p.unl.is_valid_unl(msg[unl_key]):
-                log.debug("Invalid UNL for " + unl_key)
-                log.debug(msg[unl_key])
+                debug_print("Invalid UNL for " + unl_key)
+                debug_print(msg[unl_key])
                 return 0
 
         # Check file size.
@@ -289,8 +306,8 @@ class FileTransfer:
         else:
             expr = file_size_type != int and file_size_type != long
         if expr:
-            log.debug("File size validation failed")
-            log.debug(type(msg[u"file_size"]))
+            debug_print("File size validation failed")
+            debug_print(type(msg[u"file_size"]))
             return 0
 
         # Are we the host?
@@ -299,24 +316,24 @@ class FileTransfer:
             path = storage.manager.find(self.store_config,
                                                   msg[u"data_id"])
             if path is None:
-                log.debug("Failed to find file we're uploading")
+                debug_print("Failed to find file we're uploading")
                 return 0
 
             # Did they specify the right size?
             if os.path.getsize(path) != msg[u"file_size"]:
-                log.debug("Client did not specify correct file siz.e")
+                debug_print("Client did not specify correct file siz.e")
                 return 0
         else:
             # Do we already have this file?
             path = storage.manager.find(self.store_config,
                                                   msg[u"data_id"])
             if path is not None:
-                log.debug("Attempting to download file we already have")
+                debug_print("Attempting to download file we already have")
                 return 0
 
             # Are we already trying to download this?
             if msg[u"data_id"] in self.downloading:
-                log.debug("We're already trying to download this")
+                debug_print("We're already trying to download this")
                 return 0
 
         return 1
@@ -328,8 +345,8 @@ class FileTransfer:
         def success_wrapper(self, contract_id, host_unl):
             def success(con):
                 mutex.acquire()
-                log.info("IN SUCCESS CALLBACK")
-                log.info("Success() contract_id = " + str(contract_id))
+                debug_print("IN SUCCESS CALLBACK")
+                debug_print("Success() contract_id = " + str(contract_id))
 
                 # Associate TCP con with contract.
                 contract = self.contracts[contract_id]
@@ -349,16 +366,16 @@ class FileTransfer:
                 # Record download state.
                 data_id = contract["data_id"]
                 if self.net.unl != pyp2p.unl.UNL(value=host_unl):
-                    log.info("Success: download")
-                    self.downloading[data_id] = 1
+                    debug_print("Success: download")
+                    fp, self.downloading[data_id] = tempfile.mkstemp()
                 else:
                     # Set initial upload for this con.
-                    log.info("Success: upload")
+                    debug_print("Success: upload")
 
                 # Queue first transfer.
                 their_unl = self.get_their_unl(contract)
                 is_master = self.net.unl.is_master(their_unl)
-                log.info("Is master = " + str(is_master))
+                debug_print("Is master = " + str(is_master))
                 if con not in self.con_transfer:
                     if is_master:
                         # A transfer to queue processing.
@@ -385,7 +402,7 @@ class FileTransfer:
         if msg[u"status"] == u"SYN":
             # Check syn is valid.
             if not self.is_valid_syn(msg):
-                log.debug("SYN: invalid syn.")
+                debug_print("SYN: invalid syn.")
                 return
 
             # Save contract.
@@ -402,34 +419,34 @@ class FileTransfer:
 
             # Save reply.
             self.send_msg(reply, msg[u"src_unl"])
-            log.info("SYN")
+            debug_print("SYN")
 
         # Confirm accept and make connection if needed.
         if msg[u"status"] == u"SYN-ACK":
             # Valid syn-ack?
             if u"syn" not in msg:
-                log.debug("SYN-ACK: syn not in msg.")
+                debug_print("SYN-ACK: syn not in msg.")
                 return
 
             # Is this a reply to our SYN?
             contract_id = self.contract_id(msg[u"syn"])
             if contract_id not in self.contracts:
-                log.debug("--------------")
-                log.debug(msg)
-                log.debug("--------------")
-                log.debug(self.contracts)
-                log.debug("--------------")
-                log.debug("SYN-ACK: contract not found.")
+                debug_print("--------------")
+                debug_print(msg)
+                debug_print("--------------")
+                debug_print(self.contracts)
+                debug_print("--------------")
+                debug_print("SYN-ACK: contract not found.")
                 return
 
             # Check syn is valid.
             if not self.is_valid_syn(msg[u"syn"]):
-                log.debug("SYN-ACK: invalid syn.")
+                debug_print("SYN-ACK: invalid syn.")
                 return
 
             # Did I sign this?
             if not self.is_valid_contract_sig(msg[u"syn"]):
-                log.debug("SYN-ACK: sig is invalid.")
+                debug_print("SYN-ACK: sig is invalid.")
                 return
 
             # Update handshake.
@@ -461,36 +478,36 @@ class FileTransfer:
 
             # Send reply.
             self.send_msg(reply, msg[u"syn"][u"dest_unl"])
-            log.info("SYN-ACK")
+            debug_print("SYN-ACK")
 
         if msg[u"status"] == u"ACK":
             # Valid ack.
             if u"syn_ack" not in msg:
-                log.debug("ACK: syn_ack not in msg.")
+                debug_print("ACK: syn_ack not in msg.")
                 return
             if u"syn" not in msg[u"syn_ack"]:
-                log.debug("ACK: syn not in msg.")
+                debug_print("ACK: syn not in msg.")
                 return
 
             # Is this a reply to our SYN-ACK?
             contract_id = self.contract_id(msg[u"syn_ack"][u"syn"])
             if contract_id not in self.contracts:
-                log.debug("ACK: contract not found.")
+                debug_print("ACK: contract not found.")
                 return
 
             # Did I sign this?
             if not self.is_valid_contract_sig(msg[u"syn_ack"]):
-                log.debug("--------------")
-                log.debug(msg)
-                log.debug("--------------")
-                log.debug(self.contracts)
-                log.debug("--------------")
-                log.debug("ACK: sig is invalid.")
+                debug_print("--------------")
+                debug_print(msg)
+                debug_print("--------------")
+                debug_print(self.contracts)
+                debug_print("--------------")
+                debug_print("ACK: sig is invalid.")
                 return
 
             # Is the syn valid?
             if not self.is_valid_syn(msg[u"syn_ack"][u"syn"]):
-                log.debug("ACK: syn is invalid.")
+                debug_print("ACK: syn is invalid.")
                 return
 
             # Update handshake.
@@ -511,7 +528,7 @@ class FileTransfer:
                 nonce=contract_id
             )
 
-            log.info("ACK")
+            debug_print("ACK")
 
     def save_contract(self, contract):
         # Record contract details.
@@ -573,10 +590,13 @@ class FileTransfer:
         """
         Action = put (upload), get (download.)
         """
+        print("In data request function")
+
         # Who is hosting this data?
         if action == "upload":
             # We store this data.
             host_unl = self.net.unl.value
+            assert(storage.manager.find(self.store_config, data_id) != None)
         else:
             # They store the data.
             host_unl = node_unl
@@ -619,6 +639,7 @@ class FileTransfer:
         # Route contract.
         contract_id = self.save_contract(contract)
         self.send_msg(contract, node_unl)
+        print("Sending data request")
 
         # Update handshake.
         self.handshake[contract_id] = "SYN"
@@ -644,13 +665,25 @@ class FileTransfer:
             return buf
 
     def save_data_chunk(self, data_id, chunk):
-        log.info("Saving data chunk for " + str(data_id))
-        log.info("of size + " + str(len(chunk)))
-        path = storage.manager.find(self.store_config, data_id)
+        debug_print("Saving data chunk for " + str(data_id))
+        debug_print("of size + " + str(len(chunk)))
+        assert(data_id in self.downloading)
+
+        # Find temp file path.
+        path = self.downloading[data_id]
+
+        print(path)
         with open(path, "ab") as fp:
             fp.write(chunk)
 
 if __name__ == "__main__":
+
+
+    #store_config = { "/home/laurence/Storj/Alice": None }
+    #print(storage.manager.find(store_config, "ed980e5ef780d5b9ca1a6200a03302f2a91223044bc63dacc6d9f07eead663ab"))
+
+    #exit()
+
     # Alice sample node.
     alice_wallet = BtcTxStore(testnet=True, dryrun=True)
     alice = FileTransfer(
@@ -665,8 +698,12 @@ if __name__ == "__main__":
         store_config = { "/home/laurence/Storj/Alice": None }  # FIXME use temppath
     )
 
+    print(alice.net.unl.deconstruct("ATRuSlZJWFQ1QjBRVWFrakJYOTQ5c2dtRcU4OEZziAGowPm3RVYAAAAA7UbbEs1238g="))
+
+    exit()
+
     # ed980e5ef780d5b9ca1a6200a03302f2a91223044bc63dacc6d9f07eead663ab
-    # log.info(alice.move_file_to_storage("/home/laurence/small_file"))
+    # print(debug_print(alice.move_file_to_storage("/home/laurence/Firefox_wallpaper.png")))
 
     # exit()
 
@@ -684,22 +721,22 @@ if __name__ == "__main__":
         store_config = { "/home/laurence/Storj/Bob": None }  # FIXME use temppath
     )
 
-    log.info(alice.net.unl.deconstruct())
-    log.info(bob.net.unl.deconstruct())
+    debug_print(alice.net.unl.deconstruct())
+    debug_print(bob.net.unl.deconstruct())
 
 
     # alice.net.unl == bob.net.unl
 
 
 
-    log.info(type(alice.net.unl))
-    log.info(type(pyp2p.unl.UNL(value=bob.net.unl.value)))
+    debug_print(type(alice.net.unl))
+    debug_print(type(pyp2p.unl.UNL(value=bob.net.unl.value)))
 
     # exit()
 
     # Alice wants data from Bob.
     alice.data_request(
-        "upload",
+        "download",
         "ed980e5ef780d5b9ca1a6200a03302f2a91223044bc63dacc6d9f07eead663ab",
         2631451,
         bob.net.unl.value
@@ -718,10 +755,10 @@ if __name__ == "__main__":
     while 1:
         for client in [alice, bob]:
             if client == alice:
-                log.info("Alice")
+                debug_print("Alice")
             else:
-                log.info("Bob")
+                debug_print("Bob")
             process_transfers(client)
 
-        time.sleep(0.5)
+        time.sleep(0.002)
 

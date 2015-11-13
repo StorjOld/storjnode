@@ -27,16 +27,25 @@ def _add_programm_args(parser):
                         help=("LAN IP to receive inbound TCP connections on"
                               " when nodes direct connect."))
 
+    parser.add_argument("--node_type", default=default,
+                        help=("Direct conncet node details. Passive = port is forwarded, simultaneous = predictable type NAT, active = everything else."))
+
+    parser.add_argument("--nat_type", default=default,
+                        help=("Defines the node's NAT type. reuse, preserving, random, or delta"))
+
     default = DEFAULT_STORE_PATH
     msg = "Where to store files hosted, default: {0}."
     parser.add_argument("--storage_path", default=default,
                         help=msg.format(default))
 
-    # bootstrap
     default = None
-    msg = "Optional bootstrap node. Example: 127.0.0.1:1234"
+    msg = "Optional skip DHT bootstrap."
     parser.add_argument("--bootstrap", default=default,
                         help=msg.format(default))
+
+    # bootstrap
+    parser.add_argument('--skip_dht_bootstrap', action='store_true',
+                        help="Skip DHT bootstrapping for faster testing.")
 
     # node_key
     default = None
@@ -215,9 +224,10 @@ def command_run(node, args):
     print("Running node on port {udp_port} with id {id}".format(**args))
     print("Direct connect UNL = " + node.get_unl())
     node.add_message_handler(on_message)
-    while True:
-        time.sleep(0.5)
-        node.process_data_transfers()
+    node.process_data_transfers()
+
+    while 1:
+        time.sleep(1)
 
 
 def command_put(node, args):
@@ -312,12 +322,22 @@ def setup_node(args):
     node_key = _get_node_key(args)
     udp_port = args["udp_port"]
     bootstrap_nodes = _get_bootstrap_nodes(args)
+    if args["storage_path"] is not None:
+        store_config = {
+            args["storage_path"]: {"limit": 0, "use_folder_tree": False}
+        }
+    else:
+        from storjnode.storage.manager import DEFAULT_PATHS
+        store_config = DEFAULT_PATHS
+
     return storjnode.network.Node(
         node_key, port=udp_port, bootstrap_nodes=bootstrap_nodes,
         refresh_neighbours_interval=WALK_TIMEOUT,
-        storage_path=args["storage_path"],
         passive_port=args["passive_port"],
-        passive_bind=args["passive_bind"]
+        passive_bind=args["passive_bind"],
+        node_type=args["node_type"],
+        nat_type=args["nat_type"],
+        store_config=store_config
     )
 
 
@@ -336,8 +356,9 @@ def main(args):
 
     # setup
     node = setup_node(args)
-    print("Waiting %fsec to find peers ..." % WALK_TIMEOUT)
-    time.sleep(WALK_TIMEOUT)
+    if args["skip_dht_bootstrap"] is None:
+        print("Waiting %fsec to find peers ..." % WALK_TIMEOUT)
+        time.sleep(WALK_TIMEOUT)
 
     # run command
     {
