@@ -6,9 +6,8 @@ import tempfile
 import storjnode
 
 
-PROJECT_DIR = os.path.dirname(os.path.dirname(storjnode.__file__))
 SHARD_PATH = storjnode.util.full_path(
-    os.path.join(PROJECT_DIR, "tests", "storage", "test.shard")
+    os.path.join(os.path.dirname(__file__), "test.shard")
 )
 
 
@@ -116,15 +115,14 @@ class TestManager(unittest.TestCase):
         store_config = {os.path.join(self.base_dir, "theta"): None}
         with open(SHARD_PATH, "rb") as shard:
             storjnode.storage.manager.add(store_config, shard)
-            shard_id = storjnode.storage.shard.get_id(shard)
-            with storjnode.storage.manager.open(store_config, shard_id) as retreived:
+            id = storjnode.storage.shard.get_id(shard)
+            with storjnode.storage.manager.open(store_config, id) as retreived:
                 shard.seek(0)
                 self.assertEqual(shard.read(), retreived.read())
 
         # test failure
         def callback():
-            shard_id = "deadbeef" * 8
-            storjnode.storage.manager.open(store_config, shard_id)
+            storjnode.storage.manager.open(store_config, "deadbeef" * 8)
         self.assertRaises(KeyError, callback)
 
 

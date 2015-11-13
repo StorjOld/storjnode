@@ -41,7 +41,7 @@ class TestNode(unittest.TestCase):
 
             # create node
             node = storjnode.network.Node(
-                cls.btctxstore.create_wallet(), port=(3000 + i),
+                cls.btctxstore.create_wallet(), port=(3000 + i), ksize=16,
                 bootstrap_nodes=bootstrap_nodes,
                 max_messages=TEST_MAX_MESSAGES,
                 store_config={TEST_STORAGE_DIR: None},
@@ -420,6 +420,10 @@ class TestNode(unittest.TestCase):
             random_peer = random.choice(self.swarm)
             found_value = random_peer[key]
             self.assertEqual(found_value, inserted_value)
+
+    ######################
+    # test data transfer #
+    ######################
 
 
 if __name__ == "__main__":

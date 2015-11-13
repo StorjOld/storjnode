@@ -5,9 +5,8 @@ import unittest
 import storjnode
 
 
-PROJECT_DIR = os.path.dirname(os.path.dirname(storjnode.__file__))
 SHARD_PATH = storjnode.util.full_path(
-    os.path.join(PROJECT_DIR, "tests", "storage", "test.shard")
+    os.path.join(os.path.dirname(__file__), "test.shard")
 )
 
 

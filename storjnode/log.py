@@ -6,8 +6,8 @@ _observer = _log.PythonLoggingObserver()
 _observer.start()
 
 # setup standard logging module
-import sys
-import logging
+import sys  # NOQA
+import logging  # NOQA
 
 FORMAT = "%(asctime)s %(levelname)s %(name)s %(lineno)d: %(message)s"
 if "--debug" in sys.argv:  # debug shows everything
