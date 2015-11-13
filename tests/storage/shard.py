@@ -3,12 +3,14 @@ import filecmp
 import tempfile
 import unittest
 import storjnode
+from storjnode.util import map_path
+import storjnode.storage
 
 
 class TestShard(unittest.TestCase):
 
     def setUp(self):
-        self.shard_path = os.path.join("tests", "test.shard")
+        self.shard_path = map_path(os.path.join("..", "test.shard"))
         assert(os.path.isfile(self.shard_path))
         self.shard = open(self.shard_path, "rb")
 
