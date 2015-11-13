@@ -13,7 +13,7 @@ install:
 
 # run tests, e.g. python setup.py test
 script:
-  - coverage run --source="storjnode" -m unittest tests
+  - coverage run --source="storjnode" -m unittest --quiet tests
 
 # run coverage
 after_success:
