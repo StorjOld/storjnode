@@ -16,6 +16,9 @@ from pyp2p.net import Net
 from pyp2p.dht_msg import DHT as SimDHT
 
 
+_log = logging.getLogger(__name__)
+
+
 DEFAULT_BOOTSTRAP_NODES = [
 
     # storj stable  7b489cbfd61e675b86ac6469b6acd0a197da7f2c
@@ -127,8 +130,8 @@ class Node(object):
 
         if not self.disable_data_transfer:
             self._setup_data_transfer_client(store_config, passive_port,
-                                            passive_bind, node_type, nat_type,
-                                            wan_ip)
+                                             passive_bind, node_type, nat_type,
+                                             wan_ip)
         self._setup_message_dispatcher()
 
     def _setup_message_dispatcher(self):
@@ -155,14 +158,14 @@ class Node(object):
                 net_type="direct",
                 node_type=node_type,
                 nat_type=nat_type,
-                dht_node=SimDHT(), # Replace with self.server later on.
+                dht_node=SimDHT(),  # Replace with self.server later on.
                 debug=1,
                 passive_port=passive_port,
                 passive_bind=passive_bind,
                 wan_ip=wan_ip
             ),
-            # The old code wasn't working ...
-            wif=BtcTxStore(testnet=True, dryrun=True).create_key(),  # use same key as dht
+            # FIXME use same key as dht
+            wif=BtcTxStore(testnet=True, dryrun=True).create_key(),
             store_config=store_config
         )
 
@@ -260,7 +263,7 @@ class Node(object):
     def send_data(self, data_id, size, node_unl):
         if self.disable_data_transfer:
             raise Exception("Data transfer disabled!")
-        print("Attempting to send data request")
+        _log.debug("Attempting to send data request")
         self._data_transfer.data_request("upload", data_id, size, node_unl)
         while 1:  # FIXME terminate when transfered
             time.sleep(0.002)
@@ -286,7 +289,7 @@ class Node(object):
         if self.disable_data_transfer:
             raise Exception("Data transfer disabled!")
 
-        time.sleep(5) # Give enough time to copy UNL.
+        time.sleep(5)  # Give enough time to copy UNL.
         while 1:
             process_transfers(self._data_transfer)
             time.sleep(0.002)

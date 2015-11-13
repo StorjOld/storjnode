@@ -9,10 +9,18 @@ _observer.start()
 import sys  # NOQA
 import logging  # NOQA
 
+
 FORMAT = "%(asctime)s %(levelname)s %(name)s %(lineno)d: %(message)s"
-if "--debug" in sys.argv:  # debug shows everything
+
+
+# full logging if --debug or --verbose arg given
+if "--debug" in sys.argv or "--verbose" in sys.argv:
     logging.basicConfig(format=FORMAT, level=logging.DEBUG)  # pragma: no cover
-elif "--quiet" in sys.argv:  # quiet disables logging
+
+# no logging if --quite arg given
+elif "--quiet" in sys.argv:
     logging.basicConfig(format=FORMAT, level=60)  # pragma: no cover
-else:  # default
+
+# default to warning
+else:
     logging.basicConfig(format=FORMAT, level=logging.WARNING)

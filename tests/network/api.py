@@ -1,5 +1,4 @@
 import os
-import datetime
 import threading
 import tempfile
 import time
@@ -9,10 +8,14 @@ import random
 import unittest
 import btctxstore
 import storjnode
+import logging
 from pyp2p.lib import get_wan_ip
 from storjnode.network.server import QUERY_TIMEOUT, WALK_TIMEOUT
 from crochet import setup
 setup()  # start twisted via crochet
+
+
+_log = logging.getLogger(__name__)
 
 
 # change timeouts because everything is local
@@ -31,7 +34,7 @@ class TestNode(unittest.TestCase):
     @classmethod
     def setUpClass(cls):
 
-        print("TEST: creating swarm")
+        _log.info("TEST: creating swarm")
         cls.btctxstore = btctxstore.BtcTxStore(testnet=False)
         cls.swarm = []
         for i in range(TEST_SWARM_SIZE):
@@ -52,10 +55,10 @@ class TestNode(unittest.TestCase):
             cls.swarm.append(node)
 
             msg = "TEST: created node {0} @ 127.0.0.1:{1}"
-            print(msg.format(node.get_hex_id(), node.port))
+            _log.info(msg.format(node.get_hex_id(), node.port))
 
         # stabalize network overlay
-        print("TEST: stabalize network overlay")
+        _log.info("TEST: stabalize network overlay")
         time.sleep(WALK_TIMEOUT)
         for node in cls.swarm:
             node.refresh_neighbours()
@@ -64,15 +67,16 @@ class TestNode(unittest.TestCase):
             node.refresh_neighbours()
         time.sleep(WALK_TIMEOUT)
 
-        # print("TEST: generating swarm graph")
+        # _log.info("TEST: generating swarm graph")
+        # import datetime
         # name = "unittest_network_" + str(datetime.datetime.now())
         # storjnode.network.generate_graph(cls.swarm, name)
 
-        print("TEST: created swarm")
+        _log.info("TEST: created swarm")
 
     @classmethod
     def tearDownClass(cls):
-        print("TEST: stopping swarm")
+        _log.info("TEST: stopping swarm")
         for node in cls.swarm:
             node.stop()
         shutil.rmtree(TEST_STORAGE_DIR)
@@ -176,7 +180,7 @@ class TestNode(unittest.TestCase):
         random.shuffle(receivers)
         for sender, receiver in zip(senders, receivers):
             msg = "TEST: sending relay message from {0} to {1}"
-            print(msg.format(sender.get_hex_id(), receiver.get_hex_id()))
+            _log.info(msg.format(sender.get_hex_id(), receiver.get_hex_id()))
             self._test_relay_message(sender, receiver, sender is not receiver)
 
     def test_relay_message_to_void(self):  # for coverage
@@ -305,7 +309,7 @@ class TestNode(unittest.TestCase):
         random.shuffle(receivers)
         for sender, receiver in zip(senders, receivers):
             msg = "TEST: sending direct message from {0} to {1}"
-            print(msg.format(sender.get_hex_id(), receiver.get_hex_id()))
+            _log.info(msg.format(sender.get_hex_id(), receiver.get_hex_id()))
             self._test_direct_message(sender, receiver, sender is not receiver)
 
     def test_direct_message_to_void(self):  # for coverage

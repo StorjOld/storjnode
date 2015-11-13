@@ -582,7 +582,7 @@ class FileTransfer:
         """
         Action = put (upload), get (download.)
         """
-        print("In data request function")
+        _log.debug("In data request function")
 
         # Who is hosting this data?
         if action == "upload":
@@ -631,7 +631,7 @@ class FileTransfer:
         # Route contract.
         contract_id = self.save_contract(contract)
         self.send_msg(contract, node_unl)
-        print("Sending data request")
+        _log.debug("Sending data request")
 
         # Update handshake.
         self.handshake[contract_id] = "SYN"
@@ -664,7 +664,7 @@ class FileTransfer:
         # Find temp file path.
         path = self.downloading[data_id]
 
-        print(path)
+        _log.debug(path)
         with open(path, "ab") as fp:
             fp.write(chunk)
 
@@ -685,12 +685,12 @@ if __name__ == "__main__":
     )
 
     id = "ATRuSlZJWFQ1QjBRVWFrakJYOTQ5c2dtRcU4OEZziAGowPm3RVYAAAAA7UbbEs1238g="
-    print(alice.net.unl.deconstruct(id))
+    _log.debug(alice.net.unl.deconstruct(id))
 
     exit()
 
     # ed980e5ef780d5b9ca1a6200a03302f2a91223044bc63dacc6d9f07eead663ab
-    # print(_log.debug(alice.move_file_to_storage("/home/laurence/Firefox_wallpaper.png")))
+    # _log.debug(_log.debug(alice.move_file_to_storage("/home/laurence/Firefox_wallpaper.png")))
 
     # exit()
 
