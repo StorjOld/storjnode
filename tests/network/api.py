@@ -34,7 +34,7 @@ class TestNode(unittest.TestCase):
     @classmethod
     def setUpClass(cls):
 
-        _log.info("TEST: creating swarm")
+        print("TEST: creating swarm")
         cls.btctxstore = btctxstore.BtcTxStore(testnet=False)
         cls.swarm = []
         for i in range(TEST_SWARM_SIZE):
@@ -55,10 +55,10 @@ class TestNode(unittest.TestCase):
             cls.swarm.append(node)
 
             msg = "TEST: created node {0} @ 127.0.0.1:{1}"
-            _log.info(msg.format(node.get_hex_id(), node.port))
+            print(msg.format(node.get_hex_id(), node.port))
 
         # stabalize network overlay
-        _log.info("TEST: stabalize network overlay")
+        print("TEST: stabalize network overlay")
         time.sleep(WALK_TIMEOUT)
         for node in cls.swarm:
             node.refresh_neighbours()
@@ -67,16 +67,16 @@ class TestNode(unittest.TestCase):
             node.refresh_neighbours()
         time.sleep(WALK_TIMEOUT)
 
-        # _log.info("TEST: generating swarm graph")
+        # print("TEST: generating swarm graph")
         # import datetime
         # name = "unittest_network_" + str(datetime.datetime.now())
         # storjnode.network.generate_graph(cls.swarm, name)
 
-        _log.info("TEST: created swarm")
+        print("TEST: created swarm")
 
     @classmethod
     def tearDownClass(cls):
-        _log.info("TEST: stopping swarm")
+        print("TEST: stopping swarm")
         for node in cls.swarm:
             node.stop()
         shutil.rmtree(TEST_STORAGE_DIR)
@@ -180,7 +180,7 @@ class TestNode(unittest.TestCase):
         random.shuffle(receivers)
         for sender, receiver in zip(senders, receivers):
             msg = "TEST: sending relay message from {0} to {1}"
-            _log.info(msg.format(sender.get_hex_id(), receiver.get_hex_id()))
+            print(msg.format(sender.get_hex_id(), receiver.get_hex_id()))
             self._test_relay_message(sender, receiver, sender is not receiver)
 
     def test_relay_message_to_void(self):  # for coverage
@@ -309,7 +309,7 @@ class TestNode(unittest.TestCase):
         random.shuffle(receivers)
         for sender, receiver in zip(senders, receivers):
             msg = "TEST: sending direct message from {0} to {1}"
-            _log.info(msg.format(sender.get_hex_id(), receiver.get_hex_id()))
+            print(msg.format(sender.get_hex_id(), receiver.get_hex_id()))
             self._test_direct_message(sender, receiver, sender is not receiver)
 
     def test_direct_message_to_void(self):  # for coverage
