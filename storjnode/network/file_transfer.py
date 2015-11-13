@@ -339,54 +339,51 @@ class FileTransfer:
         # Associate TCP con with contract.
         def success_wrapper(self, contract_id, host_unl):
             def success(con):
-                mutex.acquire()
-                _log.debug("IN SUCCESS CALLBACK")
-                _log.debug("Success() contract_id = " + str(contract_id))
+                with mutex:
+                    _log.debug("IN SUCCESS CALLBACK")
+                    _log.debug("Success() contract_id = " + str(contract_id))
 
-                # Associate TCP con with contract.
-                contract = self.contracts[contract_id]
-                file_size = contract["file_size"]
+                    # Associate TCP con with contract.
+                    contract = self.contracts[contract_id]
+                    file_size = contract["file_size"]
 
-                # Store con association.
-                if con not in self.con_info:
-                    self.con_info[con] = {}
+                    # Store con association.
+                    if con not in self.con_info:
+                        self.con_info[con] = {}
 
-                # Associate contract with con.
-                if contract_id not in self.con_info[con]:
-                    self.con_info[con][contract_id] = {
-                        "contract_id": contract_id,
-                        "remaining": file_size
-                    }
+                    # Associate contract with con.
+                    if contract_id not in self.con_info[con]:
+                        self.con_info[con][contract_id] = {
+                            "contract_id": contract_id,
+                            "remaining": file_size
+                        }
 
-                # Record download state.
-                data_id = contract["data_id"]
-                if self.net.unl != pyp2p.unl.UNL(value=host_unl):
-                    _log.debug("Success: download")
-                    fp, self.downloading[data_id] = tempfile.mkstemp()
-                else:
-                    # Set initial upload for this con.
-                    _log.debug("Success: upload")
-
-                # Queue first transfer.
-                their_unl = self.get_their_unl(contract)
-                is_master = self.net.unl.is_master(their_unl)
-                _log.debug("Is master = " + str(is_master))
-                if con not in self.con_transfer:
-                    if is_master:
-                        # A transfer to queue processing.
-                        self.queue_next_transfer(con)
+                    # Record download state.
+                    data_id = contract["data_id"]
+                    if self.net.unl != pyp2p.unl.UNL(value=host_unl):
+                        _log.debug("Success: download")
+                        fp, self.downloading[data_id] = tempfile.mkstemp()
                     else:
-                        # A transfer to receive (unknown.)
-                        self.con_transfer[con] = u""
-                else:
-                    if self.con_transfer[con] == u"0" * 64:
+                        # Set initial upload for this con.
+                        _log.debug("Success: upload")
+
+                    # Queue first transfer.
+                    their_unl = self.get_their_unl(contract)
+                    is_master = self.net.unl.is_master(their_unl)
+                    _log.debug("Is master = " + str(is_master))
+                    if con not in self.con_transfer:
                         if is_master:
+                            # A transfer to queue processing.
                             self.queue_next_transfer(con)
                         else:
+                            # A transfer to receive (unknown.)
                             self.con_transfer[con] = u""
-
-                mutex.release()
-
+                    else:
+                        if self.con_transfer[con] == u"0" * 64:
+                            if is_master:
+                                self.queue_next_transfer(con)
+                            else:
+                                self.con_transfer[con] = u""
             return success
 
         # Sanity checking.
