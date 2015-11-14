@@ -2,10 +2,10 @@ import os
 import random
 import logging
 import storjnode
+from storjnode.common import STORJ_HOME
 
 
-DEFAULT_APP_HOME = os.path.join(os.path.expanduser("~"), ".storj")
-DEFAULT_STORE_PATH = os.path.join(DEFAULT_APP_HOME, "store")
+DEFAULT_STORE_PATH = os.path.join(STORJ_HOME, "store")
 DEFAULT_PATHS = {DEFAULT_STORE_PATH: {"limit": 0, "use_folder_tree": False}}
 DEFAULT_SHARD_SIZE = 1024 * 1024 * 128  # 128M
 

@@ -1,4 +1,5 @@
 import time
+import sys
 import threading
 import binascii
 import random
@@ -95,6 +96,8 @@ class Node(object):
             wan_ip: TODO doc string
         """
         self.disable_data_transfer = bool(disable_data_transfer)
+        self._transfer_request_handlers = set()
+        self._transfer_complete_handlers = set()
 
         # validate port (randomish user port by default)
         port = port or random.choice(range(1024, 49151))
@@ -340,20 +343,23 @@ class Node(object):
         """Add an allow transfer request handler.
 
         If any handler returns True the transfer request will be accepted.
-        The handler must be callable and accept three arguments
-        (requester_id, data_id, direction). The direction parameter
+        The handler must be callable and accept four arguments
+        (node, requester_id, data_id, direction). The direction parameter
         will be the oposatle of the requesters direction.
 
         Example:
             def on_transfer_request(node, requester_id, data_id, direction):
                 # This handler  will accept everything but send nothing.
-                return direction == "receive"
+                if direction == "receive":
+                    print("Accepting data: {0}".format(data_id))
+                    return True
+                elif direction == "send":
+                    print("Refusing to send data {0}.".format(data_id))
+                    return False
             node = Node()
             node.add_allow_transfer_handler(on_transfer_request)
         """
-        if self.disable_data_transfer:
-            raise Exception("Data transfer disabled!")
-        pass  # TODO implement
+        self._transfer_request_handlers.add(handler)
 
     def remove_transfer_request_handler(self, handler):
         """Remove a allow transfer request handler from the Node.
@@ -361,38 +367,60 @@ class Node(object):
         Raises:
             KeyError if handler was not previously added.
         """
-        if self.disable_data_transfer:
-            raise Exception("Data transfer disabled!")
-        pass  # TODO implement
+        self._transfer_complete_handlers.remove(handler)
 
     def add_transfer_complete_handler(self, handler):
         """Add a transfer complete handler.
 
-        If any handler returns True the transfer request will be accepted.
-        The handler must be callable and accept three arguments
-        (requester_id, data_id, direction). The direction parameter
+        The handler must be callable and accept four arguments
+        (node, requester_id, data_id, direction). The direction parameter
         will be the oposatle of the requesters direction.
 
         Example:
             def on_transfer_complete(node, requester_id, data_id, direction):
-                # This handler  will accept everything but send nothing.
-                return direction == "receive"
+                if direction == "receive":
+                    print("Received: {0}".format(data_id)
+                elif direction == "send":
+                    print("Sent: {0}".format(data_id)
             node = Node()
             node.add_transfer_complete_handler(on_transfer_complete)
         """
-        if self.disable_data_transfer:
-            raise Exception("Data transfer disabled!")
-        pass  # TODO implement
+        self._transfer_complete_handlers.add(handler)
 
     def remove_transfer_complete_handler(self, handler):
         """Remove a transfer complete handler.
 
         Raises:
+            A twisted.internet.defer.Deferred that resloves to
             KeyError if handler was not previously added.
         """
-        if self.disable_data_transfer:
-            raise Exception("Data transfer disabled!")
-        pass  # TODO implement
+        self._transfer_complete_handlers.remove(handler)
+
+    #####################
+    # network utilities #
+    #####################
+
+    def async_map_network(self, outfile=None, attempts=2):
+        """Create a map of the network.
+
+        Output to outfile:
+            {
+                ID : {"transport": (ip, address), "neighbours": [ID, ...]},
+            }
+
+        Args:
+            outfile: A file like object to write mapping data to.
+            attempts: How often to attempt to contact each node.
+
+        Returns:
+            A twisted.internet.defer.Deferred that resloves to
+            (num_nodes_found, num_nodes_unreached)
+        """
+        return self.server.map_network(outfile=outfile, attempts=attempts)
+
+    @wait_for(timeout=WALK_TIMEOUT*20)
+    def sync_map_network(self, outfile=None, attempts=3):
+        return self.async_map_network(outfile=outfile, attempts=attempts)
 
     #######################
     # messaging interface #
@@ -578,95 +606,3 @@ class Node(object):
                 self[k] = v
         for k in f:
             self[k] = f[k]
-
-#   def values(self):
-#       """Not implemented by design, keyset to big."""
-#       raise NotImplementedError()  # pragma: no cover
-
-#   def viewitems(self):
-#       """Not implemented by design, keyset to big."""
-#       raise NotImplementedError()  # pragma: no cover
-
-#   def viewkeys(self):
-#       """Not implemented by design, keyset to big."""
-#       raise NotImplementedError()  # pragma: no cover
-
-#   def viewvalues(self):
-#       """Not implemented by design, keyset to big."""
-#       raise NotImplementedError()  # pragma: no cover
-
-#   def __cmp__(self, other):
-#       """Not implemented by design, keyset to big."""
-#       raise NotImplementedError()  # pragma: no cover
-
-#   def __eq__(self, other):
-#       """Not implemented by design, keyset to big."""
-#       raise NotImplementedError()  # pragma: no cover
-
-#   def __ge__(self, other):
-#       """Not implemented by design, keyset to big."""
-#       raise NotImplementedError()  # pragma: no cover
-
-#   def __gt__(self, other):
-#       """Not implemented by design, keyset to big."""
-#       raise NotImplementedError()  # pragma: no cover
-
-#   def __le__(self, other):
-#       """Not implemented by design, keyset to big."""
-#       raise NotImplementedError()  # pragma: no cover
-
-#   def __len__(self):
-#       """Not implemented by design, keyset to big."""
-#       raise NotImplementedError()  # pragma: no cover
-
-#   def __lt__(self, other):
-#       """Not implemented by design, keyset to big."""
-#       raise NotImplementedError()  # pragma: no cover
-
-#   def __ne__(self, other):
-#       """Not implemented by design, keyset to big."""
-#       raise NotImplementedError()  # pragma: no cover
-
-#   def clear(self):
-#       """Not implemented by design, keyset to big."""
-#       raise NotImplementedError()  # pragma: no cover
-
-#   def copy(self):
-#       """Not implemented by design, keyset to big."""
-#       raise NotImplementedError()  # pragma: no cover
-
-#   def items(self):
-#       """Not implemented by design, keyset to big."""
-#       raise NotImplementedError()  # pragma: no cover
-
-#   def iteritems(self):
-#       """Not implemented by design, keyset to big."""
-#       raise NotImplementedError()  # pragma: no cover
-
-#   def iterkeys(self):
-#       """Not implemented by design, keyset to big."""
-#       raise NotImplementedError()  # pragma: no cover
-
-#   def itervalues(self):
-#       """Not implemented by design, keyset to big."""
-#       raise NotImplementedError()  # pragma: no cover
-
-#   def keys(self):
-#       """Not implemented by design, keyset to big."""
-#       raise NotImplementedError()  # pragma: no cover
-
-#   def __iter__(self):
-#       """Not implemented by design, keyset to big."""
-#       raise NotImplementedError()  # pragma: no cover
-
-#   def __delitem__(self, y):
-#       """Not implemented by design, write only."""
-#       raise NotImplementedError()  # pragma: no cover
-
-#   def pop(self, k, d=None):
-#       """Not implemented by design, write only."""
-#       raise NotImplementedError()  # pragma: no cover
-
-#   def popitem(self):
-#       """Not implemented by design, write only."""
-#       raise NotImplementedError()  # pragma: no cover

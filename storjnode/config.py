@@ -1,9 +1,11 @@
 import os
 import copy
 import json
+from storjnode.common import STORJ_HOME
 
 
 VERSION = "3.0.0"  # config version divorced from software version!
+DEFAULT_CONFIG_PATH = os.path.join(STORJ_HOME, "config")
 
 
 class InvalidConfig(Exception):

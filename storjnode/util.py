@@ -11,6 +11,11 @@ def full_path(path):
     return os.path.realpath(os.path.expandvars(os.path.expanduser(path)))
 
 
+def default_defered(defered, default):
+    """Returns a default value if the defered failed, otherwise the result."""
+    return defered.addCallback(lambda r: r[0] and r[1] or default)
+
+
 def wait_for_defered(defered, timeout=5.0):
     """ Wait until defered resolves or fail if timeout exceeded.
 

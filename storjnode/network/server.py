@@ -154,7 +154,7 @@ class StorjServer(Server):
             defered = self.protocol.callRelayMessage(
                 relay_node, entry["dest"], entry["hop_limit"], entry["message"]
             )
-            defered = defered.addCallback(lambda r: r[0] and r[1] or None)
+            defered = util.default_defered(defered, None)
 
             # wait for relay result
             try:
