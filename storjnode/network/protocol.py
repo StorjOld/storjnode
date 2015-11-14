@@ -1,5 +1,4 @@
 import binascii
-import time
 import heapq
 import operator
 import logging
@@ -38,6 +37,7 @@ class StorjProtocol(KademliaProtocol):
         self.messages_received = Queue(maxsize=max_messages)
         KademliaProtocol.__init__(self, *args, **kwargs)
         self.log = logging.getLogger(__name__)
+        self.noisy = False
 
     def has_messages(self):
         return not self.messages_received.empty()
@@ -66,7 +66,7 @@ class StorjProtocol(KademliaProtocol):
                           hop_limit, message):
         # FIXME self.welcomeIfNewNode(Node(sender_id, sender[0], sender[1]))
 
-        logargs = (sender, binascii.hexlify(sender_id), 
+        logargs = (sender, binascii.hexlify(sender_id),
                    binascii.hexlify(dest_id), hop_limit)
         msg = "Got relay message from {1} at {0} for {2} with limit {3}."
         self.log.debug(msg.format(*logargs))
@@ -87,7 +87,7 @@ class StorjProtocol(KademliaProtocol):
         # do not relay away from dest
         sender_distance = Node(sender_id).distanceTo(Node(dest_id))
         our_distance = self.sourceNode.distanceTo(Node(dest_id))
-        if our_distance >= sender_distance:  
+        if our_distance >= sender_distance:
             self.log.debug("Dropping relay message, self not closer to dest.")
             return None
 

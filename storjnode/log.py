@@ -1,17 +1,15 @@
 # import this first in scripts to init loggin
-
-# make twisted use standard library logging module
-from twisted.python import log as _log
-_observer = _log.PythonLoggingObserver()
-_observer.start()
-
-# setup standard logging module
 import sys  # NOQA
 import logging  # NOQA
+from twisted.python import log as _log
+
+# make twisted use standard library logging module
+_observer = _log.PythonLoggingObserver()  # pragma: no cover
+_observer.start()  # pragma: no cover
 
 
+# setup standard logging module
 FORMAT = "%(asctime)s %(levelname)s %(name)s %(lineno)d: %(message)s"
-
 
 # full logging if --debug or --verbose arg given
 if "--debug" in sys.argv or "--verbose" in sys.argv:
@@ -21,6 +19,6 @@ if "--debug" in sys.argv or "--verbose" in sys.argv:
 elif "--quiet" in sys.argv:
     logging.basicConfig(format=FORMAT, level=60)  # pragma: no cover
 
-# default to warning
+# default to info
 else:
     logging.basicConfig(format=FORMAT, level=logging.WARNING)

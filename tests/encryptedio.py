@@ -4,24 +4,20 @@ import tempfile
 import storjnode
 
 
-class TestConfig(unittest.TestCase):
+class TestEncryptedIO(unittest.TestCase):
 
     def test_roundtrip(self):
-        input_path = "tests/fixtures.json"
+        input_path = __file__
         encrypted_path = tempfile.mktemp()
         output_path = tempfile.mktemp()
-        print("encrypted_path", encrypted_path)
-        print("output_path", output_path)
 
         # encrypt
-        with open(input_path, 'rb') as in_file, open(encrypted_path, 'wb') as\
-                out_file:
-            storjnode.encryptedio.encrypt(in_file, out_file, b"test")
+        with open(input_path, 'rb') as fi, open(encrypted_path, 'wb') as fo:
+            storjnode.encryptedio.symmetric_encrypt(fi, fo, b"test")
 
         # decrypt
-        with open(encrypted_path, 'rb') as in_file, open(output_path, 'wb') as\
-                out_file:
-            storjnode.encryptedio.decrypt(in_file, out_file, b"test")
+        with open(encrypted_path, 'rb') as fi, open(output_path, 'wb') as fo:
+            storjnode.encryptedio.symmetric_decrypt(fi, fo, b"test")
 
         # check hashes
         with open(input_path, 'rb') as input_file:

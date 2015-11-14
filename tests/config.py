@@ -1,9 +1,18 @@
 import os
+import json
 import copy
 import unittest
 import tempfile
 import storjnode
 import btctxstore
+
+
+# initial unmigrated 2.0.0 config
+UNMIGRATED_CONFIG = {
+    "version": "2.0.0",
+    "master_secret": "test_master_secret",
+    "payout_address": "1A8WqiJDh3tGVeEefbMN5BVDYxx2XSoWgG",
+}
 
 
 class TestConfig(unittest.TestCase):
@@ -13,26 +22,32 @@ class TestConfig(unittest.TestCase):
 
     def test_roundtrip_unencrypted(self):
         path = tempfile.mktemp()
-        saved_data = storjnode.config.create(self.btctxstore, path)
-        loaded_data = storjnode.config.get(self.btctxstore, path)
-        self.assertEqual(saved_data, loaded_data)
-        os.remove(path)
+        try:
+            cfg = storjnode.config.create(self.btctxstore)
+            saved_data = storjnode.config.save(self.btctxstore, path, cfg)
+            loaded_cfg = storjnode.config.read(path)
+            self.assertEqual(saved_data, loaded_cfg)
+        finally:
+            os.remove(path)
 
     def test_save_overwrites(self):
         path = tempfile.mktemp()
+        try:
 
-        # create config
-        created_data = storjnode.config.create(self.btctxstore, path)
+            # create config
+            cfg = storjnode.config.create(self.btctxstore)
+            created_data = storjnode.config.save(self.btctxstore, path, cfg)
 
-        # update config
-        updated_data = copy.deepcopy(created_data)
-        updated_data["payout_address"] = "1A8WqiJDh3tGVeEefbMN5BVDYxx2XSoWgG"
-        storjnode.config.save(self.btctxstore, path, updated_data)
+            # update config
+            updated_cfg = copy.deepcopy(created_data)
+            updated_cfg["payout_address"] = "1A8WqiJDh3tGVeEefbMN5BVDYxx2XSoWgG"
+            storjnode.config.save(self.btctxstore, path, updated_cfg)
 
-        # confirm overwriten
-        loaded_data = storjnode.config.get(self.btctxstore, path)
-        self.assertEqual(updated_data, loaded_data)
-        os.remove(path)
+            # confirm overwriten
+            loaded_cfg = storjnode.config.read(path)
+            self.assertEqual(updated_cfg, loaded_cfg)
+        finally:
+            os.remove(path)
 
     def test_password_validation(self):
         pass  # TODO implement
@@ -58,7 +73,7 @@ class TestConfig(unittest.TestCase):
         # must have a valid payout address
         def callback():
             storjnode.config.validate(self.btctxstore, {
-                "version": storjnode.config.__version__,
+                "version": storjnode.config.VERSION,
                 "wallet": wallet,
             })
         self.assertRaises(storjnode.config.InvalidConfig, callback)
@@ -66,35 +81,67 @@ class TestConfig(unittest.TestCase):
         # must have a valid wallet
         def callback():
             storjnode.config.validate(self.btctxstore, {
-                "version": storjnode.config.__version__,
+                "version": storjnode.config.VERSION,
                 "payout_address": address,
             })
         self.assertRaises(storjnode.config.InvalidConfig, callback)
 
         # valid config
         self.assertTrue(storjnode.config.validate(self.btctxstore, {
-            "version": storjnode.config.__version__,
+            "version": storjnode.config.VERSION,
             "payout_address": address,
             "wallet": wallet,
         }))
 
-    def test_migrate(self):
-        path = tempfile.mktemp()
+    def test_create_always_valid(self):
+        cfg = storjnode.config.create(self.btctxstore)
+        self.assertTrue(storjnode.config.validate(self.btctxstore, cfg))
 
-        # initial unmigrated 2.0.0 config
-        cfg = {
-            "version": "2.0.0",
-            "master_secret": "test_master_secret",
-            "payout_address": "1A8WqiJDh3tGVeEefbMN5BVDYxx2XSoWgG",
-        }
+    def test_get_loads_config(self):
+        path = tempfile.mktemp()
+        try:
+            cfg = storjnode.config.create(self.btctxstore)
+            created_cfg = storjnode.config.save(self.btctxstore, path, cfg)
+            loaded_cfg = storjnode.config.get(self.btctxstore, path)
+            self.assertEqual(created_cfg, loaded_cfg)
+        finally:
+            os.remove(path)
+
+    def test_get_creates_default_config(self):
+        path = tempfile.mktemp()
+        try:
+            created_cfg = storjnode.config.get(self.btctxstore, path)
+            loaded_cfg = storjnode.config.read(path)
+            self.assertEqual(created_cfg, loaded_cfg)
+        finally:
+            os.remove(path)
+
+    def test_get_migrates_if_needed(self):
+        path = tempfile.mktemp()
+        try:
+            # save unmigrated config
+            with open(path, 'w') as fp:
+                fp.write(json.dumps(UNMIGRATED_CONFIG))
+
+            # loaded config is migrated and valid
+            loaded = storjnode.config.get(self.btctxstore, path)
+            self.assertTrue(storjnode.config.validate(self.btctxstore, loaded))
+
+            # check if it was saved
+            saved = storjnode.config.read(path)
+            self.assertEqual(loaded, saved)
+        finally:
+            os.remove(path)
+
+    def test_migrate(self):
 
         # test its invalid with current build
         def callback():
-            storjnode.config.validate(self.btctxstore, cfg)
+            storjnode.config.validate(self.btctxstore, UNMIGRATED_CONFIG)
         self.assertRaises(storjnode.config.InvalidConfig, callback)
 
         # migrate
-        cfg = storjnode.config.migrate(self.btctxstore, path, cfg)
+        cfg = storjnode.config.migrate(self.btctxstore, UNMIGRATED_CONFIG)
 
         # test its now valid
         self.assertTrue(storjnode.config.validate(self.btctxstore, cfg))
