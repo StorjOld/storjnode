@@ -341,11 +341,11 @@ class Node(object):
 
         If any handler returns True the transfer request will be accepted.
         The handler must be callable and accept three arguments
-        (requesting_peer_id, data_id, direction). The direction parameter
+        (requester_id, data_id, direction). The direction parameter
         will be the oposatle of the requesters direction.
 
         Example:
-            def on_transfer_request(requesting_peer_id, data_id, direction):
+            def on_transfer_request(node, requester_id, data_id, direction):
                 # This handler  will accept everything but send nothing.
                 return direction == "receive"
             node = Node()
@@ -365,7 +365,34 @@ class Node(object):
             raise Exception("Data transfer disabled!")
         pass  # TODO implement
 
-    # TODO add handlers for transfer complete
+    def add_transfer_complete_handler(self, handler):
+        """Add a transfer complete handler.
+
+        If any handler returns True the transfer request will be accepted.
+        The handler must be callable and accept three arguments
+        (requester_id, data_id, direction). The direction parameter
+        will be the oposatle of the requesters direction.
+
+        Example:
+            def on_transfer_complete(node, requester_id, data_id, direction):
+                # This handler  will accept everything but send nothing.
+                return direction == "receive"
+            node = Node()
+            node.add_transfer_complete_handler(on_transfer_complete)
+        """
+        if self.disable_data_transfer:
+            raise Exception("Data transfer disabled!")
+        pass  # TODO implement
+
+    def remove_transfer_complete_handler(self, handler):
+        """Remove a transfer complete handler.
+
+        Raises:
+            KeyError if handler was not previously added.
+        """
+        if self.disable_data_transfer:
+            raise Exception("Data transfer disabled!")
+        pass  # TODO implement
 
     #######################
     # messaging interface #
