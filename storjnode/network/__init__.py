@@ -2,6 +2,7 @@ from . import api  # NOQA
 from . import file_transfer  # NOQA
 from . import protocol  # NOQA
 from . import server  # NOQA
+from . import mapnetwork  # NOQA
 from . api import Node  # NOQA
 from . api import generate_graph  # NOQA
 from . api import DEFAULT_BOOTSTRAP_NODES  # NOQA

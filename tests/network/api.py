@@ -22,10 +22,10 @@ _log = logging.getLogger(__name__)
 QUERY_TIMEOUT = QUERY_TIMEOUT / 2
 WALK_TIMEOUT = WALK_TIMEOUT / 2
 
-TEST_MESSAGE_TIMEOUT = 5
-TEST_SWARM_SIZE = 64  # tested up to 256
-TEST_MAX_MESSAGES = 2
-TEST_STORAGE_DIR = tempfile.mkdtemp()
+SWARM_SIZE = 64  # tested up to 256
+MAX_MESSAGES = 2
+PORT = 3000
+STORAGE_DIR = tempfile.mkdtemp()
 WAN_IP = get_wan_ip()
 
 
@@ -37,17 +37,17 @@ class TestNode(unittest.TestCase):
         print("TEST: creating swarm")
         cls.btctxstore = btctxstore.BtcTxStore(testnet=False)
         cls.swarm = []
-        for i in range(TEST_SWARM_SIZE):
+        for i in range(SWARM_SIZE):
 
             # isolate swarm
-            bootstrap_nodes = [("127.0.0.1", 3000 + x) for x in range(i)][-20:]
+            bootstrap_nodes = [("127.0.0.1", PORT + x) for x in range(i)][-20:]
 
             # create node
             node = storjnode.network.Node(
-                cls.btctxstore.create_wallet(), port=(3000 + i), ksize=16,
+                cls.btctxstore.create_wallet(), port=(PORT + i), ksize=16,
                 bootstrap_nodes=bootstrap_nodes,
-                max_messages=TEST_MAX_MESSAGES,
-                store_config={TEST_STORAGE_DIR: None},
+                max_messages=MAX_MESSAGES,
+                store_config={STORAGE_DIR: None},
                 nat_type="preserving",
                 node_type="passive",
                 wan_ip=WAN_IP
@@ -79,7 +79,7 @@ class TestNode(unittest.TestCase):
         print("TEST: stopping swarm")
         for node in cls.swarm:
             node.stop()
-        shutil.rmtree(TEST_STORAGE_DIR)
+        shutil.rmtree(STORAGE_DIR)
 
     #################################
     # test util and debug functions #
@@ -90,8 +90,8 @@ class TestNode(unittest.TestCase):
         alice_node = storjnode.network.Node(
             self.__class__.btctxstore.create_key(),
             bootstrap_nodes=[("240.0.0.0", 1337)],
-            max_messages=TEST_MAX_MESSAGES,
-            store_config={TEST_STORAGE_DIR: None},
+            max_messages=MAX_MESSAGES,
+            store_config={STORAGE_DIR: None},
             refresh_neighbours_interval=interval,
             nat_type="preserving",
             node_type="passive",
@@ -103,8 +103,8 @@ class TestNode(unittest.TestCase):
         bob_node = storjnode.network.Node(
             self.__class__.btctxstore.create_key(),
             bootstrap_nodes=[("127.0.0.1", alice_node.port)],
-            max_messages=TEST_MAX_MESSAGES,
-            store_config={TEST_STORAGE_DIR: None},
+            max_messages=MAX_MESSAGES,
+            store_config={STORAGE_DIR: None},
             refresh_neighbours_interval=interval,
             nat_type="preserving",
             node_type="passive",
@@ -165,7 +165,7 @@ class TestNode(unittest.TestCase):
 
     def test_relay_messaging_success(self):
         sender = self.swarm[0]
-        receiver = self.swarm[TEST_SWARM_SIZE - 1]
+        receiver = self.swarm[SWARM_SIZE - 1]
         self._test_relay_message(sender, receiver, True)
 
     def test_relay_message_self(self):
@@ -208,8 +208,8 @@ class TestNode(unittest.TestCase):
         alice_node = storjnode.network.Node(
             self.__class__.btctxstore.create_key(),
             bootstrap_nodes=[("240.0.0.0", 1337)],
-            max_messages=TEST_MAX_MESSAGES,
-            store_config={TEST_STORAGE_DIR: None},
+            max_messages=MAX_MESSAGES,
+            store_config={STORAGE_DIR: None},
             nat_type="preserving",
             node_type="passive",
             wan_ip=WAN_IP
@@ -219,8 +219,8 @@ class TestNode(unittest.TestCase):
         bob_node = storjnode.network.Node(
             self.__class__.btctxstore.create_key(),
             bootstrap_nodes=[("127.0.0.1", alice_node.port)],
-            max_messages=TEST_MAX_MESSAGES,
-            store_config={TEST_STORAGE_DIR: None},
+            max_messages=MAX_MESSAGES,
+            store_config={STORAGE_DIR: None},
             nat_type="preserving",
             node_type="passive",
             wan_ip=WAN_IP
@@ -287,7 +287,7 @@ class TestNode(unittest.TestCase):
 
     def test_direct_messaging_success(self):
         sender = self.swarm[0]
-        receiver = self.swarm[TEST_SWARM_SIZE - 1]
+        receiver = self.swarm[SWARM_SIZE - 1]
         self._test_direct_message(sender, receiver, True)
 
     def test_direct_messaging_failure(self):
@@ -316,8 +316,8 @@ class TestNode(unittest.TestCase):
         peer = storjnode.network.Node(
             self.__class__.btctxstore.create_wallet(),
             bootstrap_nodes=[("240.0.0.0", 1337)],  # isolated peer
-            max_messages=TEST_MAX_MESSAGES,
-            store_config={TEST_STORAGE_DIR: None},
+            max_messages=MAX_MESSAGES,
+            store_config={STORAGE_DIR: None},
             nat_type="preserving",
             node_type="passive",
             wan_ip=WAN_IP
@@ -334,8 +334,8 @@ class TestNode(unittest.TestCase):
         alice_node = storjnode.network.Node(
             self.__class__.btctxstore.create_key(),
             bootstrap_nodes=[("240.0.0.0", 1337)],
-            max_messages=TEST_MAX_MESSAGES,
-            store_config={TEST_STORAGE_DIR: None},
+            max_messages=MAX_MESSAGES,
+            store_config={STORAGE_DIR: None},
             nat_type="preserving",
             node_type="passive",
             wan_ip=WAN_IP
@@ -345,8 +345,8 @@ class TestNode(unittest.TestCase):
         bob_node = storjnode.network.Node(
             self.__class__.btctxstore.create_key(),
             bootstrap_nodes=[("127.0.0.1", alice_node.port)],
-            max_messages=TEST_MAX_MESSAGES,
-            store_config={TEST_STORAGE_DIR: None},
+            max_messages=MAX_MESSAGES,
+            store_config={STORAGE_DIR: None},
             nat_type="preserving",
             node_type="passive",
             wan_ip=WAN_IP
@@ -369,8 +369,8 @@ class TestNode(unittest.TestCase):
         alice_node = storjnode.network.Node(
             self.__class__.btctxstore.create_key(),
             bootstrap_nodes=[("240.0.0.0", 1337)],
-            max_messages=TEST_MAX_MESSAGES,
-            store_config={TEST_STORAGE_DIR: None},
+            max_messages=MAX_MESSAGES,
+            store_config={STORAGE_DIR: None},
             nat_type="preserving",
             node_type="passive",
             wan_ip=WAN_IP
@@ -378,8 +378,8 @@ class TestNode(unittest.TestCase):
         bob_node = storjnode.network.Node(
             self.__class__.btctxstore.create_key(),
             bootstrap_nodes=[("127.0.0.1", alice_node.port)],
-            max_messages=TEST_MAX_MESSAGES,
-            store_config={TEST_STORAGE_DIR: None},
+            max_messages=MAX_MESSAGES,
+            store_config={STORAGE_DIR: None},
             nat_type="preserving",
             node_type="passive",
             wan_ip=WAN_IP

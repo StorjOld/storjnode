@@ -63,7 +63,7 @@ shell: setup
 	env/bin/ipython
 
 
-test: setup
+test:
 	$(PY) -m unittest tests
 
 

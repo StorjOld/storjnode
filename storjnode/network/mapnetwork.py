@@ -12,57 +12,61 @@ from storjnode.network.server import QUERY_TIMEOUT
 _log = logging.getLogger(__name__)
 
 
-class NetworkMapper(object):  # will not scale but good for now
+class _NetworkMapper(object):  # will not scale but good for now
 
-    def __init__(self, server, initial_node=None, worker_num=32):
-        self.nodes_toscan = {}  # {id: (ip, port)}
-        self.nodes_scanning = {}  # {id: (ip, port)}
-
-        # {id: {"transport": (ip, port), "neighbours": [(id, ip, port)]}
-        self.nodes_scanned = {}
+    def __init__(self, storjnode, worker_num=32):
+        # pipeline: toscan -> scanning -> scanned
+        self.toscan = {}  # {id: (ip, port)}
+        self.scanning = {}  # {id: (ip, port)}
+        self.scanned = {}  # {id: {"addr":(ip, port), "peers":[(id, ip, port)]}}
 
         self.mutex = RLock()
-        self.server = server
+        self.server = storjnode.server
         self.worker_num = worker_num
 
-        # initial state
-        node = initial_node or self.server.node
-        self.nodes_toscan[node.id] = (node.ip, node.port)
+        # start crawl at self
+        self.toscan[storjnode.get_id()] = ("127.0.0.1", storjnode.port)
 
-    def _get_next_node(self):
+    def get_next_node(self):
+        """Moves node from toscan to scanning.
+
+        Returns moved node or None if toscan is empty.
+        """
         with self.mutex:
-            if len(self.nodes_toscan) > 0:
-                node_id, transport_address = self.nodes_toscan.popitem()
-                self.nodes_scanning[node_id] = transport_address
+            if len(self.toscan) > 0:
+                node_id, transport_address = self.toscan.popitem()
+                self.scanning[node_id] = transport_address
                 return Node(node_id, transport_address[0], transport_address[1])
             else:
                 return None
 
-    def _processed(self, node, neighbours):
+    def processed(self, node, neighbours):
+        """Move node from scanning to scanned and add new nodes to pipeline."""
         with self.mutex:
-            del self.nodes_scanning[node.id]
-            self.nodes_scanned[node.id] = {
-                "transport": (node.ip, node.port), "neighbours": neighbours
+            del self.scanning[node.id]
+            self.scanned[node.id] = {
+                "addr": (node.ip, node.port), "peers": neighbours
             }
             for peer in neighbours:
-                peer = Node(peer)
-                if(peer.id not in self.nodes_scanning and
-                        peer.id not in self.nodes_scanned):
-                    self.nodes_toscan[peer.id] = (peer.ip, peer.port)
+                peer = Node(*peer)
+                if(peer.id not in self.scanning and
+                        peer.id not in self.scanned):
+                    self.toscan[peer.id] = (peer.ip, peer.port)
 
-    def _worker(self):
+    def worker(self):
+        """Process nodes from toscan to scanned until network walked."""
         while True:
+            time.sleep(0.002)
 
             # get next node to scan
             with self.mutex:
-                node = self._get_next_node()
-                num_scanning = len(self.nodes_scanning)
-            if node is None or num_scanning == 0:
-                return  # finished mapping the network
+                node = self.get_next_node()
+                if node is None and len(self.scanning) == 0:
+                    return  # done! Nothing to scan and nothing being scanned
 
-            hexid = binascii.hexlify(node.id)
-            msg = "Finding neighbors of {0} at {1}:{2}"
-            _log.info(msg.format(hexid, node.ip, node.port))
+            # no node to scan but other workers still scanning, so more may come
+            if node is None:
+                continue
 
             # get neighbors
             d = self.server.protocol.callFindNode(node, node)
@@ -71,18 +75,32 @@ class NetworkMapper(object):  # will not scale but good for now
                 neighbours = util.wait_for_defered(d, timeout=QUERY_TIMEOUT)
             except TimeoutError:  # pragma: no cover
                 msg = "Timeout when getting neighbors of %s"  # pragma: no cover
+                hexid = binascii.hexlify(node.id)
                 self.log.debug(msg % hexid)  # pragma: no cover
                 neighbours = []  # pragma: no cover
 
-            # add to results and neighbours to scan
-            self._processed(node, neighbours)
+            # add to results and neighbours to scanned
+            self.processed(node, neighbours)
 
-            time.sleep(0.002)
-
-    def crawl_network(self):
-        workers = [Thread(target=self._worker) for i in range(self.worker_num)]
+    def crawl(self):
+        """Start workers and block until network is crawled."""
+        workers = [Thread(target=self.worker) for i in range(self.worker_num)]
         for worker in workers:
             worker.start()
         for worker in workers:
             worker.join()
-        return self.nodes_scanned
+        return self.scanned
+
+
+def crawl(storjnode, worker_num=32):
+    """Crawl the network to get a map of all nodes and connections.
+
+    Args:
+        storjnode: Node used to crawl the network.
+        worker_num: Number of workers used to crawl the network.
+
+    Returns: {
+            nodeid: {"addr":(ip, port), "peers":[(id, ip, port)]},
+        }
+    """
+    return _NetworkMapper(storjnode, worker_num=worker_num).crawl()
