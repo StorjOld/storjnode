@@ -1,6 +1,6 @@
 #from . file_transfer import * # NOQA
 #from . api import * # NOQA
-from . mapnetwork import * # NOQA
+from . map import * # NOQA
 
 
 if __name__ == "__main__":

@@ -1,11 +1,9 @@
 import time
-import sys
 import threading
 import binascii
 import random
 import logging
 from btctxstore import BtcTxStore
-from graphviz import Digraph
 from crochet import wait_for, run_in_reactor
 from storjnode.util import valid_ip
 from storjnode.network.server import StorjServer, QUERY_TIMEOUT, WALK_TIMEOUT
@@ -34,23 +32,6 @@ DEFAULT_BOOTSTRAP_NODES = [
 
 
 log = logging.getLogger(__name__)
-
-
-def generate_graph(nodes, name):
-    network = dict(map(lambda n: (n.get_hex_id(), n.get_known_peers()), nodes))
-    dot = Digraph(comment=name, engine="circo")
-
-    # add nodes
-    for node in network.keys():
-        dot.node(node, node)
-
-    # add connections
-    for node, peers in network.items():
-        for peer in peers:
-            dot.edge(node, peer, constraint='false')
-
-    # render graph
-    dot.render('%s.gv' % name, view=True)
 
 
 class Node(object):

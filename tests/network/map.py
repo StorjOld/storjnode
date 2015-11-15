@@ -49,7 +49,7 @@ class TestMapNetwork(unittest.TestCase):
 
     def test_mapnetwork(self):
         random_peer = random.choice(self.swarm)
-        netmap = storjnode.network.mapnetwork.crawl(random_peer)
+        netmap = storjnode.network.map.generate(random_peer)
         self.assertTrue(isinstance(netmap, dict))
 
 

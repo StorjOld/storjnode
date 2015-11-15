@@ -5,6 +5,7 @@ from kademlia.node import Node
 from crochet import TimeoutError
 from threading import Thread
 from threading import RLock
+from graphviz import Digraph
 from storjnode import util
 from storjnode.network.server import QUERY_TIMEOUT
 
@@ -15,6 +16,12 @@ _log = logging.getLogger(__name__)
 class _NetworkMapper(object):  # will not scale but good for now
 
     def __init__(self, storjnode, worker_num=32):
+        """Network crawler used to map the network.
+
+        Args:
+            storjnode: Node used to crawl the network.
+            worker_num: Number of workers used to crawl the network.
+        """
         # pipeline: toscan -> scanning -> scanned
         self.toscan = {}  # {id: (ip, port)}
         self.scanning = {}  # {id: (ip, port)}
@@ -92,7 +99,24 @@ class _NetworkMapper(object):  # will not scale but good for now
         return self.scanned
 
 
-def crawl(storjnode, worker_num=32):
+def render(nodes, name):
+    network = dict(map(lambda n: (n.get_hex_id(), n.get_known_peers()), nodes))
+    dot = Digraph(comment=name, engine="circo")
+
+    # add nodes
+    for node in network.keys():
+        dot.node(node, node)
+
+    # add connections
+    for node, peers in network.items():
+        for peer in peers:
+            dot.edge(node, peer, constraint='false')
+
+    # render graph
+    dot.render('%s.gv' % name, view=True)
+
+
+def generate(storjnode, worker_num=32):
     """Crawl the network to get a map of all nodes and connections.
 
     Args:
