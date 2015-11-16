@@ -10,8 +10,8 @@ from storjnode.network.server import QUERY_TIMEOUT, WALK_TIMEOUT
 setup()  # start twisted via crochet
 
 
-QUERY_TIMEOUT = QUERY_TIMEOUT / 8
-WALK_TIMEOUT = WALK_TIMEOUT / 8
+QUERY_TIMEOUT = QUERY_TIMEOUT / 4
+WALK_TIMEOUT = WALK_TIMEOUT / 4
 SWARM_SIZE = 32
 PORT = 4000
 
