@@ -84,7 +84,7 @@ class _NetworkMapper(object):  # will not scale but good for now
             except TimeoutError:  # pragma: no cover
                 msg = "Timeout when getting neighbors of %s"  # pragma: no cover
                 hexid = binascii.hexlify(node.id)
-                self.log.debug(msg % hexid)  # pragma: no cover
+                _log.debug(msg % hexid)  # pragma: no cover
                 neighbours = []  # pragma: no cover
 
             # add to results and neighbours to scanned

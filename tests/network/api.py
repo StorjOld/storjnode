@@ -52,7 +52,7 @@ class TestNode(unittest.TestCase):
                 nat_type="preserving",
                 node_type="passive",
                 wan_ip=WAN_IP,
-                disable_data_transfer=1
+                disable_data_transfer=True
             )
             cls.swarm.append(node)
 
@@ -98,7 +98,7 @@ class TestNode(unittest.TestCase):
             nat_type="preserving",
             node_type="passive",
             wan_ip=WAN_IP,
-            disable_data_transfer=1
+            disable_data_transfer=True
         )
         alice_received = threading.Event()
         alice_node.add_message_handler(lambda s, m: alice_received.set())
@@ -112,7 +112,7 @@ class TestNode(unittest.TestCase):
             nat_type="preserving",
             node_type="passive",
             wan_ip=WAN_IP,
-            disable_data_transfer=1
+            disable_data_transfer=True
         )
         bob_received = threading.Event()
         bob_node.add_message_handler(lambda s, m: bob_received.set())
@@ -218,7 +218,7 @@ class TestNode(unittest.TestCase):
             nat_type="preserving",
             node_type="passive",
             wan_ip=WAN_IP,
-            disable_data_transfer=1
+            disable_data_transfer=True
         )
         alice_received = threading.Event()
         alice_node.add_message_handler(lambda s, m: alice_received.set())
@@ -231,7 +231,7 @@ class TestNode(unittest.TestCase):
             nat_type="preserving",
             node_type="passive",
             wan_ip=WAN_IP,
-            disable_data_transfer=1
+            disable_data_transfer=True
         )
         bob_received = threading.Event()
         bob_node.add_message_handler(lambda s, m: bob_received.set())
@@ -330,7 +330,7 @@ class TestNode(unittest.TestCase):
             nat_type="preserving",
             node_type="passive",
             wan_ip=WAN_IP,
-            disable_data_transfer=1
+            disable_data_transfer=True
         )
         try:
             void_id = b"void" * 5
@@ -350,7 +350,7 @@ class TestNode(unittest.TestCase):
             nat_type="preserving",
             node_type="passive",
             wan_ip=WAN_IP,
-            disable_data_transfer=1
+            disable_data_transfer=True
         )
         alice_received = threading.Event()
         alice_node.add_message_handler(lambda s, m: alice_received.set())
@@ -363,7 +363,7 @@ class TestNode(unittest.TestCase):
             nat_type="preserving",
             node_type="passive",
             wan_ip=WAN_IP,
-            disable_data_transfer=1
+            disable_data_transfer=True
         )
         bob_received = threading.Event()
         bob_node.add_message_handler(lambda s, m: bob_received.set())
@@ -389,7 +389,7 @@ class TestNode(unittest.TestCase):
             nat_type="preserving",
             node_type="passive",
             wan_ip=WAN_IP,
-            disable_data_transfer=1
+            disable_data_transfer=True
         )
         bob_node = storjnode.network.Node(
             self.__class__.btctxstore.create_key(),
@@ -400,7 +400,7 @@ class TestNode(unittest.TestCase):
             nat_type="preserving",
             node_type="passive",
             wan_ip=WAN_IP,
-            disable_data_transfer=1
+            disable_data_transfer=True
         )
         time.sleep(QUERY_TIMEOUT)  # wait until network overlay stable, 2 peers
         try:

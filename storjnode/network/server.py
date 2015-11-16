@@ -69,13 +69,13 @@ class StorjServer(Server):
         self._relay_thread.start()
 
         # setup refresh neighbours thread
-        if self._refresh_neighbours_interval > 0:
+        if self._refresh_neighbours_interval > 0.0:
             self._refresh_thread_stop = False
             self._refresh_thread = threading.Thread(target=self._refresh_loop)
             self._refresh_thread.start()
 
     def stop(self):
-        if self._refresh_neighbours_interval > 0:
+        if self._refresh_neighbours_interval > 0.0:
             self._refresh_thread_stop = True
             self._refresh_thread.join()
 

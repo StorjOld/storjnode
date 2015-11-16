@@ -1,3 +1,11 @@
+v0.0.9
+
+ * Added network crawler.
+ * Added config module.
+ * Added storage module.
+ * Imporoved relay and direct messageing.
+ * Randomized default port
+
 v0.0.8
 
  * Added message queue size and time limit

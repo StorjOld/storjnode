@@ -64,7 +64,7 @@ shell: setup
 
 
 test: setup
-	$(PY) -m unittest --verbose tests
+	$(PY) -m unittest --quiet tests
 
 
 publish: test

@@ -31,7 +31,8 @@ class TestMapNetwork(unittest.TestCase):
             # create node
             node = storjnode.network.Node(
                 cls.btctxstore.create_wallet(), port=(PORT + i), ksize=16,
-                bootstrap_nodes=bootstrap_nodes, disable_data_transfer=True
+                bootstrap_nodes=bootstrap_nodes, disable_data_transfer=True,
+                refresh_neighbours_interval=0.0
             )
             cls.swarm.append(node)
 
