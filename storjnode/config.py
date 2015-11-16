@@ -1,7 +1,7 @@
 import os
 import copy
 import json
-from storjnode.common import STORJ_HOME
+from .common import STORJ_HOME
 
 
 VERSION = "3.0.0"  # config version divorced from software version!

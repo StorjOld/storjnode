@@ -5,6 +5,7 @@ import random
 import logging
 from btctxstore import BtcTxStore
 from crochet import wait_for, run_in_reactor
+from twisted.internet.task import LoopingCall
 from storjnode.util import valid_ip
 from storjnode.network.server import StorjServer, QUERY_TIMEOUT, WALK_TIMEOUT
 
@@ -113,9 +114,20 @@ class Node(object):
                            refresh_neighbours_interval, bootstrap_nodes)
 
         if not self.disable_data_transfer:
-            self._setup_data_transfer_client(store_config, passive_port,
+            # Setup handlers for callbacks registered via the API.
+            handlers = {
+                "complete": self._transfer_complete_handlers,
+                "request": self._transfer_request_handlers
+            }
+
+            # Setup data transfer client.
+            self._setup_data_transfer_client(handlers, store_config, passive_port,
                                              passive_bind, node_type, nat_type,
                                              wan_ip)
+
+            # Setup transfer loops.
+            self.process_data_transfers()
+
         self._setup_message_dispatcher()
 
     def _setup_message_dispatcher(self):
@@ -135,7 +147,7 @@ class Node(object):
         self.server.listen(self.port)
         self.server.bootstrap(bootstrap_nodes)
 
-    def _setup_data_transfer_client(self, store_config, passive_port,
+    def _setup_data_transfer_client(self, handlers, store_config, passive_port,
                                     passive_bind, node_type, nat_type, wan_ip):
         self._data_transfer = FileTransfer(
             net=Net(
@@ -150,8 +162,12 @@ class Node(object):
             ),
             # FIXME use same key as dht
             wif=BtcTxStore(testnet=True, dryrun=True).create_key(),
-            store_config=store_config
+            store_config=store_config,
+            handlers=handlers
         )
+
+        # Setup success callback values.
+        self._data_transfer.success_value = (self.sync_get_wan_ip(), self.port)
 
     def stop(self):
         """Stop storj node."""
@@ -244,25 +260,6 @@ class Node(object):
         # FIXME remove and have callers use storage service instead
         return self._data_transfer.move_file_to_storage(path)
 
-    def send_data(self, data_id, size, node_unl):
-        if self.disable_data_transfer:
-            raise Exception("Data transfer disabled!")
-        _log.debug("Attempting to send data request")
-        self._data_transfer.data_request("upload", data_id, size, node_unl)
-        while 1:  # FIXME terminate when transfered
-            time.sleep(0.002)
-            process_transfers(self._data_transfer)
-        # FIXME return error or success status/reason
-
-    def request_data(self, data_id, size, node_unl):
-        if self.disable_data_transfer:
-            raise Exception("Data transfer disabled!")
-        self._data_transfer.data_request("download", data_id, size, node_unl)
-        while 1:  # FIXME terminate when transfered
-            time.sleep(0.002)
-            process_transfers(self._data_transfer)
-        # FIXME return error or success status/reason
-
     def get_unl(self):
         if self.disable_data_transfer:
             raise Exception("Data transfer disabled!")
@@ -274,20 +271,18 @@ class Node(object):
             raise Exception("Data transfer disabled!")
 
         time.sleep(5)  # Give enough time to copy UNL.
-        while 1:
-            process_transfers(self._data_transfer)
-            time.sleep(0.002)
+        LoopingCall(process_transfers, self._data_transfer).start(0.002, now=True)
 
     ###########################
     # data transfer interface #
     ###########################
 
-    def async_request_data_transfer(self, data_id, peer_id, direction):
+    def async_request_data_transfer(self, data_id, peer_unl, direction):
         """Request data be transfered to or from a peer.
 
         Args:
             data_id: The sha256 sum of the data to be transfered.
-            peer_id: The node id of the peer to get the data from.
+            peer_unl: The node UNL of the peer to get the data from.
             direction: "send" to peer or "receive" from peer
 
         Returns:
@@ -298,18 +293,19 @@ class Node(object):
             RequestDenied: If the peer denied your request to transfer data.
             TransferError: If the data not transfered for other reasons.
         """
+        return self._data_transfer.simple_data_request(data_id, peer_unl, direction)
+
         if self.disable_data_transfer:
             raise Exception("Data transfer disabled!")
-        pass  # TODO implement
 
-    def sync_request_data_transfer(self, data_id, peer_id, direction):
+    def sync_request_data_transfer(self, data_id, peer_unl, direction):
         """Request data be transfered to or from a peer.
 
         This call will block until the data has been transfered full or failed.
 
         Args:
             data_id: The sha256 sum of the data to be transfered.
-            peer_id: The node id of the peer to get the data from.
+            peer_unl: The node UNL of the peer to get the data from.
             direction: "send" to peer or "receive" from peer
 
         Raises:
@@ -318,7 +314,21 @@ class Node(object):
         """
         if self.disable_data_transfer:
             raise Exception("Data transfer disabled!")
-        pass  # TODO implement
+
+        call_complete = 0
+        ret = None
+        def callback(result):
+            call_complete = 1
+            ret = result
+
+        d = self.async_request_data_transfer(data_id, peer_unl, direction)
+        d.addCallback(callback)
+        d.addErrback(callback)
+
+        while not call_complete:
+            time.sleep(0.5)
+
+        return ret
 
     def add_transfer_request_handler(self, handler):
         """Add an allow transfer request handler.

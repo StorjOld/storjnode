@@ -4,14 +4,7 @@ Issues:
     * Should contract also be deleted when its transfered? Prob
     * To do: add a clean up routine based on old cons
 
-    * If you do a session with this and transfer a series of files down the con,
-      finish, close your side. Then reconnect and start a new session you can
-      succeed with upload (but then not download.) The temp work around is to
-      close old connections but at some point the underlying issue as to why
-      connection reuse doesnt work should be investigated.
-    * Another work around would be to change the code that identifies duplicate
-      connections in URL and change it based on source:IP instead of
-      just IP .. that would probably be a better solution
+    Todo: implement RST for -- will probably need to look at  transfer_request_handlers
 """
 
 import pyp2p.unl
@@ -28,13 +21,20 @@ import hashlib
 import sys
 import os
 import binascii
+import struct
 from threading import Lock
+from twisted.internet import defer
 
 
 mutex = Lock()
 
 _log = logging.getLogger(__name__)
 
+class RequestDenied(Exception):
+    pass
+
+class TransferError(Exception):
+    pass
 
 def process_transfers(client):
     _log.debug("In process transfers")
@@ -52,6 +52,34 @@ def process_transfers(client):
     # Process new connections.
     client.net.synchronize()
 
+    # Raise appropriate async callbacks for errors.
+    for con in list(client.con_info):
+        if not con.connected:
+            # Broken connections.
+            for contract_id in list(client.con_info[con]):
+                if contract_id in client.defers:
+                    e = TransferError("Connection died.")
+                    client.defers[contract_id].errback(e)
+                    del client.defers[contract_id]
+
+                    if contract_id in client.contracts:
+                        del client.contracts[contract_id]
+
+    # Expired handshakes.
+    for contract_id in list(client.contracts):
+        if contract_id in client.handshake:
+            handshake = client.handshake[contract_id]
+            elapsed = time.time() - handshake["timestamp"]
+            if elapsed >= 30:
+                if contract_id in client.defers:
+                    e = RequestDenied("Handshake timed out.")
+                    client.defers[contract_id].errback(e)
+                    del client.defers[contract_id]
+
+
+
+    # Todo: cleanup con info and other structures.
+
     # Process connections.
     for con in client.net:
         _log.debug("In con.")
@@ -61,11 +89,16 @@ def process_transfers(client):
             _log.debug("Con not in con_info")
             continue
 
+        # Connection is not synchronized yet.
+        if con.nonce == None:
+            _log.debug("Not synced yet")
+            continue
+
         # Wait until there's new transfers to process.
         if not client.is_queued(con):
             # Socket has hung ungracefully.
             duration = time.time() - con.alive
-            if duration >= 60.0:
+            if duration >= 15.0:
                 _log.debug("Ungraceful socket close")
                 con.close()
                 break
@@ -114,8 +147,35 @@ def process_transfers(client):
         if client.net.unl == pyp2p.unl.UNL(value=contract["host_unl"]):
             _log.debug("Uploading: Found our UNL")
 
+            # Send file size.
+            if not con_info["file_size"]:
+                # Get file size.
+                path = storage.manager.find(
+                    client.store_config,
+                    contract["data_id"]
+                )
+                file_size = os.path.getsize(path)
+                con_info["file_size"] = file_size
+                con_info["remaining"] = file_size
+
+                # Marshal file size for network.
+                if sys.version_info >= (3, 0, 0):
+                    net_file_size = struct.pack(
+                        "<20s",
+                        str(file_size).encode("ascii")
+                    )
+                else:
+                    net_file_size = struct.pack(
+                        "<20s",
+                        str(file_size)
+                    )
+
+                # Send file size.
+                con.send(net_file_size, send_all=1)
+
+
             # Get next chunk from file.
-            position = contract["file_size"] - con_info["remaining"]
+            position = con_info["file_size"] - con_info["remaining"]
             data_chunk = client.get_data_chunk(
                 contract["data_id"],
                 position
@@ -135,6 +195,24 @@ def process_transfers(client):
                 transfer_complete = 1
         else:
             _log.debug("Attempting to download.")
+
+            # Get file size.
+            if not con_info["file_size"]:
+                file_size_buf = con_info["file_size_buf"]
+                if len(file_size_buf) < 20:
+                    remaining = 20 - len(file_size_buf)
+                    partial = con.recv(remaining)
+                    if not len(partial):
+                        continue
+
+                    file_size_buf += partial
+                    if len(file_size_buf) == 20:
+                        file_size, = struct.unpack("<20s", file_size_buf)
+                        file_size = int(file_size_buf.rstrip(b"\0"))
+                        con_info["file_size"] = file_size
+                        con_info["remaining"] = file_size
+                    else:
+                        continue
 
             # Download.
             data = con.recv(
@@ -181,6 +259,12 @@ def process_transfers(client):
         is_master = client.net.unl.is_master(their_unl)
         _log.debug("Is master = " + str(is_master))
         if transfer_complete:
+            # Return async success.
+            if contract_id in client.defers:
+                # Call any callbacks registered with this defer.
+                client.defers[contract_id].callback(client.success_value)
+                del client.defers[contract_id]
+
             if is_master:
                 client.queue_next_transfer(con)
             else:
@@ -188,9 +272,12 @@ def process_transfers(client):
 
 
 class FileTransfer:
-    def __init__(self, net, wif=None, store_config=None):
+    def __init__(self, net, wif=None, store_config=None, handlers=None):
         # Accept direct connections.
         self.net = net
+
+        # Returned by callbacks.
+        self.success_value = ("127.0.0.1", 7777)
 
         # Used for signing messages.
         self.wallet = BtcTxStore(testnet=True, dryrun=True)
@@ -200,12 +287,18 @@ class FileTransfer:
         self.store_config = store_config
         assert(len(list(store_config)))
 
+        # Handlers for certain events.
+        self.handlers = handlers
+
         # Start networking.
         if not self.net.is_net_started:
             self.net.start()
 
         # Dict of data requests.
         self.contracts = {}
+
+        # Dict of defers for contracts.
+        self.defers = {}
 
         # Three-way handshake status for contracts.
         self.handshake = {}
@@ -275,6 +368,7 @@ class FileTransfer:
         # List of expected fields.
         syn_schema = (
             u"status",
+            u"direction",
             u"data_id",
             u"file_size",
             u"host_unl",
@@ -286,6 +380,17 @@ class FileTransfer:
         # Check all fields exist.
         if not all(key in msg for key in syn_schema):
             _log.debug("Missing required key.")
+            return 0
+
+        # Check SYN size.
+        if len(msg) > 5242880: # 5 MB.
+            _log.debug("SYN is too big")
+            return 0
+
+        # Check direction is valid.
+        direction_tuple = (u"send", u"receive")
+        if msg[u"direction"] not in direction_tuple:
+            _log.debug("Missing required direction tuple.")
             return 0
 
         # Check the UNLs are valid.
@@ -313,11 +418,6 @@ class FileTransfer:
             path = storage.manager.find(self.store_config, msg[u"data_id"])
             if path is None:
                 _log.debug("Failed to find file we're uploading")
-                return 0
-
-            # Did they specify the right size?
-            if os.path.getsize(path) != msg[u"file_size"]:
-                _log.debug("Client did not specify correct file siz.e")
                 return 0
         else:
             # Do we already have this file?
@@ -355,7 +455,9 @@ class FileTransfer:
                     if contract_id not in self.con_info[con]:
                         self.con_info[con][contract_id] = {
                             "contract_id": contract_id,
-                            "remaining": file_size
+                            "remaining": 350, # Tree fiddy.
+                            "file_size": file_size,
+                            "file_size_buf": b""
                         }
 
                     # Record download state.
@@ -398,7 +500,12 @@ class FileTransfer:
                 return
 
             # Save contract.
+            contract_id = self.contract_id(msg)
             self.save_contract(msg)
+            self.handshake[contract_id] = {
+                "state": u"SYN-ACK",
+                "timestamp": time.time()
+            }
 
             # Create reply.
             reply = OrderedDict({
@@ -443,7 +550,10 @@ class FileTransfer:
 
             # Update handshake.
             contract = self.contracts[contract_id]
-            self.handshake[contract_id] = u"SYN-ACK"
+            self.handshake[contract_id] = {
+                "state": u"ACK",
+                "timestamp": time.time()
+            }
 
             # Create reply contract.
             reply = OrderedDict({
@@ -504,7 +614,10 @@ class FileTransfer:
 
             # Update handshake.
             contract = self.contracts[contract_id]
-            self.handshake[contract_id] = u"ACK"
+            self.handshake[contract_id] = {
+                "state": u"ACK",
+                "timestamp": time.time()
+            }
 
             # Try make TCP con.
             self.net.unl.connect(
@@ -578,6 +691,15 @@ class FileTransfer:
 
         return ret
 
+    def simple_data_request(self, data_id, node_unl, direction):
+        file_size = 0
+        if direction == u"send":
+            action = u"upload"
+        else:
+            action = u"download"
+
+        return self.data_request(action, data_id, file_size, node_unl)
+
     def data_request(self, action, data_id, file_size, node_unl):
         """
         Action = put (upload), get (download.)
@@ -587,10 +709,12 @@ class FileTransfer:
         # Who is hosting this data?
         if action == "upload":
             # We store this data.
+            direction = u"send"
             host_unl = self.net.unl.value
-            assert(storage.manager.find(self.store_config, data_id) != None)
+            assert(storage.manager.find(self.store_config, data_id) is not None)
         else:
             # They store the data.
+            direction = u"receive"
             host_unl = node_unl
             if data_id in self.downloading:
                 raise Exception("Already trying to download this.")
@@ -618,6 +742,7 @@ class FileTransfer:
         # Create contract.
         contract = OrderedDict({
             u"status": u"SYN",
+            u"direction": direction,
             u"data_id": data_id,
             u"file_size": file_size,
             u"host_unl": host_unl,
@@ -634,7 +759,17 @@ class FileTransfer:
         _log.debug("Sending data request")
 
         # Update handshake.
-        self.handshake[contract_id] = "SYN"
+        self.handshake[contract_id] = {
+            "state": "SYN",
+            "timestamp": time.time()
+        }
+
+        # For async code.
+        d = defer.Deferred()
+        self.defers[contract_id] = d
+
+        # Return defer for async code.
+        return d
 
     def remove_file_from_storage(self, data_id):
         storage.manager.remove(self.store_config, data_id)
@@ -684,10 +819,7 @@ if __name__ == "__main__":
         store_config={"/home/laurence/Storj/Alice": None}  # FIXME temppath
     )
 
-    id = "ATRuSlZJWFQ1QjBRVWFrakJYOTQ5c2dtRcU4OEZziAGowPm3RVYAAAAA7UbbEs1238g="
-    _log.debug(alice.net.unl.deconstruct(id))
 
-    exit()
 
     # ed980e5ef780d5b9ca1a6200a03302f2a91223044bc63dacc6d9f07eead663ab
     # _log.debug(_log.debug(alice.move_file_to_storage("/home/laurence/Firefox_wallpaper.png")))
@@ -719,12 +851,18 @@ if __name__ == "__main__":
     # exit()
 
     # Alice wants data from Bob.
-    alice.data_request(
+    d = alice.data_request(
         "download",
         "ed980e5ef780d5b9ca1a6200a03302f2a91223044bc63dacc6d9f07eead663ab",
-        2631451,
+        0,
         bob.net.unl.value
     )
+
+    def do_beep(ret):
+        if ret != None:
+            print("\a")
+
+    d.addCallback(do_beep)
 
     """
     alice.data_request(

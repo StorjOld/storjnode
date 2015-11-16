@@ -123,9 +123,6 @@ def _add_upload(command_parser):
     parser.add_argument(
         "data_id", help="Data ID of hosted file to upload."
     )
-    parser.add_argument(
-        "file_size", help="File size in bytes of hosted file to upload."
-    )
     parser.add_argument("node_unl", help=("UNL of the node to direct connect"
                                           " to for the transfer."))
 
@@ -137,9 +134,6 @@ def _add_download(command_parser):
     )
     parser.add_argument(
         "data_id", help="Data ID of the hosted file to download."
-    )
-    parser.add_argument(
-        "file_size", help="File size in bytes of hosted file to download."
     )
     parser.add_argument(
         "node_unl",
@@ -224,7 +218,6 @@ def command_run(node, args):
     print("Running node on port {udp_port} with id {id}".format(**args))
     print("Direct connect UNL = " + node.get_unl())
     node.add_message_handler(on_message)
-    node.process_data_transfers()
 
     while 1:
         time.sleep(1)
@@ -300,22 +293,25 @@ def command_showunl(node, args):
 
 
 def command_upload(node, args):
-    node.send_data(
+    print(args["data_id"])
+    print(args["node_unl"])
+
+    print(node.sync_request_data_transfer(
         args["data_id"],
-        int(args["file_size"]),
-        args["node_unl"]
-    )
+        args["node_unl"],
+        "send"
+    ))
 
 
 def command_download(node, args):
     print(args["data_id"])
-    print(args["file_size"])
     print(args["node_unl"])
-    node.request_data(
+
+    print(node.sync_request_data_transfer(
         args["data_id"],
-        int(args["file_size"]),
-        args["node_unl"]
-    )
+        args["node_unl"],
+        "receive"
+    ))
 
 
 def setup_node(args):
@@ -330,13 +326,18 @@ def setup_node(args):
         from storjnode.storage.manager import DEFAULT_PATHS
         store_config = DEFAULT_PATHS
 
+    passive_port = args["passive_port"] or 50200
+    passive_bind = args["passive_bind"] or "0.0.0.0"
+    node_type = args["node_type"] or "unknown"
+    nat_type = args["nat_type"] or "unknown"
+
     return storjnode.network.Node(
         node_key, port=udp_port, bootstrap_nodes=bootstrap_nodes,
         refresh_neighbours_interval=WALK_TIMEOUT,
-        passive_port=args["passive_port"],
-        passive_bind=args["passive_bind"],
-        node_type=args["node_type"],
-        nat_type=args["nat_type"],
+        passive_port=passive_port,
+        passive_bind=passive_bind,
+        node_type=node_type,
+        nat_type=nat_type,
         store_config=store_config
     )
 

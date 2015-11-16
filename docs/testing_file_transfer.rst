@@ -16,7 +16,7 @@ Alice's server is now running and will be able to process data requests.
 Sample output : UNL = ...
 
 3. Tell Bob to download Alice's file.
-> python2.7 storjnode --passive_port 50502 --storage_path /home/laurence/Storj/Bob download data_id_from_step_1 file_size_from_step_1 unl_value_from_step_2
+> python2.7 storjnode --passive_port 50502 --storage_path /home/laurence/Storj/Bob download data_id_from_step_1 unl_value_from_step_2
 
 
 
