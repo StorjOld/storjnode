@@ -1,3 +1,4 @@
+import os
 import time
 import logging
 import binascii
@@ -99,16 +100,16 @@ class _NetworkMapper(object):  # will not scale but good for now
         return self.scanned
 
 
-"""
 def render(network_map, path, name, view=True):
 
-    network = dict(map(lambda n: (n.get_hex_id(), n.get_known_peers()), nodes))
     dot = Digraph(comment=name, engine="circo")
 
     # add nodes
     for nodeid, results in network_map.items():
         nodehexid = binascii.hexlify(nodeid)
-        dot.node(nodehexid, nodehexid)
+        ip, port = results["addr"]
+        label = "%s\n%s:%i" % (nodehexid, ip, port)
+        dot.node(nodehexid, label)
 
     # add connections
     for nodeid, results in network_map.items():
@@ -119,7 +120,6 @@ def render(network_map, path, name, view=True):
 
     # render graph
     dot.render(os.path.join(path, '%s.gv' % name), view=view)
-"""
 
 
 def generate(storjnode, worker_num=32):

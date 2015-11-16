@@ -1,4 +1,6 @@
 import time
+import shutil
+import tempfile
 import random
 import unittest
 import btctxstore
@@ -48,9 +50,15 @@ class TestMapNetwork(unittest.TestCase):
             node.stop()
 
     def test_mapnetwork(self):
-        random_peer = random.choice(self.swarm)
-        netmap = storjnode.network.map.generate(random_peer)
-        self.assertTrue(isinstance(netmap, dict))
+        tempdir = tempfile.mkdtemp()
+        try:
+            random_peer = random.choice(self.swarm)
+            netmap = storjnode.network.map.generate(random_peer)
+            self.assertTrue(isinstance(netmap, dict))
+            storjnode.network.map.render(netmap, tempdir, "test_map",
+                                         view=False)
+        finally:
+            shutil.rmtree(tempdir)
 
 
 if __name__ == "__main__":
