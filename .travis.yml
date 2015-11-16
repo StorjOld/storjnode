@@ -5,21 +5,23 @@ python:
 #  - "3.3"
 #  - "3.4"
 
-# install dependencies, e.g. pip install -r requirements.txt
+virtualenv:
+  system_site_packages: true
+
+before_install:
+ - sudo apt-get install -qq graphviz
+
 install:
   - pip install -r requirements.txt
   - pip install -r test_requirements.txt
   - python setup.py install
 
-# run tests, e.g. python setup.py test
 script:
   - coverage run --source="storjnode" -m unittest --quiet tests
 
-# run coverage
 after_success:
   - coveralls
 
-# post to slack
 notifications:
   slack: storjcommunity:TZfUO9ycY8R9UYwztWZTo0jk
   email: false

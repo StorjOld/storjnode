@@ -133,7 +133,7 @@ def get_fs_type(path):
 
 
 def get_free_space(dirname):  # source http://stackoverflow.com/a/2372171
-    """Return folder/drive free space (in megabytes)."""
+    """Return folder/drive free space (in bytes)."""
     if platform.system() == 'Windows':
         free_bytes = ctypes.c_ulonglong(0)
         ctypes.windll.kernel32.GetDiskFreeSpaceExW(
@@ -160,4 +160,5 @@ def ensure_path_exists(path):
     if not os.path.exists(path):
         os.makedirs(path)
     if not os.path.exists(path):
-        raise Exception("Creating path {0} failed!".format(path))
+        msg = "Creating path {0} failed!"  # pragma: no cover
+        raise Exception(msg.format(path))  # pragma: no cover
