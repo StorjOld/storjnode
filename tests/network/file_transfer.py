@@ -19,8 +19,7 @@ _log = logging.getLogger(__name__)
 
 
 TEST_NODE = {
-    "unl": ("AWVRcVVhRXVIRlVWNGhEZWVDQ2tTcGdt"
-            "8OsG79qiBu/aohkOP1YAAAAAiJCD36pqWoo="),
+    "unl": ("AmVRcVVhRXVIRlVWNGhEZWVDQ2tTcGdt8OsG79qiBu/aoly/gdE="),
     "web": "http://162.218.239.6/"
 }
 
@@ -35,7 +34,7 @@ class TestFileTransfer(unittest.TestCase):
 
     def test_multiple_transfers(self):
 
-        def make_random_file(file_size=1024 * 1,
+        def make_random_file(file_size=1024 * 100,
                              directory=self.test_storage_dir):
             content = os.urandom(file_size)
             file_name = hashlib.sha256(content[0:64]).hexdigest()
@@ -86,12 +85,12 @@ class TestFileTransfer(unittest.TestCase):
             client.data_request(
                 "upload",
                 file_info["data_id"],
-                file_info["file_size"],
+                0,
                 TEST_NODE["unl"]
             )
 
         # Process file transfers.
-        duration = 10
+        duration = 15
         timeout = time.time() + duration
         while time.time() <= timeout or client.is_queued():
             process_transfers(client)
@@ -117,12 +116,12 @@ class TestFileTransfer(unittest.TestCase):
             client.data_request(
                 "download",
                 file_info["data_id"],
-                file_info["file_size"],
+                0,
                 TEST_NODE["unl"]
             )
 
         # Process file transfers.
-        duration = 10
+        duration = 15
         timeout = time.time() + duration
         while time.time() <= timeout or client.is_queued():
             process_transfers(client)
