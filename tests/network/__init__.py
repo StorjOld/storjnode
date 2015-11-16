@@ -1,5 +1,5 @@
-#from . file_transfer import * # NOQA
-#from . api import * # NOQA
+from . file_transfer import * # NOQA
+from . api import * # NOQA
 from . map import * # NOQA
 
 

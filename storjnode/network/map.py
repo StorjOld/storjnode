@@ -99,21 +99,27 @@ class _NetworkMapper(object):  # will not scale but good for now
         return self.scanned
 
 
-def render(nodes, name):
+"""
+def render(network_map, path, name, view=True):
+
     network = dict(map(lambda n: (n.get_hex_id(), n.get_known_peers()), nodes))
     dot = Digraph(comment=name, engine="circo")
 
     # add nodes
-    for node in network.keys():
-        dot.node(node, node)
+    for nodeid, results in network_map.items():
+        nodehexid = binascii.hexlify(nodeid)
+        dot.node(nodehexid, nodehexid)
 
     # add connections
-    for node, peers in network.items():
-        for peer in peers:
-            dot.edge(node, peer, constraint='false')
+    for nodeid, results in network_map.items():
+        nodehexid = binascii.hexlify(nodeid)
+        for peerid, ip, port in results["peers"]:
+            peerhexid = binascii.hexlify(peerid)
+            dot.edge(nodehexid, peerhexid, constraint='false')
 
     # render graph
-    dot.render('%s.gv' % name, view=True)
+    dot.render(os.path.join(path, '%s.gv' % name), view=view)
+"""
 
 
 def generate(storjnode, worker_num=32):
