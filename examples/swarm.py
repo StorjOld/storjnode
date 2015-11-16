@@ -1,6 +1,5 @@
 #!/usr/bin/python
-
-
+# from examples/swarm.py
 import sys
 import time
 import argparse
@@ -54,7 +53,7 @@ if __name__ == "__main__":
         port = arguments["ports"] + i
         node_key = btctxstore.create_key()
         peer = storjnode.network.Node(node_key, port=port,
-                                              bootstrap_nodes=bootstrap_nodes)
+                                      bootstrap_nodes=bootstrap_nodes)
         swarm.append(peer)
         print("Started peer {0} on port {1}.".format(i, port))
         time.sleep(0.2)

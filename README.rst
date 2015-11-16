@@ -109,7 +109,7 @@ Using the CLI reference implementation.
     $ storjnode run
 
     # Run node on non default port and join network.
-    $ storjnode --port=<PORT> run
+    $ storjnode --udp_port=<PORT> run
 
     # Run node with provided key, used for node id, auth and encryption
     $ storjnode --node_key=<BITCOIN WIF/HWIF> run
@@ -133,36 +133,26 @@ Starting and using a node in python.
 
     #!/usr/bin/env python
     # from examples/usage.py
-
     import time
     import storjnode
     from crochet import setup, TimeoutError
     setup()  # start twisted via crochet
 
+
     # start node (use bitcoin wif or hwif as node key)
     node_key = "KzygUeD8qXaKBFdJWMk9c6AVib89keoZFBNdFBsj73kYZfAc4n1j"
     node = storjnode.network.Node(node_key)
 
+
     print("Giving nodes some time to find peers.")
-    time.sleep(30)
+    time.sleep(storjnode.network.WALK_TIMEOUT)
+
 
     try:
         # The blocking node interface is very simple and behaves like a dict.
         node["examplekey"] = "examplevalue"  # put key value pair into DHT
         retrieved = node["examplekey"]  # retrieve value by key from DHT
         print("{key} => {value}".format(key="examplekey", value=retrieved))
-
-        # A node cannot know of the DHT size or all entries.
-        try:
-            node.items()
-        except NotImplementedError as e:
-            print(repr(e))
-
-        # A node can only write to the DHT.
-        try:
-            del node["examplekey"]
-        except NotImplementedError as e:
-            print(repr(e))
 
     except TimeoutError:
         print("Got timeout error")
@@ -183,11 +173,11 @@ different ports.
 
     #!/usr/bin/env python
     # from examples/multinode.py
-
     import time
     import storjnode
     from crochet import setup, TimeoutError
     setup()  # start twisted via crochet
+
 
     # create alice node (with bitcoin wif as node key)
     alice_key = "Kyh4a6zF1TkBZW6gyzwe7XRVtJ18Y75C2bC2d9axeWZnoUdAVXYc"
@@ -195,11 +185,12 @@ different ports.
 
     # create bob node (with bitcoin hwif as node key)
     bob_key = ("xprv9s21ZrQH143K3uzRG1qUPdYhVZG1TAxQ9bLTWZuFf1FHR5hiWuRf"
-               "o2L2ZNoUX9BW17guAbMXqHjMJXBFvuTBD2WWvRT3zNbtVJ1S7yxUvWd")
+            "o2L2ZNoUX9BW17guAbMXqHjMJXBFvuTBD2WWvRT3zNbtVJ1S7yxUvWd")
     bob_node = storjnode.network.Node(bob_key)
 
+
     print("Giving nodes some time to find peers.")
-    time.sleep(30)
+    time.sleep(storjnode.network.WALK_TIMEOUT)
 
     try:
         # use nodes
@@ -231,13 +222,15 @@ doesn't have a public ip.
 
     #!/usr/bin/env python
     # from examples/direct_message.py
-
     import time
+    import binascii
     import storjnode
     from crochet import setup, TimeoutError
     setup()  # start twisted via crochet
 
+
     # isolate nodes becaues this example fails behind a NAT
+
 
     # create alice node (with bitcoin wif as node key)
     alice_key = "Kyh4a6zF1TkBZW6gyzwe7XRVtJ18Y75C2bC2d9axeWZnoUdAVXYc"
@@ -247,28 +240,31 @@ doesn't have a public ip.
 
     # create bob node (with bitcoin hwif as node key)
     bob_key = ("xprv9s21ZrQH143K3uzRG1qUPdYhVZG1TAxQ9bLTWZuFf1FHR5hiWuRf"
-               "o2L2ZNoUX9BW17guAbMXqHjMJXBFvuTBD2WWvRT3zNbtVJ1S7yxUvWd")
+            "o2L2ZNoUX9BW17guAbMXqHjMJXBFvuTBD2WWvRT3zNbtVJ1S7yxUvWd")
     bob_node = storjnode.network.Node(
         bob_key, bootstrap_nodes=[("127.0.0.1", alice_node.port)]
     )
 
-    time.sleep(5)
+
+    # add message handler to bob node
+    def message_handler(source, message):
+        src = binascii.hexlify(source) if source is not None else "unknown"
+        print("%s from %s" % (message, src))
+    bob_node.add_message_handler(message_handler)
+
+
+    print("Giving nodes some time to find peers.")
+    time.sleep(storjnode.network.WALK_TIMEOUT)
+
 
     try:
         # send direct message (blocking call)
         alice_node.direct_message(bob_node.get_id(), "hi bob")
-        if bob_node.has_messages():
-            print("bob received:", bob_node.get_messages())
-        else:
-            print("direct message failed")
-
     except TimeoutError:
         print("Got timeout error")
-
     finally:  # stop nodes
         alice_node.stop()
         bob_node.stop()
-
 
 **Relay messages**:
 
@@ -282,38 +278,45 @@ it is connected to the network.
 
 .. code:: python
 
-    # from examples/messaging.py
+    #!/usr/bin/env python
     # from examples/relay_message.py
-
     import time
+    import binascii
     import storjnode
     from crochet import setup, TimeoutError
     setup()  # start twisted via crochet
 
+
     # create alice node (with bitcoin wif as node key)
     alice_key = "Kyh4a6zF1TkBZW6gyzwe7XRVtJ18Y75C2bC2d9axeWZnoUdAVXYc"
     alice_node = storjnode.network.Node(
-        alice_key#, bootstrap_nodes=[("240.0.0.0", 1337)]  # isolate
+        alice_key, bootstrap_nodes=[("240.0.0.0", 1337)]  # isolate
     )
+
 
     # create bob node (with bitcoin hwif as node key)
     bob_key = ("xprv9s21ZrQH143K3uzRG1qUPdYhVZG1TAxQ9bLTWZuFf1FHR5hiWuRf"
-               "o2L2ZNoUX9BW17guAbMXqHjMJXBFvuTBD2WWvRT3zNbtVJ1S7yxUvWd")
+            "o2L2ZNoUX9BW17guAbMXqHjMJXBFvuTBD2WWvRT3zNbtVJ1S7yxUvWd")
     bob_node = storjnode.network.Node(
-        bob_key#, bootstrap_nodes=[("127.0.0.1", alice_node.port)]  # isolate
+        bob_key, bootstrap_nodes=[("127.0.0.1", alice_node.port)]  # isolate
     )
 
+
+    # add message handler to bob node
+    def message_handler(source, message):
+        src = binascii.hexlify(source) if source is not None else "unknown"
+        print("%s from %s" % (message, src))
+    alice_node.add_message_handler(message_handler)
+
+
     print("Giving nodes some time to find peers.")
-    time.sleep(60)
+    time.sleep(storjnode.network.WALK_TIMEOUT)
+
 
     try:
         # send relayed message (non blocking call)
         bob_node.relay_message(alice_node.get_id(), "hi alice")
-        time.sleep(10)  # wait for it to be relayed
-        if alice_node.has_messages():
-            print("alice received:", alice_node.get_messages())
-        else:
-            print("relay message failed")
+        time.sleep(storjnode.network.WALK_TIMEOUT)  # wait for it to be relayed
 
     except TimeoutError:
         print("Got timeout error")

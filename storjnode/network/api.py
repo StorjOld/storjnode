@@ -3,6 +3,7 @@ import threading
 import binascii
 import random
 import logging
+import storjnode
 from btctxstore import BtcTxStore
 from crochet import wait_for, run_in_reactor
 from twisted.internet.task import LoopingCall
@@ -45,10 +46,10 @@ class Node(object):
                  # kademlia DHT args
                  key, ksize=20, port=None, bootstrap_nodes=None,
                  dht_storage=None, max_messages=1024,
-                 refresh_neighbours_interval=0.0,
+                 refresh_neighbours_interval=WALK_TIMEOUT,
 
                  # data transfer args
-                 disable_data_transfer=False, store_config=None,
+                 disable_data_transfer=True, store_config=None,
                  passive_port=None,
                  passive_bind=None,  # FIXME use utils.get_inet_facing_ip ?
                  node_type="unknown",  # FIMME what is this ?
@@ -80,6 +81,10 @@ class Node(object):
         self.disable_data_transfer = bool(disable_data_transfer)
         self._transfer_request_handlers = set()
         self._transfer_complete_handlers = set()
+
+        # set default store config if None given
+        if store_config is None:
+            store_config = storjnode.storage.manager.DEFAULT_STORE_CONFIG
 
         # validate port (randomish user port by default)
         port = port or random.choice(range(1024, 49151))
@@ -114,19 +119,10 @@ class Node(object):
                            refresh_neighbours_interval, bootstrap_nodes)
 
         if not self.disable_data_transfer:
-            # Setup handlers for callbacks registered via the API.
-            handlers = {
-                "complete": self._transfer_complete_handlers,
-                "request": self._transfer_request_handlers
-            }
-
-            # Setup data transfer client.
-            self._setup_data_transfer_client(handlers, store_config, passive_port,
-                                             passive_bind, node_type, nat_type,
-                                             wan_ip)
-
-            # Setup transfer loops.
-            self.process_data_transfers()
+            self._setup_data_transfer_client(
+                store_config, passive_port, passive_bind,
+                node_type, nat_type, wan_ip
+            )
 
         self._setup_message_dispatcher()
 
@@ -147,8 +143,14 @@ class Node(object):
         self.server.listen(self.port)
         self.server.bootstrap(bootstrap_nodes)
 
-    def _setup_data_transfer_client(self, handlers, store_config, passive_port,
+    def _setup_data_transfer_client(self, store_config, passive_port,
                                     passive_bind, node_type, nat_type, wan_ip):
+        # Setup handlers for callbacks registered via the API.
+        handlers = {
+            "complete": self._transfer_complete_handlers,
+            "request": self._transfer_request_handlers
+        }
+
         self._data_transfer = FileTransfer(
             net=Net(
                 net_type="direct",
@@ -168,6 +170,7 @@ class Node(object):
 
         # Setup success callback values.
         self._data_transfer.success_value = (self.sync_get_wan_ip(), self.port)
+        self.process_data_transfers()
 
     def stop(self):
         """Stop storj node."""
@@ -271,7 +274,8 @@ class Node(object):
             raise Exception("Data transfer disabled!")
 
         time.sleep(5)  # Give enough time to copy UNL.
-        LoopingCall(process_transfers, self._data_transfer).start(0.002, now=True)
+        LoopingCall(process_transfers, self._data_transfer).start(0.002,
+                                                                  now=True)
 
     ###########################
     # data transfer interface #
@@ -293,11 +297,13 @@ class Node(object):
             RequestDenied: If the peer denied your request to transfer data.
             TransferError: If the data not transfered for other reasons.
         """
-        return self._data_transfer.simple_data_request(data_id, peer_unl, direction)
+        return self._data_transfer.simple_data_request(data_id, peer_unl,
+                                                       direction)
 
         if self.disable_data_transfer:
             raise Exception("Data transfer disabled!")
 
+    @wait_for(timeout=QUERY_TIMEOUT)
     def sync_request_data_transfer(self, data_id, peer_unl, direction):
         """Request data be transfered to or from a peer.
 
@@ -312,23 +318,7 @@ class Node(object):
             RequestDenied: If the peer denied your request to transfer data.
             TransferError: If the data not transfered for other reasons.
         """
-        if self.disable_data_transfer:
-            raise Exception("Data transfer disabled!")
-
-        call_complete = 0
-        ret = None
-        def callback(result):
-            call_complete = 1
-            ret = result
-
-        d = self.async_request_data_transfer(data_id, peer_unl, direction)
-        d.addCallback(callback)
-        d.addErrback(callback)
-
-        while not call_complete:
-            time.sleep(0.5)
-
-        return ret
+        self.async_request_data_transfer(data_id, peer_unl, direction)
 
     def add_transfer_request_handler(self, handler):
         """Add an allow transfer request handler.

@@ -5,9 +5,11 @@ import storjnode
 from storjnode.common import STORJ_HOME
 
 
-DEFAULT_STORE_PATH = os.path.join(STORJ_HOME, "store")
-DEFAULT_PATHS = {DEFAULT_STORE_PATH: {"limit": 0, "use_folder_tree": False}}
 DEFAULT_SHARD_SIZE = 1024 * 1024 * 128  # 128M
+DEFAULT_STORE_PATH = os.path.join(STORJ_HOME, "store")
+DEFAULT_STORE_CONFIG = {
+    DEFAULT_STORE_PATH: {"limit": 0, "use_folder_tree": False}
+}
 
 
 _log = logging.getLogger(__name__)
@@ -49,7 +51,7 @@ def setup(store_config=None):
         normalized_paths = storjnode.storage.store.setup(store_config)
     """
     normal_paths = {}
-    store_config = store_config or DEFAULT_PATHS
+    store_config = store_config or DEFAULT_STORE_CONFIG
     for path, attributes in store_config.items():
         attributes = attributes or {}  # None allowed
 

@@ -1,10 +1,10 @@
 #!/usr/bin/env python
 # from examples/multinode.py
-
 import time
 import storjnode
 from crochet import setup, TimeoutError
 setup()  # start twisted via crochet
+
 
 # create alice node (with bitcoin wif as node key)
 alice_key = "Kyh4a6zF1TkBZW6gyzwe7XRVtJ18Y75C2bC2d9axeWZnoUdAVXYc"
@@ -15,8 +15,9 @@ bob_key = ("xprv9s21ZrQH143K3uzRG1qUPdYhVZG1TAxQ9bLTWZuFf1FHR5hiWuRf"
            "o2L2ZNoUX9BW17guAbMXqHjMJXBFvuTBD2WWvRT3zNbtVJ1S7yxUvWd")
 bob_node = storjnode.network.Node(bob_key)
 
+
 print("Giving nodes some time to find peers.")
-time.sleep(30)
+time.sleep(storjnode.network.WALK_TIMEOUT)
 
 try:
     # use nodes

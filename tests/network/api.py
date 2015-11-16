@@ -46,6 +46,7 @@ class TestNode(unittest.TestCase):
             node = storjnode.network.Node(
                 cls.btctxstore.create_wallet(), port=(PORT + i), ksize=16,
                 bootstrap_nodes=bootstrap_nodes,
+                refresh_neighbours_interval=0.0,
                 max_messages=MAX_MESSAGES,
                 store_config={STORAGE_DIR: None},
                 nat_type="preserving",
@@ -211,6 +212,7 @@ class TestNode(unittest.TestCase):
         alice_node = storjnode.network.Node(
             self.__class__.btctxstore.create_key(),
             bootstrap_nodes=[("240.0.0.0", 1337)],
+            refresh_neighbours_interval=0.0,
             max_messages=MAX_MESSAGES,
             store_config={STORAGE_DIR: None},
             nat_type="preserving",
@@ -223,6 +225,7 @@ class TestNode(unittest.TestCase):
         bob_node = storjnode.network.Node(
             self.__class__.btctxstore.create_key(),
             bootstrap_nodes=[("127.0.0.1", alice_node.port)],
+            refresh_neighbours_interval=0.0,
             max_messages=MAX_MESSAGES,
             store_config={STORAGE_DIR: None},
             nat_type="preserving",
@@ -321,6 +324,7 @@ class TestNode(unittest.TestCase):
         peer = storjnode.network.Node(
             self.__class__.btctxstore.create_wallet(),
             bootstrap_nodes=[("240.0.0.0", 1337)],  # isolated peer
+            refresh_neighbours_interval=0.0,
             max_messages=MAX_MESSAGES,
             store_config={STORAGE_DIR: None},
             nat_type="preserving",
@@ -340,6 +344,7 @@ class TestNode(unittest.TestCase):
         alice_node = storjnode.network.Node(
             self.__class__.btctxstore.create_key(),
             bootstrap_nodes=[("240.0.0.0", 1337)],
+            refresh_neighbours_interval=0.0,
             max_messages=MAX_MESSAGES,
             store_config={STORAGE_DIR: None},
             nat_type="preserving",
@@ -352,6 +357,7 @@ class TestNode(unittest.TestCase):
         bob_node = storjnode.network.Node(
             self.__class__.btctxstore.create_key(),
             bootstrap_nodes=[("127.0.0.1", alice_node.port)],
+            refresh_neighbours_interval=0.0,
             max_messages=MAX_MESSAGES,
             store_config={STORAGE_DIR: None},
             nat_type="preserving",
@@ -377,6 +383,7 @@ class TestNode(unittest.TestCase):
         alice_node = storjnode.network.Node(
             self.__class__.btctxstore.create_key(),
             bootstrap_nodes=[("240.0.0.0", 1337)],
+            refresh_neighbours_interval=0.0,
             max_messages=MAX_MESSAGES,
             store_config={STORAGE_DIR: None},
             nat_type="preserving",
@@ -387,6 +394,7 @@ class TestNode(unittest.TestCase):
         bob_node = storjnode.network.Node(
             self.__class__.btctxstore.create_key(),
             bootstrap_nodes=[("127.0.0.1", alice_node.port)],
+            refresh_neighbours_interval=0.0,
             max_messages=MAX_MESSAGES,
             store_config={STORAGE_DIR: None},
             nat_type="preserving",
