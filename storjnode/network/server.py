@@ -1,4 +1,5 @@
 import time
+import datetime
 import threading
 import btctxstore
 import binascii
@@ -174,11 +175,13 @@ class StorjServer(Server):
         self.log.debug("Failed to relay message for %s" % dest_hexid)
 
     def _refresh_loop(self):
+        last_refresh = datetime.datetime.now()
+        interval = datetime.timedelta(seconds=self._refresh_neighbours_interval)
         while not self._refresh_thread_stop:
-            # sleep first because of initial bootstrap
-            # FIXME loop quicker by saving next refresh time, for faster stop
-            time.sleep(self._refresh_neighbours_interval)
-            self.refresh_neighbours()
+            if (datetime.datetime.now() - last_refresh) > interval:
+                self.refresh_neighbours()
+                last_refresh = datetime.datetime.now()
+            time.sleep(0.05)
 
     def _relay_loop(self):
         while not self._relay_thread_stop:

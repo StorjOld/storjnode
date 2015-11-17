@@ -1,4 +1,5 @@
 import time
+import signal
 import binascii
 import argparse
 import storjnode
@@ -9,7 +10,10 @@ from storjnode.network import WALK_TIMEOUT
 from storjnode.storage.manager import DEFAULT_STORE_PATH
 from pyp2p.unl import UNL
 from crochet import setup, TimeoutError
+
+
 setup()  # start twisted via crochet
+signal.signal(signal.SIGINT, signal.default_int_handler)
 
 
 def _add_programm_args(parser):
@@ -28,10 +32,13 @@ def _add_programm_args(parser):
                               " when nodes direct connect."))
 
     parser.add_argument("--node_type", default=default,
-                        help=("Direct conncet node details. Passive = port is forwarded, simultaneous = predictable type NAT, active = everything else."))
+                        help=("Direct conncet node details. Passive = port is"
+                              " forwarded, simultaneous = predictable type"
+                              " NAT, active = everything else."))
 
     parser.add_argument("--nat_type", default=default,
-                        help=("Defines the node's NAT type. reuse, preserving, random, or delta"))
+                        help=("Defines the node's NAT type. reuse,"
+                              " preserving, random, or delta"))
 
     default = DEFAULT_STORE_PATH
     msg = "Where to store files hosted, default: {0}."
@@ -216,7 +223,8 @@ def command_run(node, args):
     args["id"] = binascii.hexlify(node.get_id())
     args["udp_port"] = node.port
     print("Running node on port {udp_port} with id {id}".format(**args))
-    print("Direct connect UNL = " + node.get_unl())
+    if not node.disable_data_transfer:
+        print("Direct connect UNL = " + node.get_unl())
     node.add_message_handler(on_message)
 
     while 1:
@@ -357,24 +365,28 @@ def main(args):
 
     # setup
     node = setup_node(args)
-    if args["skip_dht_bootstrap"] is None:
-        print("Waiting %fsec to find peers ..." % WALK_TIMEOUT)
-        time.sleep(WALK_TIMEOUT)
+    try:
+        if args["skip_dht_bootstrap"] is None:
+            print("Waiting %fsec to find peers ..." % WALK_TIMEOUT)
+            time.sleep(WALK_TIMEOUT)
 
-    # run command
-    {
-        "run": command_run,
-        "put": command_put,
-        "get": command_get,
-        "direct_message": command_direct_message,
-        "relay_message": command_relay_message,
-        "showid": command_showid,
-        "showtype": command_showtype,
-        "host_file": command_host_file,
-        "showunl": command_showunl,
-        "upload": command_upload,
-        "download": command_download,
-    }[command](node, args)
+        # run command
+        {
+            "run": command_run,
+            "put": command_put,
+            "get": command_get,
+            "direct_message": command_direct_message,
+            "relay_message": command_relay_message,
+            "showid": command_showid,
+            "showtype": command_showtype,
+            "host_file": command_host_file,
+            "showunl": command_showunl,
+            "upload": command_upload,
+            "download": command_download,
+        }[command](node, args)
 
-    print("Stopping node")
-    node.stop()
+    except KeyboardInterrupt:
+        pass  # shutdown in finally
+    finally:
+        print("Stopping node")
+        node.stop()
