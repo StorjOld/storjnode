@@ -1,3 +1,7 @@
+v0.0.10
+
+ * Stop gracefully on SIGINT
+
 v0.0.9
 
  * Added network crawler.

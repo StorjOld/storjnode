@@ -13,7 +13,7 @@ from crochet import setup, TimeoutError
 
 
 setup()  # start twisted via crochet
-signal.signal(signal.SIGINT, signal.default_int_handler)
+signal.signal(signal.SIGINT, signal.default_int_handler)  # rm twisted handler
 
 
 def _add_programm_args(parser):
