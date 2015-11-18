@@ -1,3 +1,4 @@
+v0.0.11
 
  * Updated examples to handle SIGINT gracefully.
  * Windows friendly graphviz usage.

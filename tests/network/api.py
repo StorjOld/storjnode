@@ -21,7 +21,7 @@ signal.signal(signal.SIGINT, signal.default_int_handler)
 _log = logging.getLogger(__name__)
 
 # change timeouts because everything is local
-QUERY_TIMEOUT = QUERY_TIMEOUT / 2
+QUERY_TIMEOUT = QUERY_TIMEOUT
 WALK_TIMEOUT = WALK_TIMEOUT / 4
 
 SWARM_SIZE = 32
@@ -244,10 +244,10 @@ class TestNode(unittest.TestCase):
         time.sleep(QUERY_TIMEOUT)  # wait until network overlay stable, 2 peers
         try:
             alice_node.relay_message(bob_node.get_id(), "hi bob")
-            time.sleep(QUERY_TIMEOUT)  # wait until relayed
+            bob_received.wait(timeout=QUERY_TIMEOUT)
             self.assertTrue(bob_received.isSet())
             bob_node.relay_message(alice_node.get_id(), "hi alice")
-            time.sleep(QUERY_TIMEOUT)  # wait until relayed
+            alice_received.wait(timeout=QUERY_TIMEOUT)
             self.assertTrue(alice_received.isSet())
         finally:
             alice_node.stop()
