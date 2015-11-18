@@ -1,3 +1,7 @@
+v0.0.12
+
+ * Fixed wheel shebang
+
 v0.0.11
 
  * Updated examples to handle SIGINT gracefully.
