@@ -1,14 +1,15 @@
 #!/usr/bin/env python
-# from examples/direct_message.py
 import time
+import signal
 import binascii
 import storjnode
 from crochet import setup, TimeoutError
-setup()  # start twisted via crochet
 
+# start twisted via crochet and remove twisted handler
+setup()
+signal.signal(signal.SIGINT, signal.default_int_handler)
 
 # isolate nodes becaues this example fails behind a NAT
-
 
 # create alice node (with bitcoin wif as node key)
 alice_key = "Kyh4a6zF1TkBZW6gyzwe7XRVtJ18Y75C2bC2d9axeWZnoUdAVXYc"
@@ -23,23 +24,26 @@ bob_node = storjnode.network.Node(
     bob_key, bootstrap_nodes=[("127.0.0.1", alice_node.port)]
 )
 
-
-# add message handler to bob node
-def message_handler(source, message):
-    src = binascii.hexlify(source) if source is not None else "unknown"
-    print("%s from %s" % (message, src))
-bob_node.add_message_handler(message_handler)
-
-
-print("Giving nodes some time to find peers.")
-time.sleep(storjnode.network.WALK_TIMEOUT)
-
-
 try:
+    # add message handler to bob node
+    def message_handler(source, message):
+        src = binascii.hexlify(source) if source is not None else "unknown"
+        print("%s from %s" % (message, src))
+    bob_node.add_message_handler(message_handler)
+
+    print("Giving nodes some time to find peers.")
+    time.sleep(storjnode.network.WALK_TIMEOUT)
+
     # send direct message (blocking call)
     alice_node.direct_message(bob_node.get_id(), "hi bob")
+
 except TimeoutError:
     print("Got timeout error")
-finally:  # stop nodes
+
+except KeyboardInterrupt:
+    pass
+
+finally:
+    print("Stopping nodes")
     alice_node.stop()
     bob_node.stop()

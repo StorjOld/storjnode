@@ -56,8 +56,7 @@ class TestMapNetwork(unittest.TestCase):
             random_peer = random.choice(self.swarm)
             netmap = storjnode.network.map.generate(random_peer)
             self.assertTrue(isinstance(netmap, dict))
-            storjnode.network.map.render(netmap, tempdir, "test_map",
-                                         view=False)
+            storjnode.network.map.render(netmap, path=tempdir, name="test_map")
         finally:
             shutil.rmtree(tempdir)
 

@@ -1,12 +1,15 @@
 #!/usr/bin/python
-# from examples/swarm.py
 import sys
 import time
 import argparse
+import signal
 import storjnode
 from btctxstore import BtcTxStore
 from crochet import setup
-setup()  # start twisted via crochet
+
+# start twisted via crochet and remove twisted handler
+setup()
+signal.signal(signal.SIGINT, signal.default_int_handler)
 
 
 def _parse_args(args):
@@ -48,17 +51,26 @@ if __name__ == "__main__":
         bootstrap_nodes = [("127.0.0.1", arguments["ports"])]
 
     swarm = []
-    btctxstore = BtcTxStore(testnet=False)
-    for i in range(arguments["size"]):
-        port = arguments["ports"] + i
-        node_key = btctxstore.create_key()
-        peer = storjnode.network.Node(node_key, port=port,
-                                      bootstrap_nodes=bootstrap_nodes)
-        swarm.append(peer)
-        print("Started peer {0} on port {1}.".format(i, port))
-        time.sleep(0.2)
+    try:
+        btctxstore = BtcTxStore(testnet=False)
+        for i in range(arguments["size"]):
+            port = arguments["ports"] + i
+            node_key = btctxstore.create_key()
+            peer = storjnode.network.Node(node_key, port=port,
+                                          bootstrap_nodes=bootstrap_nodes)
+            swarm.append(peer)
+            print("Started peer {0} on port {1}.".format(i, port))
+            time.sleep(0.2)
 
-    # serve forever
-    print("Running swarm with {0} ...".format(len(swarm)))
-    while True:
-        time.sleep(1)
+        # serve forever
+        print("Running swarm with {0} ...".format(len(swarm)))
+        while True:
+            time.sleep(1)
+
+    except KeyboardInterrupt:
+        pass
+
+    finally:
+        print("Stopping nodes")
+        for node in swarm:
+            node.stop()

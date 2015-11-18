@@ -1,6 +1,10 @@
+
+ * Updated examples to handle SIGINT gracefully.
+ * Windows friendly graphviz usage.
+
 v0.0.10
 
- * Stop gracefully on SIGINT
+ * Stop gracefully on SIGINT.
 
 v0.0.9
 
@@ -8,7 +12,7 @@ v0.0.9
  * Added config module.
  * Added storage module.
  * Imporoved relay and direct messageing.
- * Randomized default port
+ * Randomized default port.
 
 v0.0.8
 
