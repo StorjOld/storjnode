@@ -36,6 +36,7 @@ class StorjServer(Server):
             storage: implements :interface:`~kademlia.storage.IStorage`
             refresh_neighbours_interval (float): Auto refresh neighbours.
         """
+        self.thread_sleep_time = 0.02
         self._default_hop_limit = default_hop_limit
         self._refresh_neighbours_interval = refresh_neighbours_interval
 
@@ -181,14 +182,14 @@ class StorjServer(Server):
             if (datetime.datetime.now() - last_refresh) > interval:
                 self.refresh_neighbours()
                 last_refresh = datetime.datetime.now()
-            time.sleep(0.002)
+            time.sleep(self.thread_sleep_time)
 
     def _relay_loop(self):
         while not self._relay_thread_stop:
             # FIXME use worker pool to process queue
             for entry in util.empty_queue(self.protocol.messages_relay):
                 self._relay_message(entry)
-            time.sleep(0.002)
+            time.sleep(self.thread_sleep_time)
 
     def direct_message(self, nodeid, message):
         """Send direct message to a node.

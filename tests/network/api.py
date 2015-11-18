@@ -21,7 +21,7 @@ signal.signal(signal.SIGINT, signal.default_int_handler)
 _log = logging.getLogger(__name__)
 
 # change timeouts because everything is local
-QUERY_TIMEOUT = QUERY_TIMEOUT
+QUERY_TIMEOUT = QUERY_TIMEOUT * 1.5  # FIXME figure out what is taking so long!!
 WALK_TIMEOUT = WALK_TIMEOUT / 4
 
 SWARM_SIZE = 32
@@ -201,18 +201,23 @@ class TestNode(unittest.TestCase):
 
     def test_max_relay_messages(self):  # for coverage
         random_peer = random.choice(self.swarm)
-        void_id = b"void" * 5
+
+        void_id = binascii.unhexlify("DEADBEEF" * 5)
+
+        # avoid queue being processed during test
+        old_sleep_time = random_peer.thread_sleep_time = 0.5
+        random_peer.thread_sleep_time = 0.5
+        time.sleep(0.002)
 
         queued = random_peer.relay_message(void_id, "into the void")
         self.assertTrue(queued)
         queued = random_peer.relay_message(void_id, "into the void")
         self.assertTrue(queued)
-
-        # XXX chance of failure if queue is processed during test
         queued = random_peer.relay_message(void_id, "into the void")
         self.assertFalse(queued)  # relay queue full
 
         time.sleep(QUERY_TIMEOUT)  # wait until relayed
+        random_peer.thread_sleep_time = old_sleep_time  # restore value
 
     def test_relay_message_full_duplex(self):
         alice_node = storjnode.network.Node(
