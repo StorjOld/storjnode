@@ -39,6 +39,7 @@ class StorjServer(Server):
         self.thread_sleep_time = 0.02
         self._default_hop_limit = default_hop_limit
         self._refresh_neighbours_interval = refresh_neighbours_interval
+        self._cached_id = None
 
         # TODO validate key is valid wif/hwif for mainnet or testnet
         testnet = False  # FIXME get from wif/hwif
@@ -91,8 +92,11 @@ class StorjServer(Server):
         self.bootstrap(self.bootstrappableNeighbors())
 
     def get_id(self):
+        if self._cached_id is not None:
+            return self._cached_id
         address = self._btctxstore.get_address(self.key)
-        return a2b_hashed_base58(address)[1:]  # remove network prefix
+        self._cached_id = a2b_hashed_base58(address)[1:]  # rm network prefix
+        return self._cached_id
 
     def get_known_peers(self):
         """Returns list of known node."""

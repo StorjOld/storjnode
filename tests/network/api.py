@@ -1,4 +1,6 @@
 import os
+import cProfile
+from pstats import Stats
 import signal
 import threading
 import tempfile
@@ -21,8 +23,8 @@ signal.signal(signal.SIGINT, signal.default_int_handler)
 _log = logging.getLogger(__name__)
 
 # change timeouts because everything is local
-QUERY_TIMEOUT = QUERY_TIMEOUT * 1.5  # FIXME figure out what is taking so long!!
-WALK_TIMEOUT = WALK_TIMEOUT / 4
+QUERY_TIMEOUT = QUERY_TIMEOUT / 1.0  # FIXME figure out what is taking so long!!
+WALK_TIMEOUT = WALK_TIMEOUT / 4.0
 
 SWARM_SIZE = 32
 MAX_MESSAGES = 2
@@ -35,6 +37,8 @@ class TestNode(unittest.TestCase):
 
     @classmethod
     def setUpClass(cls):
+        cls.profile = cProfile.Profile()
+        cls.profile.enable()
 
         print("TEST: creating swarm")
         cls.btctxstore = btctxstore.BtcTxStore(testnet=False)
@@ -84,6 +88,11 @@ class TestNode(unittest.TestCase):
         for node in cls.swarm:
             node.stop()
         shutil.rmtree(STORAGE_DIR)
+
+        stats = Stats(cls.profile)
+        stats.strip_dirs()
+        stats.sort_stats('cumtime')
+        stats.print_stats()
 
     #################################
     # test util and debug functions #
@@ -184,14 +193,13 @@ class TestNode(unittest.TestCase):
         self._test_relay_message(sender, receiver, False)
 
     def test_relay_messaging(self):
-        senders = self.swarm[:]
+        senders, receivers = storjnode.util.baskets(self.swarm, 2)
         random.shuffle(senders)
-        receivers = self.swarm[:]
         random.shuffle(receivers)
         for sender, receiver in zip(senders, receivers):
             msg = "TEST: sending relay message from {0} to {1}"
             print(msg.format(sender.get_hex_id(), receiver.get_hex_id()))
-            self._test_relay_message(sender, receiver, sender is not receiver)
+            self._test_relay_message(sender, receiver, True)
 
     def test_relay_message_to_void(self):  # for coverage
         random_peer = random.choice(self.swarm)
@@ -322,14 +330,13 @@ class TestNode(unittest.TestCase):
         self._test_direct_message(sender, receiver, False)
 
     def test_direct_messaging(self):
-        senders = self.swarm[:]
+        senders, receivers = storjnode.util.baskets(self.swarm, 2)
         random.shuffle(senders)
-        receivers = self.swarm[:]
         random.shuffle(receivers)
         for sender, receiver in zip(senders, receivers):
             msg = "TEST: sending direct message from {0} to {1}"
             print(msg.format(sender.get_hex_id(), receiver.get_hex_id()))
-            self._test_direct_message(sender, receiver, sender is not receiver)
+            self._test_direct_message(sender, receiver, True)
 
     def test_direct_message_to_void(self):  # for coverage
         peer = storjnode.network.Node(
