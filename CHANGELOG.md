@@ -1,5 +1,9 @@
 v0.0.12
 
+ * Fixed setup and script file
+
+v0.0.12
+
  * Fixed wheel shebang
 
 v0.0.11
