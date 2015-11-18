@@ -12,6 +12,7 @@ import logging
 from pyp2p.lib import get_wan_ip
 from storjnode.network.server import QUERY_TIMEOUT, WALK_TIMEOUT
 from crochet import setup
+
 setup()  # start twisted via crochet
 
 
@@ -19,8 +20,8 @@ _log = logging.getLogger(__name__)
 
 
 # change timeouts because everything is local
-QUERY_TIMEOUT = QUERY_TIMEOUT / 2
-WALK_TIMEOUT = WALK_TIMEOUT / 2
+QUERY_TIMEOUT = QUERY_TIMEOUT
+WALK_TIMEOUT = WALK_TIMEOUT / 4
 
 SWARM_SIZE = 64  # tested up to 256
 MAX_MESSAGES = 2
