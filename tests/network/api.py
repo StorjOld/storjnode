@@ -1,4 +1,5 @@
 import os
+import signal
 import threading
 import tempfile
 import time
@@ -13,15 +14,18 @@ from pyp2p.lib import get_wan_ip
 from storjnode.network.server import QUERY_TIMEOUT, WALK_TIMEOUT
 from crochet import setup
 
-setup()  # start twisted via crochet
+
+# start twisted via crochet and remove twisted handler
+setup()
+signal.signal(signal.SIGINT, signal.default_int_handler)
 
 
 _log = logging.getLogger(__name__)
 
 
 # change timeouts because everything is local
-QUERY_TIMEOUT = QUERY_TIMEOUT
-WALK_TIMEOUT = WALK_TIMEOUT / 4
+QUERY_TIMEOUT = QUERY_TIMEOUT / 2
+WALK_TIMEOUT = WALK_TIMEOUT / 2
 
 SWARM_SIZE = 64  # tested up to 256
 MAX_MESSAGES = 2
@@ -120,10 +124,10 @@ class TestNode(unittest.TestCase):
         time.sleep(interval * 2)  # wait until network overlay stable, 2 peers
         try:
             alice_node.direct_message(bob_node.get_id(), "hi bob")
-            time.sleep(0.1)  # wait for despatcher
+            time.sleep(0.01)  # wait for despatcher
             self.assertTrue(bob_received.isSet())
             bob_node.direct_message(alice_node.get_id(), "hi alice")
-            time.sleep(0.1)  # wait for despatcher
+            time.sleep(0.01)  # wait for despatcher
             self.assertTrue(alice_received.isSet())
         finally:
             alice_node.stop()
@@ -149,16 +153,20 @@ class TestNode(unittest.TestCase):
         testmessage = binascii.hexlify(os.urandom(32))
         receiver_id = receiver.get_id()
         sender.relay_message(receiver_id, testmessage)
+
+        received_event = threading.Event()
+
+        def handler(source, message):
+            received.append({"source": source, "message": message})
         received = []
-        receiver.add_message_handler(lambda s, m: received.append(
-            {"source": s, "message": m}
-        ))
-        time.sleep(QUERY_TIMEOUT)  # wait until relayed
+        receiver.add_message_handler(handler)
 
         if not success_expected:
+            time.sleep(QUERY_TIMEOUT)  # wait until relayed
             self.assertEqual(len(received), 0)
 
         else:  # success expected
+            received_event.wait(timeout=QUERY_TIMEOUT)
 
             # check one message received
             self.assertEqual(len(received), 1)
@@ -269,7 +277,7 @@ class TestNode(unittest.TestCase):
         ))
 
         sender_address = sender.direct_message(receiver_id, testmessage)
-        time.sleep(0.1)  # wait for despatcher
+        time.sleep(0.01)  # wait for despatcher
 
         if not success_expected:
             self.assertTrue(sender_address is None)  # was not received

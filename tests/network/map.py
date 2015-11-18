@@ -1,5 +1,5 @@
+import os
 import time
-import shutil
 import tempfile
 import random
 import unittest
@@ -51,14 +51,14 @@ class TestMapNetwork(unittest.TestCase):
             node.stop()
 
     def test_mapnetwork(self):
-        tempdir = tempfile.mkdtemp()
+        path = tempfile.mktemp()
         try:
             random_peer = random.choice(self.swarm)
             netmap = storjnode.network.map.generate(random_peer)
             self.assertTrue(isinstance(netmap, dict))
-            storjnode.network.map.render(netmap, path=tempdir, name="test_map")
+            storjnode.network.map.render(netmap, path=path)
         finally:
-            shutil.rmtree(tempdir)
+            os.remove(path)
 
 
 if __name__ == "__main__":
