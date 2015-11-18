@@ -51,8 +51,6 @@ def cleanup_cons(client):
 
     # Remove old connections.
     with client.mutex:
-        print(old_cons)
-        print("\a")
         for con in old_cons:
             client.cons.remove(con)
 
