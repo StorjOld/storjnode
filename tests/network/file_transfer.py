@@ -1,4 +1,5 @@
 import storjnode
+from storjnode.network.api import DEFAULT_BOOTSTRAP_NODES
 from storjnode.network.file_transfer import FileTransfer
 from storjnode.network.process_transfers import process_transfers
 from storjnode.util import address_to_node_id
@@ -55,18 +56,24 @@ class TestFileTransfer(unittest.TestCase):
         store_config = {
             os.path.join(self.test_storage_dir, "storage"): {"limit": 0}
         }
+        dht_node = pyp2p.dht_msg.DHT(node_id=node_id)
+        #dht_node = storjnode.network.Node(wif, bootstrap_nodes=DEFAULT_BOOTSTRAP_NODES).server
         client = FileTransfer(
             pyp2p.net.Net(
                 node_type="simultaneous",
                 nat_type="preserving",
                 net_type="direct",
                 passive_port=60400,
-                dht_node=pyp2p.dht_msg.DHT(node_id=node_id),
+                dht_node=dht_node,
                 debug=1
             ),
             wif=wif,
             store_config=store_config
         )
+
+
+        print("Giving nodes some time to find peers.")
+        time.sleep(storjnode.network.WALK_TIMEOUT)
 
         _log.debug("Net started")
 

@@ -155,12 +155,15 @@ class Node(object):
         wallet = BtcTxStore(testnet=False, dryrun=True)
         wif = self.get_key()
         node_id = address_to_node_id(wallet.get_address(wif))
+        #dht_node = SimDHT(node_id=node_id)
+        dht_node = self.server
+
         self._data_transfer = FileTransfer(
             net=Net(
                 net_type="direct",
                 node_type=node_type,
                 nat_type=nat_type,
-                dht_node=SimDHT(node_id=node_id),
+                dht_node=dht_node,
                 debug=1,
                 passive_port=passive_port,
                 passive_bind=passive_bind,

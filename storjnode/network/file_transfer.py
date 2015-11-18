@@ -3,6 +3,7 @@ import pyp2p.net
 import pyp2p.dht_msg
 import logging
 import storjnode.storage as storage
+import storjnode
 from storjnode.util import address_to_node_id
 from storjnode.network.process_transfers import process_transfers
 from collections import OrderedDict
@@ -30,7 +31,7 @@ class FileTransfer:
         self.success_value = ("127.0.0.1", 7777)
 
         # Used for signing messages.
-        self.wallet = BtcTxStore(testnet=True, dryrun=True)
+        self.wallet = BtcTxStore(testnet=False, dryrun=True)
         self.wif = wif or self.wallet.create_key()
 
         # Where will the data be stored?
@@ -335,15 +336,21 @@ class FileTransfer:
             fp.write(chunk)
 
 if __name__ == "__main__":
+    from crochet import setup
+    setup()
+
     # Alice sample node.
-    alice_wallet = BtcTxStore(testnet=True, dryrun=True)
+    alice_wallet = BtcTxStore(testnet=False, dryrun=True)
     alice_wif = alice_wallet.create_key()
     alice_node_id = address_to_node_id(alice_wallet.get_address(alice_wif))
     # print(type(alice_node_id))
     alice_dht_node = pyp2p.dht_msg.DHT(node_id=alice_node_id)
     # print(alice_dht_node.get_id())
-
-
+    alice_dht_node = storjnode.network.Node(
+        alice_wif, bootstrap_nodes=[("240.0.0.0", 1337)]
+    )
+    alice_dht_node_port = alice_dht_node.port
+    alice_dht_node = alice_dht_node.server
 
     alice = FileTransfer(
         pyp2p.net.Net(
@@ -384,7 +391,7 @@ if __name__ == "__main__":
     }
 
     # Bob sample node.
-    bob_wallet = BtcTxStore(testnet=True, dryrun=True)
+    bob_wallet = BtcTxStore(testnet=False, dryrun=True)
     bob_wif = bob_wallet.create_key()
     bob_node_id = address_to_node_id(bob_wallet.get_address(bob_wif))
 
@@ -395,8 +402,10 @@ if __name__ == "__main__":
     bob_dht = pyp2p.dht_msg.DHT(node_id=bob_node_id)
     print(bob_dht.password)
 
-    exit()
-
+    #exit()
+    bob_dht = storjnode.network.Node(
+        bob_wif, bootstrap_nodes=[("127.0.0.1", alice_dht_node_port)]
+    ).server
 
     bob = FileTransfer(
         pyp2p.net.Net(
@@ -418,6 +427,9 @@ if __name__ == "__main__":
 
     _log.debug(type(alice.net.unl))
     _log.debug(type(pyp2p.unl.UNL(value=bob.net.unl.value)))
+
+    print("Giving nodes some time to find peers.")
+    time.sleep(storjnode.network.WALK_TIMEOUT)
 
     # exit()
 
@@ -453,5 +465,5 @@ if __name__ == "__main__":
                 _log.debug("Bob")
             process_transfers(client)
 
-        time.sleep(0.002)
+        time.sleep(0.5)
 

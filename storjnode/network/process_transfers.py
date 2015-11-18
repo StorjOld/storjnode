@@ -61,9 +61,9 @@ def expire_handshakes(client):
         if contract_id in client.handshake:
             handshake = client.handshake[contract_id]
             elapsed = time.time() - handshake["timestamp"]
-            if elapsed >= 30:
+            if elapsed >= 350: # Tree fiddy. 'bout 6 mins.
                 if contract_id in client.defers:
-                    e = RequestDenied("Handshake timed out.")
+                    e = Exception("Handshake timed out.")
                     client.defers[contract_id].errback(e)
                     del client.defers[contract_id]
 

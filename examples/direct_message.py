@@ -38,6 +38,7 @@ time.sleep(storjnode.network.WALK_TIMEOUT)
 try:
     # send direct message (blocking call)
     alice_node.direct_message(bob_node.get_id(), "hi bob")
+    bob_node.direct_message(alice_node.get_id(), "hi alice")
 except TimeoutError:
     print("Got timeout error")
 finally:  # stop nodes
