@@ -60,7 +60,7 @@ if __name__ == "__main__":
                                           bootstrap_nodes=bootstrap_nodes)
             swarm.append(peer)
             print("Started peer {0} on port {1}.".format(i, port))
-            time.sleep(0.2)
+            time.sleep(0.1)
 
         # serve forever
         print("Running swarm with {0} ...".format(len(swarm)))

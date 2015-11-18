@@ -491,7 +491,7 @@ class Node(object):
             for received in self.server.get_messages():
                 for handler in self._message_handlers:
                     self._dispatch_message(received, handler)
-            time.sleep(0.05)
+            time.sleep(0.002)
 
     def add_message_handler(self, handler):
         """Add message handler to be call when a message is received.

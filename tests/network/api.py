@@ -14,20 +14,17 @@ from pyp2p.lib import get_wan_ip
 from storjnode.network.server import QUERY_TIMEOUT, WALK_TIMEOUT
 from crochet import setup
 
-
 # start twisted via crochet and remove twisted handler
 setup()
 signal.signal(signal.SIGINT, signal.default_int_handler)
 
-
 _log = logging.getLogger(__name__)
 
-
 # change timeouts because everything is local
-QUERY_TIMEOUT = QUERY_TIMEOUT / 2
-WALK_TIMEOUT = WALK_TIMEOUT / 2
+QUERY_TIMEOUT = QUERY_TIMEOUT / 4
+WALK_TIMEOUT = WALK_TIMEOUT / 4
 
-SWARM_SIZE = 64  # tested up to 256
+SWARM_SIZE = 32
 MAX_MESSAGES = 2
 PORT = 3000
 STORAGE_DIR = tempfile.mkdtemp()
@@ -49,7 +46,7 @@ class TestNode(unittest.TestCase):
 
             # create node
             node = storjnode.network.Node(
-                cls.btctxstore.create_wallet(), port=(PORT + i), ksize=16,
+                cls.btctxstore.create_wallet(), port=(PORT + i), ksize=8,
                 bootstrap_nodes=bootstrap_nodes,
                 refresh_neighbours_interval=0.0,
                 max_messages=MAX_MESSAGES,
@@ -452,12 +449,19 @@ class TestNode(unittest.TestCase):
             found_value = random_peer[key]
             self.assertEqual(found_value, inserted_value)
 
-    ######################
-    # test data transfer #
-    ######################
+    ########################
+    # test network mapping #
+    ########################
 
-    # TODO test data transfer
-
+    def test_mapnetwork(self):
+        path = tempfile.mktemp()
+        try:
+            random_peer = random.choice(self.swarm)
+            netmap = storjnode.network.map.generate(random_peer)
+            self.assertTrue(isinstance(netmap, dict))
+            storjnode.network.map.render(netmap, path=path)
+        finally:
+            os.remove(path)
 
 if __name__ == "__main__":
     unittest.main()

@@ -181,14 +181,14 @@ class StorjServer(Server):
             if (datetime.datetime.now() - last_refresh) > interval:
                 self.refresh_neighbours()
                 last_refresh = datetime.datetime.now()
-            time.sleep(0.05)
+            time.sleep(0.002)
 
     def _relay_loop(self):
         while not self._relay_thread_stop:
             # FIXME use worker pool to process queue
             for entry in util.empty_queue(self.protocol.messages_relay):
                 self._relay_message(entry)
-            time.sleep(0.05)
+            time.sleep(0.002)
 
     def direct_message(self, nodeid, message):
         """Send direct message to a node.
