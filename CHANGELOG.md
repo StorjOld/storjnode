@@ -1,4 +1,8 @@
-v0.0.12
+v0.0.14
+
+ * Fixed wheel shebang
+
+v0.0.13
 
  * Fixed setup and script file
 
