@@ -1,5 +1,7 @@
 import storjnode
-from storjnode.network.file_transfer import FileTransfer, process_transfers
+from storjnode.network.file_transfer import FileTransfer
+from storjnode.network.process_transfers import process_transfers
+from storjnode.util import address_to_node_id
 import storjnode.storage as storage
 import btctxstore
 import pyp2p
@@ -19,7 +21,7 @@ _log = logging.getLogger(__name__)
 
 
 TEST_NODE = {
-    "unl": ("AmVRcVVhRXVIRlVWNGhEZWVDQ2tTcGdt8OsG79qiBu/aoly/gdE="),
+    "unl": ("AvD/2NXDClGdNzd2rEhy0eHW9MpWcGdt8OsG79qiBu/aoiXUeGQ="),
     "web": "http://162.218.239.6/"
 }
 
@@ -49,6 +51,7 @@ class TestFileTransfer(unittest.TestCase):
         # Sample node.
         wallet = btctxstore.BtcTxStore(testnet=True, dryrun=True)
         wif = wallet.get_key(wallet.create_wallet())
+        node_id = address_to_node_id(wallet.get_address(wif))
         store_config = {
             os.path.join(self.test_storage_dir, "storage"): {"limit": 0}
         }
@@ -58,7 +61,7 @@ class TestFileTransfer(unittest.TestCase):
                 nat_type="preserving",
                 net_type="direct",
                 passive_port=60400,
-                dht_node=pyp2p.dht_msg.DHT(),
+                dht_node=pyp2p.dht_msg.DHT(node_id=node_id),
                 debug=1
             ),
             wif=wif,

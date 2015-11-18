@@ -4,7 +4,12 @@ import platform
 import psutil
 import socket
 from crochet import wait_for
+from pycoin.encoding import a2b_hashed_base58
 
+
+def address_to_node_id(address):
+    # e.g. address = api.get_address(wif)
+    return a2b_hashed_base58(address)[1:]
 
 def full_path(path):
     """Resolves, sym links, rel paths, variables, and tilds to abs paths."""

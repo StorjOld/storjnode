@@ -7,12 +7,13 @@ import storjnode
 from btctxstore import BtcTxStore
 from crochet import wait_for, run_in_reactor
 from twisted.internet.task import LoopingCall
-from storjnode.util import valid_ip
+from storjnode.util import valid_ip, address_to_node_id
 from storjnode.network.server import StorjServer, QUERY_TIMEOUT, WALK_TIMEOUT
 
 
 # File transfer.
-from storjnode.network.file_transfer import FileTransfer, process_transfers
+from storjnode.network.file_transfer import FileTransfer
+from storjnode.network.process_transfers import process_transfers
 from pyp2p.net import Net
 from pyp2p.dht_msg import DHT as SimDHT
 
@@ -148,22 +149,24 @@ class Node(object):
         # Setup handlers for callbacks registered via the API.
         handlers = {
             "complete": self._transfer_complete_handlers,
-            "request": self._transfer_request_handlers
+            "accept": self._transfer_request_handlers
         }
 
+        wallet = BtcTxStore(testnet=False, dryrun=True)
+        wif = self.get_key()
+        node_id = address_to_node_id(wallet.get_address(wif))
         self._data_transfer = FileTransfer(
             net=Net(
                 net_type="direct",
                 node_type=node_type,
                 nat_type=nat_type,
-                dht_node=SimDHT(),  # Replace with self.server later on.
+                dht_node=SimDHT(node_id=node_id),
                 debug=1,
                 passive_port=passive_port,
                 passive_bind=passive_bind,
                 wan_ip=wan_ip
             ),
-            # FIXME use same key as dht
-            wif=BtcTxStore(testnet=True, dryrun=True).create_key(),
+            wif=wif,
             store_config=store_config,
             handlers=handlers
         )
@@ -325,11 +328,14 @@ class Node(object):
 
         If any handler returns True the transfer request will be accepted.
         The handler must be callable and accept four arguments
-        (node, requester_id, data_id, direction). The direction parameter
-        will be the oposatle of the requesters direction.
+        (node_id, data_id, direction).
+
+        node_id = The source node ID sending the transfer request
+        data_id = The shard ID of the data to download or upload
+        direction = Direction from the perspective of the requester: e.g. send (upload data_id to requester) or receive (download data_id from requester)
 
         Example:
-            def on_transfer_request(node, requester_id, data_id, direction):
+            def on_transfer_request(node_id, data_id, direction):
                 # This handler  will accept everything but send nothing.
                 if direction == "receive":
                     print("Accepting data: {0}".format(data_id))
@@ -337,6 +343,7 @@ class Node(object):
                 elif direction == "send":
                     print("Refusing to send data {0}.".format(data_id))
                     return False
+
             node = Node()
             node.add_allow_transfer_handler(on_transfer_request)
         """
@@ -354,11 +361,14 @@ class Node(object):
         """Add a transfer complete handler.
 
         The handler must be callable and accept four arguments
-        (node, requester_id, data_id, direction). The direction parameter
-        will be the oposatle of the requesters direction.
+        (node_id, data_id, direction).
+
+        node_id = The node_ID we sent the transfer request to. (May be our node_id if the request was sent to us.)
+        data_id = The shard to download or upload.
+        direction = The direction of the transfer (e.g. send or receive.)
 
         Example:
-            def on_transfer_complete(node, requester_id, data_id, direction):
+            def on_transfer_complete(node_id, data_id, direction):
                 if direction == "receive":
                     print("Received: {0}".format(data_id)
                 elif direction == "send":
