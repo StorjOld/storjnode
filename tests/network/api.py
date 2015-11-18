@@ -21,7 +21,7 @@ signal.signal(signal.SIGINT, signal.default_int_handler)
 _log = logging.getLogger(__name__)
 
 # change timeouts because everything is local
-QUERY_TIMEOUT = QUERY_TIMEOUT / 4
+QUERY_TIMEOUT = QUERY_TIMEOUT / 2
 WALK_TIMEOUT = WALK_TIMEOUT / 4
 
 SWARM_SIZE = 32
