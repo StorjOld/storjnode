@@ -8,7 +8,6 @@ from storjnode import util
 from kademlia.routing import TableTraverser
 from storjnode.network.protocol import StorjProtocol
 from twisted.internet import defer
-from pycoin.encoding import a2b_hashed_base58
 from kademlia.network import Server
 from kademlia.storage import ForgetfulStorage
 from twisted.internet.task import LoopingCall
@@ -95,7 +94,7 @@ class StorjServer(Server):
         if self._cached_id is not None:
             return self._cached_id
         address = self._btctxstore.get_address(self.key)
-        self._cached_id = a2b_hashed_base58(address)[1:]  # rm network prefix
+        self._cached_id = util.address_to_node_id(address)
         return self._cached_id
 
     def get_known_peers(self):
