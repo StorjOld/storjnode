@@ -23,7 +23,7 @@ signal.signal(signal.SIGINT, signal.default_int_handler)
 _log = logging.getLogger(__name__)
 
 # change timeouts because everything is local
-QUERY_TIMEOUT = QUERY_TIMEOUT / 1.0  # FIXME figure out what is taking so long!!
+QUERY_TIMEOUT = QUERY_TIMEOUT / 2.0
 WALK_TIMEOUT = WALK_TIMEOUT / 4.0
 
 SWARM_SIZE = 32
@@ -37,9 +37,12 @@ class TestNode(unittest.TestCase):
 
     @classmethod
     def setUpClass(cls):
+
+        # start profiler
         cls.profile = cProfile.Profile()
         cls.profile.enable()
 
+        # create swarm
         print("TEST: creating swarm")
         cls.btctxstore = btctxstore.BtcTxStore(testnet=False)
         cls.swarm = []
@@ -75,20 +78,18 @@ class TestNode(unittest.TestCase):
             node.refresh_neighbours()
         time.sleep(WALK_TIMEOUT)
 
-        # print("TEST: generating swarm graph")
-        # import datetime
-        # name = "unittest_network_" + str(datetime.datetime.now())
-        # storjnode.network.generate_graph(cls.swarm, name)
-
         print("TEST: created swarm")
 
     @classmethod
     def tearDownClass(cls):
+
+        # stop swarm
         print("TEST: stopping swarm")
         for node in cls.swarm:
             node.stop()
         shutil.rmtree(STORAGE_DIR)
 
+        # get profiler stats
         stats = Stats(cls.profile)
         stats.strip_dirs()
         stats.sort_stats('cumtime')
@@ -164,6 +165,7 @@ class TestNode(unittest.TestCase):
 
         def handler(source, message):
             received.append({"source": source, "message": message})
+            received_event.set()
         received = []
         receiver.add_message_handler(handler)
 
@@ -474,6 +476,26 @@ class TestNode(unittest.TestCase):
             storjnode.network.map.render(netmap, path=path)
         finally:
             os.remove(path)
+
+    #########################
+    # test message handlers #
+    #########################
+
+    def test_message_handler_error(self):  # for coverage
+        sender = self.swarm[0]
+        receiver = self.swarm[SWARM_SIZE - 1]
+        received_event = threading.Event()
+
+        def handler(source, message):
+            received_event.set()
+            raise Exception("Test error")
+        receiver.add_message_handler(handler)
+
+        # handlers should not interfere with each other
+        self._test_relay_message(sender, receiver, True)
+
+        received_event.wait(timeout=QUERY_TIMEOUT)
+        receiver.remove_message_handler(handler)
 
 
 if __name__ == "__main__":

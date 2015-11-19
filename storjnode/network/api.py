@@ -390,32 +390,6 @@ class Node(object):
         """
         self._transfer_complete_handlers.remove(handler)
 
-    #####################
-    # network utilities #
-    #####################
-
-    def async_map_network(self, outfile=None, attempts=2):
-        """Create a map of the network.
-
-        Output to outfile:
-            {
-                ID : {"transport": (ip, address), "neighbours": [ID, ...]},
-            }
-
-        Args:
-            outfile: A file like object to write mapping data to.
-            attempts: How often to attempt to contact each node.
-
-        Returns:
-            A twisted.internet.defer.Deferred that resloves to
-            (num_nodes_found, num_nodes_unreached)
-        """
-        return self.server.map_network(outfile=outfile, attempts=attempts)
-
-    @wait_for(timeout=WALK_TIMEOUT*20)
-    def sync_map_network(self, outfile=None, attempts=3):
-        return self.async_map_network(outfile=outfile, attempts=attempts)
-
     #######################
     # messaging interface #
     #######################
