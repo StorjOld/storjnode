@@ -1,5 +1,9 @@
 v0.0.16
 
+ * import config migrations form dataserv-client
+
+v0.0.16
+
  * Fixed build error
 
 v0.0.15
