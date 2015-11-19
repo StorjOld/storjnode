@@ -165,7 +165,14 @@ _MIGRATIONS = {
     "2.1.1": lambda btctxstore, cfg: _set_version(btctxstore, cfg, "2.1.2"),
     "2.1.2": lambda btctxstore, cfg: _set_version(btctxstore, cfg, "2.1.3"),
     "2.1.3": lambda btctxstore, cfg: _set_version(btctxstore, cfg, "2.1.4"),
-    "2.1.4": lambda btctxstore, cfg: _set_version(btctxstore, cfg, "3.0.0"),
+    "2.1.4": lambda btctxstore, cfg: _set_version(btctxstore, cfg, '2.1.5'),
+    "2.1.5": lambda btctxstore, cfg: _set_version(btctxstore, cfg, '2.1.6'),
+    "2.1.6": lambda btctxstore, cfg: _set_version(btctxstore, cfg, '2.1.7'),
+    "2.1.7": lambda btctxstore, cfg: _set_version(btctxstore, cfg, '2.1.8'),
+    "2.1.8": lambda btctxstore, cfg: _set_version(btctxstore, cfg, '2.1.9'),
+    "2.1.9": lambda btctxstore, cfg: _set_version(btctxstore, cfg, '2.1.10'),
+    "2.1.10": lambda btctxstore, cfg: _set_version(btctxstore, cfg, '2.1.11'),
+    "2.1.11": lambda btctxstore, cfg: _set_version(btctxstore, cfg, "3.0.0"),
     # TODO add smarter version ranges so no new line needed for every version
 }
 

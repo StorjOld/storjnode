@@ -22,7 +22,7 @@ signal.signal(signal.SIGINT, signal.default_int_handler)
 
 _log = logging.getLogger(__name__)
 
-WALK_TIMEOUT = WALK_TIMEOUT / 4.0
+WALK_TIMEOUT = WALK_TIMEOUT / 2.0
 
 
 SWARM_SIZE = 32
