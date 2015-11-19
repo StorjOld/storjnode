@@ -1,3 +1,7 @@
+v0.0.16
+
+ * Fixed build error
+
 v0.0.15
 
  * Fixed install instructions

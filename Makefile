@@ -47,7 +47,7 @@ wheels: virtualenv
 	$(PIP) wheel --find-links=$(WHEEL_DIR) --wheel-dir=$(WHEEL_DIR) -r develop_requirements.txt
 
 
-wheel: test
+wheel: setup
 	$(PY) setup.py bdist_wheel
 	mv dist/*.whl $(WHEEL_DIR)
 
@@ -56,7 +56,6 @@ setup: virtualenv
 	$(PIP) install $(WHEEL_INSTALL_ARGS) -r requirements.txt
 	$(PIP) install $(WHEEL_INSTALL_ARGS) -r test_requirements.txt
 	$(PIP) install $(WHEEL_INSTALL_ARGS) -r develop_requirements.txt
-	$(PY) setup.py install
 
 
 shell: setup
