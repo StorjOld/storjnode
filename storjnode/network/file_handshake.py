@@ -11,8 +11,6 @@ import storjnode.storage as storage
 
 _log = logging.getLogger(__name__)
 
-_log .setLevel(logging.DEBUG)
-
 ENABLE_ACCEPT_HANDLERS = 0
 
 class RequestDenied(Exception):
@@ -182,7 +180,7 @@ def process_syn(client, msg):
 
             # Send reply to source.
             reply = json.dumps(reply, ensure_ascii=True)
-            client.net.dht_node.direct_message(
+            client.net.dht_node.relay_message(
                 src_node_id,
                 reply
             )
@@ -200,11 +198,15 @@ def process_syn(client, msg):
         _log.debug("Their signature was incorrect.")
         return
 
+    # Check handshake state.
+    if contract_id in client.handshake:
+        return
+
     # Save contract.
     client.save_contract(msg)
     client.handshake[contract_id] = {
-        "state": u"SYN-ACK",
-        "timestamp": time.time()
+        u"state": u"SYN-ACK",
+        u"timestamp": time.time()
     }
 
     # Create reply.
@@ -254,10 +256,16 @@ def process_syn_ack(client, msg):
         _log.debug("Their signature was incorrect.")
         return
 
+    # Check handshake state is valid.
+    if contract_id not in client.handshake:
+        return
+    if client.handshake[contract_id][u"state"] != u"SYN":
+        return
+
     # Update handshake.
     client.handshake[contract_id] = {
-        "state": u"ACK",
-        "timestamp": time.time()
+        u"state": u"ACK",
+        u"timestamp": time.time()
     }
 
     # Create reply contract.
@@ -324,11 +332,17 @@ def process_ack(client, msg):
         _log.debug("ACK: syn is invalid.")
         return
 
+    # Check handshake state is valid.
+    if contract_id not in client.handshake:
+        return
+    if client.handshake[contract_id][u"state"] != u"SYN-ACK":
+        return
+
     # Update handshake.
     contract = client.contracts[contract_id]
     client.handshake[contract_id] = {
-        "state": u"ACK",
-        "timestamp": time.time()
+        u"state": u"ACK",
+        u"timestamp": time.time()
     }
 
     # Try make TCP con.
@@ -399,12 +413,15 @@ def protocol(client, msg):
 
     # Sanity checking.
     if u"status" not in msg:
-        return
+        return 0
 
     # Process msg.
     status = msg[u"status"]
     if status in msg_handlers:
         msg_handlers[status](client, msg)
+        return 1
+
+    return 0
 
 
 

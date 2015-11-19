@@ -28,12 +28,14 @@ try:
         src = binascii.hexlify(source) if source is not None else "unknown"
         print("%s from %s" % (message, src))
     alice_node.add_message_handler(message_handler)
+    bob_node.add_message_handler(message_handler)
 
     print("Giving nodes some time to find peers.")
     time.sleep(storjnode.network.WALK_TIMEOUT)
 
     # send relayed message (non blocking call)
     bob_node.relay_message(alice_node.get_id(), "hi alice")
+    alice_node.relay_message(bob_node.get_id(), "hi bob")
     time.sleep(storjnode.network.WALK_TIMEOUT)  # wait for it to be relayed
 
 except TimeoutError:
