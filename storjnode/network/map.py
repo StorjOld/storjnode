@@ -1,13 +1,15 @@
 import os
 import time
+import datetime
 import logging
 import binascii
+import pygraphviz
 from kademlia.node import Node
 from crochet import TimeoutError
 from threading import Thread
 from threading import RLock
-from graphviz import Digraph
 from storjnode import util
+from storjnode.common import STORJ_HOME
 from storjnode.network.server import QUERY_TIMEOUT
 
 
@@ -100,26 +102,40 @@ class _NetworkMapper(object):  # will not scale but good for now
         return self.scanned
 
 
-def render(network_map, path, name, view=True):
+def render(network_map, path=None):
+    """ Render a network map.
 
-    dot = Digraph(comment=name, engine="circo")
+    Args:
+        network_map: The generated network map to render.
+        path: The path to save the rendered output at.
+              Saves to '~/.storj/graphs/network map TIMESTAMP.png' by default.
+    """
+
+    name = "network map %s" % str(datetime.datetime.now())
+    path = path or os.path.join(STORJ_HOME, "graphs", "%s.png" % name)
+    util.ensure_path_exists(os.path.dirname(path))
+
+    graph = pygraphviz.AGraph()  # (strict=False,directed=True)
 
     # add nodes
     for nodeid, results in network_map.items():
         nodehexid = binascii.hexlify(nodeid)
         ip, port = results["addr"]
-        label = "%s\n%s:%i" % (nodehexid, ip, port)
-        dot.node(nodehexid, label)
+        # label = "%s\n%s:%i" % (nodehexid, ip, port)
+        has_peers = len(results["peers"]) > 0
+        graph.add_node(nodehexid, color='green' if has_peers else "blue")
 
     # add connections
     for nodeid, results in network_map.items():
         nodehexid = binascii.hexlify(nodeid)
         for peerid, ip, port in results["peers"]:
             peerhexid = binascii.hexlify(peerid)
-            dot.edge(nodehexid, peerhexid, constraint='false')
+            graph.add_edge(nodehexid, peerhexid)
 
     # render graph
-    dot.render(os.path.join(path, '%s.gv' % name), view=view)
+    graph.layout(prog='dot')
+    graph.draw(path, prog='circo')
+    return path
 
 
 def generate(storjnode, worker_num=32):

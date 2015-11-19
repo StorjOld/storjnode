@@ -1,4 +1,7 @@
 import os
+import cProfile
+from pstats import Stats
+import signal
 import threading
 import tempfile
 import time
@@ -13,17 +16,17 @@ from pyp2p.lib import get_wan_ip
 from storjnode.network.server import QUERY_TIMEOUT, WALK_TIMEOUT
 from crochet import setup
 
-setup()  # start twisted via crochet
-
+# start twisted via crochet and remove twisted handler
+setup()
+signal.signal(signal.SIGINT, signal.default_int_handler)
 
 _log = logging.getLogger(__name__)
 
-
 # change timeouts because everything is local
-QUERY_TIMEOUT = QUERY_TIMEOUT
-WALK_TIMEOUT = WALK_TIMEOUT / 4
+QUERY_TIMEOUT = QUERY_TIMEOUT / 1.0  # FIXME figure out what is taking so long!!
+WALK_TIMEOUT = WALK_TIMEOUT / 4.0
 
-SWARM_SIZE = 64  # tested up to 256
+SWARM_SIZE = 32
 MAX_MESSAGES = 2
 PORT = 3000
 STORAGE_DIR = tempfile.mkdtemp()
@@ -34,6 +37,8 @@ class TestNode(unittest.TestCase):
 
     @classmethod
     def setUpClass(cls):
+        cls.profile = cProfile.Profile()
+        cls.profile.enable()
 
         print("TEST: creating swarm")
         cls.btctxstore = btctxstore.BtcTxStore(testnet=False)
@@ -45,7 +50,7 @@ class TestNode(unittest.TestCase):
 
             # create node
             node = storjnode.network.Node(
-                cls.btctxstore.create_wallet(), port=(PORT + i), ksize=16,
+                cls.btctxstore.create_wallet(), port=(PORT + i), ksize=8,
                 bootstrap_nodes=bootstrap_nodes,
                 refresh_neighbours_interval=0.0,
                 max_messages=MAX_MESSAGES,
@@ -84,6 +89,11 @@ class TestNode(unittest.TestCase):
             node.stop()
         shutil.rmtree(STORAGE_DIR)
 
+        stats = Stats(cls.profile)
+        stats.strip_dirs()
+        stats.sort_stats('cumtime')
+        stats.print_stats()
+
     #################################
     # test util and debug functions #
     #################################
@@ -120,10 +130,10 @@ class TestNode(unittest.TestCase):
         time.sleep(interval * 2)  # wait until network overlay stable, 2 peers
         try:
             alice_node.direct_message(bob_node.get_id(), "hi bob")
-            time.sleep(0.1)  # wait for despatcher
+            time.sleep(0.01)  # wait for despatcher
             self.assertTrue(bob_received.isSet())
             bob_node.direct_message(alice_node.get_id(), "hi alice")
-            time.sleep(0.1)  # wait for despatcher
+            time.sleep(0.01)  # wait for despatcher
             self.assertTrue(alice_received.isSet())
         finally:
             alice_node.stop()
@@ -149,16 +159,20 @@ class TestNode(unittest.TestCase):
         testmessage = binascii.hexlify(os.urandom(32))
         receiver_id = receiver.get_id()
         sender.relay_message(receiver_id, testmessage)
+
+        received_event = threading.Event()
+
+        def handler(source, message):
+            received.append({"source": source, "message": message})
         received = []
-        receiver.add_message_handler(lambda s, m: received.append(
-            {"source": s, "message": m}
-        ))
-        time.sleep(QUERY_TIMEOUT)  # wait until relayed
+        receiver.add_message_handler(handler)
 
         if not success_expected:
+            time.sleep(QUERY_TIMEOUT)  # wait until relayed
             self.assertEqual(len(received), 0)
 
         else:  # success expected
+            received_event.wait(timeout=QUERY_TIMEOUT)
 
             # check one message received
             self.assertEqual(len(received), 1)
@@ -179,14 +193,13 @@ class TestNode(unittest.TestCase):
         self._test_relay_message(sender, receiver, False)
 
     def test_relay_messaging(self):
-        senders = self.swarm[:]
+        senders, receivers = storjnode.util.baskets(self.swarm, 2)
         random.shuffle(senders)
-        receivers = self.swarm[:]
         random.shuffle(receivers)
         for sender, receiver in zip(senders, receivers):
             msg = "TEST: sending relay message from {0} to {1}"
             print(msg.format(sender.get_hex_id(), receiver.get_hex_id()))
-            self._test_relay_message(sender, receiver, sender is not receiver)
+            self._test_relay_message(sender, receiver, True)
 
     def test_relay_message_to_void(self):  # for coverage
         random_peer = random.choice(self.swarm)
@@ -196,18 +209,23 @@ class TestNode(unittest.TestCase):
 
     def test_max_relay_messages(self):  # for coverage
         random_peer = random.choice(self.swarm)
-        void_id = b"void" * 5
+
+        void_id = binascii.unhexlify("DEADBEEF" * 5)
+
+        # avoid queue being processed during test
+        old_sleep_time = random_peer.thread_sleep_time = 0.5
+        random_peer.thread_sleep_time = 0.5
+        time.sleep(0.002)
 
         queued = random_peer.relay_message(void_id, "into the void")
         self.assertTrue(queued)
         queued = random_peer.relay_message(void_id, "into the void")
         self.assertTrue(queued)
-
-        # XXX chance of failure if queue is processed during test
         queued = random_peer.relay_message(void_id, "into the void")
         self.assertFalse(queued)  # relay queue full
 
         time.sleep(QUERY_TIMEOUT)  # wait until relayed
+        random_peer.thread_sleep_time = old_sleep_time  # restore value
 
     def test_relay_message_full_duplex(self):
         alice_node = storjnode.network.Node(
@@ -239,10 +257,10 @@ class TestNode(unittest.TestCase):
         time.sleep(QUERY_TIMEOUT)  # wait until network overlay stable, 2 peers
         try:
             alice_node.relay_message(bob_node.get_id(), "hi bob")
-            time.sleep(QUERY_TIMEOUT)  # wait until relayed
+            bob_received.wait(timeout=QUERY_TIMEOUT)
             self.assertTrue(bob_received.isSet())
             bob_node.relay_message(alice_node.get_id(), "hi alice")
-            time.sleep(QUERY_TIMEOUT)  # wait until relayed
+            alice_received.wait(timeout=QUERY_TIMEOUT)
             self.assertTrue(alice_received.isSet())
         finally:
             alice_node.stop()
@@ -269,7 +287,7 @@ class TestNode(unittest.TestCase):
         ))
 
         sender_address = sender.direct_message(receiver_id, testmessage)
-        time.sleep(0.1)  # wait for despatcher
+        time.sleep(0.01)  # wait for despatcher
 
         if not success_expected:
             self.assertTrue(sender_address is None)  # was not received
@@ -312,14 +330,13 @@ class TestNode(unittest.TestCase):
         self._test_direct_message(sender, receiver, False)
 
     def test_direct_messaging(self):
-        senders = self.swarm[:]
+        senders, receivers = storjnode.util.baskets(self.swarm, 2)
         random.shuffle(senders)
-        receivers = self.swarm[:]
         random.shuffle(receivers)
         for sender, receiver in zip(senders, receivers):
             msg = "TEST: sending direct message from {0} to {1}"
             print(msg.format(sender.get_hex_id(), receiver.get_hex_id()))
-            self._test_direct_message(sender, receiver, sender is not receiver)
+            self._test_direct_message(sender, receiver, True)
 
     def test_direct_message_to_void(self):  # for coverage
         peer = storjnode.network.Node(
@@ -444,11 +461,19 @@ class TestNode(unittest.TestCase):
             found_value = random_peer[key]
             self.assertEqual(found_value, inserted_value)
 
-    ######################
-    # test data transfer #
-    ######################
+    ########################
+    # test network mapping #
+    ########################
 
-    # TODO test data transfer
+    def test_mapnetwork(self):
+        path = tempfile.mktemp()
+        try:
+            random_peer = random.choice(self.swarm)
+            netmap = storjnode.network.map.generate(random_peer)
+            self.assertTrue(isinstance(netmap, dict))
+            storjnode.network.map.render(netmap, path=path)
+        finally:
+            os.remove(path)
 
 
 if __name__ == "__main__":

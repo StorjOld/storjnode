@@ -8,7 +8,6 @@ from storjnode import util
 from kademlia.routing import TableTraverser
 from storjnode.network.protocol import StorjProtocol
 from twisted.internet import defer
-from pycoin.encoding import a2b_hashed_base58
 from kademlia.network import Server
 from kademlia.storage import ForgetfulStorage
 from twisted.internet.task import LoopingCall
@@ -36,8 +35,10 @@ class StorjServer(Server):
             storage: implements :interface:`~kademlia.storage.IStorage`
             refresh_neighbours_interval (float): Auto refresh neighbours.
         """
+        self.thread_sleep_time = 0.02
         self._default_hop_limit = default_hop_limit
         self._refresh_neighbours_interval = refresh_neighbours_interval
+        self._cached_id = None
 
         # TODO validate key is valid wif/hwif for mainnet or testnet
         testnet = False  # FIXME get from wif/hwif
@@ -92,8 +93,11 @@ class StorjServer(Server):
         self.bootstrap(self.bootstrappableNeighbors())
 
     def get_id(self):
+        if self._cached_id is not None:
+            return self._cached_id
         address = self._btctxstore.get_address(self.key)
-        return a2b_hashed_base58(address)[1:]  # remove network prefix
+        self._cached_id = util.address_to_node_id(address)
+        return self._cached_id
 
     def get_known_peers(self):
         """Returns list of known node."""
@@ -183,14 +187,14 @@ class StorjServer(Server):
             if (datetime.datetime.now() - last_refresh) > interval:
                 self.refresh_neighbours()
                 last_refresh = datetime.datetime.now()
-            time.sleep(0.05)
+            time.sleep(self.thread_sleep_time)
 
     def _relay_loop(self):
         while not self._relay_thread_stop:
             # FIXME use worker pool to process queue
             for entry in util.empty_queue(self.protocol.messages_relay):
                 self._relay_message(entry)
-            time.sleep(0.05)
+            time.sleep(self.thread_sleep_time)
 
     def direct_message(self, nodeid, message):
         """Send direct message to a node.
