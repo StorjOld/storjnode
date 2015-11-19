@@ -16,6 +16,7 @@ if os.name == 'nt' and 'py2exe' in sys.argv:
         "bundle_files": 2,  # This tells py2exe to bundle everything
     }}
 
+
 # Only load py2app settings when its used, so we can install it first.
 if os.name == 'postix' and 'py2app' in sys.argv:
     import py2app  # NOQA
@@ -25,7 +26,7 @@ if os.name == 'postix' and 'py2app' in sys.argv:
 
 
 exec(open('storjnode/version.py').read())  # load __version__
-SCRIPT = os.path.join('storjnode', 'bin', 'storjnode')
+SCRIPTS = [os.path.join('storjnode', 'bin', 'storjnode')]
 
 
 setup(
@@ -39,8 +40,8 @@ setup(
     author_email='shawn+storjnode@storj.io',
     license="MIT",
     version=__version__,  # NOQA
-    scripts=[SCRIPT],
-    console=[SCRIPT],
+    scripts=SCRIPTS,
+    console=SCRIPTS,
     test_suite="tests",
     dependency_links=[],
     install_requires=open("requirements.txt").readlines(),

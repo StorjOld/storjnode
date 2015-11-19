@@ -1,10 +1,76 @@
 #!python
 # coding: utf-8
 
-
+import json
+import time
+import binascii
+import btctxstore
+import storjnode
+import argparse
+import signal
 import sys
-from storjnode import cli
+from crochet import setup
+
+
+# start twisted via crochet and remove twisted handler
+setup()
+signal.signal(signal.SIGINT, signal.default_int_handler)
+
+
+def parse_args(args):
+    description = "Start a storjnode that only runs the DHT."
+    parser = argparse.ArgumentParser(description=description)
+
+    # debug
+    msg = "Show debug information."
+    parser.add_argument('--debug', action='store_true', help=msg)
+
+    # quiet
+    msg = "Only show warning and error information."
+    parser.add_argument('--quiet', action='store_true', help=msg)
+
+    default = None
+    msg = "Node DHT port, random user port by default."
+    parser.add_argument("--port", default=default, type=int, help=msg)
+
+    # key
+    msg = "Bitcoin wif/hwif for node id and auth, gererated by default."
+    default = None
+    parser.add_argument("--key", default=default, help=msg)
+
+    return vars(parser.parse_args(args=args))
+
+
+def main(args):
+    arguments = parse_args(args)
+    node = None
+    key = arguments["key"] or btctxstore.BtcTxStore().create_wallet()
+    try:
+        # start node
+        node = storjnode.network.Node(
+            key, port=arguments["port"],
+            disable_data_transfer=True,
+        )
+        print("Running node on port {port} with id {id}".format(
+            id=binascii.hexlify(node.get_id()), port=node.port
+        ))
+
+        # print received message to terminal
+        def message_handler(source, message):
+            print("Received message: %s" % json.dumps(message))
+        node.add_message_handler(message_handler)
+
+        # run forever
+        while True:
+            time.sleep(0.1)
+
+    except KeyboardInterrupt:
+        pass
+
+    finally:
+        if node is not None:
+            node.stop()
 
 
 if __name__ == "__main__":
-    cli.main(sys.argv[1:])
+    main(sys.argv[1:])
