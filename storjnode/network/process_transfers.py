@@ -243,10 +243,14 @@ def finish_transfer(client, contract_id, con):
 
 def process_dht_messages(client):
     try:
-        if client.net.dht_node.has_messages():
-            for msg in client.net.dht_node.get_messages():
-                _log.debug("Processing: " + msg["message"])
-                protocol(client, msg["message"])
+        processed = []
+        for msg in client.net.dht_messages:
+            _log.debug("Processing: " + msg["message"])
+            if protocol(client, msg["message"]):
+                processed.append(msg)
+
+        for msg in processed:
+            client.net.dht_messages.remove(msg)
     except Exception as e:
         _log.debug(e)
         pass

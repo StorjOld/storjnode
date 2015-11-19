@@ -33,8 +33,14 @@ try:
 
     print("Giving nodes some time to find peers.")
     time.sleep(storjnode.network.WALK_TIMEOUT)
+    for node in [bob_node, alice_node]:
+        node.refresh_neighbours()
+    time.sleep(storjnode.network.WALK_TIMEOUT)
 
-    # send direct message (blocking call)
+    for node in [bob_node, alice_node]:
+        node.refresh_neighbours()
+    time.sleep(storjnode.network.WALK_TIMEOUT)
+
     alice_node.direct_message(bob_node.get_id(), "hi bob")
     bob_node.direct_message(alice_node.get_id(), "hi alice")
 

@@ -22,7 +22,7 @@ _log = logging.getLogger(__name__)
 
 
 TEST_NODE = {
-    "unl": ("AvD/2NXDClGdNzd2rEhy0eHW9MpWcGdt8OsG79qiBu/aoiXUeGQ="),
+    "unl": ("AhaVDlV5HtHJlddtqgpDHdIFWdr5cGdt8OsG79qiBu/aouc/Ru4="),
     "web": "http://162.218.239.6/"
 }
 
@@ -35,7 +35,6 @@ class TestFileTransfer(unittest.TestCase):
     def tearDown(self):
         shutil.rmtree(self.test_storage_dir)
 
-    @unittest.skip("test borken?")
     def test_multiple_transfers(self):
 
         def make_random_file(file_size=1024 * 100,
@@ -51,14 +50,14 @@ class TestFileTransfer(unittest.TestCase):
             }
 
         # Sample node.
-        wallet = btctxstore.BtcTxStore(testnet=True, dryrun=True)
+        wallet = btctxstore.BtcTxStore(testnet=False, dryrun=True)
         wif = wallet.get_key(wallet.create_wallet())
         node_id = address_to_node_id(wallet.get_address(wif))
         store_config = {
             os.path.join(self.test_storage_dir, "storage"): {"limit": 0}
         }
-        dht_node = pyp2p.dht_msg.DHT(node_id=node_id)
-        #dht_node = storjnode.network.Node(wif, bootstrap_nodes=DEFAULT_BOOTSTRAP_NODES).server
+        #dht_node = pyp2p.dht_msg.DHT(node_id=node_id)
+        dht_node = storjnode.network.Node(wif, bootstrap_nodes=DEFAULT_BOOTSTRAP_NODES, disable_data_transfer=True)
         client = FileTransfer(
             pyp2p.net.Net(
                 node_type="simultaneous",
@@ -73,7 +72,9 @@ class TestFileTransfer(unittest.TestCase):
         )
 
 
-        print("Giving nodes some time to find peers.")
+        #print("Giving nodes some time to find peers.")
+        time.sleep(storjnode.network.WALK_TIMEOUT)
+        dht_node.refresh_neighbours()
         time.sleep(storjnode.network.WALK_TIMEOUT)
 
         _log.debug("Net started")
@@ -152,7 +153,7 @@ class TestFileTransfer(unittest.TestCase):
         client.remove_file_from_storage(file_infos[0]["data_id"])
 
         # Stop networking.
-        client.net.stop()
+        dht_node.stop()
 
         _log.debug("Download succeeded.")
 

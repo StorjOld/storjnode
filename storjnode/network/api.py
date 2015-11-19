@@ -119,13 +119,13 @@ class Node(object):
         self._setup_server(key, ksize, dht_storage, max_messages,
                            refresh_neighbours_interval, bootstrap_nodes)
 
+        self._setup_message_dispatcher()
+
         if not self.disable_data_transfer:
             self._setup_data_transfer_client(
                 store_config, passive_port, passive_bind,
                 node_type, nat_type, wan_ip
             )
-
-        self._setup_message_dispatcher()
 
     def _setup_message_dispatcher(self):
         self._message_handlers = set()
@@ -156,7 +156,7 @@ class Node(object):
         wif = self.get_key()
         node_id = address_to_node_id(wallet.get_address(wif))
         #dht_node = SimDHT(node_id=node_id)
-        dht_node = self.server
+        dht_node = self
 
         self._data_transfer = FileTransfer(
             net=Net(
