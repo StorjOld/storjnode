@@ -38,23 +38,24 @@ Extract the zip file to the folder where you wish to have it installed.
     $ storjnode.exe --help
 
 
-Linux
-=====
+Linux (Ubuntu/Mint/Debian)
+==========================
 
 Install client
 
 ::
 
     # install apt dependencies
-    $ sudo apt-get install python-pip python-dev graphviz
+    $ sudo apt-get install python-pip graphviz pkg-config
+    $ sudo apt-get install python-dev libgraphviz-dev pkg-config
 
-    # In some cases you will need to instal graphviz from the system package.
-    $ sudo apt-get install graphviz libgraphviz-dev pkg-config
+    # If you are using virtualenv you may need to instal graphviz from the system package.
     $ sudo pip install pygraphviz --install-option="--include-path=/usr/include/graphviz" --install-option="--library-path=/usr/lib/graphviz/
 
     # install storjnode
     $ sudo pip install storjnode
     $ storjnode --help
+
 
 Update client
 
