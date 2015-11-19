@@ -21,22 +21,21 @@ def parse_args(args):
     description = "Start a storjnode that only runs the DHT."
     parser = argparse.ArgumentParser(description=description)
 
-    # debug
+    # --debug
     msg = "Show debug information."
     parser.add_argument('--debug', action='store_true', help=msg)
 
-    # quiet
+    # --quiet
     msg = "Only show warning and error information."
     parser.add_argument('--quiet', action='store_true', help=msg)
 
-    default = None
+    # --port
     msg = "Node DHT port, random user port by default."
-    parser.add_argument("--port", default=default, type=int, help=msg)
+    parser.add_argument("--port", default=None, type=int, help=msg)
 
-    # key
+    # --key
     msg = "Bitcoin wif/hwif for node id and auth, gererated by default."
-    default = None
-    parser.add_argument("--key", default=default, help=msg)
+    parser.add_argument("--key", default=None, help=msg)
 
     return vars(parser.parse_args(args=args))
 

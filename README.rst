@@ -35,7 +35,7 @@ Extract the zip file to the folder where you wish to have it installed.
 
 ::
 
-    $ storjnode.exe version
+    $ storjnode.exe --help
 
 
 Linux
@@ -44,17 +44,21 @@ Linux
 Install client
 
 ::
+    # In some cases you will need to instal graphviz from the system package.
+    $ sudo apt-get install graphviz libgraphviz-dev pkg-config
+    $ sudo python2.7 -m "pip" install pygraphviz --install-option="--include-path=/usr/include/graphviz" --install-option="--library-path=/usr/lib/graphviz/
 
+    # install storjnode
     $ sudo apt-get install python-pip python-dev graphviz
     $ sudo pip install storjnode
-    $ storjnode version
+    $ storjnode --help
 
 Update client
 
 ::
 
     $ sudo pip install storjnode --upgrade
-    $ storjnode version
+    $ storjnode --help
 
 
 OSX
@@ -67,14 +71,14 @@ Install client
     $ brew install python
     $ rehash
     $ pip install storjnode
-    $ storjnode version
+    $ storjnode --help
 
 Update client
 
 ::
 
     $ pip install storjnode --upgrade
-    $ storjnode version
+    $ storjnode --help
 
 
 Python usage examples
