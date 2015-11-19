@@ -1,3 +1,8 @@
+v0.0.15
+
+ * Fixed install instructions
+ * Remove outdated cli interface
+
 v0.0.14
 
  * Fixed wheel shebang
