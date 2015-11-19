@@ -33,12 +33,23 @@ bob_node.add_message_handler(message_handler)
 
 print("Giving nodes some time to find peers.")
 time.sleep(storjnode.network.WALK_TIMEOUT)
+for node in [bob_node, alice_node]:
+    node.refresh_neighbours()
+time.sleep(storjnode.network.WALK_TIMEOUT)
+
+for node in [bob_node, alice_node]:
+    node.refresh_neighbours()
+time.sleep(storjnode.network.WALK_TIMEOUT)
+
+alice_node.direct_message(bob_node.get_id(), "hi bob")
+bob_node.direct_message(alice_node.get_id(), "hi alice")
+
+time.sleep(100)
 
 
 try:
     # send direct message (blocking call)
-    alice_node.direct_message(bob_node.get_id(), "hi bob")
-    bob_node.direct_message(alice_node.get_id(), "hi alice")
+    pass
 except TimeoutError:
     print("Got timeout error")
 finally:  # stop nodes

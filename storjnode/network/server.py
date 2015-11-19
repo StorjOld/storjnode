@@ -52,6 +52,8 @@ class StorjServer(Server):
         self.ksize = ksize
         self.alpha = alpha
         self.log = logging.getLogger(__name__)
+        self.log .setLevel(logging.DEBUG)
+
         self.storage = storage or ForgetfulStorage()
         self.node = Node(self.get_id())
         self.protocol = StorjProtocol(

@@ -29,6 +29,8 @@ import sys
 
 _log = logging.getLogger(__name__)
 
+_log .setLevel(logging.DEBUG)
+
 class TransferError(Exception):
     pass
 

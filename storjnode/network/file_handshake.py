@@ -11,6 +11,8 @@ import storjnode.storage as storage
 
 _log = logging.getLogger(__name__)
 
+_log .setLevel(logging.DEBUG)
+
 ENABLE_ACCEPT_HANDLERS = 0
 
 class RequestDenied(Exception):

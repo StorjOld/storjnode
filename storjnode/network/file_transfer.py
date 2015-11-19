@@ -22,6 +22,8 @@ from pycoin.encoding import a2b_hashed_base58, b2a_hashed_base58, a2b_base58, b2
 
 _log = logging.getLogger(__name__)
 
+_log .setLevel(logging.DEBUG)
+
 class FileTransfer:
     def __init__(self, net, wif=None, store_config=None, handlers=None):
         # Accept direct connections.
@@ -346,11 +348,14 @@ if __name__ == "__main__":
     # print(type(alice_node_id))
     alice_dht_node = pyp2p.dht_msg.DHT(node_id=alice_node_id)
     # print(alice_dht_node.get_id())
+
+
     alice_dht_node = storjnode.network.Node(
         alice_wif, bootstrap_nodes=[("240.0.0.0", 1337)]
     )
     alice_dht_node_port = alice_dht_node.port
     alice_dht_node = alice_dht_node.server
+
 
     alice = FileTransfer(
         pyp2p.net.Net(
@@ -428,7 +433,14 @@ if __name__ == "__main__":
     _log.debug(type(alice.net.unl))
     _log.debug(type(pyp2p.unl.UNL(value=bob.net.unl.value)))
 
-    print("Giving nodes some time to find peers.")
+    #print("Giving nodes some time to find peers.")
+    time.sleep(storjnode.network.WALK_TIMEOUT)
+    for node in [alice_dht_node, bob_dht]:
+        node.refresh_neighbours()
+    time.sleep(storjnode.network.WALK_TIMEOUT)
+
+    for node in [alice_dht_node, bob_dht]:
+        node.refresh_neighbours()
     time.sleep(storjnode.network.WALK_TIMEOUT)
 
     # exit()
