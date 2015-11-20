@@ -49,7 +49,7 @@ Install client
     $ sudo apt-get install python-pip graphviz pkg-config
     $ sudo apt-get install python-dev libgraphviz-dev pkg-config
 
-    # If you are using virtualenv you may need to instal graphviz from the system package.
+    # Some systems may need to instal graphviz from the system package first.
     $ sudo pip install pygraphviz --install-option="--include-path=/usr/include/graphviz" --install-option="--library-path=/usr/lib/graphviz/"
 
     # install storjnode

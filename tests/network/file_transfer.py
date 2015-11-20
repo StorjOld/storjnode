@@ -35,7 +35,6 @@ class TestFileTransfer(unittest.TestCase):
     def tearDown(self):
         shutil.rmtree(self.test_storage_dir)
 
-    @unittest.skip("broken")
     def test_multiple_transfers(self):
 
         def make_random_file(file_size=1024 * 100,
