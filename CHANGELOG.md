@@ -1,4 +1,8 @@
-v0.0.16
+v0.0.18
+
+ * Fixed install instructions and updated dependencies.
+
+v0.0.17
 
  * import config migrations form dataserv-client
 
