@@ -11,6 +11,8 @@ import storjnode.storage as storage
 
 _log = logging.getLogger(__name__)
 
+_log.setLevel("DEBUG")
+
 ENABLE_ACCEPT_HANDLERS = 0
 
 class RequestDenied(Exception):
@@ -35,8 +37,18 @@ def is_valid_syn(client, msg):
         _log.debug("Missing required key.")
         return 0
 
+    # Check there aren't extra fields.
+    if len(msg) != len(syn_schema):
+        _log.debug("Invalid dictionary length.")
+        return 0
+
+    # Check data ID is valid.
+    if not storage.shard.valid_id(msg[u"data_id"]):
+        _log.debug("Invalid data id.")
+        return 0
+
     # Check SYN size.
-    if len(msg) > 5242880: # 5 MB.
+    if len(str(msg)) > 5242880: # 5 MB.
         _log.debug("SYN is too big")
         return 0
 
@@ -83,6 +95,11 @@ def is_valid_syn(client, msg):
         if msg[u"data_id"] in client.downloading:
             _log.debug("We're already trying to download this")
             return 0
+
+    if not client.is_valid_contract_sig(msg):
+        print(msg)
+        _log.debug("Invalid signature for SYN")
+        return 0
 
     return 1
 
