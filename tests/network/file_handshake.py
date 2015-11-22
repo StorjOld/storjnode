@@ -32,6 +32,7 @@ class TestFileHandshake(unittest.TestCase):
                 nat_type="preserving",
                 passive_port=60405,
                 dht_node=self.alice_dht_node,
+                debug=1
             ),
             wif=self.alice_wif,
             store_config={self.alice_storage: None}
@@ -51,6 +52,7 @@ class TestFileHandshake(unittest.TestCase):
                 nat_type="preserving",
                 passive_port=60409,
                 dht_node=self.bob_dht_node,
+                debug=1
             ),
             wif=self.bob_wif,
             store_config={self.bob_storage: None}
