@@ -192,6 +192,9 @@ class FileTransfer:
         return contract
 
     def is_valid_contract_sig(self, contract, node_id=None):
+        if u"signature" not in contract:
+            return 0
+
         sig = contract[u"signature"][:]
         del contract[u"signature"]
 
@@ -300,7 +303,7 @@ class FileTransfer:
         self.defers[contract_id] = d
 
         # Return defer for async code.
-        return d
+        return contract_id
 
     def get_con_by_contract_id(self, needle):
         for con in list(self.con_info):
