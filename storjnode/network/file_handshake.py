@@ -35,28 +35,28 @@ def is_valid_syn(client, msg):
     # Check all fields exist.
     if not all(key in msg for key in syn_schema):
         _log.debug("Missing required key.")
-        return 0
+        return -1
 
     # Check there aren't extra fields.
     if len(msg) != len(syn_schema):
         _log.debug("Invalid dictionary length.")
-        return 0
+        return -2
 
     # Check data ID is valid.
     if not storage.shard.valid_id(msg[u"data_id"]):
         _log.debug("Invalid data id.")
-        return 0
+        return -3
 
     # Check SYN size.
     if len(str(msg)) > 5242880: # 5 MB.
         _log.debug("SYN is too big")
-        return 0
+        return -4
 
     # Check direction is valid.
     direction_tuple = (u"send", u"receive")
     if msg[u"direction"] not in direction_tuple:
         _log.debug("Missing required direction tuple.")
-        return 0
+        return -5
 
     # Check the UNLs are valid.
     unl_tuple = (u"host_unl", u"dest_unl", u"src_unl")
@@ -64,7 +64,7 @@ def is_valid_syn(client, msg):
         if not pyp2p.unl.is_valid_unl(msg[unl_key]):
             _log.debug("Invalid UNL for " + unl_key)
             _log.debug(msg[unl_key])
-            return 0
+            return -6
 
     # Check file size.
     file_size_type = type(msg[u"file_size"])
@@ -75,7 +75,7 @@ def is_valid_syn(client, msg):
     if expr:
         _log.debug("File size validation failed")
         _log.debug(type(msg[u"file_size"]))
-        return 0
+        return -7
 
     # Are we the host?
     if client.net.unl == pyp2p.unl.UNL(value=msg[u"host_unl"]):
@@ -83,18 +83,18 @@ def is_valid_syn(client, msg):
         path = storage.manager.find(client.store_config, msg[u"data_id"])
         if path is None:
             _log.debug("Failed to find file we're uploading")
-            return 0
+            return -8
     else:
         # Do we already have this file?
         path = storage.manager.find(client.store_config, msg[u"data_id"])
         if path is not None:
             _log.debug("Attempting to download file we already have")
-            return 0
+            return -9
 
         # Are we already trying to download this?
         if msg[u"data_id"] in client.downloading:
             _log.debug("We're already trying to download this")
-            return 0
+            return -10
 
     return 1
 
@@ -158,9 +158,9 @@ def success_wrapper(client, contract_id, host_unl):
 
 def process_syn(client, msg, enable_accept_handlers=ENABLE_ACCEPT_HANDLERS):
     # Check syn is valid.
-    if not is_valid_syn(client, msg):
+    if is_valid_syn(client, msg) != 1:
         _log.debug("SYN: invalid syn.")
-        return 0
+        return -1
 
     # Should we accept this?
     contract_id = client.contract_id(msg).decode("utf-8")
@@ -198,21 +198,21 @@ def process_syn(client, msg, enable_accept_handlers=ENABLE_ACCEPT_HANDLERS):
             )
 
             # Quit.
-            return 0
+            return -2
 
     # Check our UNL is correct.
     if msg[u"dest_unl"] != client.net.unl.value:
         _log.debug("They got our UNL wrong.")
-        return 0
+        return -3
 
     # Check their sig is valid.
     if not client.is_valid_contract_sig(msg, src_node_id):
         _log.debug("Their signature was incorrect.")
-        return 0
+        return -4
 
     # Check handshake state.
     if contract_id in client.handshake:
-        return 0
+        return -5
 
     # Save contract.
     client.save_contract(msg)
@@ -241,12 +241,12 @@ def process_syn_ack(client, msg):
     # Valid syn-ack?
     if u"syn" not in msg:
         _log.debug("SYN-ACK: syn not in msg.")
-        return 0
+        return -1
 
     # Check length is correct.
     if len(msg) != 3:
         _log.debug("incorrect length")
-        return 0
+        return -2
 
     # Is this a reply to our SYN?
     contract_id = client.contract_id(msg[u"syn"])
@@ -259,32 +259,32 @@ def process_syn_ack(client, msg):
         _log.debug(client.contracts)
         _log.debug("--------------")
         _log.debug("SYN-ACK: contract not found.")
-        return 0
+        return -3
 
     # Check syn is valid.
-    if not is_valid_syn(client, msg[u"syn"]):
+    if is_valid_syn(client, msg[u"syn"]) != 1:
         _log.debug("SYN-ACK: invalid syn.")
-        return 0
+        return -4
 
     # Did I sign this?
     if not client.is_valid_contract_sig(msg[u"syn"]):
         _log.debug("SYN-ACK: our sig is invalid.")
-        return 0
+        return -5
 
     # Check their sig is valid.
     contract = client.contracts[contract_id]
     their_node_id = client.get_node_id_from_unl(contract["dest_unl"])
     if not client.is_valid_contract_sig(msg, their_node_id):
         _log.debug("Their signature was incorrect.")
-        return 0
+        return -6
 
     # Check handshake state is valid.
     if contract_id not in client.handshake:
         _log.debug("contract id not in handshake")
-        return 0
+        return -7
     if client.handshake[contract_id][u"state"] != u"SYN":
         _log.debug("handshake state invalid")
-        return 0
+        return -8
 
     # Update handshake.
     client.handshake[contract_id] = {
@@ -329,18 +329,18 @@ def process_ack(client, msg):
     # Valid ack.
     if u"syn_ack" not in msg:
         _log.debug("ACK: syn_ack not in msg.")
-        return 0
+        return -1
 
     # Check length.
     if len(msg) != 3:
         _log.debug("ACK: invalid msg length.")
-        return 0
+        return -2
 
     # Is this a reply to our SYN-ACK?
     contract_id = client.contract_id(msg[u"syn_ack"][u"syn"])
     if contract_id not in client.contracts:
         _log.debug("ACK: contract not found.")
-        return 0
+        return -3
 
     # Did I sign this?
     if not client.is_valid_contract_sig(msg[u"syn_ack"]):
@@ -350,15 +350,15 @@ def process_ack(client, msg):
         _log.debug(client.contracts)
         _log.debug("--------------")
         _log.debug("ACK: sig is invalid.")
-        return 0
+        return -4
 
     # Check handshake state is valid.
     if contract_id not in client.handshake:
         _log.debug("Contract id not found in handshake.")
-        return 0
+        return -5
     if client.handshake[contract_id][u"state"] != u"SYN-ACK":
         _log.debug("Invalid state for handshake.")
-        return 0
+        return -6
 
     # Update handshake.
     contract = client.contracts[contract_id]
@@ -390,11 +390,11 @@ def process_rst(client, msg):
     # Sanity checks.
     if u"contract_id" not in msg:
         _log.debug("RST: Contract id not in msg")
-        return 0
+        return -1
 
     if u"src_unl" not in msg:
         _log.debug("RST: Src unl not in msg")
-        return 0
+        return -2
 
     contract_id = msg[u"contract_id"]
     if contract_id not in client.contracts:
@@ -403,7 +403,7 @@ def process_rst(client, msg):
         _log.debug(client.contracts)
         _log.debug("-------------")
         _log.debug(str(msg))
-        return 0
+        return -3
 
     # Check UNLs match for this contract.
     contract = client.contracts[contract_id]
@@ -411,13 +411,13 @@ def process_rst(client, msg):
     found_unl = msg[u"src_unl"]
     if expected_unl != found_unl:
         _log.debug("RST: UNLs dont match")
-        return 0
+        return -4
 
     # Check sig matches the UNL.
     node_id = client.get_node_id_from_unl(found_unl)
     if not client.is_valid_contract_sig(msg, node_id):
         _log.debug("RST: sig doesn't match")
-        return 0
+        return -5
 
     # Raise rejection callback and return!
     _log.debug("Rejection request received!")
@@ -434,7 +434,7 @@ def protocol(client, msg):
         msg = json.loads(msg, object_pairs_hook=OrderedDict)
     except ValueError:
         _log.debug("Protocol: invalid JSON")
-        return 0
+        return -1
 
     msg_handlers = {
         u"SYN": process_syn,
@@ -446,12 +446,12 @@ def protocol(client, msg):
     # Sanity checking.
     if u"status" not in msg:
         _log.debug("Protocol: no status in msg")
-        return 0
+        return -2
 
     # Message too large.
     if len(str(msg)) >= 5242880: # 5MB.
         _log.debug("Protocol: msg too big")
-        return 0
+        return -3
 
     # Process msg.
     status = msg[u"status"]
@@ -459,7 +459,7 @@ def protocol(client, msg):
         msg_handlers[status](client, msg)
         return 1
 
-    return 0
+    return -4
 
 
 

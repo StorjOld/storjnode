@@ -114,8 +114,11 @@ class TestFileHandshake(unittest.TestCase):
         self.alice.net.stop()
         self.bob.net.stop()
 
-    @unittest.skip("broken on travis")
     def test_message_flow(self):
+        print("")
+        print("Testing message flow")
+        print("")
+
         # Create file we're suppose to be uploading.
         path = os.path.join(self.alice_storage, self.syn[u"data_id"])
         if not os.path.exists(path):
@@ -136,18 +139,25 @@ class TestFileHandshake(unittest.TestCase):
 
         # Bob: process SYN, build SYN-ACK.
         syn_ack = process_syn(self.bob, syn)
-        assert(syn_ack != 0)
+        assert(type(syn_ack) == OrderedDict)
 
         # Alice: process SYN-ACK, build ACK.
         ack = process_syn_ack(self.alice, syn_ack)
-        assert(ack != 0)
+        assert(type(ack) == OrderedDict)
 
         # Bob: process ack.
         fin = process_ack(self.bob, ack)
         assert(fin == 1)
 
-    @unittest.skip("broken on travis")
+        print("")
+        print("Done testing message flow")
+        print("")
+
     def test_protocol(self):
+        print("")
+        print("Testing protocol")
+        print("")
+
         # Create file we're suppose to be uploading.
         path = os.path.join(self.alice_storage, self.syn[u"data_id"])
         if not os.path.exists(path):
@@ -159,21 +169,25 @@ class TestFileHandshake(unittest.TestCase):
 
         # Test broken JSON.
         msg = "{"
-        assert(protocol(self.bob, msg) == 0)
+        assert(protocol(self.bob, msg) == -1)
 
         # No status in message.
         msg = '{}'
-        assert(protocol(self.bob, msg) == 0)
+        assert(protocol(self.bob, msg) == -2)
 
         # Invalid status.
-        msg = '{u"status": "X"}'
-        assert(protocol(self.bob, msg) == 0)
+        msg = '{"status": "X"}'
+        assert(protocol(self.bob, msg) == -4)
 
         # Test valid message handlers.
         syn = copy.deepcopy(self.syn)
         syn = self.alice.sign_contract(syn)
         msg = json.dumps(syn, ensure_ascii=True)
         assert(protocol(self.bob, msg) == 1)
+
+        print("")
+        print("Done testing protocol")
+        print("")
 
     def clean_slate(self, client):
         client.contracts = {}
@@ -188,8 +202,11 @@ class TestFileHandshake(unittest.TestCase):
         for client in [self.alice, self.bob]:
             self.clean_slate(client)
 
-    @unittest.skip("broken on travis")
     def test_sign_syn(self):
+        print("")
+        print("Testing sign syn")
+        print("")
+
         self.clean_slate_all()
 
         syn = copy.deepcopy(self.syn)
@@ -209,8 +226,15 @@ class TestFileHandshake(unittest.TestCase):
         print("----")
         print(signed_syn)
 
-    @unittest.skip("broken on travis")
+        print("")
+        print("End sign syn")
+        print("")
+
     def test_process_syn(self):
+        print("")
+        print("Testing process syn")
+        print("")
+
         self.clean_slate_all()
         syn = copy.deepcopy(self.syn)
 
@@ -224,35 +248,42 @@ class TestFileHandshake(unittest.TestCase):
         def request_handler(src_node_id, data_id, direction):
             return 1
         self.bob.handlers["accept"] = [request_handler]
-        assert(process_syn(self.bob, self.alice.sign_contract(syn), enable_accept_handlers=1) != 0)
+        assert(type(process_syn(self.bob, self.alice.sign_contract(syn), enable_accept_handlers=1)) == OrderedDict)
 
         # Test reject SYN with a handler.
         def request_handler(src_node_id, data_id, direction):
             return 0
         self.bob.handlers["accept"] = [request_handler]
-        assert(process_syn(self.bob, self.alice.sign_contract(syn), enable_accept_handlers=1) == 0)
+        assert(process_syn(self.bob, self.alice.sign_contract(syn), enable_accept_handlers=1) == -2)
 
         # Our UNL is incorrect.
         syn[u"dest_unl"] = self.alice.net.unl.value
-        assert(process_syn(self.bob, self.alice.sign_contract(syn), enable_accept_handlers=0) == 0)
+        assert(process_syn(self.bob, self.alice.sign_contract(syn), enable_accept_handlers=0) == -3)
         syn[u"dest_unl"] = self.bob.net.unl.value
 
         # Their sig is invalid.
         syn[u"signature"] = "x"
-        assert(process_syn(self.bob, syn, enable_accept_handlers=0) == 0)
+        assert(process_syn(self.bob, syn, enable_accept_handlers=0) == -4)
 
         # Handshake state is incorrect.
         syn = self.alice.sign_contract(syn)
         contract_id = self.bob.contract_id(syn)
         self.bob.handshake[contract_id] = "SYN"
-        assert(process_syn(self.bob, syn, enable_accept_handlers=0) == 0)
+        assert(process_syn(self.bob, syn, enable_accept_handlers=0) == -5)
         del self.bob.handshake[contract_id]
 
         # This should pass.
-        assert(process_syn(self.bob, syn, enable_accept_handlers=0))
+        assert(type(process_syn(self.bob, syn, enable_accept_handlers=0)) == OrderedDict)
 
-    @unittest.skip("broken on travis")
+        print("")
+        print("Ending process syn")
+        print("")
+
     def test_valid_syn_ack(self):
+        print("")
+        print("Testing process syn-ack")
+        print("")
+
         self.clean_slate_all()
 
         syn = self.alice.sign_contract(copy.deepcopy(self.syn))
@@ -261,10 +292,6 @@ class TestFileHandshake(unittest.TestCase):
         # Clear any old contracts that might exist.
         self.alice.contracts = {}
 
-        # Save original SYN as a contract.
-        contract_id = self.alice.contract_id(syn_ack[u"syn"])
-        self.alice.contracts[contract_id] = syn_ack[u"syn"]
-
         # Create file we're suppose to be uploading.
         path = os.path.join(self.alice_storage, syn_ack[u"syn"][u"data_id"])
         if not os.path.exists(path):
@@ -272,66 +299,77 @@ class TestFileHandshake(unittest.TestCase):
                 fp.write("0")
 
         # Syn not in message.
-        syn_ack_2 = syn_ack.copy()
+        syn_ack_2 = copy.deepcopy(syn_ack)
         del syn_ack_2[u"syn"]
-        assert(process_syn_ack(self.alice, syn_ack_2) == 0)
+        assert(process_syn_ack(self.alice, syn_ack_2) == -1)
+
+        # Invalid fields.
+        syn_ack_2 = copy.deepcopy(syn_ack)
+        syn_ack_2[u"xxx"] = "0"
+        assert(process_syn_ack(self.alice, syn_ack_2) == -2)
 
         # Not a reply to something we sent.
-        syn_ack_2 = syn_ack.copy()
-        assert(process_syn_ack(self.alice, syn_ack_2) == 0)
+        syn_ack_2 = copy.deepcopy(syn_ack)
+        assert(process_syn_ack(self.alice, syn_ack_2) == -3)
 
-        # Is SYN valid.
-        syn_ack_2 = syn_ack.copy()
-        data_id = syn_ack_2[u"syn"][u"data_id"]
-        syn_ack_2[u"syn"][u"data_id"] = "x"
+        # Save original SYN as a contract.
         contract_id = self.alice.contract_id(syn_ack_2[u"syn"])
         self.alice.contracts[contract_id] = syn_ack_2[u"syn"]
-        assert(process_syn_ack(self.alice, syn_ack_2) == 0)
-        syn_ack_2[u"syn"][u"data_id"] = data_id
+
+        # Is SYN valid.
+        syn_ack_2 = copy.deepcopy(syn_ack)
+        data_id = syn_ack_2[u"syn"][u"data_id"]
+        syn_ack_2[u"syn"][u"file_size"] = "10"
+        contract_id = self.alice.contract_id(syn_ack_2[u"syn"])
+        self.alice.contracts[contract_id] = syn_ack_2[u"syn"]
+        assert(process_syn_ack(self.alice, syn_ack_2) == -4)
 
         # Did we sign this?
-        our_sig = syn_ack[u"syn"][u"signature"]
-        syn_ack[u"syn"][u"signature"] = "x"
-        contract_id = self.alice.contract_id(syn_ack[u"syn"])
-        self.alice.contracts[contract_id] = syn_ack[u"syn"]
-        assert(process_syn_ack(self.alice, syn_ack) == 0)
-        syn_ack[u"syn"][u"signature"] = our_sig
+        syn_ack_2 = copy.deepcopy(syn_ack)
+        syn_ack_2[u"syn"][u"signature"] = "x"
+        contract_id = self.alice.contract_id(syn_ack_2[u"syn"])
+        self.alice.contracts[contract_id] = syn_ack_2[u"syn"]
+        assert(process_syn_ack(self.alice, syn_ack_2) == -5)
 
         # Check their sig is valid.
-        their_sig = syn_ack[u"signature"]
-        syn_ack[u"signature"] = "x"
-        contract_id = self.alice.contract_id(syn_ack[u"syn"])
-        self.alice.contracts[contract_id] = syn_ack[u"syn"]
-        assert(process_syn_ack(self.alice, syn_ack) == 0)
-        syn_ack[u"signature"] = their_sig
+        syn_ack_2 = copy.deepcopy(syn_ack)
+        syn_ack_2[u"signature"] = "x"
+        contract_id = self.alice.contract_id(syn_ack_2[u"syn"])
+        self.alice.contracts[contract_id] = syn_ack_2[u"syn"]
+        assert(process_syn_ack(self.alice, syn_ack_2) == -6)
 
         # Check handshake state is valid.
-        assert(process_syn_ack(self.alice, syn_ack) == 0)
+        syn_ack_2 = copy.deepcopy(syn_ack)
+        assert(process_syn_ack(self.alice, syn_ack_2) == -7)
         self.alice.handshake[contract_id] = {
             u"state": u"ACK",
             u"timestamp": time.time()
         }
-        contract_id = self.alice.contract_id(syn_ack[u"syn"])
-        self.alice.contracts[contract_id] = syn_ack[u"syn"]
-        assert(process_syn_ack(self.alice, syn_ack) == 0)
+        contract_id = self.alice.contract_id(syn_ack_2[u"syn"])
+        self.alice.contracts[contract_id] = syn_ack_2[u"syn"]
+        assert(process_syn_ack(self.alice, syn_ack_2) == -8)
         self.alice.handshake[contract_id] = {
             u"state": u"SYN",
             u"timestamp": time.time()
         }
 
         # This should pass.
-        contract_id = self.alice.contract_id(syn_ack[u"syn"])
-        self.alice.contracts[contract_id] = syn_ack[u"syn"]
-        ret = process_syn_ack(self.alice, syn_ack)
+        syn_ack_2 = copy.deepcopy(syn_ack)
+        contract_id = self.alice.contract_id(syn_ack_2[u"syn"])
+        self.alice.contracts[contract_id] = syn_ack_2[u"syn"]
+        ret = process_syn_ack(self.alice, syn_ack_2)
         print(ret)
-        assert(ret != 0)
+        assert(type(ret) == OrderedDict)
 
-        # Invalid fields.
-        syn_ack[u"xxx"] = "0"
-        assert(process_syn_ack(self.alice, syn_ack) == 0)
+        print("")
+        print("Ending process syn-ack")
+        print("")
 
-    @unittest.skip("broken on travis")
     def test_valid_ack(self):
+        print("")
+        print("Testing process ack")
+        print("")
+
         self.clean_slate_all()
 
         syn = self.alice.sign_contract(copy.deepcopy(self.syn))
@@ -340,29 +378,29 @@ class TestFileHandshake(unittest.TestCase):
         # SYN ack not in message.
         ack_2 = copy.deepcopy(ack)
         del ack_2[u"syn_ack"]
-        assert(process_ack(self.bob, ack_2) == 0)
+        assert(process_ack(self.bob, ack_2) == -1)
 
         # Invalid length.
         ack_2 = copy.deepcopy(ack)
         ack_2["yy"] = 1
-        assert(process_ack(self.bob, ack_2) == 0)
+        assert(process_ack(self.bob, ack_2) == -2)
 
         # Not a reply to our syn-ack.
         ack_2 = copy.deepcopy(ack)
-        assert(process_ack(self.bob, ack_2) == 0)
+        assert(process_ack(self.bob, ack_2) == -3)
 
         # Our sig is invalid.
         ack_2 = copy.deepcopy(ack)
         ack_2[u"syn_ack"][u"signature"] = "x"
         contract_id = self.bob.contract_id(ack_2[u"syn_ack"][u"syn"])
         self.bob.contracts[contract_id] = ack_2[u"syn_ack"][u"syn"]
-        assert(process_ack(self.bob, ack_2) == 0)
+        assert(process_ack(self.bob, ack_2) == -4)
 
         # Contract ID not in handshakes.
         ack_2 = copy.deepcopy(ack)
         contract_id = self.bob.contract_id(ack_2[u"syn_ack"][u"syn"])
         self.bob.contracts[contract_id] = ack_2[u"syn_ack"][u"syn"]
-        assert(process_ack(self.bob, ack_2) == 0)
+        assert(process_ack(self.bob, ack_2) == -5)
 
         # Handshake state is invalid.
         ack_2 = copy.deepcopy(ack)
@@ -372,7 +410,7 @@ class TestFileHandshake(unittest.TestCase):
             u"state": "SYN",
             u"timestamp": time.time()
         }
-        assert(process_ack(self.bob, ack_2) == 0)
+        assert(process_ack(self.bob, ack_2) == -6)
 
         # This should pass.
         ack_2 = copy.deepcopy(ack)
@@ -385,10 +423,17 @@ class TestFileHandshake(unittest.TestCase):
         ret = process_ack(self.bob, ack_2)
         print(ret)
 
-        assert(ret != 0)
+        assert(ret == 1)
 
-    @unittest.skip("broken on travis")
+        print("")
+        print("Ending process ack")
+        print("")
+
     def test_valid_rst(self):
+        print("")
+        print("Testing process rst")
+        print("")
+
         self.clean_slate_all()
 
         syn = self.alice.sign_contract(self.syn)
@@ -407,26 +452,26 @@ class TestFileHandshake(unittest.TestCase):
         # Contract ID not in message.
         rst_2 = copy.deepcopy(rst)
         del rst_2["contract_id"]
-        assert(process_rst(self.alice, rst_2) == 0)
+        assert(process_rst(self.alice, rst_2) == -1)
 
         # SRC UNL not in message.
         rst_2 = copy.deepcopy(rst)
         del rst_2["src_unl"]
-        assert(process_rst(self.alice, rst_2) == 0)
+        assert(process_rst(self.alice, rst_2) == -2)
 
         # Contract not found.
         rst_2 = copy.deepcopy(rst)
-        assert(process_rst(self.alice, rst_2) == 0)
+        assert(process_rst(self.alice, rst_2) == -3)
 
         # UNLs don't match for this contract.
         self.alice.contracts[contract_id] = syn
         rst_2 = copy.deepcopy(rst)
         rst_2[u"src_unl"] = self.alice.net.unl.value
-        assert(process_rst(self.alice, rst_2) == 0)
+        assert(process_rst(self.alice, rst_2) == -4)
 
         # Sig doesn't match for this contract.
         rst_2 = copy.deepcopy(rst)
-        assert(process_rst(self.alice, rst_2) == 0)
+        assert(process_rst(self.alice, rst_2) == -5)
 
         # This should pass.
         rst_2 = copy.deepcopy(rst)
@@ -445,44 +490,54 @@ class TestFileHandshake(unittest.TestCase):
         assert(process_rst(self.alice, rst_2) == 1)
         assert(callbacks_work == 1)
 
-    @unittest.skip("broken on travis")
+        print("")
+        print("Ending process rst")
+        print("")
+
     def test_valid_syn(self):
+        print("")
+        print("Testing is_valid_syn")
+        print("")
+
         self.clean_slate_all()
 
         # Non existing fields.
         syn = {}
-        assert(is_valid_syn(self.alice, syn) == 0)
-
-        # Huge syn.
-        syn = OrderedDict({
-            u"status": u"SYN",
-            u"direction": "send",
-            u"data_id": "0" * (5242880 + 10),
-            u"file_size": 100,
-            u"host_unl": self.alice.net.unl.value,
-            u"dest_unl": self.alice.net.unl.value,
-            u"src_unl": self.alice.net.unl.value
-        })
-        assert(is_valid_syn(
-            self.alice,
-            self.alice.sign_contract(syn)
-        ) == 0)
-        syn["data_id"] = hashlib.sha256(b"0").hexdigest()
+        assert(is_valid_syn(self.alice, syn) == -1)
 
         # Invalid number of fields.
+        syn = copy.deepcopy(self.syn)
         syn["test"] = "test"
         assert(is_valid_syn(
             self.alice,
             self.alice.sign_contract(syn)
-        ) == 0)
+        ) == -2)
         del syn["test"]
+
+        # The data ID is wrong.
+        syn["data_id"] = "x"
+        assert(is_valid_syn(
+            self.alice,
+            self.alice.sign_contract(syn)
+        ) == -3)
+        syn["data_id"] = hashlib.sha256(b"0").hexdigest()
+
+        #Syn is too big.
+        """
+        syn[u"file_size"] = int("9" * (5242880 + 10))
+        assert(is_valid_syn(
+            self.alice,
+            self.alice.sign_contract(syn)
+        ) == -4)
+        syn[u"file_size"] = 1
+        """
 
         # Invalid direction.
         syn["direction"] = "x"
         assert(is_valid_syn(
             self.alice,
             self.alice.sign_contract(syn)
-        ) == 0)
+        ) == -5)
         syn["direction"] = "send"
 
         # Invalid UNLs.
@@ -490,7 +545,7 @@ class TestFileHandshake(unittest.TestCase):
         assert(is_valid_syn(
             self.alice,
             self.alice.sign_contract(syn)
-        ) == 0)
+        ) == -6)
         syn["host_unl"] = self.alice.net.unl.value
 
         # Invalid file size.
@@ -498,22 +553,14 @@ class TestFileHandshake(unittest.TestCase):
         assert(is_valid_syn(
             self.alice,
             self.alice.sign_contract(syn)
-        ) == 0)
+        ) == -7)
         syn["file_size"] = 20
-
-        # The data ID is wrong.
-        syn["data_id"] = "x"
-        assert(is_valid_syn(
-            self.alice,
-            self.alice.sign_contract(syn)
-        ) == 0)
-        syn["data_id"] = hashlib.sha256(b"0").hexdigest()
 
         # We're the host and we don't have this file.
         assert(is_valid_syn(
             self.alice,
             self.alice.sign_contract(syn)
-        ) == 0)
+        ) == -8)
 
         # We're not the host. We're downloading this.
         # and we already have the file.
@@ -522,7 +569,7 @@ class TestFileHandshake(unittest.TestCase):
         if not os.path.exists(path):
             with open(path, "w") as fp:
                 fp.write("0")
-        assert(is_valid_syn(self.alice, self.alice.sign_contract(syn)) == 0)
+        assert(is_valid_syn(self.alice, self.alice.sign_contract(syn)) == -9)
 
         # We're not the host and we're already downloading this
         os.remove(path)
@@ -530,7 +577,7 @@ class TestFileHandshake(unittest.TestCase):
         assert(is_valid_syn(
             self.alice,
             self.alice.sign_contract(syn)
-        ) == 0)
+        ) == -10)
         del self.alice.downloading[syn[u"data_id"]]
 
         # This should pass.
@@ -538,7 +585,11 @@ class TestFileHandshake(unittest.TestCase):
         assert(is_valid_syn(
             self.alice,
             self.alice.sign_contract(syn)
-        ) != 0)
+        ) == 1)
+
+        print("")
+        print("Ending is_valid_syn")
+        print("")
 
 
 if __name__ == "__main__":
