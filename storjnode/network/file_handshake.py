@@ -96,11 +96,6 @@ def is_valid_syn(client, msg):
             _log.debug("We're already trying to download this")
             return 0
 
-    if not client.is_valid_contract_sig(msg):
-        print(msg)
-        _log.debug("Invalid signature for SYN")
-        return 0
-
     return 1
 
 # Associate TCP con with contract.
@@ -161,16 +156,16 @@ def success_wrapper(client, contract_id, host_unl):
 
     return success
 
-def process_syn(client, msg):
+def process_syn(client, msg, enable_accept_handlers=ENABLE_ACCEPT_HANDLERS):
     # Check syn is valid.
     if not is_valid_syn(client, msg):
         _log.debug("SYN: invalid syn.")
-        return
+        return 0
 
     # Should we accept this?
     contract_id = client.contract_id(msg).decode("utf-8")
     src_node_id = client.get_node_id_from_unl(msg[u"src_unl"])
-    if ENABLE_ACCEPT_HANDLERS:
+    if enable_accept_handlers:
         accept_this = 0
         for handler in client.handlers[u"accept"]:
             accept_this = handler(
@@ -203,21 +198,21 @@ def process_syn(client, msg):
             )
 
             # Quit.
-            return
+            return 0
 
     # Check our UNL is correct.
     if msg[u"dest_unl"] != client.net.unl.value:
         _log.debug("They got our UNL wrong.")
-        return
+        return 0
 
     # Check their sig is valid.
     if not client.is_valid_contract_sig(msg, src_node_id):
         _log.debug("Their signature was incorrect.")
-        return
+        return 0
 
     # Check handshake state.
     if contract_id in client.handshake:
-        return
+        return 0
 
     # Save contract.
     client.save_contract(msg)
@@ -238,6 +233,9 @@ def process_syn(client, msg):
     # Save reply.
     client.send_msg(reply, msg[u"src_unl"])
     _log.debug("SYN")
+
+    # Success.
+    return 1
 
 def process_syn_ack(client, msg):
     # Valid syn-ack?

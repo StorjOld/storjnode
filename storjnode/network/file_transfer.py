@@ -177,6 +177,10 @@ class FileTransfer:
         else:
             msg = str(contract)
 
+        # This shouldn't already exist.
+        if u"signature" in contract:
+            del contract[u"signature"]
+
         msg = binascii.hexlify(msg).decode("utf-8")
         sig = self.wallet.sign_data(self.wif, msg)
 
@@ -198,17 +202,20 @@ class FileTransfer:
 
         # Use our address.
         msg = binascii.hexlify(msg).decode("utf-8")
-        if node_id is None:
-            address = self.wallet.get_address(self.wif)
-            ret = self.wallet.verify_signature(address, sig, msg)
-        else:
-            # Use their node ID: try testnet.
-            address = b2a_hashed_base58(b'o' + node_id)
-            ret = self.wallet.verify_signature(address, sig, msg)
-            if not ret:
-                # Use their node ID: try mainnet.
-                address = b2a_hashed_base58(b'\0' + node_id)
+        try:
+            if node_id is None:
+                address = self.wallet.get_address(self.wif)
                 ret = self.wallet.verify_signature(address, sig, msg)
+            else:
+                # Use their node ID: try testnet.
+                address = b2a_hashed_base58(b'o' + node_id)
+                ret = self.wallet.verify_signature(address, sig, msg)
+                if not ret:
+                    # Use their node ID: try mainnet.
+                    address = b2a_hashed_base58(b'\0' + node_id)
+                    ret = self.wallet.verify_signature(address, sig, msg)
+        except TypeError:
+            return 0
 
         # Move sig back.
         contract[u"signature"] = sig[:]
