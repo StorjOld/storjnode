@@ -114,7 +114,6 @@ class TestFileHandshake(unittest.TestCase):
         self.alice.net.stop()
         self.bob.net.stop()
 
-    @unittest.skip("")
     def test_message_flow(self):
         print("")
         print("Testing message flow")
@@ -154,7 +153,6 @@ class TestFileHandshake(unittest.TestCase):
         print("Done testing message flow")
         print("")
 
-    @unittest.skip("")
     def test_protocol(self):
         print("")
         print("Testing protocol")
@@ -204,7 +202,6 @@ class TestFileHandshake(unittest.TestCase):
         for client in [self.alice, self.bob]:
             self.clean_slate(client)
 
-    @unittest.skip("")
     def test_sign_syn(self):
         print("")
         print("Testing sign syn")
@@ -233,7 +230,6 @@ class TestFileHandshake(unittest.TestCase):
         print("End sign syn")
         print("")
 
-    @unittest.skip("")
     def test_process_syn(self):
         print("")
         print("Testing process syn")
@@ -442,7 +438,6 @@ class TestFileHandshake(unittest.TestCase):
         print("Ending process ack")
         print("")
 
-    @unittest.skip("")
     def test_valid_rst(self):
         print("")
         print("Testing process rst")
@@ -508,7 +503,6 @@ class TestFileHandshake(unittest.TestCase):
         print("Ending process rst")
         print("")
 
-    @unittest.skip("")
     def test_valid_syn(self):
         print("")
         print("Testing is_valid_syn")
