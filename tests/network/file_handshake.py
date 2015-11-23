@@ -340,7 +340,11 @@ class TestFileHandshake(unittest.TestCase):
 
         # Check handshake state is valid.
         syn_ack_2 = copy.deepcopy(syn_ack)
-        assert(process_syn_ack(self.alice, syn_ack_2) == -7)
+        self.alice.handshake = {}
+        ret = process_syn_ack(self.alice, syn_ack_2)
+        print("ERror 1")
+        print(ret)
+        assert(ret == -7)
         self.alice.handshake[contract_id] = {
             u"state": u"ACK",
             u"timestamp": time.time()
@@ -400,6 +404,7 @@ class TestFileHandshake(unittest.TestCase):
         ack_2 = copy.deepcopy(ack)
         contract_id = self.bob.contract_id(ack_2[u"syn_ack"][u"syn"])
         self.bob.contracts[contract_id] = ack_2[u"syn_ack"][u"syn"]
+        self.alice.handshake = {}
         assert(process_ack(self.bob, ack_2) == -5)
 
         # Handshake state is invalid.
