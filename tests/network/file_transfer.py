@@ -20,7 +20,6 @@ setup()
 
 _log = logging.getLogger(__name__)
 
-
 TEST_NODE = {
     "unl": ("AhaVDlV5HtHJlddtqgpDHdIFWdr5cGdt8OsG79qiBu/aouc/Ru4="),
     "web": "http://162.218.239.6/"
@@ -32,9 +31,46 @@ class TestFileTransfer(unittest.TestCase):
     def setUp(self):
         self.test_storage_dir = tempfile.mkdtemp()
 
+        # Sample node.
+        self.wallet = btctxstore.BtcTxStore(testnet=False, dryrun=True)
+        self.wif = self.wallet.get_key(self.wallet.create_wallet())
+        self.node_id = address_to_node_id(self.wallet.get_address(self.wif))
+        self.store_config = {
+            os.path.join(self.test_storage_dir, "storage"): {"limit": 0}
+        }
+
+        # dht_node = pyp2p.dht_msg.DHT(node_id=node_id)
+        self.dht_node = storjnode.network.Node(self.wif, bootstrap_nodes=DEFAULT_BOOTSTRAP_NODES, disable_data_transfer=True)
+
+        # Transfer client.
+        self.client = FileTransfer(
+            pyp2p.net.Net(
+                node_type="simultaneous",
+                nat_type="preserving",
+                net_type="direct",
+                passive_port=60400,
+                dht_node=self.dht_node,
+                debug=1
+            ),
+            wif=self.wif,
+            store_config=self.store_config
+        )
+
+
     def tearDown(self):
         shutil.rmtree(self.test_storage_dir)
+        self.client.net.dht_node.stop()
 
+    def test_con_by_contract_id(self):
+        contract_id = "something"
+        con = 1
+        self.client.con_info[con] = {
+            contract_id: {}
+        }
+
+        assert(self.client.get_con_by_contract_id(contract_id) == con)
+
+    @unittest.skip("")
     def test_multiple_transfers(self):
 
         def make_random_file(file_size=1024 * 100,
@@ -49,32 +85,9 @@ class TestFileTransfer(unittest.TestCase):
                 "content": content
             }
 
-        # Sample node.
-        wallet = btctxstore.BtcTxStore(testnet=False, dryrun=True)
-        wif = wallet.get_key(wallet.create_wallet())
-        node_id = address_to_node_id(wallet.get_address(wif))
-        store_config = {
-            os.path.join(self.test_storage_dir, "storage"): {"limit": 0}
-        }
-        #dht_node = pyp2p.dht_msg.DHT(node_id=node_id)
-        dht_node = storjnode.network.Node(wif, bootstrap_nodes=DEFAULT_BOOTSTRAP_NODES, disable_data_transfer=True)
-        client = FileTransfer(
-            pyp2p.net.Net(
-                node_type="simultaneous",
-                nat_type="preserving",
-                net_type="direct",
-                passive_port=60400,
-                dht_node=dht_node,
-                debug=1
-            ),
-            wif=wif,
-            store_config=store_config
-        )
-
-
         #print("Giving nodes some time to find peers.")
         time.sleep(storjnode.network.WALK_TIMEOUT)
-        dht_node.refresh_neighbours()
+        self.dht_node.refresh_neighbours()
         time.sleep(storjnode.network.WALK_TIMEOUT)
 
         _log.debug("Net started")
@@ -84,7 +97,7 @@ class TestFileTransfer(unittest.TestCase):
 
         # Move file to storage directory.
         file_infos = [
-            client.move_file_to_storage(rand_file_infos[0]["path"])
+            self.client.move_file_to_storage(rand_file_infos[0]["path"])
         ]
 
         # Delete original file.
@@ -94,7 +107,7 @@ class TestFileTransfer(unittest.TestCase):
 
         # Upload file from storage.
         for file_info in file_infos:
-            client.data_request(
+            self.client.data_request(
                 "upload",
                 file_info["data_id"],
                 0,
@@ -104,8 +117,8 @@ class TestFileTransfer(unittest.TestCase):
         # Process file transfers.
         duration = 15
         timeout = time.time() + duration
-        while time.time() <= timeout or client.is_queued():
-            process_transfers(client)
+        while time.time() <= timeout or self.client.is_queued():
+            process_transfers(self.client)
             time.sleep(0.002)
 
         # Check upload exists.
@@ -120,12 +133,12 @@ class TestFileTransfer(unittest.TestCase):
         _log.debug("File upload succeeded.")
 
         # Delete storage file copy.
-        client.remove_file_from_storage(file_infos[0]["data_id"])
+        self.client.remove_file_from_storage(file_infos[0]["data_id"])
 
         # Download file from storage.
         _log.debug("Testing download.")
         for file_info in file_infos:
-            client.data_request(
+            self.client.data_request(
                 "download",
                 file_info["data_id"],
                 0,
@@ -135,13 +148,13 @@ class TestFileTransfer(unittest.TestCase):
         # Process file transfers.
         duration = 15
         timeout = time.time() + duration
-        while time.time() <= timeout or client.is_queued():
-            process_transfers(client)
+        while time.time() <= timeout or self.client.is_queued():
+            process_transfers(self.client)
             time.sleep(0.002)
 
         # Check we received this file.
         for i in range(0, 1):
-            path = storage.manager.find(store_config, file_infos[i]["data_id"])
+            path = storage.manager.find(self.store_config, file_infos[i]["data_id"])
             if not os.path.isfile(path):
                 assert(0)
             else:
@@ -150,10 +163,7 @@ class TestFileTransfer(unittest.TestCase):
                     assert(content == rand_file_infos[i]["content"])
 
         # Delete storage file copy.
-        client.remove_file_from_storage(file_infos[0]["data_id"])
-
-        # Stop networking.
-        dht_node.stop()
+        self.client.remove_file_from_storage(file_infos[0]["data_id"])
 
         _log.debug("Download succeeded.")
 

@@ -77,6 +77,11 @@ def do_upload(client, con, contract, con_info):
             client.store_config,
             contract["data_id"]
         )
+        if path is None:
+            _log.debug("Error: we don't have this file!")
+            con.close()
+            return 0
+
         file_size = os.path.getsize(path)
         con_info["file_size"] = file_size
         con_info["remaining"] = file_size
@@ -224,15 +229,15 @@ def finish_transfer(client, contract_id, con):
         client.defers[contract_id].callback(client.success_value)
         del client.defers[contract_id]
 
-        # Call the completion handlers.
-        dest_node_id = client.net.unl.deconstruct(contract["dest_unl"])
-        dest_node_id = dest_node_id["node_id"]
-        for handler in client.handlers["complete"]:
-            handler(
-                dest_node_id,
-                contract["data_id"],
-                contract["direction"]
-            )
+    # Call the completion handlers.
+    dest_node_id = client.net.unl.deconstruct(contract["dest_unl"])
+    dest_node_id = dest_node_id["node_id"]
+    for handler in client.handlers["complete"]:
+        handler(
+            dest_node_id,
+            contract["data_id"],
+            contract["direction"]
+        )
 
     if is_master:
         # Set next contract ID and send to client.
@@ -277,7 +282,7 @@ def process_transfers(client):
 
         # Socket has hung ungracefully.
         duration = time.time() - con.alive
-        if duration >= 15.0:
+        if duration >= 60.0:
             _log.debug("Ungraceful socket close")
             con.close()
             continue

@@ -3,6 +3,7 @@ from collections import OrderedDict
 import json
 import time
 import pyp2p.unl
+from pyp2p.unl import UNL
 import pyp2p.net
 import pyp2p.dht_msg
 import tempfile
@@ -10,8 +11,6 @@ import sys
 import storjnode.storage as storage
 
 _log = logging.getLogger(__name__)
-
-_log.setLevel("DEBUG")
 
 ENABLE_ACCEPT_HANDLERS = 0
 
@@ -104,6 +103,9 @@ def success_wrapper(client, contract_id, host_unl):
         with client.mutex:
             _log.debug("IN SUCCESS CALLBACK")
             _log.debug("Success() contract_id = " + str(contract_id))
+            assert(host_unl is not None)
+            assert(contract_id is not None)
+            assert(client is not None)
 
             # Modify socket and change it get
 
@@ -152,7 +154,8 @@ def success_wrapper(client, contract_id, host_unl):
                         client.con_transfer[con] = u""
 
             #Return new connection.
-            client.cons.append(con)
+            if con not in client.cons:
+                client.cons.append(con)
 
     return success
 
@@ -283,6 +286,7 @@ def process_syn_ack(client, msg):
         _log.debug("contract id not in handshake")
         return -7
     if client.handshake[contract_id][u"state"] != u"SYN":
+        _log.debug("state = " + str(client.handshake[contract_id][u"state"]))
         _log.debug("handshake state invalid")
         return -8
 
@@ -301,19 +305,37 @@ def process_syn_ack(client, msg):
     # Sign reply.
     reply = client.sign_contract(reply)
 
-    # Try make TCP con.
-    client.net.unl.connect(
-        contract["dest_unl"],
-        {
-            "success": success_wrapper(
+    # Are we already connected?
+    is_reliable_con = 0
+    con = client.net.con_by_unl(contract["dest_unl"], client.cons)
+    if con is not None:
+        # Otherwise the con could be torn down soon.
+        elapsed = time.time() - con.alive
+        _log.debug("Alive duration: " + str(elapsed))
+        if elapsed <= 30:
+            is_reliable_con = 1
+            success_wrapper(
                 client,
                 contract_id,
                 contract["host_unl"]
-            )
-        },
-        force_master=0,
-        nonce=contract_id
-    )
+            )(con)
+    else:
+        _log.debug("con is not reliable.")
+
+    # Try make TCP con.
+    if not is_reliable_con:
+        client.net.unl.connect(
+            contract["dest_unl"],
+            {
+                "success": success_wrapper(
+                    client,
+                    contract_id,
+                    contract["host_unl"]
+                )
+            },
+            force_master=0,
+            nonce=contract_id
+        )
 
     # Send reply.
     client.send_msg(reply, msg[u"syn"][u"dest_unl"])
@@ -367,19 +389,37 @@ def process_ack(client, msg):
         u"timestamp": time.time()
     }
 
-    # Try make TCP con.
-    client.net.unl.connect(
-        contract["src_unl"],
-        {
-            "success": success_wrapper(
+    # Are we already connected?
+    is_reliable_con = 0
+    con = client.net.con_by_unl(contract["src_unl"], client.cons)
+    if con is not None:
+        # Otherwise the con could be torn down soon.
+        elapsed = time.time() - con.alive
+        _log.debug("Alive duration: " + str(elapsed))
+        if elapsed <= 30:
+            is_reliable_con = 1
+            success_wrapper(
                 client,
                 contract_id,
                 contract["host_unl"]
-            )
-        },
-        force_master=0,
-        nonce=contract_id
-    )
+            )(con)
+    else:
+        _log.debug("con is not reliable")
+
+    # Try make TCP con.
+    if not is_reliable_con:
+        client.net.unl.connect(
+            contract["src_unl"],
+            {
+                "success": success_wrapper(
+                    client,
+                    contract_id,
+                    contract["host_unl"]
+                )
+            },
+            force_master=0,
+            nonce=contract_id
+        )
 
     _log.debug("ACK")
 
