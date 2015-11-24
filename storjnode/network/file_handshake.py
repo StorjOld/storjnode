@@ -12,7 +12,14 @@ import storjnode.storage as storage
 
 _log = logging.getLogger(__name__)
 
+# If this is disabled then any node can transfer with any other node
+# Without having a corresponding accept handler.
 ENABLE_ACCEPT_HANDLERS = 0
+
+# If connection reuse doesn't work out, set this to 0.
+# Controls whether files can be queued for download over same connection.
+# It would be ideal if this works.
+ENABLE_QUEUED_TRANSFERS = 1
 
 class RequestDenied(Exception):
     pass
@@ -322,6 +329,10 @@ def process_syn_ack(client, msg):
     else:
         _log.debug("con is not reliable.")
 
+    # Disable queued transfers.
+    if not ENABLE_QUEUED_TRANSFERS:
+        is_reliable_con = 0
+
     # Try make TCP con.
     if not is_reliable_con:
         client.net.unl.connect(
@@ -405,6 +416,11 @@ def process_ack(client, msg):
             )(con)
     else:
         _log.debug("con is not reliable")
+
+
+    # Disable queued transfers.
+    if not ENABLE_QUEUED_TRANSFERS:
+        is_reliable_con = 0
 
     # Try make TCP con.
     if not is_reliable_con:

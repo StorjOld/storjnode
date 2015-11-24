@@ -4,11 +4,15 @@ import binascii
 import random
 import logging
 import storjnode
+import json
+from twisted.internet import defer
+from collections import OrderedDict
 from btctxstore import BtcTxStore
 from crochet import wait_for, run_in_reactor
 from twisted.internet.task import LoopingCall
-from storjnode.util import valid_ip, address_to_node_id
+from storjnode.util import valid_ip, address_to_node_id, sign_msg, check_sig
 from storjnode.network.server import StorjServer, QUERY_TIMEOUT, WALK_TIMEOUT
+from pyp2p.unl import UNL
 
 
 # File transfer.
@@ -35,7 +39,7 @@ DEFAULT_BOOTSTRAP_NODES = [
 
 
 log = logging.getLogger(__name__)
-
+SIMULATE_DHT = False
 
 class Node(object):
     """Storj network layer implementation.
@@ -55,7 +59,8 @@ class Node(object):
                  passive_bind=None,  # FIXME use utils.get_inet_facing_ip ?
                  node_type="unknown",  # FIMME what is this ?
                  nat_type="unknown",  # FIXME what is this ?
-                 wan_ip=None):  # FIXME replace with sync_get_wan_ip calls
+                 wan_ip=None, # FIXME replace with sync_get_wan_ip calls
+                 simulate_dht=SIMULATE_DHT):
         """Create a blocking storjnode instance.
 
         Args:
@@ -79,6 +84,7 @@ class Node(object):
             nat_type: TODO doc string
             wan_ip: TODO doc string
         """
+        self.simulate_dht = simulate_dht
         self.disable_data_transfer = bool(disable_data_transfer)
         self._transfer_request_handlers = set()
         self._transfer_complete_handlers = set()
@@ -119,12 +125,63 @@ class Node(object):
         self._setup_server(key, ksize, dht_storage, max_messages,
                            refresh_neighbours_interval, bootstrap_nodes)
 
+        # Simulate DHT for tests.
+        if self.simulate_dht:
+            self.dht_node = SimDHT(node_id=self.get_id())
+        else:
+            # Disable simulated node.
+            self.dht_node = None
+
+        # Process incoming messages.
         self._setup_message_dispatcher()
+
+        # Process UNL requests.
+        def build_process_unl_requests(unl, wif):
+            def process_unl_requests(src_id, msg):
+                try:
+                    msg = json.loads(msg, object_pairs_hook=OrderedDict)
+
+                    # Not a UNL request.
+                    if msg[u"type"] != u"unl_request":
+                        return
+
+                    # Check signature.
+                    their_node_id = binascii.unhexlify(msg[u"requester"])
+                    if not check_sig(msg, wif, their_node_id):
+                        return
+
+                    # Response.
+                    our_node_id_hex = binascii.hexlify(self.get_id())
+                    our_node_id_hex = our_node_id_hex.decode("utf-8")
+                    response = sign_msg(OrderedDict(
+                        {
+                            u"type": u"unl_response",
+                            u"requestee": our_node_id_hex,
+                            u"unl": unl
+                        }
+                    ), wif)
+
+                    # Send response.
+                    response = json.dumps(response, ensure_ascii=True)
+                    self.relay_message(their_node_id, response)
+
+                except (ValueError, KeyError) as e:
+                    global _log
+                    _log.debug(str(e))
+                    _log.debug("Protocol: invalid JSON")
+
+            return process_unl_requests
 
         if not self.disable_data_transfer:
             self._setup_data_transfer_client(
                 store_config, passive_port, passive_bind,
                 node_type, nat_type, wan_ip
+            )
+
+            # Enable unl_request processor.
+            unl = self._data_transfer.net.unl.value
+            self.add_message_handler(
+                build_process_unl_requests(unl, self.get_key())
             )
 
     def _setup_message_dispatcher(self):
@@ -152,10 +209,7 @@ class Node(object):
             "accept": self._transfer_request_handlers
         }
 
-        wallet = BtcTxStore(testnet=False, dryrun=True)
         wif = self.get_key()
-        node_id = address_to_node_id(wallet.get_address(wif))
-        #dht_node = SimDHT(node_id=node_id)
         dht_node = self
 
         self._data_transfer = FileTransfer(
@@ -269,6 +323,78 @@ class Node(object):
         # FIXME remove and have callers use storage service instead
         return self._data_transfer.move_file_to_storage(path)
 
+    def get_unl_by_node_id(self, node_id):
+        """Get the WAN IP of this Node.
+
+        Returns:
+            A twisted.internet.defer.Deferred that resolves to
+            The UNL on success or None.
+        """
+
+        # UNL request.
+        our_node_id_as_hex = binascii.hexlify(self.get_id())
+        our_node_id_as_hex = our_node_id_as_hex.decode("utf-8")
+        unl_req = OrderedDict(
+            {
+                u"type": u"unl_request",
+                u"requester": our_node_id_as_hex
+            }
+        )
+
+        # Sign UNL request.
+        unl_req = sign_msg(unl_req, self.get_key())
+
+        # Handle responses for this request.
+        def handler_builder(self, d, their_node_id, wif):
+            def handler(src_id, msg):
+                # Is this a response to our request?
+                try:
+                    msg = json.loads(msg, object_pairs_hook=OrderedDict)
+
+                    # Not a UNL response.
+                    if msg[u"type"] != u"unl_response":
+                        return
+
+                    # Invalid UNL.
+                    their_unl = UNL(value=msg[u"unl"]).deconstruct()
+                    if their_unl is None:
+                        return
+
+                    # Invalid signature.
+                    if not check_sig(msg, wif, their_node_id):
+                        return
+
+                    # Everything passed: fire callback.
+                    d.callback(msg[u"unl"])
+
+                    # Remove this callback.
+                    return -1
+                except (ValueError, KeyError) as e:
+                    global _log
+                    _log.debug(str(e))
+                    _log.debug("Protocol: invalid JSON")
+
+            return handler
+
+        # Build message handler.
+        d = defer.Deferred()
+        handler = handler_builder(
+            self,
+            d,
+            node_id,
+            self.get_key()
+        )
+
+        # Register new handler for this UNL request.
+        self.add_message_handler(handler)
+
+        # Send our get UNL request to node.
+        unl_req = json.dumps(unl_req, ensure_ascii=True)
+        self.relay_message(node_id, unl_req)
+
+        # Return a new deferred.
+        return d
+
     def get_unl(self):
         if self.disable_data_transfer:
             raise Exception("Data transfer disabled!")
@@ -279,7 +405,6 @@ class Node(object):
         if self.disable_data_transfer:
             raise Exception("Data transfer disabled!")
 
-        time.sleep(5)  # Give enough time to copy UNL.
         LoopingCall(process_transfers, self._data_transfer).start(0.002,
                                                                   now=True)
 
@@ -287,12 +412,12 @@ class Node(object):
     # data transfer interface #
     ###########################
 
-    def async_request_data_transfer(self, data_id, peer_unl, direction):
+    def async_request_data_transfer(self, data_id, node_id, direction):
         """Request data be transfered to or from a peer.
 
         Args:
             data_id: The sha256 sum of the data to be transfered.
-            peer_unl: The node UNL of the peer to get the data from.
+            node_id: Binary node id of the target to receive message.
             direction: "send" to peer or "receive" from peer
 
         Returns:
@@ -303,11 +428,28 @@ class Node(object):
             RequestDenied: If the peer denied your request to transfer data.
             TransferError: If the data not transfered for other reasons.
         """
-        return self._data_transfer.simple_data_request(data_id, peer_unl,
-                                                       direction)
 
         if self.disable_data_transfer:
             raise Exception("Data transfer disabled!")
+
+        # Get a deferred for their UNL.
+        d = self.get_unl_by_node_id(node_id)
+
+        # Make data request when we have their UNL.
+        def callback_builder(data_id, direction):
+            def callback(peer_unl):
+                # Deferred.
+                return self._data_transfer.simple_data_request(
+                    data_id, peer_unl, direction
+                )
+
+            return callback
+
+        # Add callback to UNL deferred.
+        d.addCallback(callback_builder(data_id, direction))
+
+        # Return deferred.
+        return d
 
     @wait_for(timeout=QUERY_TIMEOUT)
     def sync_request_data_transfer(self, data_id, peer_unl, direction):
@@ -450,21 +592,39 @@ class Node(object):
         Returns:
             True if message was added to relay queue, otherwise False.
         """
-        return self.server.relay_message(nodeid, message)
+
+        if self.simulate_dht:
+            self.dht_node.relay_message(nodeid, message)
+            return True
+        else:
+            return self.server.relay_message(nodeid, message)
 
     def _dispatch_message(self, received, handler):
         try:
             source = received["source"].id if received["source"] else None
-            handler(source, received["message"])
+            return handler(source, received["message"])
         except Exception as e:
             msg = "Message handler raised exception: {0}"
             log.error(msg.format(repr(e)))
 
     def _message_dispatcher_loop(self):
         while not self._message_dispatcher_thread_stop:
-            for received in self.server.get_messages():
+            if self.simulate_dht:
+                messages = self.dht_node.get_messages()
+            else:
+                messages = self.server.get_messages()
+
+            expired_handlers = set()
+            for received in messages:
                 for handler in self._message_handlers:
-                    self._dispatch_message(received, handler)
+                    ret = self._dispatch_message(received, handler)
+                    if ret == -1:
+                        expired_handlers.add(handler)
+
+            # Remove expired handlers.
+            for handler in expired_handlers:
+                self.remove_message_handler(handler)
+
             time.sleep(0.002)
 
     def add_message_handler(self, handler):

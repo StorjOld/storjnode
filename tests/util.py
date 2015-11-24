@@ -1,10 +1,25 @@
 import unittest
 import storjnode
+import btctxstore
+from collections import OrderedDict
 try:
     from Queue import Queue, Full  # py2
 except ImportError:
     from queue import Queue, Full  # py3
 
+class TestSigning(unittest.TestCase):
+    def test_signing(self):
+        # Check sig using our wif to get the address.
+        api = btctxstore.BtcTxStore(testnet=False, dryrun=True)
+        wif = api.get_key(api.create_wallet())
+        msg = OrderedDict({"type": "test"})
+        signed_msg = storjnode.util.sign_msg(msg, wif)
+        assert(storjnode.util.check_sig(signed_msg, wif))
+
+        # Check sig using node ID to get the address.
+        address = api.get_address(wif)
+        node_id = storjnode.util.address_to_node_id(address)
+        assert(storjnode.util.check_sig(signed_msg, wif, node_id))
 
 class TestValidIP(unittest.TestCase):
 
