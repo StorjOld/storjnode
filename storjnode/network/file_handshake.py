@@ -19,7 +19,7 @@ ENABLE_ACCEPT_HANDLERS = 0
 # If connection reuse doesn't work out, set this to 0.
 # Controls whether files can be queued for download over same connection.
 # It would be ideal if this works.
-ENABLE_QUEUED_TRANSFERS = 1
+ENABLE_QUEUED_TRANSFERS = 0
 
 class RequestDenied(Exception):
     pass
