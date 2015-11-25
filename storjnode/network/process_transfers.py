@@ -336,6 +336,7 @@ def process_transfers(client):
         if transfer_complete:
             finish_transfer(client, contract_id, con)
 
+    # Only reschedule the Looping call when this is done.
     d = defer.Deferred()
     d.callback(None)
     return d

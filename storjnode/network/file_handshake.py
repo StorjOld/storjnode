@@ -19,7 +19,7 @@ ENABLE_ACCEPT_HANDLERS = 0
 # If connection reuse doesn't work out, set this to 0.
 # Controls whether files can be queued for download over same connection.
 # It would be ideal if this works.
-ENABLE_QUEUED_TRANSFERS = 0
+ENABLE_QUEUED_TRANSFERS = 1
 
 class RequestDenied(Exception):
     pass
@@ -319,7 +319,7 @@ def process_syn_ack(client, msg):
         # Otherwise the con could be torn down soon.
         elapsed = time.time() - con.alive
         _log.debug("Alive duration: " + str(elapsed))
-        if elapsed <= 30:
+        if elapsed <= 40:
             is_reliable_con = 1
             success_wrapper(
                 client,
@@ -407,7 +407,7 @@ def process_ack(client, msg):
         # Otherwise the con could be torn down soon.
         elapsed = time.time() - con.alive
         _log.debug("Alive duration: " + str(elapsed))
-        if elapsed <= 30:
+        if elapsed <= 40:
             is_reliable_con = 1
             success_wrapper(
                 client,

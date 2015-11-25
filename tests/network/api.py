@@ -258,10 +258,9 @@ class TestNode(unittest.TestCase):
         time.sleep(QUERY_TIMEOUT)  # wait until network overlay stable, 2 peers
         try:
             alice_node.relay_message(bob_node.get_id(), "hi bob")
-            bob_received.wait(timeout=QUERY_TIMEOUT)
-            self.assertTrue(bob_received.isSet())
             bob_node.relay_message(alice_node.get_id(), "hi alice")
-            alice_received.wait(timeout=QUERY_TIMEOUT)
+            time.sleep(WALK_TIMEOUT)
+            self.assertTrue(bob_received.isSet())
             self.assertTrue(alice_received.isSet())
         finally:
             alice_node.stop()
