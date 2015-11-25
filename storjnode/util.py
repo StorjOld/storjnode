@@ -5,12 +5,21 @@ import psutil
 import socket
 import sys
 import binascii
+import pyp2p
 from crochet import wait_for
 from pycoin.encoding import a2b_hashed_base58, b2a_hashed_base58
 from collections import OrderedDict
 from btctxstore import BtcTxStore
 
 str_types = (bytes if sys.version_info >= (3, 0, 0) else str, str if sys.version_info >= (3, 0, 0) else unicode)
+
+def parse_node_id_from_unl(unl):
+    try:
+        unl = pyp2p.unl.UNL(value=unl).deconstruct()
+
+        return unl["node_id"]
+    except:
+        return b""
 
 def sign_msg(msg, wif):
     assert(type(msg) == OrderedDict)

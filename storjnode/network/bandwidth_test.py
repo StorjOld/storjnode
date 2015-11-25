@@ -11,7 +11,7 @@ import tempfile
 import pyp2p
 from storjnode.network.process_transfers import process_transfers
 from storjnode.network.file_transfer import FileTransfer
-from storjnode.util import sign_msg, check_sig, address_to_node_id
+from storjnode.util import sign_msg, check_sig, address_to_node_id, parse_node_id_from_unl
 from twisted.internet import defer
 from btctxstore import BtcTxStore
 
@@ -20,7 +20,7 @@ class BandwidthTest():
         self.wif = wif
         self.api = api
         self.transfer = transfer
-        self.test_node_id = None
+        self.test_node_unl = None
         self.active_test = defer.Deferred()
 
         # Stored in BYTES per second.
@@ -37,40 +37,44 @@ class BandwidthTest():
 
     def handle_responses_builder(self):
         def handle_responses(src_node_id, msg):
+            # Check message type.
+            msg = json.loads(msg, object_pairs_hook=OrderedDict)
+            if msg[u"type"] != u"test_bandwidth_response":
+                print("res: Invalid response")
+                return
+
+            # Transfer already active.
+            if self.test_node_unl is not None:
+                print("res: transfer already active")
+                return
+
+            # Check we sent the request.
+            req = msg[u"request"]
+            print(req)
+
+            if not check_sig(msg[u"request"], self.wif, self.api.get_id()):
+                print("res: our request sig was invalid")
+                return
+
+            # Check node IDs match.
+            if req[u"test_node_unl"] != msg[u"requestee"]:
+                print("res: node ids don't match")
+                return
+
+            # Check their sig.
+            src_node_id = parse_node_id_from_unl(msg[u"requestee"])
+            if not check_sig(msg, self.wif, src_node_id):
+                print("res: their sig did not match")
+                return
+
+            # Set active node ID.
+            self.test_node_unl = msg[u"requestee"]
+            print("res: got response")
+
             try:
-                # Check message type.
-                msg = json.loads(msg, object_pairs_hook=OrderedDict)
-                if msg[u"type"] != u"test_bandwidth_response":
-                    print("res: Invalid response")
-                    return
-
-                # Transfer already active.
-                if self.test_node_id is not None:
-                    print("res: transfer already active")
-                    return
-
-                # Check we sent the request.
-                req = msg[u"request"]
-                if not check_sig(msg, self.wif):
-                    print("res: our request sig was invalid")
-                    return
-
-                # Check node IDs match.
-                if req[u"test_node_id"] != msg[u"requestee"]:
-                    print("res: node ids don't match")
-                    return
-
-                # Check their sig.
-                src_node_id = binascii.unhexlify(msg[u"requestee"])
-                if not check_sig(msg, self.wif, src_node_id):
-                    print("res: their sig did not match")
-                    return
-
-                # Set active node ID.
-                self.test_node_id = src_node_id
-                print("res: got response")
-
+                pass
             except (ValueError, KeyError) as e:
+                print("Error in res")
                 return
 
         return handle_responses
@@ -78,74 +82,80 @@ class BandwidthTest():
     def handle_requests_builder(self):
         # Handle bandwidth requests.
         def handle_requests(src_node_id, msg):
+            print("In handle requests")
+
+            # Check message type.
+            msg = json.loads(msg, object_pairs_hook=OrderedDict)
+            if msg[u"type"] != u"test_bandwidth_request":
+                print("req: Invalid request")
+                return
+
+            # Drop request if test already active.
+            if self.test_node_unl is not None:
+                print("req: test already active")
+                return
+
+            # Check sig.
+            src_node_id = parse_node_id_from_unl(msg[u"requester"])
+            if not check_sig(msg, self.wif, src_node_id):
+                print("req: Invalid sig")
+                return
+
+            # Build response.
+            our_unl = self.transfer.net.unl.value
+            res = OrderedDict({
+                u"type": u"test_bandwidth_response",
+                u"timestamp": int(time.time()),
+                u"requestee": our_unl,
+                u"request": msg
+            })
+
+            # Check they got our node ID right.
+            if our_unl != msg[u"test_node_unl"]:
+                print("req: they got our node id wrong")
+                return
+
+            # Sign response
+            res = sign_msg(res, self.wif)
+
+            # Send request back to source.
+            res = json.dumps(res, ensure_ascii=True)
+            self.api.relay_message(src_node_id, res)
+            print("req: got request")
+
             try:
-                # Check message type.
-                msg = json.loads(msg, object_pairs_hook=OrderedDict)
-                if msg[u"type"] != u"test_bandwidth_request":
-                    print("req: Invalid request")
-                    return
-
-                # Drop request if test already active.
-                if self.test_node_id is not None:
-                    print("req: test already active")
-                    return
-
-                # Check sig.
-                src_node_id = binascii.unhexlify(msg[u"requester"])
-                if not check_sig(msg, self.wif):
-                    print("req: Invalid sig")
-                    return
-
-                # Build response.
-                our_node_id = binascii.unhexlify(self.api.get_id())
-                res = OrderedDict({
-                    u"type": u"test_bandwidth_response",
-                    u"timestamp": int(time.time()),
-                    u"requestee": our_node_id.decode("utf-8"),
-                    u"request": msg
-                })
-
-                # Check they got our node ID right.
-                if our_node_id != msg[u"test_node_id"]:
-                    print("req: they got our node id wrong")
-                    return
-
-                # Sign response
-                res = sign_msg(res, self.wif)
-
-                # Send request back to source.
-                self.api.relay_message(src_node_id, res)
-                print("req: got request")
-
+                pass
             except (ValueError, KeyError) as e:
                 print(e)
+                print("Error in req")
 
         return handle_requests
 
-    def start(self, node_id, test_unit="kbps"):
+    def start(self, node_unl, test_unit="kbps", size=1):
         """
-        :param node_id: bytes node_id
+        :param node_unl: UNL of target
+        :param size: MB to send in transfer
         :return: deferred with test results
         """
 
         # Any tests currently in progress?
-        if self.test_node_id is not None:
+        if self.test_node_unl is not None:
             return 0
 
         # Build bandwidth test request.
-        requester = binascii.hexlify(self.api.get_id())
-        test_node_id = binascii.hexlify(node_id)
         req = OrderedDict({
             u"type": u"test_bandwidth_request",
             u"timestamp": int(time.time()),
-            u"requester": requester.decode("utf-8"),
-            u"test_node_id": test_node_id.decode("utf-8")
+            u"requester": self.transfer.net.unl.value,
+            u"test_node_unl": node_unl
         })
 
         # Sign request.
         req = sign_msg(req, self.wif)
 
         # Send request.
+        node_id = parse_node_id_from_unl(node_unl)
+        req = json.dumps(req, ensure_ascii=True)
         self.api.relay_message(node_id, req)
 
         # Return deferred.
@@ -190,7 +200,7 @@ if __name__ == "__main__":
     # Test bandwidth between Alice and Bob.
     bob_test = BandwidthTest(bob_wif, bob_transfer, bob_dht)
     alice_test = BandwidthTest(alice_wif, alice_transfer, alice_dht)
-    d = alice_test.start(bob_node_id)
+    d = alice_test.start(bob_transfer.net.unl.value)
 
     # Main event loop.
     while 1:
