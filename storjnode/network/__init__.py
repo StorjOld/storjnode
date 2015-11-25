@@ -9,3 +9,6 @@ from . api import Node  # NOQA
 from . api import DEFAULT_BOOTSTRAP_NODES  # NOQA
 from . protocol import StorjProtocol  # NOQA
 from . server import StorjServer, QUERY_TIMEOUT, WALK_TIMEOUT  # NOQA
+
+# Don't enable this yet - not complete
+# from . bandwidth_test import BandwidthTest

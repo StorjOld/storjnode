@@ -11,6 +11,7 @@ import sys
 import storjnode.storage as storage
 
 _log = logging.getLogger(__name__)
+_log.setLevel("DEBUG")
 
 # If this is disabled then any node can transfer with any other node
 # Without having a corresponding accept handler.

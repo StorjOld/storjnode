@@ -21,6 +21,7 @@ from twisted.internet import defer
 from pycoin.encoding import a2b_hashed_base58, b2a_hashed_base58, a2b_base58, b2a_base58
 
 _log = logging.getLogger(__name__)
+_log.setLevel("DEBUG")
 
 class FileTransfer:
     def __init__(self, net, wif=None, store_config=None, handlers=None):
