@@ -7,8 +7,13 @@ from collections import OrderedDict
 import time
 import binascii
 import json
-from storjnode.util import sign_msg, check_sig
+import tempfile
+import pyp2p
+from storjnode.network.process_transfers import process_transfers
+from storjnode.network.file_transfer import FileTransfer
+from storjnode.util import sign_msg, check_sig, address_to_node_id
 from twisted.internet import defer
+from btctxstore import BtcTxStore
 
 class BandwidthTest():
     def __init__(self, wif, transfer, api):
@@ -152,14 +157,14 @@ if __name__ == "__main__":
     alice_wallet = BtcTxStore(testnet=False, dryrun=True)
     alice_wif = alice_wallet.create_key()
     alice_node_id = address_to_node_id(alice_wallet.get_address(alice_wif))
-    alice_dht_node = pyp2p.dht_msg.DHT(node_id=alice_node_id)
+    alice_dht = pyp2p.dht_msg.DHT(node_id=alice_node_id)
     alice_transfer = FileTransfer(
         pyp2p.net.Net(
             net_type="direct",
             node_type="passive",
             nat_type="preserving",
-            passive_port=63400,
-            dht_node=alice_dht_node,
+            passive_port=63600,
+            dht_node=alice_dht,
         ),
         wif=alice_wif,
         store_config={tempfile.mkdtemp(): None}
@@ -175,7 +180,7 @@ if __name__ == "__main__":
             net_type="direct",
             node_type="passive",
             nat_type="preserving",
-            passive_port=63401,
+            passive_port=63601,
             dht_node=bob_dht,
         ),
         wif=bob_wif,
@@ -183,16 +188,17 @@ if __name__ == "__main__":
     )
 
     # Test bandwidth between Alice and Bob.
-    alice_test = BandwidthTest(alice_wif, alice_transfer, alice_dht_node)
+    bob_test = BandwidthTest(bob_wif, bob_transfer, bob_dht)
+    alice_test = BandwidthTest(alice_wif, alice_transfer, alice_dht)
     d = alice_test.start(bob_node_id)
 
     # Main event loop.
     while 1:
         for client in [alice_transfer, bob_transfer]:
-            if client == alice:
-                _log.debug("Alice")
+            if client == alice_transfer:
+                print("Alice")
             else:
-                _log.debug("Bob")
+                print("Bob")
             process_transfers(client)
 
         time.sleep(1)
