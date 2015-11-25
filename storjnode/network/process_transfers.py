@@ -24,10 +24,12 @@ from .file_handshake import protocol
 import pyp2p.unl
 import pyp2p.net
 import pyp2p.dht_msg
+from pyp2p.dht_msg import DHT
 import re
 import sys
 
 _log = logging.getLogger(__name__)
+_log.setLevel("DEBUG")
 
 class TransferError(Exception):
     pass
@@ -248,6 +250,10 @@ def finish_transfer(client, contract_id, con):
 
 def process_dht_messages(client):
     try:
+        # Get new messages and run message handlers.
+        if isinstance(client.net.dht_node, DHT):
+            client.net.dht_node.get_messages()
+
         processed = []
         for msg in client.net.dht_messages:
             _log.debug("Processing: " + msg["message"])

@@ -42,9 +42,10 @@ def test_queued():
             nat_type="preserving",
             passive_port=63400,
             dht_node=alice_dht_node,
+            debug=1
         ),
         wif=alice_wif,
-        store_config={tempfile.mkdtemp(): None}
+        store_config={tempfile.mkdtemp(): None},
     )
 
     # Bob sample node.
@@ -59,6 +60,7 @@ def test_queued():
             nat_type="preserving",
             passive_port=63401,
             dht_node=bob_dht,
+            debug=1
         ),
         wif=bob_wif,
         store_config={tempfile.mkdtemp(): None}
@@ -156,8 +158,9 @@ class TestQueuedTransfers(unittest.TestCase):
 
 
 if __name__ == "__main__":
-    # unittest.main()
+    unittest.main()
 
+    """
     #x = TestQueuedTransfers()
     while 1:
         global queue_succeeded
@@ -165,3 +168,4 @@ if __name__ == "__main__":
         test_queued()
         time.sleep(60)
         #unittest.main()
+    """

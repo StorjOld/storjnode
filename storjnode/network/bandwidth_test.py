@@ -61,6 +61,10 @@ class BandwidthTest():
                     print("res: their sig did not match")
                     return
 
+                # Set active node ID.
+                self.test_node_id = src_node_id
+                print("res: got response")
+
             except (ValueError, KeyError) as e:
                 return
 
@@ -106,6 +110,7 @@ class BandwidthTest():
 
                 # Send request back to source.
                 self.api.relay_message(src_node_id, res)
+                print("req: got request")
 
             except (ValueError, KeyError) as e:
                 print(e)
