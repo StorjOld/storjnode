@@ -3,7 +3,6 @@ import threading
 import binascii
 import random
 import storjnode
-import json
 from twisted.internet import defer
 from collections import OrderedDict
 from crochet import wait_for, run_in_reactor
@@ -137,7 +136,7 @@ class Node(object):
         def build_process_unl_requests(unl, wif):
             def process_unl_requests(src_id, msg):
                 try:
-                    msg = json.loads(msg, object_pairs_hook=OrderedDict)
+                    msg = OrderedDict(msg)
 
                     # Not a UNL request.
                     if msg[u"type"] != u"unl_request":
@@ -160,8 +159,7 @@ class Node(object):
                     ), wif)
 
                     # Send response.
-                    response = json.dumps(response, ensure_ascii=True)
-                    self.relay_message(their_node_id, response)
+                    self.relay_message(their_node_id, response.items())
 
                 except (ValueError, KeyError) as e:
                     global _log
@@ -347,7 +345,7 @@ class Node(object):
             def handler(src_id, msg):
                 # Is this a response to our request?
                 try:
-                    msg = json.loads(msg, object_pairs_hook=OrderedDict)
+                    msg = OrderedDict(msg)
 
                     # Not a UNL response.
                     if msg[u"type"] != u"unl_response":
@@ -387,7 +385,6 @@ class Node(object):
         self.add_message_handler(handler)
 
         # Send our get UNL request to node.
-        unl_req = json.dumps(unl_req, ensure_ascii=True)
         self.relay_message(node_id, unl_req)
 
         # Return a new deferred.

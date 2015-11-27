@@ -6,14 +6,15 @@ from decimal import Decimal
 from collections import OrderedDict
 import time
 import binascii
-import json
 import tempfile
 import pyp2p
 from storjnode.network.process_transfers import process_transfers
 from storjnode.network.file_transfer import FileTransfer
-from storjnode.util import sign_message, verify_message_signature, address_to_node_id, parse_node_id_from_unl
+from storjnode.util import sign_message, verify_message_signature
+from storjnode.util import address_to_node_id, parse_node_id_from_unl
 from twisted.internet import defer
 from btctxstore import BtcTxStore
+
 
 class BandwidthTest():
     def __init__(self, wif, transfer, api):
@@ -38,7 +39,7 @@ class BandwidthTest():
     def handle_responses_builder(self):
         def handle_responses(src_node_id, msg):
             # Check message type.
-            msg = json.loads(msg, object_pairs_hook=OrderedDict)
+            msg = OrderedDict(msg)
             if msg[u"type"] != u"test_bandwidth_response":
                 print("res: Invalid response")
                 return
@@ -52,7 +53,8 @@ class BandwidthTest():
             req = msg[u"request"]
             print(req)
 
-            if not verify_message_signature(msg[u"request"], self.wif, self.api.get_id()):
+            if not verify_message_signature(msg[u"request"], self.wif,
+                                            self.api.get_id()):
                 print("res: our request sig was invalid")
                 return
 
@@ -85,7 +87,7 @@ class BandwidthTest():
             print("In handle requests")
 
             # Check message type.
-            msg = json.loads(msg, object_pairs_hook=OrderedDict)
+            msg = OrderedDict(msg)
             if msg[u"type"] != u"test_bandwidth_request":
                 print("req: Invalid request")
                 return
@@ -119,8 +121,7 @@ class BandwidthTest():
             res = sign_message(res, self.wif)
 
             # Send request back to source.
-            res = json.dumps(res, ensure_ascii=True)
-            self.api.relay_message(src_node_id, res)
+            self.api.relay_message(src_node_id, res.itmes())
             print("req: got request")
 
             try:
@@ -155,8 +156,7 @@ class BandwidthTest():
 
         # Send request.
         node_id = parse_node_id_from_unl(node_unl)
-        req = json.dumps(req, ensure_ascii=True)
-        self.api.relay_message(node_id, req)
+        self.api.relay_message(node_id, req.items())
 
         # Return deferred.
         return self.active_test
@@ -212,4 +212,3 @@ if __name__ == "__main__":
             process_transfers(client)
 
         time.sleep(1)
-

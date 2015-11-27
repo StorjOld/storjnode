@@ -20,7 +20,7 @@ def parse_node_id_from_unl(unl):
 
 
 def sign_message(msg, wif):
-    assert(type(msg) == OrderedDict)
+    assert(isinstance(msg, OrderedDict))
     assert("signature" not in msg)  # must be unsigned
     api = BtcTxStore(testnet=False, dryrun=True)
     msg[u"signature"] = api.sign_unicode(wif, str(msg))
@@ -28,7 +28,7 @@ def sign_message(msg, wif):
 
 
 def verify_message_signature(msg, wif, node_id=None):
-    assert(type(msg) == OrderedDict)
+    assert(isinstance(msg, OrderedDict))
 
     if u"signature" not in msg:
         return 0

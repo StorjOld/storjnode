@@ -27,7 +27,7 @@ class _NetworkMapper(object):  # will not scale but good for now
         # pipeline: toscan -> scanning -> scanned
         self.toscan = {}  # {id: (ip, port)}
         self.scanning = {}  # {id: (ip, port)}
-        self.scanned = {}  # {id: {"addr":(ip, port), "peers":[(id, ip, port)]}}
+        self.scanned = {}  # {id: {"addr":(ip, port),"peers":[(id, ip, port)]}}
 
         self.mutex = RLock()
         self.server = storjnode.server
@@ -45,7 +45,8 @@ class _NetworkMapper(object):  # will not scale but good for now
             if len(self.toscan) > 0:
                 node_id, transport_address = self.toscan.popitem()
                 self.scanning[node_id] = transport_address
-                return Node(node_id, transport_address[0], transport_address[1])
+                return Node(node_id, transport_address[0],
+                            transport_address[1])
             else:
                 return None
 
@@ -73,7 +74,7 @@ class _NetworkMapper(object):  # will not scale but good for now
                 if node is None and len(self.scanning) == 0:
                     return  # done! Nothing to scan and nothing being scanned
 
-            # no node to scan but other workers still scanning, so more may come
+            # no node to scan but other workers still scanning, more may come
             if node is None:
                 continue
 
@@ -83,7 +84,7 @@ class _NetworkMapper(object):  # will not scale but good for now
             try:
                 neighbours = util.wait_for_defered(d, timeout=QUERY_TIMEOUT)
             except TimeoutError:  # pragma: no cover
-                msg = "Timeout when getting neighbors of %s"  # pragma: no cover
+                msg = "Timeout getting neighbors of %s"  # pragma: no cover
                 hexid = binascii.hexlify(node.id)
                 _log.debug(msg % hexid)  # pragma: no cover
                 neighbours = []  # pragma: no cover

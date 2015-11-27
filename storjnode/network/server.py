@@ -181,9 +181,9 @@ class StorjServer(Server):
 
     def _refresh_loop(self):
         last_refresh = datetime.datetime.now()
-        interval = datetime.timedelta(seconds=self._refresh_neighbours_interval)
+        delta = datetime.timedelta(seconds=self._refresh_neighbours_interval)
         while not self._refresh_thread_stop:
-            if (datetime.datetime.now() - last_refresh) > interval:
+            if (datetime.datetime.now() - last_refresh) > delta:
                 self.refresh_neighbours()
                 last_refresh = datetime.datetime.now()
             time.sleep(self.thread_sleep_time)

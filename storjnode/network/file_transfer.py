@@ -1,18 +1,15 @@
 import pyp2p.unl
 import pyp2p.net
 import pyp2p.dht_msg
-import storjnode.storage as storage
 import storjnode
 from collections import OrderedDict
 from btctxstore import BtcTxStore
+import six
 import time
-import json
 import hashlib
 import sys
-import binascii
 from threading import Lock
 from twisted.internet import defer
-from pycoin.encoding import b2a_hashed_base58
 
 
 _log = storjnode.log.getLogger(__name__)
@@ -152,13 +149,9 @@ class FileTransfer:
 
         return contract_id
 
-    def send_msg(self, dict_obj, unl):
+    def send_msg(self, msg, unl):
         node_id = self.net.unl.deconstruct(unl)["node_id"]
-        msg = json.dumps(dict_obj, ensure_ascii=True)
-        self.net.dht_node.relay_message(
-            node_id,
-            msg
-        )
+        self.net.dht_node.relay_message(node_id, msg.items())
 
     def contract_id(self, contract):
         if sys.version_info >= (3, 0, 0):
@@ -169,58 +162,11 @@ class FileTransfer:
         return hashlib.sha256(contract).hexdigest()
 
     def sign_contract(self, contract):
-        if sys.version_info >= (3, 0, 0):
-            msg = str(contract).encode("ascii")
-        else:
-            msg = str(contract)
-
-        # This shouldn't already exist.
-        if u"signature" in contract:
-            del contract[u"signature"]
-
-        msg = binascii.hexlify(msg).decode("utf-8")
-        sig = self.wallet.sign_data(self.wif, msg)
-
-        if sys.version_info >= (3, 0, 0):
-            contract[u"signature"] = sig.decode("utf-8")
-        else:
-            contract[u"signature"] = unicode(sig)
-
-        return contract
+        return storjnode.util.sign_message(contract, self.wif)
 
     def is_valid_contract_sig(self, contract, node_id=None):
-        if u"signature" not in contract:
-            return 0
-
-        sig = contract[u"signature"][:]
-        del contract[u"signature"]
-
-        if sys.version_info >= (3, 0, 0):
-            msg = str(contract).encode("ascii")
-        else:
-            msg = str(contract)
-
-        # Use our address.
-        msg = binascii.hexlify(msg).decode("utf-8")
-        try:
-            if node_id is None:
-                address = self.wallet.get_address(self.wif)
-                ret = self.wallet.verify_signature(address, sig, msg)
-            else:
-                # Use their node ID: try testnet.
-                address = b2a_hashed_base58(b'o' + node_id)
-                ret = self.wallet.verify_signature(address, sig, msg)
-                if not ret:
-                    # Use their node ID: try mainnet.
-                    address = b2a_hashed_base58(b'\0' + node_id)
-                    ret = self.wallet.verify_signature(address, sig, msg)
-        except TypeError:
-            return 0
-
-        # Move sig back.
-        contract[u"signature"] = sig[:]
-
-        return ret
+        return storjnode.util.verify_message_signature(contract, self.wif,
+                                                       node_id=node_id)
 
     def simple_data_request(self, data_id, node_unl, direction):
         file_size = 0
@@ -242,7 +188,8 @@ class FileTransfer:
             # We store this data.
             direction = u"send"
             host_unl = self.net.unl.value
-            assert(storage.manager.find(self.store_config, data_id) is not None)
+            cfg = self.store_config
+            assert(storjnode.storage.manager.find(cfg, data_id) is not None)
         else:
             # They store the data.
             direction = u"receive"
@@ -250,34 +197,14 @@ class FileTransfer:
             if data_id in self.downloading:
                 raise Exception("Already trying to download this.")
 
-        # Encoding.
-        if sys.version_info >= (3, 0, 0):
-            if type(data_id) == bytes:
-                data_id = data_id.decode("utf-8")
-
-            if type(host_unl) == bytes:
-                host_unl = host_unl.decode("utf-8")
-
-            if type(node_unl) == bytes:
-                node_unl = node_unl.decode("utf-8")
-        else:
-            if type(data_id) == str:
-                data_id = unicode(data_id)
-
-            if type(host_unl) == str:
-                host_unl = unicode(host_unl)
-
-            if type(node_unl) == str:
-                node_unl = unicode(node_unl)
-
         # Create contract.
         contract = OrderedDict({
             u"status": u"SYN",
             u"direction": direction,
-            u"data_id": data_id,
+            u"data_id": six.text_type(data_id),
             u"file_size": file_size,
-            u"host_unl": host_unl,
-            u"dest_unl": node_unl,
+            u"host_unl": six.text_type(host_unl),
+            u"dest_unl": six.text_type(node_unl),
             u"src_unl": self.net.unl.value,
         })
 
@@ -311,18 +238,18 @@ class FileTransfer:
         return None
 
     def remove_file_from_storage(self, data_id):
-        storage.manager.remove(self.store_config, data_id)
+        storjnode.storage.manager.remove(self.store_config, data_id)
 
     def move_file_to_storage(self, path):
         with open(path, "rb") as shard:
-            storage.manager.add(self.store_config, shard)
+            storjnode.storage.manager.add(self.store_config, shard)
             return {
-                "file_size": storage.shard.get_size(shard),
-                "data_id": storage.shard.get_id(shard)
+                "file_size": storjnode.storage.shard.get_size(shard),
+                "data_id": storjnode.storage.shard.get_id(shard)
             }
 
     def get_data_chunk(self, data_id, position, chunk_size=1048576):
-        path = storage.manager.find(self.store_config, data_id)
+        path = storjnode.storage.manager.find(self.store_config, data_id)
         buf = b""
         with open(path, "rb") as fp:
             fp.seek(position, 0)

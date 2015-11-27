@@ -1,5 +1,4 @@
 from collections import OrderedDict
-import json
 import time
 import pyp2p.unl
 import pyp2p.net
@@ -133,7 +132,7 @@ def success_wrapper(client, contract_id, host_unl):
             if contract_id not in client.con_info[con]:
                 client.con_info[con][contract_id] = {
                     "contract_id": contract_id,
-                    "remaining": 350, # Tree fiddy.
+                    "remaining": 350,  # Tree fiddy.
                     "file_size": file_size,
                     "file_size_buf": b""
                 }
@@ -207,11 +206,7 @@ def process_syn(client, msg, enable_accept_handlers=ENABLE_ACCEPT_HANDLERS):
             reply = client.sign_contract(reply)
 
             # Send reply to source.
-            reply = json.dumps(reply, ensure_ascii=True)
-            client.net.dht_node.relay_message(
-                src_node_id,
-                reply
-            )
+            client.net.dht_node.relay_message(src_node_id, reply.items())
 
             # Quit.
             return -2
@@ -252,6 +247,7 @@ def process_syn(client, msg, enable_accept_handlers=ENABLE_ACCEPT_HANDLERS):
 
     # Success.
     return reply
+
 
 def process_syn_ack(client, msg):
     # Valid syn-ack?
@@ -360,9 +356,11 @@ def process_syn_ack(client, msg):
 
     return reply
 
+
 def process_ack(client, msg):
     """
-    Notes: if we've already signed the SYN-ack  then this means the checks for their SYN have already been done and can be skipped.
+    Notes: if we've already signed the SYN-ack  then this means the checks for
+    their SYN have already been done and can be skipped.
     """
 
     # Valid ack.
@@ -423,7 +421,6 @@ def process_ack(client, msg):
     else:
         _log.debug("con is not reliable")
 
-
     # Disable queued transfers.
     if not ENABLE_QUEUED_TRANSFERS:
         is_reliable_con = 0
@@ -447,6 +444,7 @@ def process_ack(client, msg):
 
     # Success.
     return 1
+
 
 def process_rst(client, msg):
     # Sanity checks.
@@ -491,9 +489,10 @@ def process_rst(client, msg):
 
     return 1
 
+
 def protocol(client, msg):
     try:
-        msg = json.loads(msg, object_pairs_hook=OrderedDict)
+        msg = OrderedDict(msg)
     except ValueError:
         _log.debug("Protocol: invalid JSON")
         return -1
