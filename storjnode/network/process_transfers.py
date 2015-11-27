@@ -15,7 +15,6 @@ sense of it all. The protocol is actually quite simple:
 
 
 import struct
-import logging
 import time
 import os
 from twisted.internet import defer
@@ -27,12 +26,15 @@ import pyp2p.dht_msg
 from pyp2p.dht_msg import DHT
 import re
 import sys
+import storjnode
 
-_log = logging.getLogger(__name__)
-_log.setLevel("DEBUG")
+
+_log = storjnode.log.getLogger(__name__)
+
 
 class TransferError(Exception):
     pass
+
 
 def cleanup_cons(client):
     # Record old connections (dead connections.)

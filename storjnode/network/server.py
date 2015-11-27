@@ -3,8 +3,7 @@ import datetime
 import threading
 import btctxstore
 import binascii
-import logging
-from storjnode import util
+import storjnode
 from kademlia.routing import TableTraverser
 from storjnode.network.protocol import StorjProtocol
 from twisted.internet import defer
@@ -52,7 +51,7 @@ class StorjServer(Server):
         # passing the protocol class should be added upstream
         self.ksize = ksize
         self.alpha = alpha
-        self.log = logging.getLogger(__name__)
+        self.log = storjnode.log.getLogger(__name__)
 
         self.storage = storage or ForgetfulStorage()
         self.node = Node(self.get_id())
@@ -95,7 +94,7 @@ class StorjServer(Server):
         if self._cached_id is not None:
             return self._cached_id
         address = self._btctxstore.get_address(self.key)
-        self._cached_id = util.address_to_node_id(address)
+        self._cached_id = storjnode.util.address_to_node_id(address)
         return self._cached_id
 
     def get_known_peers(self):
@@ -160,11 +159,12 @@ class StorjServer(Server):
             defered = self.protocol.callRelayMessage(
                 relay_node, entry["dest"], entry["hop_limit"], entry["message"]
             )
-            defered = util.default_defered(defered, None)
+            defered = storjnode.util.default_defered(defered, None)
 
             # wait for relay result
             try:
-                result = util.wait_for_defered(defered, timeout=QUERY_TIMEOUT)
+                result = storjnode.util.wait_for_defered(defered,
+                                                         timeout=QUERY_TIMEOUT)
             except TimeoutError:  # pragma: no cover
                 msg = "Timeout while relayed message to %s"  # pragma: no cover
                 self.log.debug(msg % hexid)  # pragma: no cover
@@ -191,7 +191,8 @@ class StorjServer(Server):
     def _relay_loop(self):
         while not self._relay_thread_stop:
             # FIXME use worker pool to process queue
-            for entry in util.empty_queue(self.protocol.messages_relay):
+            q = self.protocol.messages_relay
+            for entry in storjnode.util.empty_queue(q):
                 self._relay_message(entry)
             time.sleep(self.thread_sleep_time)
 
@@ -239,7 +240,7 @@ class StorjServer(Server):
     def has_public_ip(self):
         def handle(ips):
             self.log.debug("Internet visible IPs: %s" % ips)
-            ip = util.get_inet_facing_ip()
+            ip = storjnode.util.get_inet_facing_ip()
             self.log.debug("Internet facing IP: %s" % ip)
             is_public = ip is not None and ip in ips
             return is_public

@@ -1,31 +1,23 @@
 import pyp2p.unl
 import pyp2p.net
 import pyp2p.dht_msg
-import logging
-import storjnode.storage as storage
 import storjnode
 from storjnode.util import address_to_node_id
 from storjnode.network.file_transfer import FileTransfer
 from storjnode.network.process_transfers import process_transfers
-from collections import OrderedDict
 from btctxstore import BtcTxStore
 import tempfile
 import time
-import json
-import hashlib
-import sys
 import os
-import binascii
-import struct
-from threading import Lock
-from twisted.internet import defer
-from pycoin.encoding import a2b_hashed_base58, b2a_hashed_base58, a2b_base58, b2a_base58
 import unittest
 
-_log = logging.getLogger(__name__)
-_log.setLevel("DEBUG")
+
+_log = storjnode.log.getLogger(__name__)
+
 
 queue_succeeded = 0
+
+
 def test_queued():
     from crochet import setup
     setup()
@@ -151,6 +143,7 @@ def test_queued():
     assert(queue_succeeded == 1)
     for client in [alice, bob]:
         client.net.stop()
+
 
 class TestQueuedTransfers(unittest.TestCase):
     def test_00001(self):

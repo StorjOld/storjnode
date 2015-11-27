@@ -1,29 +1,25 @@
 import pyp2p.unl
 import pyp2p.net
 import pyp2p.dht_msg
-import logging
 import storjnode.storage as storage
 import storjnode
-from storjnode.util import address_to_node_id
-from storjnode.network.process_transfers import process_transfers
 from collections import OrderedDict
 from btctxstore import BtcTxStore
-import tempfile
 import time
 import json
 import hashlib
 import sys
-import os
 import binascii
-import struct
 from threading import Lock
 from twisted.internet import defer
-from pycoin.encoding import a2b_hashed_base58, b2a_hashed_base58, a2b_base58, b2a_base58
+from pycoin.encoding import b2a_hashed_base58
 
-_log = logging.getLogger(__name__)
-_log.setLevel("DEBUG")
+
+_log = storjnode.log.getLogger(__name__)
+
 
 class FileTransfer:
+
     def __init__(self, net, wif=None, store_config=None, handlers=None):
         # Accept direct connections.
         self.net = net

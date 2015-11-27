@@ -1,17 +1,16 @@
-import logging
 from collections import OrderedDict
 import json
 import time
 import pyp2p.unl
-from pyp2p.unl import UNL
 import pyp2p.net
 import pyp2p.dht_msg
 import tempfile
 import sys
-import storjnode.storage as storage
+import storjnode
 
-_log = logging.getLogger(__name__)
-_log.setLevel("DEBUG")
+
+_log = storjnode.log.getLogger(__name__)
+
 
 # If this is disabled then any node can transfer with any other node
 # Without having a corresponding accept handler.
@@ -22,8 +21,10 @@ ENABLE_ACCEPT_HANDLERS = 0
 # It would be ideal if this works.
 ENABLE_QUEUED_TRANSFERS = 1
 
+
 class RequestDenied(Exception):
     pass
+
 
 # Validate the integrity of a SYN message.
 def is_valid_syn(client, msg):
@@ -50,12 +51,12 @@ def is_valid_syn(client, msg):
         return -2
 
     # Check data ID is valid.
-    if not storage.shard.valid_id(msg[u"data_id"]):
+    if not storjnode.storage.shard.valid_id(msg[u"data_id"]):
         _log.debug("Invalid data id.")
         return -3
 
     # Check SYN size.
-    if len(str(msg)) > 5242880: # 5 MB.
+    if len(str(msg)) > 5242880:  # 5 MB.
         _log.debug("SYN is too big")
         return -4
 
@@ -87,13 +88,15 @@ def is_valid_syn(client, msg):
     # Are we the host?
     if client.net.unl == pyp2p.unl.UNL(value=msg[u"host_unl"]):
         # Then check we have this file.
-        path = storage.manager.find(client.store_config, msg[u"data_id"])
+        path = storjnode.storage.manager.find(client.store_config,
+                                              msg[u"data_id"])
         if path is None:
             _log.debug("Failed to find file we're uploading")
             return -8
     else:
         # Do we already have this file?
-        path = storage.manager.find(client.store_config, msg[u"data_id"])
+        path = storjnode.storage.manager.find(client.store_config,
+                                              msg[u"data_id"])
         if path is not None:
             _log.debug("Attempting to download file we already have")
             return -9
@@ -104,6 +107,7 @@ def is_valid_syn(client, msg):
             return -10
 
     return 1
+
 
 # Associate TCP con with contract.
 def success_wrapper(client, contract_id, host_unl):
@@ -161,11 +165,12 @@ def success_wrapper(client, contract_id, host_unl):
                     else:
                         client.con_transfer[con] = u""
 
-            #Return new connection.
+            # Return new connection.
             if con not in client.cons:
                 client.cons.append(con)
 
     return success
+
 
 def process_syn(client, msg, enable_accept_handlers=ENABLE_ACCEPT_HANDLERS):
     # Check syn is valid.
@@ -506,7 +511,7 @@ def protocol(client, msg):
         return -2
 
     # Message too large.
-    if len(str(msg)) >= 5242880: # 5MB.
+    if len(str(msg)) >= 5242880:  # 5MB.
         _log.debug("Protocol: msg too big")
         return -3
 
@@ -517,6 +522,3 @@ def protocol(client, msg):
         return 1
 
     return -4
-
-
-

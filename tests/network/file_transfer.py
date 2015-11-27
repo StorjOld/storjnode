@@ -3,7 +3,6 @@ from storjnode.network.api import DEFAULT_BOOTSTRAP_NODES
 from storjnode.network.file_transfer import FileTransfer
 from storjnode.network.process_transfers import process_transfers
 from storjnode.util import address_to_node_id
-import storjnode.storage as storage
 import btctxstore
 import pyp2p
 import hashlib
@@ -13,12 +12,12 @@ import time
 import requests
 import unittest
 import shutil
-import logging
 from crochet import setup
 setup()
 
 
-_log = logging.getLogger(__name__)
+_log = storjnode.log.getLogger(__name__)
+
 
 TEST_NODE = {
     "unl": ("AhaVDlV5HtHJlddtqgpDHdIFWdr5cGdt8OsG79qiBu/aouc/Ru4="),
@@ -154,7 +153,7 @@ class TestFileTransfer(unittest.TestCase):
 
         # Check we received this file.
         for i in range(0, 1):
-            path = storage.manager.find(self.store_config, file_infos[i]["data_id"])
+            path = storjnode.storage.manager.find(self.store_config, file_infos[i]["data_id"])
             if not os.path.isfile(path):
                 assert(0)
             else:

@@ -2,15 +2,13 @@ import time
 import threading
 import binascii
 import random
-import logging
 import storjnode
 import json
 from twisted.internet import defer
 from collections import OrderedDict
-from btctxstore import BtcTxStore
 from crochet import wait_for, run_in_reactor
 from twisted.internet.task import LoopingCall
-from storjnode.util import valid_ip, address_to_node_id, sign_msg, check_sig
+from storjnode.util import valid_ip, sign_msg, check_sig
 from storjnode.network.server import StorjServer, QUERY_TIMEOUT, WALK_TIMEOUT
 from pyp2p.unl import UNL
 
@@ -22,7 +20,7 @@ from pyp2p.net import Net
 from pyp2p.dht_msg import DHT as SimDHT
 
 
-_log = logging.getLogger(__name__)
+_log = storjnode.log.getLogger(__name__)
 
 
 DEFAULT_BOOTSTRAP_NODES = [
@@ -38,8 +36,8 @@ DEFAULT_BOOTSTRAP_NODES = [
 ]
 
 
-log = logging.getLogger(__name__)
 SIMULATE_DHT = False
+
 
 class Node(object):
     """Storj network layer implementation.
@@ -59,7 +57,7 @@ class Node(object):
                  passive_bind=None,  # FIXME use utils.get_inet_facing_ip ?
                  node_type="unknown",  # FIMME what is this ?
                  nat_type="unknown",  # FIXME what is this ?
-                 wan_ip=None, # FIXME replace with sync_get_wan_ip calls
+                 wan_ip=None,  # FIXME replace with sync_get_wan_ip calls
                  simulate_dht=SIMULATE_DHT):
         """Create a blocking storjnode instance.
 
@@ -477,7 +475,9 @@ class Node(object):
 
         node_id = The source node ID sending the transfer request
         data_id = The shard ID of the data to download or upload
-        direction = Direction from the perspective of the requester: e.g. send (upload data_id to requester) or receive (download data_id from requester)
+        direction = Direction from the perspective of the requester: e.g.
+        send (upload data_id to requester) or
+        receive (download data_id from requester)
 
         Example:
             def on_transfer_request(node_id, data_id, direction):
@@ -508,7 +508,8 @@ class Node(object):
         The handler must be callable and accept four arguments
         (node_id, data_id, direction).
 
-        node_id = The node_ID we sent the transfer request to. (May be our node_id if the request was sent to us.)
+        node_id = The node_ID we sent the transfer request to. (May be
+        our node_id if the request was sent to us.)
         data_id = The shard to download or upload.
         direction = The direction of the transfer (e.g. send or receive.)
 
@@ -605,7 +606,7 @@ class Node(object):
             return handler(source, received["message"])
         except Exception as e:
             msg = "Message handler raised exception: {0}"
-            log.error(msg.format(repr(e)))
+            _log.error(msg.format(repr(e)))
 
     def _message_dispatcher_loop(self):
         while not self._message_dispatcher_thread_stop:

@@ -63,7 +63,7 @@ shell: setup
 
 
 test: setup
-	$(PY) -m unittest --quiet tests
+	$(PY) -m unittest tests
 
 
 publish: test

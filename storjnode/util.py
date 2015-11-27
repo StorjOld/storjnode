@@ -11,7 +11,13 @@ from pycoin.encoding import a2b_hashed_base58, b2a_hashed_base58
 from collections import OrderedDict
 from btctxstore import BtcTxStore
 
-str_types = (bytes if sys.version_info >= (3, 0, 0) else str, str if sys.version_info >= (3, 0, 0) else unicode)
+
+# FIXME use six for this
+str_types = (
+    bytes if sys.version_info >= (3, 0, 0) else str,
+    str if sys.version_info >= (3, 0, 0) else unicode
+)
+
 
 def parse_node_id_from_unl(unl):
     try:
@@ -21,7 +27,9 @@ def parse_node_id_from_unl(unl):
     except:
         return b""
 
+
 def sign_msg(msg, wif):
+    # FIXME btctxstore checks input
     assert(type(msg) == OrderedDict)
     assert(type(wif) in str_types)
 
@@ -34,16 +42,19 @@ def sign_msg(msg, wif):
     if u"signature" in msg:
         del msg[u"signature"]
 
+    # FIXME btctxstore has sign unicode method
     api = BtcTxStore(testnet=False, dryrun=True)
     hexstr = binascii.hexlify(hexstr).decode("utf-8")
     sig = api.sign_data(wif, hexstr)
 
+    # FIXME btctxstore has a method for this
     if sys.version_info >= (3, 0, 0):
         msg[u"signature"] = sig.decode("utf-8")
     else:
         msg[u"signature"] = unicode(sig)
 
     return msg
+
 
 def check_sig(msg, wif, node_id=None):
     assert(type(msg) == OrderedDict)
@@ -55,6 +66,7 @@ def check_sig(msg, wif, node_id=None):
     sig = msg[u"signature"][:]
     del msg[u"signature"]
 
+    # FIXME use six for this
     if sys.version_info >= (3, 0, 0):
         hexstr = str(msg).encode("ascii")
     else:

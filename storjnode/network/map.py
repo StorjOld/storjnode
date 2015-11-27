@@ -1,19 +1,18 @@
 import os
 import time
 import datetime
-import logging
 import binascii
 import pygraphviz
+import storjnode
 from kademlia.node import Node
 from crochet import TimeoutError
 from threading import Thread
 from threading import RLock
 from storjnode import util
-from storjnode.common import STORJ_HOME
 from storjnode.network.server import QUERY_TIMEOUT
 
 
-_log = logging.getLogger(__name__)
+_log = storjnode.log.getLogger(__name__)
 
 
 class _NetworkMapper(object):  # will not scale but good for now
@@ -112,7 +111,8 @@ def render(network_map, path=None):
     """
 
     name = "network map %s" % str(datetime.datetime.now())
-    path = path or os.path.join(STORJ_HOME, "graphs", "%s.png" % name)
+    path = path or os.path.join(storjnode.common.STORJ_HOME,
+                                "graphs", "%s.png" % name)
     util.ensure_path_exists(os.path.dirname(path))
 
     graph = pygraphviz.AGraph()  # (strict=False,directed=True)
