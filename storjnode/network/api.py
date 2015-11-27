@@ -88,6 +88,7 @@ class Node(object):
         self.disable_data_transfer = bool(disable_data_transfer)
         self._transfer_request_handlers = set()
         self._transfer_complete_handlers = set()
+        self._transfer_start_handlers = set()
 
         # set default store config if None given
         if store_config is None:
@@ -206,7 +207,8 @@ class Node(object):
         # Setup handlers for callbacks registered via the API.
         handlers = {
             "complete": self._transfer_complete_handlers,
-            "accept": self._transfer_request_handlers
+            "accept": self._transfer_request_handlers,
+            "start": self._transfer_start_handlers
         }
 
         wif = self.get_key()
@@ -457,6 +459,8 @@ class Node(object):
 
         This call will block until the data has been transfered full or failed.
 
+        Maybe this should be changed to match the params for the other handlers. No - because the contract isn't available yet -- that's what accept determines.
+
         Args:
             data_id: The sha256 sum of the data to be transfered.
             peer_unl: The node UNL of the peer to get the data from.
@@ -468,19 +472,28 @@ class Node(object):
         """
         self.async_request_data_transfer(data_id, peer_unl, direction)
 
+    def add_transfer_start_handler(self, handler):
+        self._transfer_start_handlers.add(handler)
+
+    def remove_transfer_start_handler(self, handler):
+        self._transfer_start_handlers.remove(handler)
+
     def add_transfer_request_handler(self, handler):
         """Add an allow transfer request handler.
 
         If any handler returns True the transfer request will be accepted.
         The handler must be callable and accept four arguments
-        (node_id, data_id, direction).
+        (src_unl, data_id, direction, file_size).
 
-        node_id = The source node ID sending the transfer request
+        src_unl = The UNL of the source node ending the transfer request
         data_id = The shard ID of the data to download or upload
         direction = Direction from the perspective of the requester: e.g. send (upload data_id to requester) or receive (download data_id from requester)
+        file_size = The size of the file they wish to transfer
+
+
 
         Example:
-            def on_transfer_request(node_id, data_id, direction):
+            def on_transfer_request(node_unl, data_id, direction, file_size):
                 # This handler  will accept everything but send nothing.
                 if direction == "receive":
                     print("Accepting data: {0}".format(data_id))
@@ -507,6 +520,8 @@ class Node(object):
 
         The handler must be callable and accept four arguments
         (node_id, data_id, direction).
+
+        TO DO: this has changed completely.
 
         node_id = The node_ID we sent the transfer request to. (May be our node_id if the request was sent to us.)
         data_id = The shard to download or upload.

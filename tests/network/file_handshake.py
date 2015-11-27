@@ -102,7 +102,6 @@ class TestFileHandshake(unittest.TestCase):
         # Record syn.
         self.syn = OrderedDict({
             u"status": u"SYN",
-            u"direction": u"send",
             u"data_id": u"5feceb66ffc86f38d952786c6d696c79c2dbc239dd4e91b46729d73a27fb57e9",
             u"file_size": 100,
             u"host_unl": self.alice.net.unl.value,
@@ -223,12 +222,16 @@ class TestFileHandshake(unittest.TestCase):
 
         assert(syn[u"src_unl"] == self.alice.net.unl.value)
 
+        print("Bob's perspective")
+        assert(self.bob.is_valid_contract_sig(signed_syn, node_id))
+
         print("----")
         print(signed_syn)
 
         print("")
         print("End sign syn")
         print("")
+
 
     def test_process_syn(self):
         print("")
@@ -245,27 +248,34 @@ class TestFileHandshake(unittest.TestCase):
                 fp.write("0")
 
         # Test accept SYN with a handler.
-        def request_handler(src_node_id, data_id, direction):
+        def request_handler(contract_id, src_unl, data_id, file_size):
             return 1
         self.bob.handlers["accept"] = [request_handler]
+        syn = copy.deepcopy(self.syn)
         assert(type(process_syn(self.bob, self.alice.sign_contract(syn), enable_accept_handlers=1)) == OrderedDict)
 
         # Test reject SYN with a handler.
-        def request_handler(src_node_id, data_id, direction):
+        def request_handler(contract_id, src_unl, data_id, file_size):
             return 0
         self.bob.handlers["accept"] = [request_handler]
-        assert(process_syn(self.bob, self.alice.sign_contract(syn), enable_accept_handlers=1) == -2)
+        syn = copy.deepcopy(self.syn)
+        ret = process_syn(self.bob, self.alice.sign_contract(syn), enable_accept_handlers=1)
+        print(ret)
+        assert(ret == -2)
 
         # Our UNL is incorrect.
+        syn = copy.deepcopy(self.syn)
         syn[u"dest_unl"] = self.alice.net.unl.value
         assert(process_syn(self.bob, self.alice.sign_contract(syn), enable_accept_handlers=0) == -3)
         syn[u"dest_unl"] = self.bob.net.unl.value
 
         # Their sig is invalid.
+        syn = copy.deepcopy(self.syn)
         syn[u"signature"] = "x"
         assert(process_syn(self.bob, syn, enable_accept_handlers=0) == -4)
 
         # Handshake state is incorrect.
+        syn = copy.deepcopy(self.syn)
         syn = self.alice.sign_contract(syn)
         contract_id = self.bob.contract_id(syn)
         self.bob.handshake[contract_id] = "SYN"
@@ -540,14 +550,6 @@ class TestFileHandshake(unittest.TestCase):
         ) == -4)
         syn[u"file_size"] = 1
         """
-
-        # Invalid direction.
-        syn["direction"] = "x"
-        assert(is_valid_syn(
-            self.alice,
-            self.alice.sign_contract(syn)
-        ) == -5)
-        syn["direction"] = "send"
 
         # Invalid UNLs.
         syn["host_unl"] = "0"

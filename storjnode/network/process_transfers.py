@@ -217,7 +217,7 @@ def get_contract_id(client, con, contract_id):
     else:
         return 0
 
-def finish_transfer(client, contract_id, con):
+def complete_transfer(client, contract_id, con):
     # Determine who is master.
     contract = client.contracts[contract_id]
     their_unl = client.get_their_unl(contract)
@@ -232,13 +232,11 @@ def finish_transfer(client, contract_id, con):
         del client.defers[contract_id]
 
     # Call the completion handlers.
-    dest_node_id = client.net.unl.deconstruct(contract["dest_unl"])
-    dest_node_id = dest_node_id["node_id"]
     for handler in client.handlers["complete"]:
         handler(
-            dest_node_id,
-            contract["data_id"],
-            contract["direction"]
+            client,
+            contract_id,
+            con
         )
 
     if is_master:
@@ -331,16 +329,31 @@ def process_transfers(client):
             _log.debug("Skipping remaining.")
             continue
 
+        # Execute start callbacks.
+        if not con_info["file_size"]:
+            old_handlers = set()
+            for handler in client.handlers["start"]:
+                # Test start handler.
+                ret = handler(client, con, contract_id)
+
+                # Handler was associated with this transfer.
+                if ret == -1:
+                    old_handlers.add(handler)
+
+            # Remove old start handlers.
+            for handler in old_handlers:
+                client.handlers["start"].remove(handler)
+
         # Transfer data.
         contract = client.contracts[contract_id]
-        if client.net.unl == pyp2p.unl.UNL(value=contract["host_unl"]):
+        if client.get_direction(contract_id) == u"send":
             transfer_complete = do_upload(client, con, contract, con_info)
         else:
             transfer_complete = do_download(client, con, contract, con_info)
 
         # Run any callbacks and schedule next transfer.
         if transfer_complete:
-            finish_transfer(client, contract_id, con)
+            complete_transfer(client, contract_id, con)
 
     # Only reschedule the Looping call when this is done.
     d = defer.Deferred()

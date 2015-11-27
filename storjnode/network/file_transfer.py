@@ -44,9 +44,11 @@ class FileTransfer:
         if self.handlers is None:
             self.handlers = {}
         if "complete" not in self.handlers:
-            self.handlers["complete"] = []
+            self.handlers["complete"] = set()
         if "accept" not in self.handlers:
-            self.handlers["accept"] = []
+            self.handlers["accept"] = set()
+        if "start" not in self.handlers:
+            self.handlers["start"] = set()
 
         # Start networking.
         if not self.net.is_net_started:
@@ -78,6 +80,18 @@ class FileTransfer:
 
         # Lock threads.
         self.mutex = Lock()
+
+    def add_handler(self, type, handler):
+        # todo: change handler for when new data is transferred
+        # might be helpful to have for updating UI progress
+        valid_handlers = [
+            u"complete",
+            u"accept",
+            u"start"
+        ]
+
+        if type in valid_handlers:
+            self.handlers[type].add(handler)
 
     def get_their_unl(self, contract):
         if self.net.unl == pyp2p.unl.UNL(value=contract["dest_unl"]):
@@ -114,7 +128,7 @@ class FileTransfer:
         # Cleanup downloading.
         contract = self.contracts[contract_id]
         if contract["data_id"] in self.downloading:
-            if contract["direction"] == "receive":
+            if self.get_direction(contract_id) == u"receive":
                 del self.downloading[contract["data_id"]]
 
         # Cleanup handshakes.
@@ -226,12 +240,28 @@ class FileTransfer:
 
         return ret
 
+    def get_direction(self, contract_id, contract=None):
+        """
+        The direction of a transfer is relative to the node. Send means we're sending the data: receive means we're downloading it.
+        """
+        contract = contract or self.contracts[contract_id]
+        our_unl = self.net.unl
+        host_unl = pyp2p.unl.UNL(value=contract[u"host_unl"])
+        if our_unl == host_unl:
+            direction = u"send"
+        else:
+            direction = u"receive"
+
+        return direction
+
     def simple_data_request(self, data_id, node_unl, direction):
         file_size = 0
         if direction == u"send":
-            action = u"upload"
-        else:
+            # We're uploading: so tell the peer to download from us.
             action = u"download"
+        else:
+            # We're download: so tell the peer to upload to us.
+            action = u"upload"
 
         return self.data_request(action, data_id, file_size, node_unl)
 
@@ -244,13 +274,12 @@ class FileTransfer:
         # Who is hosting this data?
         if action == "upload":
             # We store this data.
-            direction = u"send"
-            host_unl = self.net.unl.value
+            host_unl = node_unl
             assert(storage.manager.find(self.store_config, data_id) is not None)
         else:
             # They store the data.
-            direction = u"receive"
-            host_unl = node_unl
+            host_unl = self.net.unl.value
+
             if data_id in self.downloading:
                 raise Exception("Already trying to download this.")
 
@@ -277,7 +306,6 @@ class FileTransfer:
         # Create contract.
         contract = OrderedDict({
             u"status": u"SYN",
-            u"direction": direction,
             u"data_id": data_id,
             u"file_size": file_size,
             u"host_unl": host_unl,

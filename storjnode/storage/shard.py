@@ -18,7 +18,7 @@ def get_size(shard):
     return shard.tell()
 
 
-def get_hash(shard, salt=None):
+def get_hash(shard, salt=None, limit=None):
     """Get the hash of the shard.
 
     Args:
@@ -27,11 +27,34 @@ def get_hash(shard, salt=None):
 
     Returns: Hex digetst of sha256(salt + shard).
     """
-    hasher = hashlib.sha256()
-    if salt is not None:  # salt hash if requested
-        hasher.update(salt)
     shard.seek(0)
-    hasher.update(shard.read())
+    hasher = hashlib.sha256()
+    if salt is not None:
+        hasher.update(salt)
+
+    # Don't read whole file into memory.
+    remaining = limit
+    max_chunk_size = 4096
+    def get_chunk_size(remaining, max_chunk_size):
+        if remaining is not None:
+            if remaining < max_chunk_size:
+                return remaining
+            else:
+                return max_chunk_size
+        else:
+            return max_chunk_size
+
+    while 1:
+        chunk_size = get_chunk_size(remaining, max_chunk_size)
+        chunk = shard.read(chunk_size)
+        if chunk == b"":
+            break
+
+        hasher.update(chunk)
+        if remaining is not None:
+            remaining -= chunk_size
+
+    shard.seek(0)
     return hasher.hexdigest()
 
 
