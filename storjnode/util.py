@@ -3,20 +3,11 @@ import os
 import platform
 import psutil
 import socket
-import sys
-import binascii
 import pyp2p
 from crochet import wait_for
 from pycoin.encoding import a2b_hashed_base58, b2a_hashed_base58
 from collections import OrderedDict
 from btctxstore import BtcTxStore
-
-
-# FIXME use six for this
-str_types = (
-    bytes if sys.version_info >= (3, 0, 0) else str,
-    str if sys.version_info >= (3, 0, 0) else unicode
-)
 
 
 def parse_node_id_from_unl(unl):
@@ -28,77 +19,46 @@ def parse_node_id_from_unl(unl):
         return b""
 
 
-def sign_msg(msg, wif):
-    # FIXME btctxstore checks input
+def sign_message(msg, wif):
     assert(type(msg) == OrderedDict)
-    assert(type(wif) in str_types)
-
-    if sys.version_info >= (3, 0, 0):
-        hexstr = str(msg).encode("ascii")
-    else:
-        hexstr = str(msg)
-
-    # This shouldn't already exist.
-    if u"signature" in msg:
-        del msg[u"signature"]
-
-    # FIXME btctxstore has sign unicode method
+    assert("signature" not in msg)  # must be unsigned
     api = BtcTxStore(testnet=False, dryrun=True)
-    hexstr = binascii.hexlify(hexstr).decode("utf-8")
-    sig = api.sign_data(wif, hexstr)
-
-    # FIXME btctxstore has a method for this
-    if sys.version_info >= (3, 0, 0):
-        msg[u"signature"] = sig.decode("utf-8")
-    else:
-        msg[u"signature"] = unicode(sig)
-
+    msg[u"signature"] = api.sign_unicode(wif, str(msg))
     return msg
 
 
-def check_sig(msg, wif, node_id=None):
+def verify_message_signature(msg, wif, node_id=None):
     assert(type(msg) == OrderedDict)
-    assert(type(wif) in str_types)
 
     if u"signature" not in msg:
         return 0
 
-    sig = msg[u"signature"][:]
-    del msg[u"signature"]
-
-    # FIXME use six for this
-    if sys.version_info >= (3, 0, 0):
-        hexstr = str(msg).encode("ascii")
-    else:
-        hexstr = str(msg)
+    msg = msg.copy()  # work on a copy for thread saftey
+    sig = msg.pop("signature")
 
     # Use our address.
-    hexstr = binascii.hexlify(hexstr).decode("utf-8")
     api = BtcTxStore(testnet=False, dryrun=True)
     try:
         if node_id is None:
             address = api.get_address(wif)
-            ret = api.verify_signature(address, sig, hexstr)
+            ret = api.verify_signature_unicode(address, sig, str(msg))
         else:
-            # Use their node ID: try testnet.
-            address = b2a_hashed_base58(b'o' + node_id)
-            ret = api.verify_signature(address, sig, hexstr)
-            if not ret:
-                # Use their node ID: try mainnet.
-                address = b2a_hashed_base58(b'\0' + node_id)
-                ret = api.verify_signature(address, sig, hexstr)
+            address = node_id_to_address(node_id)
+            ret = api.verify_signature_unicode(address, sig, str(msg))
     except TypeError:
         return 0
-    finally:
-        # Move sig back.
-        msg[u"signature"] = sig[:]
 
     return ret
 
 
 def address_to_node_id(address):
-    # e.g. address = api.get_address(wif)
+    """Convert a bitcoin address to a node id."""
     return a2b_hashed_base58(address)[1:]
+
+
+def node_id_to_address(node_id):
+    """Convert a node id to a bitcoin address."""
+    return b2a_hashed_base58(b'\0' + node_id)
 
 
 def full_path(path):

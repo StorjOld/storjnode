@@ -11,7 +11,7 @@ import tempfile
 import pyp2p
 from storjnode.network.process_transfers import process_transfers
 from storjnode.network.file_transfer import FileTransfer
-from storjnode.util import sign_msg, check_sig, address_to_node_id, parse_node_id_from_unl
+from storjnode.util import sign_message, verify_message_signature, address_to_node_id, parse_node_id_from_unl
 from twisted.internet import defer
 from btctxstore import BtcTxStore
 
@@ -52,7 +52,7 @@ class BandwidthTest():
             req = msg[u"request"]
             print(req)
 
-            if not check_sig(msg[u"request"], self.wif, self.api.get_id()):
+            if not verify_message_signature(msg[u"request"], self.wif, self.api.get_id()):
                 print("res: our request sig was invalid")
                 return
 
@@ -63,7 +63,7 @@ class BandwidthTest():
 
             # Check their sig.
             src_node_id = parse_node_id_from_unl(msg[u"requestee"])
-            if not check_sig(msg, self.wif, src_node_id):
+            if not verify_message_signature(msg, self.wif, src_node_id):
                 print("res: their sig did not match")
                 return
 
@@ -97,7 +97,7 @@ class BandwidthTest():
 
             # Check sig.
             src_node_id = parse_node_id_from_unl(msg[u"requester"])
-            if not check_sig(msg, self.wif, src_node_id):
+            if not verify_message_signature(msg, self.wif, src_node_id):
                 print("req: Invalid sig")
                 return
 
@@ -116,7 +116,7 @@ class BandwidthTest():
                 return
 
             # Sign response
-            res = sign_msg(res, self.wif)
+            res = sign_message(res, self.wif)
 
             # Send request back to source.
             res = json.dumps(res, ensure_ascii=True)
@@ -151,7 +151,7 @@ class BandwidthTest():
         })
 
         # Sign request.
-        req = sign_msg(req, self.wif)
+        req = sign_message(req, self.wif)
 
         # Send request.
         node_id = parse_node_id_from_unl(node_unl)
