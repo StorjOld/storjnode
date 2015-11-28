@@ -2,6 +2,8 @@ PY_VERSION := 3
 WHEEL_DIR := /tmp/wheelhouse
 PIP := env/bin/pip
 PY := env/bin/python
+PEP8 := env/bin/pep8
+COVERAGE := env/bin/coverage
 USE_WHEELS := 0
 ifeq ($(USE_WHEELS), 0)
   WHEEL_INSTALL_ARGS := # void
@@ -67,9 +69,11 @@ shell: install
 
 
 test: setup
-	env/bin/pep8 storjnode
-	env/bin/coverage run --source="storjnode" -m unittest -v tests
-	env/bin/coverage report --fail-under=65
+	$(PEP8) storjnode
+	$(PEP8) examples
+	$(PEP8) tests
+	$(COVERAGE) run --source="storjnode" -m unittest -v tests
+	$(COVERAGE) report --fail-under=65
 
 
 publish: test

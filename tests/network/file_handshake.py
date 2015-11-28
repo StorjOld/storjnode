@@ -6,7 +6,9 @@ import pyp2p.dht_msg
 import pyp2p.unl
 from twisted.internet import defer
 from storjnode.network.file_transfer import FileTransfer
-from storjnode.network.file_handshake import is_valid_syn, process_syn, process_syn_ack, process_ack, process_rst, protocol
+from storjnode.network.file_handshake import (is_valid_syn, process_syn,
+                                              process_syn_ack, process_ack,
+                                              process_rst, protocol)
 import hashlib
 import tempfile
 import os
@@ -24,7 +26,8 @@ class TestFileHandshake(unittest.TestCase):
         self.alice_wallet = BtcTxStore(testnet=False, dryrun=True)
         self.alice_wif = "L18vBLrz3A5QxJ6K4bUraQQZm6BAdjuAxU83e16y3x7eiiHTApHj"
         self.alice_node_id = address_to_node_id(
-            self.alice_wallet.get_address(self.alice_wif))
+            self.alice_wallet.get_address(self.alice_wif)
+        )
         self.alice_dht_node = pyp2p.dht_msg.DHT(node_id=self.alice_node_id)
         self.alice_storage = tempfile.mkdtemp()
         self.alice = FileTransfer(
@@ -84,7 +87,8 @@ class TestFileHandshake(unittest.TestCase):
             self.bob.net.dht_node.relay_message = relay_msg
 
         # Bypass UNL.connect for clients.
-        def unl_connect(their_unl, events, force_master=1, hairpin=1, nonce="0" * 64):
+        def unl_connect(their_unl, events, force_master=1, hairpin=1,
+                        nonce="0" * 64):
             print("Skipping UNL.connect!")
             print("Their unl = ")
             print(their_unl)
@@ -105,7 +109,8 @@ class TestFileHandshake(unittest.TestCase):
         self.syn = OrderedDict({
             u"status": u"SYN",
             u"direction": u"send",
-            u"data_id": u"5feceb66ffc86f38d952786c6d696c79c2dbc239dd4e91b46729d73a27fb57e9",
+            u"data_id": ("5feceb66ffc86f38d952786c6d696c79"
+                         "c2dbc239dd4e91b46729d73a27fb57e9"),
             u"file_size": 100,
             u"host_unl": self.alice.net.unl.value,
             u"dest_unl": self.bob.net.unl.value,
@@ -155,7 +160,6 @@ class TestFileHandshake(unittest.TestCase):
         print("Done testing message flow")
         print("")
 
-    @unittest.skip("test broken?")
     def test_protocol(self):
         print("")
         print("Testing protocol")
@@ -172,20 +176,20 @@ class TestFileHandshake(unittest.TestCase):
 
         # Test broken JSON.
         msg = "{"
-        self.assertTrue(protocol(self.bob, msg) == -1)
+        self.assertEqual(protocol(self.bob, msg), -1)
 
         # No status in message.
-        msg = '{}'
-        self.assertTrue(protocol(self.bob, msg) == -2)
+        msg = []
+        self.assertEqual(protocol(self.bob, msg), -2)
 
         # Invalid status.
-        msg = '{"status": "X"}'
-        self.assertTrue(protocol(self.bob, msg) == -4)
+        msg = [("status", "X")]
+        self.assertEqual(protocol(self.bob, msg), -4)
 
         # Test valid message handlers.
         syn = copy.deepcopy(self.syn)
         syn = self.alice.sign_contract(syn)
-        self.assertTrue(protocol(self.bob, msg.items()) == 1)
+        self.assertEqual(protocol(self.bob, syn), 1)
 
         print("")
         print("Done testing protocol")
@@ -218,9 +222,13 @@ class TestFileHandshake(unittest.TestCase):
         print(self.alice.is_valid_contract_sig(signed_syn))
         node_id = self.alice.net.dht_node.get_id()
         print(node_id)
-        self.assertTrue(self.alice.is_valid_contract_sig(signed_syn, node_id) == 1)
+        self.assertEqual(
+            self.alice.is_valid_contract_sig(signed_syn, node_id), 1
+        )
         node_id = self.alice.get_node_id_from_unl(self.alice.net.unl.value)
-        self.assertTrue(self.alice.is_valid_contract_sig(signed_syn, node_id) == 1)
+        self.assertEqual(
+            self.alice.is_valid_contract_sig(signed_syn, node_id), 1
+        )
         print(node_id)
 
         self.assertTrue(syn[u"src_unl"] == self.alice.net.unl.value)
@@ -232,7 +240,6 @@ class TestFileHandshake(unittest.TestCase):
         print("End sign syn")
         print("")
 
-    @unittest.skip("test broken?")
     def test_process_syn(self):
         print("")
         print("Testing process syn")
@@ -288,7 +295,6 @@ class TestFileHandshake(unittest.TestCase):
             self.bob, syn, enable_accept_handlers=0
         ) == -5)
         del self.bob.handshake[contract_id]
-        del syn["signature"]
 
         # This should pass.
         self.assertIsInstance(process_syn(
@@ -339,7 +345,6 @@ class TestFileHandshake(unittest.TestCase):
 
         # Is SYN valid.
         syn_ack_2 = copy.deepcopy(syn_ack)
-        data_id = syn_ack_2[u"syn"][u"data_id"]
         syn_ack_2[u"syn"][u"file_size"] = "10"
         contract_id = self.alice.contract_id(syn_ack_2[u"syn"])
         self.alice.contracts[contract_id] = syn_ack_2[u"syn"]
@@ -551,7 +556,7 @@ class TestFileHandshake(unittest.TestCase):
         syn["data_id"] = hashlib.sha256(b"0").hexdigest()
         del syn["signature"]
 
-        #Syn is too big.
+        # Syn is too big.
         """
         syn[u"file_size"] = int("9" * (5242880 + 10))
         self.assertTrue(is_valid_syn(
@@ -625,4 +630,3 @@ class TestFileHandshake(unittest.TestCase):
 
 if __name__ == "__main__":
     unittest.main()
-

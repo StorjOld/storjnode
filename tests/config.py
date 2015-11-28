@@ -40,7 +40,8 @@ class TestConfig(unittest.TestCase):
 
             # update config
             updated_cfg = copy.deepcopy(created_data)
-            updated_cfg["payout_address"] = "1A8WqiJDh3tGVeEefbMN5BVDYxx2XSoWgG"
+            address = "1A8WqiJDh3tGVeEefbMN5BVDYxx2XSoWgG"
+            updated_cfg["payout_address"] = address
             storjnode.config.save(self.btctxstore, path, updated_cfg)
 
             # confirm overwriten

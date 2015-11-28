@@ -59,19 +59,16 @@ def test_queued():
     )
 
     # Create file we're suppose to be uploading.
-    data_id = u"5feceb66ffc86f38d952786c6d696c79c2dbc239dd4e91b46729d73a27fb57e9"
+    data_id = ("5feceb66ffc86f38d952786c6d696c"
+               "79c2dbc239dd4e91b46729d73a27fb57e9")
     path = os.path.join(list(alice.store_config)[0], data_id)
     if not os.path.exists(path):
         with open(path, "w") as fp:
             fp.write("0")
 
     # Alice wants data from Bob.
-    upload_contract_id = alice.data_request(
-        "upload",
-        data_id,
-        0,
-        bob.net.unl.value
-    )
+    # upload_contract_id = alice.data_request("upload", data_id, 0,
+    #                                         bob.net.unl.value)
 
     # Delete source file.
     def callback_builder(path, alice, bob, data_id):
@@ -90,7 +87,9 @@ def test_queued():
                 print()
                 print(client)
                 clients[client].net.synchronize()
-                for node in clients[client].net.outbound + clients[client].net.inbound:
+                nodes_out = clients[client].net.outbound
+                nodes_in = clients[client].net.inbound
+                for node in nodes_out + nodes_in:
                     print(node["con"].unl)
                 print(clients[client].cons)
 
@@ -122,8 +121,8 @@ def test_queued():
         callback_builder(path, alice, bob, data_id)
     ]
 
-    #d = alice.defers[upload_contract_id]
-    #d.addCallback(callback_builder(path, alice, bob, data_id))
+    # d = alice.defers[upload_contract_id]
+    # d.addCallback(callback_builder(path, alice, bob, data_id))
 
     # Main event loop.
     timeout = time.time() + 40
@@ -154,13 +153,3 @@ class TestQueuedTransfers(unittest.TestCase):
 
 if __name__ == "__main__":
     unittest.main()
-
-    """
-    #x = TestQueuedTransfers()
-    while 1:
-        global queue_succeeded
-        queue_succeeded = 0
-        test_queued()
-        time.sleep(60)
-        #unittest.main()
-    """

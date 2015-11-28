@@ -189,6 +189,7 @@ def get_fs_type(path):
 
 def get_free_space(dirname):  # source http://stackoverflow.com/a/2372171
     """Return folder/drive free space (in bytes)."""
+    # FIXME use `psutil.disk_usage(store_path).free` instead?
     if platform.system() == 'Windows':
         free_bytes = ctypes.c_ulonglong(0)
         ctypes.windll.kernel32.GetDiskFreeSpaceExW(

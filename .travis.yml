@@ -17,6 +17,7 @@ install:
 
 script:
   - pep8 storjnode
+  - pep8 examples
   - coverage run --source="storjnode" -m unittest -v tests
   - coverage report --fail-under=65
 
