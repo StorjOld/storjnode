@@ -8,7 +8,7 @@ from collections import OrderedDict
 from crochet import wait_for, run_in_reactor
 from twisted.internet.task import LoopingCall
 from storjnode.util import valid_ip, sign_message, verify_message_signature
-from storjnode.network.server import StorjServer, QUERY_TIMEOUT, WALK_TIMEOUT
+from storjnode.network.server import Server, QUERY_TIMEOUT, WALK_TIMEOUT
 from pyp2p.unl import UNL
 
 
@@ -190,7 +190,7 @@ class Node(object):
 
     def _setup_server(self, key, ksize, storage, max_messages,
                       refresh_neighbours_interval, bootstrap_nodes):
-        self.server = StorjServer(
+        self.server = Server(
             key, ksize=ksize, storage=storage, max_messages=max_messages,
             refresh_neighbours_interval=refresh_neighbours_interval
         )

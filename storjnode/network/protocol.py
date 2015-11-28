@@ -27,7 +27,7 @@ def _findNearest(self, node, k=None, exclude=None):
 RoutingTable.findNeighbors = _findNearest  # XXX monkey patch find neighbors
 
 
-class StorjProtocol(KademliaProtocol):
+class Protocol(KademliaProtocol):
 
     def __init__(self, *args, **kwargs):
         max_messages = kwargs.pop("max_messages")

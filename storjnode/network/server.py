@@ -4,14 +4,14 @@ import threading
 import btctxstore
 import binascii
 import storjnode
-from kademlia.routing import TableTraverser
-from storjnode.network.protocol import StorjProtocol
-from twisted.internet import defer
-from kademlia.network import Server
+from kademlia.network import Server as KademliaServer
 from kademlia.storage import ForgetfulStorage
-from twisted.internet.task import LoopingCall
-from kademlia.node import Node
+from kademlia.node import Node as KademliaNode
+from kademlia.routing import TableTraverser
 from kademlia.crawling import NodeSpiderCrawl
+from storjnode.network.protocol import Protocol
+from twisted.internet import defer
+from twisted.internet.task import LoopingCall
 from crochet import TimeoutError
 
 
@@ -19,7 +19,7 @@ QUERY_TIMEOUT = 5.0
 WALK_TIMEOUT = QUERY_TIMEOUT * 24
 
 
-class StorjServer(Server):
+class Server(KademliaServer):
 
     def __init__(self, key, ksize=20, alpha=3, storage=None,
                  max_messages=1024, default_hop_limit=64,
@@ -47,15 +47,15 @@ class StorjServer(Server):
         is_hwif = self._btctxstore.validate_wallet(key)
         self.key = self._btctxstore.get_key(key) if is_hwif else key
 
-        # XXX Server.__init__ cannot call super because of StorjProtocol
+        # XXX kademlia.network.Server.__init__ cant use super because Protocol
         # passing the protocol class should be added upstream
         self.ksize = ksize
         self.alpha = alpha
         self.log = storjnode.log.getLogger(__name__)
 
         self.storage = storage or ForgetfulStorage()
-        self.node = Node(self.get_id())
-        self.protocol = StorjProtocol(
+        self.node = KademliaNode(self.get_id())
+        self.protocol = Protocol(
             self.node, self.storage, ksize, max_messages=max_messages,
             max_hop_limit=self._default_hop_limit
         )
@@ -142,7 +142,7 @@ class StorjServer(Server):
     def _relay_message(self, entry):
         """Returns entry if failed to relay to a closer node or None"""
 
-        dest = Node(entry["dest"])
+        dest = KademliaNode(entry["dest"])
         nearest = self.protocol.router.findNeighbors(dest, exclude=self.node)
         self.log.debug("Relaying to nearest: %s" % repr(nearest))
         for relay_node in nearest:
@@ -224,14 +224,15 @@ class StorjServer(Server):
                 async = self.protocol.callDirectMessage(nodes[0], message)
                 return async.addCallback(lambda r: r[0] and r[1] or None)
 
-        node = Node(nodeid)
+        node = KademliaNode(nodeid)
         nearest = self.protocol.router.findNeighbors(node)
         if len(nearest) == 0:
             msg = "{0} has no known neighbors to find {1}"
             self.log.warning(msg.format(self.get_hex_id(), hexid))
             return defer.succeed(None)
-        spider = NodeSpiderCrawl(self.protocol, node, nearest,
-                                 self.ksize, self.alpha)
+        spider = NodeSpiderCrawl(
+            self.protocol, node, nearest, self.ksize, self.alpha
+        )
         return spider.find().addCallback(found_callback)
 
     def get_hex_id(self):

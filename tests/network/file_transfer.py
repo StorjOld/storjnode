@@ -1,5 +1,5 @@
 import storjnode
-from storjnode.network.api import DEFAULT_BOOTSTRAP_NODES
+from storjnode.network import DEFAULT_BOOTSTRAP_NODES
 from storjnode.network.file_transfer import FileTransfer
 from storjnode.network.process_transfers import process_transfers
 from storjnode.util import address_to_node_id
