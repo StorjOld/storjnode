@@ -162,11 +162,11 @@ class FileTransfer:
         return hashlib.sha256(contract).hexdigest()
 
     def sign_contract(self, contract):
-        return storjnode.util.sign_message(contract, self.wif)
+        return storjnode.network.message.sign(contract, self.wif)
 
     def is_valid_contract_sig(self, contract, node_id=None):
-        return storjnode.util.verify_message_signature(contract, self.wif,
-                                                       node_id=node_id)
+        return storjnode.network.message.verify_signature(contract, self.wif,
+                                                          node_id=node_id)
 
     def simple_data_request(self, data_id, node_unl, direction):
         file_size = 0

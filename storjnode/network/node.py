@@ -7,7 +7,8 @@ from twisted.internet import defer
 from collections import OrderedDict
 from crochet import wait_for, run_in_reactor
 from twisted.internet.task import LoopingCall
-from storjnode.util import valid_ip, sign_message, verify_message_signature
+from storjnode.util import valid_ip
+from storjnode.network.message import sign, verify_signature
 from storjnode.network.server import Server, QUERY_TIMEOUT, WALK_TIMEOUT
 from pyp2p.unl import UNL
 
@@ -144,13 +145,13 @@ class Node(object):
 
                     # Check signature.
                     their_node_id = binascii.unhexlify(msg[u"requester"])
-                    if not verify_message_signature(msg, wif, their_node_id):
+                    if not verify_signature(msg, wif, their_node_id):
                         return
 
                     # Response.
                     our_node_id_hex = binascii.hexlify(self.get_id())
                     our_node_id_hex = our_node_id_hex.decode("utf-8")
-                    response = sign_message(OrderedDict(
+                    response = sign(OrderedDict(
                         {
                             u"type": u"unl_response",
                             u"requestee": our_node_id_hex,
@@ -338,7 +339,7 @@ class Node(object):
         )
 
         # Sign UNL request.
-        unl_req = sign_message(unl_req, self.get_key())
+        unl_req = sign(unl_req, self.get_key())
 
         # Handle responses for this request.
         def handler_builder(self, d, their_node_id, wif):
@@ -357,7 +358,7 @@ class Node(object):
                         return
 
                     # Invalid signature.
-                    if not verify_message_signature(msg, wif, their_node_id):
+                    if not verify_signature(msg, wif, their_node_id):
                         return
 
                     # Everything passed: fire callback.

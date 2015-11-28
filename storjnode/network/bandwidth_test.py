@@ -5,12 +5,11 @@ Not complete, don't add to __init__
 from decimal import Decimal
 from collections import OrderedDict
 import time
-import binascii
 import tempfile
 import pyp2p
 from storjnode.network.process_transfers import process_transfers
 from storjnode.network.file_transfer import FileTransfer
-from storjnode.util import sign_message, verify_message_signature
+from storjnode.network.message import sign, verify_signature
 from storjnode.util import address_to_node_id, parse_node_id_from_unl
 from twisted.internet import defer
 from btctxstore import BtcTxStore
@@ -53,8 +52,8 @@ class BandwidthTest():
             req = msg[u"request"]
             print(req)
 
-            if not verify_message_signature(msg[u"request"], self.wif,
-                                            self.api.get_id()):
+            if not verify_signature(msg[u"request"], self.wif,
+                                    self.api.get_id()):
                 print("res: our request sig was invalid")
                 return
 
@@ -65,7 +64,7 @@ class BandwidthTest():
 
             # Check their sig.
             src_node_id = parse_node_id_from_unl(msg[u"requestee"])
-            if not verify_message_signature(msg, self.wif, src_node_id):
+            if not verify_signature(msg, self.wif, src_node_id):
                 print("res: their sig did not match")
                 return
 
@@ -76,7 +75,7 @@ class BandwidthTest():
             try:
                 pass
             except (ValueError, KeyError) as e:
-                print("Error in res")
+                print("Error in res: %s" % repr(e))
                 return
 
         return handle_responses
@@ -99,7 +98,7 @@ class BandwidthTest():
 
             # Check sig.
             src_node_id = parse_node_id_from_unl(msg[u"requester"])
-            if not verify_message_signature(msg, self.wif, src_node_id):
+            if not verify_signature(msg, self.wif, src_node_id):
                 print("req: Invalid sig")
                 return
 
@@ -118,7 +117,7 @@ class BandwidthTest():
                 return
 
             # Sign response
-            res = sign_message(res, self.wif)
+            res = sign(res, self.wif)
 
             # Send request back to source.
             self.api.relay_message(src_node_id, res.itmes())
@@ -152,7 +151,7 @@ class BandwidthTest():
         })
 
         # Sign request.
-        req = sign_message(req, self.wif)
+        req = sign(req, self.wif)
 
         # Send request.
         node_id = parse_node_id_from_unl(node_unl)
