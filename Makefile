@@ -58,12 +58,18 @@ setup: virtualenv
 	$(PIP) install $(WHEEL_INSTALL_ARGS) -r develop_requirements.txt
 
 
-shell: setup
+install: setup
+	$(PY) setup.py install
+
+
+shell: install
 	env/bin/ipython
 
 
 test: setup
-	$(PY) -m unittest tests
+	env/bin/pep8 storjnode
+	env/bin/coverage run --source="storjnode" -m unittest -v tests
+	env/bin/coverage report --fail-under=65
 
 
 publish: test

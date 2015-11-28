@@ -16,8 +16,9 @@ install:
   - python setup.py install
 
 script:
-  - coverage run --source="storjnode" -m unittest -v  tests
-#  - pep8 storjnode
+  - pep8 storjnode
+  - coverage run --source="storjnode" -m unittest -v tests
+  - coverage report --fail-under=65
 
 after_success:
   - coveralls
