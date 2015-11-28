@@ -1,6 +1,4 @@
-import ctypes
 import os
-import platform
 import psutil
 import socket
 import pyp2p
@@ -187,18 +185,9 @@ def get_fs_type(path):
     return None
 
 
-def get_free_space(dirname):  # source http://stackoverflow.com/a/2372171
+def get_free_space(dirname):
     """Return folder/drive free space (in bytes)."""
-    # FIXME use `psutil.disk_usage(store_path).free` instead?
-    if platform.system() == 'Windows':
-        free_bytes = ctypes.c_ulonglong(0)
-        ctypes.windll.kernel32.GetDiskFreeSpaceExW(
-            ctypes.c_wchar_p(dirname), None, None, ctypes.pointer(free_bytes)
-        )
-        return free_bytes.value
-    else:
-        st = os.statvfs(dirname)
-        return st.f_bavail * st.f_frsize
+    return psutil.disk_usage(dirname).free
 
 
 def get_folder_size(start_path):  # source http://stackoverflow.com/a/1392549
