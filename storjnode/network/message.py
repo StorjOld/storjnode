@@ -1,20 +1,37 @@
+import umsgpack
+import binascii
 from collections import OrderedDict
+from collections import namedtuple
 from btctxstore import BtcTxStore
 from storjnode.util import node_id_to_address
 import sys
 import binascii
 
 
-def sign(contract, wif):
-    if sys.version_info >= (3, 0, 0):
-        msg = str(contract).encode("ascii")
-    else:
-        msg = str(contract)
+Message = namedtuple('Message', ['sender', 'kind', 'body', 'signature'])
 
-    # This shouldn't already exist.
-    if u"signature" in contract:
-        del contract[u"signature"]
 
+def create(btctxstore, wif, kind, body):
+    address = btctxstore.get_address(wif)
+    data = binascii.hexlify(umsgpack.packb([kind, body]))
+    signature = btctxstore.sign_data(wif, data)
+    return Message(address, kind, body, signature)
+
+
+def read(btctxstore, message):
+    # FIXME make sure body does not contain dicts
+    if not isinstance(message, list) or len(message) != 4:
+        return None
+    msg = Message(*message)
+    data = binascii.hexlify(umsgpack.packb([msg.kind, msg.body]))
+    if btctxstore.verify_signature(msg.sender, msg.signature, data):
+        return msg
+    return None
+
+
+def sign(msg, wif):  # FIXME use create instead
+    assert(isinstance(msg, OrderedDict))
+    assert("signature" not in msg)  # must be unsigned
     api = BtcTxStore(testnet=False, dryrun=True)
     msg = binascii.hexlify(msg).decode("utf-8")
     sig = api.sign_data(wif, msg)
@@ -27,7 +44,7 @@ def sign(contract, wif):
     return contract
 
 
-def verify_signature(msg, wif, node_id=None):
+def verify_signature(msg, wif, node_id=None):  # FIXME use read instead
     assert(isinstance(msg, OrderedDict))
 
     if u"signature" not in msg:

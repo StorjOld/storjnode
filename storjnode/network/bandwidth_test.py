@@ -74,7 +74,6 @@ class BandwidthTest():
         # Schedule timeout.
         LoopingCall(timeout).start(60, now=True)
 
-
     def handle_requests_builder(self):
         # Handle bandwidth requests.
         def handle_requests(src_node_id, msg):
