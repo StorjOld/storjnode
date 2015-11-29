@@ -103,7 +103,9 @@ class TestManager(unittest.TestCase):
     def test_remove(self):
         with open(SHARD_PATH, "rb") as shard:
             store_path = os.path.join(self.base_dir, "eta")
-            save_path = storjnode.storage.manager.add({store_path: None}, shard)
+            save_path = storjnode.storage.manager.add(
+                {store_path: None}, shard
+            )
             self.assertTrue(os.path.isfile(save_path))  # shard added
             shard_id = storjnode.storage.shard.get_id(shard)
             storjnode.storage.manager.remove({store_path: None}, shard_id)

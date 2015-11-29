@@ -31,6 +31,7 @@ for i in range(0, node_no):
     # Record node.
     nodes.append(node)
 
+
 # Test get UNL.
 def callback(unl):
     print("GOT UNL!")

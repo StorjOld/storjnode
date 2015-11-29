@@ -1,6 +1,5 @@
 import os
 import random
-import logging
 import storjnode
 from storjnode.common import STORJ_HOME
 
@@ -12,7 +11,7 @@ DEFAULT_STORE_CONFIG = {
 }
 
 
-_log = logging.getLogger(__name__)
+_log = storjnode.log.getLogger(__name__)
 _builtin_open = open
 
 
@@ -241,7 +240,8 @@ def find(store_config, shard_id):
     return None
 
 
-# def import_file(store_config, source_path, max_shard_size=DEFAULT_SHARD_SIZE):
+# def import_file(store_config, source_path,
+#                 max_shard_size=DEFAULT_SHARD_SIZE):
 #     """Import a file into the store.
 #
 #     Args:

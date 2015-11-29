@@ -1,31 +1,23 @@
 import pyp2p.unl
 import pyp2p.net
 import pyp2p.dht_msg
-import logging
-import storjnode.storage as storage
 import storjnode
 from storjnode.util import address_to_node_id
 from storjnode.network.file_transfer import FileTransfer
 from storjnode.network.process_transfers import process_transfers
-from collections import OrderedDict
 from btctxstore import BtcTxStore
 import tempfile
 import time
-import json
-import hashlib
-import sys
 import os
-import binascii
-import struct
-from threading import Lock
-from twisted.internet import defer
-from pycoin.encoding import a2b_hashed_base58, b2a_hashed_base58, a2b_base58, b2a_base58
 import unittest
 
-_log = logging.getLogger(__name__)
-_log.setLevel("DEBUG")
+
+_log = storjnode.log.getLogger(__name__)
+
 
 queue_succeeded = 0
+
+
 def test_queued():
     from crochet import setup
     setup()
@@ -67,23 +59,20 @@ def test_queued():
     )
 
     # Create file we're suppose to be uploading.
-    data_id = u"5feceb66ffc86f38d952786c6d696c79c2dbc239dd4e91b46729d73a27fb57e9"
+    data_id = ("5feceb66ffc86f38d952786c6d696c"
+               "79c2dbc239dd4e91b46729d73a27fb57e9")
     path = os.path.join(list(alice.store_config)[0], data_id)
     if not os.path.exists(path):
         with open(path, "w") as fp:
             fp.write("0")
 
-    # Alice wants data from Bob.
-    upload_contract_id = alice.data_request(
-        "upload",
-        data_id,
-        0,
-        bob.net.unl.value
-    )
+    # Alice wants to upload data to Bob.
+    upload_contract_id = alice.data_request("download", data_id, 0,
+                                             bob.net.unl.value)
 
     # Delete source file.
     def callback_builder(path, alice, bob, data_id):
-        def callback(node_id, data_id, direction):
+        def callback(client, contract_id, con):
             print("Upload succeeded")
             print("Removing content and downloading back")
             os.remove(path)
@@ -98,13 +87,15 @@ def test_queued():
                 print()
                 print(client)
                 clients[client].net.synchronize()
-                for node in clients[client].net.outbound + clients[client].net.inbound:
+                nodes_out = clients[client].net.outbound
+                nodes_in = clients[client].net.inbound
+                for node in nodes_out + nodes_in:
                     print(node["con"].unl)
                 print(clients[client].cons)
 
             # Queued transfer:
             download_contract_id = alice.data_request(
-                "download",
+                "upload",
                 data_id,
                 0,
                 bob.net.unl.value
@@ -113,13 +104,13 @@ def test_queued():
             print("Download contract ID =")
             print(download_contract_id)
 
-            # Indicate Alice's download succeeded.
+            # Indicate Bob's download succeeded.
             def alice_callback(val):
                 print("Download succeeded")
                 global queue_succeeded
                 queue_succeeded = 1
 
-            # Hook download from bob.
+            # Hook upload from bob.
             d = alice.defers[download_contract_id]
             d.addCallback(alice_callback)
 
@@ -130,8 +121,8 @@ def test_queued():
         callback_builder(path, alice, bob, data_id)
     ]
 
-    #d = alice.defers[upload_contract_id]
-    #d.addCallback(callback_builder(path, alice, bob, data_id))
+    # d = alice.defers[upload_contract_id]
+    # d.addCallback(callback_builder(path, alice, bob, data_id))
 
     # Main event loop.
     timeout = time.time() + 40
@@ -152,6 +143,7 @@ def test_queued():
     for client in [alice, bob]:
         client.net.stop()
 
+
 class TestQueuedTransfers(unittest.TestCase):
     def test_00001(self):
         test_queued()
@@ -159,13 +151,3 @@ class TestQueuedTransfers(unittest.TestCase):
 
 if __name__ == "__main__":
     unittest.main()
-
-    """
-    #x = TestQueuedTransfers()
-    while 1:
-        global queue_succeeded
-        queue_succeeded = 0
-        test_queued()
-        time.sleep(60)
-        #unittest.main()
-    """

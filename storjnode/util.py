@@ -1,24 +1,17 @@
-import ctypes
 import os
-import platform
 import psutil
 import socket
-import sys
-import binascii
 import pyp2p
 import tempfile
 from crochet import wait_for
 from pycoin.encoding import a2b_hashed_base58, b2a_hashed_base58
-from collections import OrderedDict
-from btctxstore import BtcTxStore
 
-str_types = (bytes if sys.version_info >= (3, 0, 0) else str, str if sys.version_info >= (3, 0, 0) else unicode)
 
 def generate_random_file(file_size):
     max_chunk_size = 8192
     remaining = file_size
     junk, path = tempfile.mkstemp()
-    fp = open(path, "ab+", 0) # Unbuffered.
+    fp = open(path, "ab+", 0)  # Unbuffered.
     while remaining:
         if remaining < max_chunk_size:
             chunk_size = remaining
@@ -32,6 +25,7 @@ def generate_random_file(file_size):
     fp.seek(0, 0)
     return fp
 
+
 def parse_node_id_from_unl(unl):
     try:
         unl = pyp2p.unl.UNL(value=unl).deconstruct()
@@ -39,72 +33,15 @@ def parse_node_id_from_unl(unl):
     except:
         return b""
 
-def sign_msg(msg, wif):
-    assert(type(msg) == OrderedDict)
-    assert(type(wif) in str_types)
-
-    if sys.version_info >= (3, 0, 0):
-        hexstr = str(msg).encode("ascii")
-    else:
-        hexstr = str(msg)
-
-    # This shouldn't already exist.
-    if u"signature" in msg:
-        del msg[u"signature"]
-
-    api = BtcTxStore(testnet=False, dryrun=True)
-    hexstr = binascii.hexlify(hexstr).decode("utf-8")
-    sig = api.sign_data(wif, hexstr)
-
-    if sys.version_info >= (3, 0, 0):
-        msg[u"signature"] = sig.decode("utf-8")
-    else:
-        msg[u"signature"] = unicode(sig)
-
-    return msg
-
-def check_sig(msg, wif, node_id=None):
-    assert(type(msg) == OrderedDict)
-    assert(type(wif) in str_types)
-
-    if u"signature" not in msg:
-        return 0
-
-    sig = msg[u"signature"][:]
-    del msg[u"signature"]
-
-    if sys.version_info >= (3, 0, 0):
-        hexstr = str(msg).encode("ascii")
-    else:
-        hexstr = str(msg)
-
-    # Use our address.
-    hexstr = binascii.hexlify(hexstr).decode("utf-8")
-    api = BtcTxStore(testnet=False, dryrun=True)
-    try:
-        if node_id is None:
-            address = api.get_address(wif)
-            ret = api.verify_signature(address, sig, hexstr)
-        else:
-            # Use their node ID: try testnet.
-            address = b2a_hashed_base58(b'o' + node_id)
-            ret = api.verify_signature(address, sig, hexstr)
-            if not ret:
-                # Use their node ID: try mainnet.
-                address = b2a_hashed_base58(b'\0' + node_id)
-                ret = api.verify_signature(address, sig, hexstr)
-    except TypeError:
-        return 0
-    finally:
-        # Move sig back.
-        msg[u"signature"] = sig[:]
-
-    return ret
-
 
 def address_to_node_id(address):
-    # e.g. address = api.get_address(wif)
+    """Convert a bitcoin address to a node id."""
     return a2b_hashed_base58(address)[1:]
+
+
+def node_id_to_address(node_id):
+    """Convert a node id to a bitcoin address."""
+    return b2a_hashed_base58(b'\0' + node_id)
 
 
 def full_path(path):
@@ -233,17 +170,9 @@ def get_fs_type(path):
     return None
 
 
-def get_free_space(dirname):  # source http://stackoverflow.com/a/2372171
+def get_free_space(dirname):
     """Return folder/drive free space (in bytes)."""
-    if platform.system() == 'Windows':
-        free_bytes = ctypes.c_ulonglong(0)
-        ctypes.windll.kernel32.GetDiskFreeSpaceExW(
-            ctypes.c_wchar_p(dirname), None, None, ctypes.pointer(free_bytes)
-        )
-        return free_bytes.value
-    else:
-        st = os.statvfs(dirname)
-        return st.f_bavail * st.f_frsize
+    return psutil.disk_usage(dirname).free
 
 
 def get_folder_size(start_path):  # source http://stackoverflow.com/a/1392549

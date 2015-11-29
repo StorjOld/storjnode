@@ -1,14 +1,17 @@
-import logging
 from collections import OrderedDict
-import json
 import time
 import pyp2p.unl
-from pyp2p.unl import UNL
 import pyp2p.net
 import pyp2p.dht_msg
 import tempfile
 import sys
+import storjnode
+import logging
+import json
 import storjnode.storage as storage
+from storjnode.util import parse_node_id_from_unl
+from ast import literal_eval
+
 _log = logging.getLogger(__name__)
 _log.setLevel("DEBUG")
 
@@ -21,8 +24,10 @@ ENABLE_ACCEPT_HANDLERS = 0
 # It would be ideal if this works.
 ENABLE_QUEUED_TRANSFERS = 1
 
+
 class RequestDenied(Exception):
     pass
+
 
 # Validate the integrity of a SYN message.
 def is_valid_syn(client, msg):
@@ -48,12 +53,12 @@ def is_valid_syn(client, msg):
         return -2
 
     # Check data ID is valid.
-    if not storage.shard.valid_id(msg[u"data_id"]):
+    if not storjnode.storage.shard.valid_id(msg[u"data_id"]):
         _log.debug("Invalid data id.")
         return -3
 
     # Check SYN size.
-    if len(str(msg)) > 5242880: # 5 MB.
+    if len(str(msg)) > 5242880:  # 5 MB.
         _log.debug("SYN is too big")
         return -4
 
@@ -79,13 +84,15 @@ def is_valid_syn(client, msg):
     # Are we the host?
     if client.get_direction(None, msg) == u"send":
         # Then check we have this file.
-        path = storage.manager.find(client.store_config, msg[u"data_id"])
+        path = storjnode.storage.manager.find(client.store_config,
+                                              msg[u"data_id"])
         if path is None:
             _log.debug("Failed to find file we're uploading")
             return -8
     else:
         # Do we already have this file?
-        path = storage.manager.find(client.store_config, msg[u"data_id"])
+        path = storjnode.storage.manager.find(client.store_config,
+                                              msg[u"data_id"])
         if path is not None:
             _log.debug("Attempting to download file we already have")
             return -9
@@ -96,6 +103,7 @@ def is_valid_syn(client, msg):
             return -10
 
     return 1
+
 
 # Associate TCP con with contract.
 def success_wrapper(client, contract_id, host_unl):
@@ -153,11 +161,12 @@ def success_wrapper(client, contract_id, host_unl):
                     else:
                         client.con_transfer[con] = u""
 
-            #Return new connection.
+            # Return new connection.
             if con not in client.cons:
                 client.cons.append(con)
 
     return success
+
 
 def process_syn(client, msg, enable_accept_handlers=ENABLE_ACCEPT_HANDLERS):
     # Check syn is valid.
@@ -172,8 +181,9 @@ def process_syn(client, msg, enable_accept_handlers=ENABLE_ACCEPT_HANDLERS):
 
     # Check their sig is valid.
     contract_id = client.contract_id(msg).decode("utf-8")
-    src_node_id = client.get_node_id_from_unl(msg[u"src_unl"])
+    src_node_id = parse_node_id_from_unl(msg[u"src_unl"])
     if not client.is_valid_contract_sig(msg, src_node_id):
+        _log.debug(msg)
         _log.debug("Their signature was incorrect.")
         return -4
 
@@ -251,6 +261,7 @@ def process_syn(client, msg, enable_accept_handlers=ENABLE_ACCEPT_HANDLERS):
     # Success.
     return reply
 
+
 def process_syn_ack(client, msg):
     # Valid syn-ack?
     if u"syn" not in msg:
@@ -287,7 +298,7 @@ def process_syn_ack(client, msg):
 
     # Check their sig is valid.
     contract = client.contracts[contract_id]
-    their_node_id = client.get_node_id_from_unl(contract["dest_unl"])
+    their_node_id = parse_node_id_from_unl(contract["dest_unl"])
     if not client.is_valid_contract_sig(msg, their_node_id):
         _log.debug("Their signature was incorrect.")
         return -6
@@ -358,9 +369,11 @@ def process_syn_ack(client, msg):
 
     return reply
 
+
 def process_ack(client, msg):
     """
-    Notes: if we've already signed the SYN-ack  then this means the checks for their SYN have already been done and can be skipped.
+    Notes: if we've already signed the SYN-ack  then this means the checks for
+    their SYN have already been done and can be skipped.
     """
 
     # Valid ack.
@@ -421,7 +434,6 @@ def process_ack(client, msg):
     else:
         _log.debug("con is not reliable")
 
-
     # Disable queued transfers.
     if not ENABLE_QUEUED_TRANSFERS:
         is_reliable_con = 0
@@ -445,6 +457,7 @@ def process_ack(client, msg):
 
     # Success.
     return 1
+
 
 def process_rst(client, msg):
     # Sanity checks.
@@ -474,7 +487,7 @@ def process_rst(client, msg):
         return -4
 
     # Check sig matches the UNL.
-    node_id = client.get_node_id_from_unl(found_unl)
+    node_id = parse_node_id_from_unl(found_unl)
     if not client.is_valid_contract_sig(msg, node_id):
         _log.debug("RST: sig doesn't match")
         return -5
@@ -489,10 +502,11 @@ def process_rst(client, msg):
 
     return 1
 
+
 def protocol(client, msg):
     try:
         msg = json.loads(msg, object_pairs_hook=OrderedDict)
-    except ValueError:
+    except (ValueError, TypeError) as e:
         _log.debug("Protocol: invalid JSON")
         return -1
 
@@ -509,7 +523,7 @@ def protocol(client, msg):
         return -2
 
     # Message too large.
-    if len(str(msg)) >= 5242880: # 5MB.
+    if len(str(msg)) >= 5242880:  # 5MB.
         _log.debug("Protocol: msg too big")
         return -3
 
@@ -518,8 +532,7 @@ def protocol(client, msg):
     if status in msg_handlers:
         msg_handlers[status](client, msg)
         return 1
+    else:
+        print("MSG HANDLER NOT FOUND")
 
     return -4
-
-
-

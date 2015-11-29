@@ -4,18 +4,22 @@ sense of it all. The protocol is actually quite simple:
 
 * Every SYN message defines a new data request.
 * The data request hashes to produce a contract ID.
-* At any given time there is only one data request active on a single connection between nodes uploading and downloading data between each other.
-* To transfer multiple files between the same nodes, the same connection is used and the transfers are queued. This is what the con_transfer[con] = contract_id structure is for.
+* At any given time there is only one data request active on a single
+  connection between nodes uploading and downloading data between each other.
+* To transfer multiple files between the same nodes, the same connection is
+  used and the transfers are queued.
+  This is what the con_transfer[con] = contract_id structure is for.
 * The protocol looks like this:
     Send: contract_id (64 bytes) file_size (10 bytes) file_data.
-* The person sending the contract ID depends on whoever has the greatest UNL when converted to an int -- this person is known as the master.
+* The person sending the contract ID depends on whoever has the greatest UNL
+  when converted to an int -- this person is known as the master.
 * The person sending the file_size is always the person who has the file.
-* At the end of a transfer, the next data request is processed (send or recv contract_id) and the process continues.
+* At the end of a transfer, the next data request is processed (send or recv
+  contract_id) and the process continues.
 """
 
 
 import struct
-import logging
 import time
 import os
 from twisted.internet import defer
@@ -27,12 +31,16 @@ import pyp2p.dht_msg
 from pyp2p.dht_msg import DHT
 import re
 import sys
+import storjnode
 
-_log = logging.getLogger(__name__)
+
+_log = storjnode.log.getLogger(__name__)
 _log.setLevel("DEBUG")
+
 
 class TransferError(Exception):
     pass
+
 
 def cleanup_cons(client):
     # Record old connections (dead connections.)
@@ -56,6 +64,7 @@ def cleanup_cons(client):
         for con in old_cons:
             client.cons.remove(con)
 
+
 def expire_handshakes(client):
     # Deletes handshakes that don't have a response
     # after N seconds.
@@ -63,11 +72,12 @@ def expire_handshakes(client):
         if contract_id in client.handshake:
             handshake = client.handshake[contract_id]
             elapsed = time.time() - handshake["timestamp"]
-            if elapsed >= 350: # Tree fiddy. 'bout 6 mins.
+            if elapsed >= 350:  # Tree fiddy. 'bout 6 mins.
                 if contract_id in client.defers:
                     e = Exception("Handshake timed out.")
                     client.defers[contract_id].errback(e)
                     del client.defers[contract_id]
+
 
 def do_upload(client, con, contract, con_info):
     _log.debug("Uploading: Found our UNL")
@@ -103,7 +113,6 @@ def do_upload(client, con, contract, con_info):
         # Send file size.
         con.send(net_file_size, send_all=1)
 
-
     # Get next chunk from file.
     position = con_info["file_size"] - con_info["remaining"]
     data_chunk = client.get_data_chunk(
@@ -126,6 +135,7 @@ def do_upload(client, con, contract, con_info):
 
     return 0
 
+
 def do_download(client, con, contract, con_info):
     _log.debug("Attempting to download.")
 
@@ -136,7 +146,7 @@ def do_download(client, con, contract, con_info):
             remaining = 20 - len(file_size_buf)
             partial = con.recv(remaining)
             if not len(partial):
-               return 0
+                return 0
 
             file_size_buf += partial
             if len(file_size_buf) == 20:
@@ -177,7 +187,7 @@ def do_download(client, con, contract, con_info):
             if found_hash != data_id:
                 _log.debug(found_hash)
                 _log.debug(data_id)
-                _log.debug("Error: downloaded file doesn't hash right!")
+                _log.debug("Error: downloaded file doesn't hash right! \a")
                 os.remove(temp_path)
                 return 0
 
@@ -194,6 +204,7 @@ def do_download(client, con, contract, con_info):
         return 1
 
     return 0
+
 
 def get_contract_id(client, con, contract_id):
     # Get contract ID piece.
@@ -217,13 +228,13 @@ def get_contract_id(client, con, contract_id):
     else:
         return 0
 
+
 def complete_transfer(client, contract_id, con):
     # Determine who is master.
     contract = client.contracts[contract_id]
     their_unl = client.get_their_unl(contract)
     is_master = client.net.unl.is_master(their_unl)
     _log.debug("Is master = " + str(is_master))
-
 
     # Return async success.
     if contract_id in client.defers:
@@ -246,20 +257,27 @@ def complete_transfer(client, contract_id, con):
         # Readying to receive a new contract ID.
         client.con_transfer[con] = u""
 
+
 def process_dht_messages(client):
+
+    # Get new messages and run message handlers.
+    if isinstance(client.net.dht_node, DHT):
+        client.net.dht_node.get_messages()
+
+    print("DHT MSGES = ")
+    print(client.net.dht_messages)
+
+    processed = []
+    for msg in client.net.dht_messages:
+        _log.debug("Processing: " + msg["message"])
+        if protocol(client, msg["message"]):
+            processed.append(msg)
+
+    for msg in processed:
+        client.net.dht_messages.remove(msg)
+
     try:
-        # Get new messages and run message handlers.
-        if isinstance(client.net.dht_node, DHT):
-            client.net.dht_node.get_messages()
-
-        processed = []
-        for msg in client.net.dht_messages:
-            _log.debug("Processing: " + msg["message"])
-            if protocol(client, msg["message"]):
-                processed.append(msg)
-
-        for msg in processed:
-            client.net.dht_messages.remove(msg)
+        pass
     except Exception as e:
         _log.debug(e)
         pass
@@ -310,7 +328,6 @@ def process_transfers(client):
                     _log.debug("Client sent wrong contract ID!")
                     con.close()
                     continue
-
 
         # Check contract id.
         if contract_id not in client.contracts:

@@ -1,9 +1,8 @@
 import storjnode
-from storjnode.network.api import DEFAULT_BOOTSTRAP_NODES
+from storjnode.network import DEFAULT_BOOTSTRAP_NODES
 from storjnode.network.file_transfer import FileTransfer
 from storjnode.network.process_transfers import process_transfers
 from storjnode.util import address_to_node_id
-import storjnode.storage as storage
 import btctxstore
 import pyp2p
 import hashlib
@@ -13,12 +12,12 @@ import time
 import requests
 import unittest
 import shutil
-import logging
 from crochet import setup
 setup()
 
 
-_log = logging.getLogger(__name__)
+_log = storjnode.log.getLogger(__name__)
+
 
 TEST_NODE = {
     "unl": ("AhaVDlV5HtHJlddtqgpDHdIFWdr5cGdt8OsG79qiBu/aouc/Ru4="),
@@ -40,7 +39,10 @@ class TestFileTransfer(unittest.TestCase):
         }
 
         # dht_node = pyp2p.dht_msg.DHT(node_id=node_id)
-        self.dht_node = storjnode.network.Node(self.wif, bootstrap_nodes=DEFAULT_BOOTSTRAP_NODES, disable_data_transfer=True)
+        self.dht_node = storjnode.network.Node(
+            self.wif, bootstrap_nodes=DEFAULT_BOOTSTRAP_NODES,
+            disable_data_transfer=True
+        )
 
         # Transfer client.
         self.client = FileTransfer(
@@ -48,14 +50,13 @@ class TestFileTransfer(unittest.TestCase):
                 node_type="simultaneous",
                 nat_type="preserving",
                 net_type="direct",
-                passive_port=60400,
+                passive_port=0,
                 dht_node=self.dht_node,
                 debug=1
             ),
             wif=self.wif,
             store_config=self.store_config
         )
-
 
     def tearDown(self):
         shutil.rmtree(self.test_storage_dir)
@@ -70,7 +71,7 @@ class TestFileTransfer(unittest.TestCase):
 
         assert(self.client.get_con_by_contract_id(contract_id) == con)
 
-    @unittest.skip("")
+
     def test_multiple_transfers(self):
 
         def make_random_file(file_size=1024 * 100,
@@ -85,7 +86,7 @@ class TestFileTransfer(unittest.TestCase):
                 "content": content
             }
 
-        #print("Giving nodes some time to find peers.")
+        # print("Giving nodes some time to find peers.")
         time.sleep(storjnode.network.WALK_TIMEOUT)
         self.dht_node.refresh_neighbours()
         time.sleep(storjnode.network.WALK_TIMEOUT)
@@ -108,7 +109,7 @@ class TestFileTransfer(unittest.TestCase):
         # Upload file from storage.
         for file_info in file_infos:
             self.client.data_request(
-                "upload",
+                "download",
                 file_info["data_id"],
                 0,
                 TEST_NODE["unl"]
@@ -139,7 +140,7 @@ class TestFileTransfer(unittest.TestCase):
         _log.debug("Testing download.")
         for file_info in file_infos:
             self.client.data_request(
-                "download",
+                "upload",
                 file_info["data_id"],
                 0,
                 TEST_NODE["unl"]
@@ -154,7 +155,8 @@ class TestFileTransfer(unittest.TestCase):
 
         # Check we received this file.
         for i in range(0, 1):
-            path = storage.manager.find(self.store_config, file_infos[i]["data_id"])
+            path = storjnode.storage.manager.find(self.store_config,
+                                                  file_infos[i]["data_id"])
             if not os.path.isfile(path):
                 assert(0)
             else:

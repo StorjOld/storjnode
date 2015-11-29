@@ -2,13 +2,12 @@
 Not complete, don't add to __init__
 """
 
-from __future__ import _log.debug_function
+
 from decimal import Decimal
 from collections import OrderedDict
+import json
 import logging
 import time
-import binascii
-import json
 import tempfile
 import pyp2p
 import copy
@@ -17,7 +16,8 @@ import storjnode.storage.manager
 from storjnode.storage.shard import get_hash
 from storjnode.network.process_transfers import process_transfers
 from storjnode.network.file_transfer import FileTransfer
-from storjnode.util import sign_msg, check_sig, address_to_node_id, parse_node_id_from_unl, generate_random_file
+from storjnode.network.message import sign, verify_signature
+from storjnode.util import address_to_node_id, parse_node_id_from_unl, address_to_node_id, parse_node_id_from_unl, generate_random_file
 from twisted.internet import defer
 from btctxstore import BtcTxStore
 from twisted.internet.task import LoopingCall
@@ -28,6 +28,7 @@ _log = logging.getLogger(__name__)
 _log.setLevel("DEBUG")
 
 ONE_MB = 1048576
+
 
 class BandwidthTest():
     def __init__(self, wif, transfer, api):
@@ -58,6 +59,22 @@ class BandwidthTest():
         self.api.add_message_handler(handle_requests)
         self.api.add_message_handler(handle_responses)
 
+        # Timeout bandwidth test after 5 minutes.
+        self.start_time = 0
+        def timeout():
+            duration = time.time() - self.start_time
+            if duration >= 300:
+                if self.active_test is not None:
+                    self.active_test.errback(Exception("Timed out"))
+                    self.active_test = None
+                    self.test_node_unl = None
+
+                self.start_time = 0
+
+        # Schedule timeout.
+        LoopingCall(timeout).start(60, now=True)
+
+
     def handle_requests_builder(self):
         # Handle bandwidth requests.
         def handle_requests(src_node_id, msg):
@@ -77,7 +94,7 @@ class BandwidthTest():
 
                 # Check sig.
                 src_node_id = parse_node_id_from_unl(msg[u"requester"])
-                if not check_sig(msg, self.wif, src_node_id):
+                if not verify_signature(msg, self.wif, src_node_id):
                     _log.debug("req: Invalid sig")
                     return
 
@@ -96,7 +113,7 @@ class BandwidthTest():
                     return
 
                 # Sign response
-                res = sign_msg(res, self.wif)
+                res = sign(res, self.wif)
 
                 # Save their node ID!
                 self.test_node_unl = msg[u"requester"]
@@ -106,10 +123,10 @@ class BandwidthTest():
                     _log.debug("In download accept handler!")
                     _log.debug(data_id)
                     _log.debug(msg[u"data_id"])
-                    _log.debug()
+                    _log.debug("nl")
                     _log.debug(self.test_node_unl)
                     _log.debug(src_unl)
-                    _log.debug()
+                    _log.debug("nl")
                     _log.debug(msg[u"file_size"])
 
 
@@ -201,12 +218,15 @@ class BandwidthTest():
 
                     _log.debug(test)
                     _log.debug("Downlaod start handler")
-                    _log.debug()
+                    _log.debug("nl")
 
                     return 1
 
                 # Add start handler.
                 self.transfer.add_handler("start", start_handler)
+
+                # Set start time.
+                self.start_time = time.time()
 
                 # Send request back to source.
                 res = json.dumps(res, ensure_ascii=True)
@@ -236,7 +256,7 @@ class BandwidthTest():
                 req = msg[u"request"]
                 _log.debug(req)
 
-                if not check_sig(msg[u"request"], self.wif, self.api.get_id()):
+                if not verify_signature(msg[u"request"], self.wif, self.api.get_id()):
                     _log.debug("res: our request sig was invalid")
                     return
 
@@ -247,7 +267,7 @@ class BandwidthTest():
 
                 # Check their sig.
                 src_node_id = parse_node_id_from_unl(msg[u"requestee"])
-                if not check_sig(msg, self.wif, src_node_id):
+                if not verify_signature(msg, self.wif, src_node_id):
                     _log.debug("res: their sig did not match")
                     return
 
@@ -497,7 +517,7 @@ class BandwidthTest():
         _log.debug(meta)
 
         # Sign meta data.
-        sig = sign_msg(meta, self.wif)[u"signature"]
+        sig = sign(meta, self.wif)[u"signature"]
 
         _log.debug("SIG")
         _log.debug(sig)
@@ -516,27 +536,15 @@ class BandwidthTest():
         ])
 
         # Sign request.
-        req = sign_msg(req, self.wif)
+        req = sign(req, self.wif)
 
         # Send request.
         node_id = parse_node_id_from_unl(node_unl)
         req = json.dumps(req, ensure_ascii=True)
-        #self.api.relay_message(node_id, req)
+        self.api.relay_message(node_id, req)
 
-        # Timeout bandwidth test after 5 minutes.
-        start_time = time.time()
-        def timeout():
-            duration = time.time() - start_time
-            if duration >= 300:
-                if self.active_test is not None:
-                    self.active_test.errback(Exception("Timed out"))
-                    self.active_test = None
-                    self.test_node_unl = None
-
-            return 1
-
-        # Schedule timeout.
-        LoopingCall(timeout).start(60, now=True)
+        # Set start time.
+        self.start_time = time.time()
 
         # Return deferred.
         return self.active_test
@@ -602,5 +610,4 @@ if __name__ == "__main__":
                 _log.debug("Bob")
             process_transfers(client)
 
-        time.sleep(1)
-
+        time.sleep(0.002)

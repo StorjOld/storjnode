@@ -1,19 +1,18 @@
 import os
 import time
 import datetime
-import logging
 import binascii
 import pygraphviz
+import storjnode
 from kademlia.node import Node
 from crochet import TimeoutError
 from threading import Thread
 from threading import RLock
 from storjnode import util
-from storjnode.common import STORJ_HOME
 from storjnode.network.server import QUERY_TIMEOUT
 
 
-_log = logging.getLogger(__name__)
+_log = storjnode.log.getLogger(__name__)
 
 
 class _NetworkMapper(object):  # will not scale but good for now
@@ -28,7 +27,7 @@ class _NetworkMapper(object):  # will not scale but good for now
         # pipeline: toscan -> scanning -> scanned
         self.toscan = {}  # {id: (ip, port)}
         self.scanning = {}  # {id: (ip, port)}
-        self.scanned = {}  # {id: {"addr":(ip, port), "peers":[(id, ip, port)]}}
+        self.scanned = {}  # {id: {"addr":(ip, port),"peers":[(id, ip, port)]}}
 
         self.mutex = RLock()
         self.server = storjnode.server
@@ -46,7 +45,8 @@ class _NetworkMapper(object):  # will not scale but good for now
             if len(self.toscan) > 0:
                 node_id, transport_address = self.toscan.popitem()
                 self.scanning[node_id] = transport_address
-                return Node(node_id, transport_address[0], transport_address[1])
+                return Node(node_id, transport_address[0],
+                            transport_address[1])
             else:
                 return None
 
@@ -74,7 +74,7 @@ class _NetworkMapper(object):  # will not scale but good for now
                 if node is None and len(self.scanning) == 0:
                     return  # done! Nothing to scan and nothing being scanned
 
-            # no node to scan but other workers still scanning, so more may come
+            # no node to scan but other workers still scanning, more may come
             if node is None:
                 continue
 
@@ -84,7 +84,7 @@ class _NetworkMapper(object):  # will not scale but good for now
             try:
                 neighbours = util.wait_for_defered(d, timeout=QUERY_TIMEOUT)
             except TimeoutError:  # pragma: no cover
-                msg = "Timeout when getting neighbors of %s"  # pragma: no cover
+                msg = "Timeout getting neighbors of %s"  # pragma: no cover
                 hexid = binascii.hexlify(node.id)
                 _log.debug(msg % hexid)  # pragma: no cover
                 neighbours = []  # pragma: no cover
@@ -112,7 +112,8 @@ def render(network_map, path=None):
     """
 
     name = "network map %s" % str(datetime.datetime.now())
-    path = path or os.path.join(STORJ_HOME, "graphs", "%s.png" % name)
+    path = path or os.path.join(storjnode.common.STORJ_HOME,
+                                "graphs", "%s.png" % name)
     util.ensure_path_exists(os.path.dirname(path))
 
     graph = pygraphviz.AGraph()  # (strict=False,directed=True)

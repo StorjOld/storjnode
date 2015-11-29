@@ -1,29 +1,25 @@
 import pyp2p.unl
 import pyp2p.net
 import pyp2p.dht_msg
-import logging
-import storjnode.storage as storage
 import storjnode
-from storjnode.util import address_to_node_id
-from storjnode.network.process_transfers import process_transfers
 from collections import OrderedDict
 from btctxstore import BtcTxStore
-import tempfile
+import six
 import time
-import json
 import hashlib
 import sys
-import os
-import binascii
-import struct
+import json
 from threading import Lock
 from twisted.internet import defer
-from pycoin.encoding import a2b_hashed_base58, b2a_hashed_base58, a2b_base58, b2a_base58
+from storjnode.util import address_to_node_id
+from storjnode.network.process_transfers import process_transfers
 
-_log = logging.getLogger(__name__)
+_log = storjnode.log.getLogger(__name__)
 _log.setLevel("DEBUG")
 
+
 class FileTransfer:
+
     def __init__(self, net, wif=None, store_config=None, handlers=None):
         # Accept direct connections.
         self.net = net
@@ -99,10 +95,6 @@ class FileTransfer:
 
         return their_unl
 
-    def get_node_id_from_unl(self, unl):
-        unl = pyp2p.unl.UNL(value=unl).deconstruct()
-
-        return unl["node_id"]
 
     def is_queued(self, con=None):
         if con is not None:
@@ -168,13 +160,10 @@ class FileTransfer:
 
         return contract_id
 
-    def send_msg(self, dict_obj, unl):
+    def send_msg(self, msg, unl):
         node_id = self.net.unl.deconstruct(unl)["node_id"]
-        msg = json.dumps(dict_obj, ensure_ascii=True)
-        self.net.dht_node.relay_message(
-            node_id,
-            msg
-        )
+        msg = json.dumps(msg, ensure_ascii=True)
+        self.net.dht_node.relay_message(node_id, msg)
 
     def contract_id(self, contract):
         if sys.version_info >= (3, 0, 0):
@@ -185,58 +174,11 @@ class FileTransfer:
         return hashlib.sha256(contract).hexdigest()
 
     def sign_contract(self, contract):
-        if sys.version_info >= (3, 0, 0):
-            msg = str(contract).encode("ascii")
-        else:
-            msg = str(contract)
-
-        # This shouldn't already exist.
-        if u"signature" in contract:
-            del contract[u"signature"]
-
-        msg = binascii.hexlify(msg).decode("utf-8")
-        sig = self.wallet.sign_data(self.wif, msg)
-
-        if sys.version_info >= (3, 0, 0):
-            contract[u"signature"] = sig.decode("utf-8")
-        else:
-            contract[u"signature"] = unicode(sig)
-
-        return contract
+        return storjnode.network.message.sign(contract, self.wif)
 
     def is_valid_contract_sig(self, contract, node_id=None):
-        if u"signature" not in contract:
-            return 0
-
-        sig = contract[u"signature"][:]
-        del contract[u"signature"]
-
-        if sys.version_info >= (3, 0, 0):
-            msg = str(contract).encode("ascii")
-        else:
-            msg = str(contract)
-
-        # Use our address.
-        msg = binascii.hexlify(msg).decode("utf-8")
-        try:
-            if node_id is None:
-                address = self.wallet.get_address(self.wif)
-                ret = self.wallet.verify_signature(address, sig, msg)
-            else:
-                # Use their node ID: try testnet.
-                address = b2a_hashed_base58(b'o' + node_id)
-                ret = self.wallet.verify_signature(address, sig, msg)
-                if not ret:
-                    # Use their node ID: try mainnet.
-                    address = b2a_hashed_base58(b'\0' + node_id)
-                    ret = self.wallet.verify_signature(address, sig, msg)
-        except TypeError:
-            return 0
-
-        # Move sig back.
-        contract[u"signature"] = sig[:]
-
-        return ret
+        return storjnode.network.message.verify_signature(contract, self.wif,
+                                                          node_id=node_id)
 
     def get_direction(self, contract_id, contract=None):
         """
@@ -255,7 +197,6 @@ class FileTransfer:
     def simple_data_request(self, data_id, node_unl, direction):
         file_size = 0
         if direction == u"send":
-            # We're uploading: so tell the peer to download from us.
             action = u"download"
         else:
             # We're download: so tell the peer to upload to us.
@@ -268,43 +209,29 @@ class FileTransfer:
         Action = put (upload), get (download.)
         """
         _log.debug("In data request function")
+        node_unl = node_unl.decode("utf-8")
+        if node_unl == self.net.unl.value:
+            _log.debug("Can;t send data request to ourself")
+            return
 
         # Who is hosting this data?
-        if action == "upload":
+        if action == u"download":
             # We store this data.
-            host_unl = node_unl
-            assert(storage.manager.find(self.store_config, data_id) is not None)
+            host_unl = self.net.unl.value.decode("utf-8")
+            cfg = self.store_config
+            _log.debug(cfg)
+            _log.debug(data_id)
+            assert(storjnode.storage.manager.find(cfg, data_id) is not None)
         else:
             # They store the data.
-            host_unl = self.net.unl.value
-
+            host_unl = node_unl
             if data_id in self.downloading:
                 raise Exception("Already trying to download this.")
-
-        # Encoding.
-        if sys.version_info >= (3, 0, 0):
-            if type(data_id) == bytes:
-                data_id = data_id.decode("utf-8")
-
-            if type(host_unl) == bytes:
-                host_unl = host_unl.decode("utf-8")
-
-            if type(node_unl) == bytes:
-                node_unl = node_unl.decode("utf-8")
-        else:
-            if type(data_id) == str:
-                data_id = unicode(data_id)
-
-            if type(host_unl) == str:
-                host_unl = unicode(host_unl)
-
-            if type(node_unl) == str:
-                node_unl = unicode(node_unl)
 
         # Create contract.
         contract = OrderedDict([
             (u"status", u"SYN"),
-            (u"data_id", data_id),
+            (u"data_id", data_id.decode("utf-8")),
             (u"file_size", file_size),
             (u"host_unl", host_unl),
             (u"dest_unl", node_unl),
@@ -341,18 +268,18 @@ class FileTransfer:
         return None
 
     def remove_file_from_storage(self, data_id):
-        storage.manager.remove(self.store_config, data_id)
+        storjnode.storage.manager.remove(self.store_config, data_id)
 
     def move_file_to_storage(self, path):
         with open(path, "rb") as shard:
-            storage.manager.add(self.store_config, shard)
+            storjnode.storage.manager.add(self.store_config, shard)
             return {
-                "file_size": storage.shard.get_size(shard),
-                "data_id": storage.shard.get_id(shard)
+                "file_size": storjnode.storage.shard.get_size(shard),
+                "data_id": storjnode.storage.shard.get_id(shard)
             }
 
     def get_data_chunk(self, data_id, position, chunk_size=1048576):
-        path = storage.manager.find(self.store_config, data_id)
+        path = storjnode.storage.manager.find(self.store_config, data_id)
         buf = b""
         with open(path, "rb") as fp:
             fp.seek(position, 0)
@@ -371,3 +298,70 @@ class FileTransfer:
         _log.debug(path)
         with open(path, "ab") as fp:
             fp.write(chunk)
+
+if __name__ == "__main__":
+    from crochet import setup
+    setup()
+
+    # Alice sample node.
+    alice_wallet = BtcTxStore(testnet=False, dryrun=True)
+    alice_wif = alice_wallet.create_key()
+    alice_node_id = address_to_node_id(alice_wallet.get_address(alice_wif))
+    alice_dht_node = pyp2p.dht_msg.DHT(node_id=alice_node_id)
+
+    alice = FileTransfer(
+        pyp2p.net.Net(
+            net_type="direct",
+            node_type="passive",
+            nat_type="preserving",
+            passive_port=60400,
+            dht_node=alice_dht_node,
+        ),
+        wif=alice_wif,
+        store_config={"/home/laurence/Storj/Alice": None}
+    )
+
+    # Bob sample node.
+    bob_wallet = BtcTxStore(testnet=False, dryrun=True)
+    bob_wif = bob_wallet.create_key()
+    bob_node_id = address_to_node_id(bob_wallet.get_address(bob_wif))
+    bob_dht = pyp2p.dht_msg.DHT(node_id=bob_node_id)
+
+
+    bob = FileTransfer(
+        pyp2p.net.Net(
+            net_type="direct",
+            node_type="passive",
+            nat_type="preserving",
+            passive_port=60401,
+            dht_node=bob_dht,
+        ),
+        wif=bob_wif,
+        store_config={"/home/laurence/Storj/Bob": None},
+    )
+
+    _log.debug(alice.net.unl.deconstruct())
+    _log.debug(bob.net.unl.deconstruct())
+
+
+    _log.debug(type(alice.net.unl))
+    _log.debug(type(pyp2p.unl.UNL(value=bob.net.unl.value)))
+
+    # Alice wants data from Bob.
+    d = alice.data_request(
+        "upload",
+        "ed980e5ef780d5b9ca1a6200a03302f2a91223044bc63dacc6d9f07eead663ab",
+        0,
+        bob.net.unl.value
+    )
+
+    # Main event loop.
+    while 1:
+        for client in [alice, bob]:
+            if client == alice:
+                _log.debug("Alice")
+            else:
+                _log.debug("Bob")
+            process_transfers(client)
+
+        time.sleep(1)

@@ -1,26 +1,21 @@
 import storjnode
-from storjnode.network.api import DEFAULT_BOOTSTRAP_NODES
+from storjnode.network import DEFAULT_BOOTSTRAP_NODES
 from storjnode.network.file_transfer import FileTransfer
-from storjnode.network.process_transfers import process_transfers
 from storjnode.util import address_to_node_id
-import storjnode.storage as storage
 import btctxstore
 import pyp2p
-import hashlib
 import tempfile
 import os
-import time
-import requests
 import unittest
 import shutil
-import logging
 from storjnode.network.process_transfers import get_contract_id
 from pyp2p.sock import Sock
 from crochet import setup
 setup()
 
 
-_log = logging.getLogger(__name__)
+_log = storjnode.log.getLogger(__name__)
+
 
 class TestProcessTransfers(unittest.TestCase):
 
@@ -36,7 +31,10 @@ class TestProcessTransfers(unittest.TestCase):
         }
 
         # dht_node = pyp2p.dht_msg.DHT(node_id=node_id)
-        self.dht_node = storjnode.network.Node(self.wif, bootstrap_nodes=DEFAULT_BOOTSTRAP_NODES, disable_data_transfer=True)
+        self.dht_node = storjnode.network.Node(
+            self.wif, bootstrap_nodes=DEFAULT_BOOTSTRAP_NODES,
+            disable_data_transfer=True
+        )
 
         # Transfer client.
         self.client = FileTransfer(

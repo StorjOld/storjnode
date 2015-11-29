@@ -11,7 +11,6 @@ import random
 import unittest
 import btctxstore
 import storjnode
-import logging
 from pyp2p.lib import get_wan_ip
 from storjnode.network.server import QUERY_TIMEOUT, WALK_TIMEOUT
 from crochet import setup
@@ -20,7 +19,7 @@ from crochet import setup
 setup()
 signal.signal(signal.SIGINT, signal.default_int_handler)
 
-_log = logging.getLogger(__name__)
+_log = storjnode.log.getLogger(__name__)
 
 WALK_TIMEOUT = WALK_TIMEOUT / 2.0
 
@@ -228,7 +227,6 @@ class TestNode(unittest.TestCase):
         time.sleep(QUERY_TIMEOUT)  # wait until relayed
         random_peer.thread_sleep_time = old_sleep_time  # restore value
 
-    @unittest.skip("Test still broken on travis")
     def test_relay_message_full_duplex(self):
         alice_node = storjnode.network.Node(
             self.__class__.btctxstore.create_key(),
