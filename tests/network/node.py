@@ -111,7 +111,7 @@ class TestNode(unittest.TestCase):
             disable_data_transfer=True
         )
         alice_received = threading.Event()
-        alice_node.add_message_handler(lambda s, m: alice_received.set())
+        alice_node.add_message_handler(lambda n, s, m: alice_received.set())
 
         bob_node = storjnode.network.Node(
             self.__class__.btctxstore.create_key(),
@@ -125,7 +125,7 @@ class TestNode(unittest.TestCase):
             disable_data_transfer=True
         )
         bob_received = threading.Event()
-        bob_node.add_message_handler(lambda s, m: bob_received.set())
+        bob_node.add_message_handler(lambda n, s, m: bob_received.set())
         time.sleep(interval * 2)  # wait until network overlay stable, 2 peers
         try:
             alice_node.direct_message(bob_node.get_id(), "hi bob")
@@ -161,7 +161,7 @@ class TestNode(unittest.TestCase):
 
         received_event = threading.Event()
 
-        def handler(source, message):
+        def handler(node, source, message):
             received.append({"source": source, "message": message})
             received_event.set()
         received = []
@@ -240,7 +240,7 @@ class TestNode(unittest.TestCase):
             disable_data_transfer=True
         )
         alice_received = threading.Event()
-        alice_node.add_message_handler(lambda s, m: alice_received.set())
+        alice_node.add_message_handler(lambda n, s, m: alice_received.set())
         bob_node = storjnode.network.Node(
             self.__class__.btctxstore.create_key(),
             bootstrap_nodes=[("127.0.0.1", alice_node.port)],
@@ -253,7 +253,7 @@ class TestNode(unittest.TestCase):
             disable_data_transfer=True
         )
         bob_received = threading.Event()
-        bob_node.add_message_handler(lambda s, m: bob_received.set())
+        bob_node.add_message_handler(lambda n, s, m: bob_received.set())
         time.sleep(QUERY_TIMEOUT)  # wait until network overlay stable, 2 peers
         try:
             alice_node.relay_message(bob_node.get_id(), "hi bob")
@@ -282,7 +282,7 @@ class TestNode(unittest.TestCase):
         testmessage = binascii.hexlify(os.urandom(32))
         receiver_id = receiver.get_id()
         received = []
-        receiver.add_message_handler(lambda s, m: received.append(
+        receiver.add_message_handler(lambda n, s, m: received.append(
             {"source": s, "message": m}
         ))
 
@@ -371,7 +371,7 @@ class TestNode(unittest.TestCase):
             disable_data_transfer=True
         )
         alice_received = threading.Event()
-        alice_node.add_message_handler(lambda s, m: alice_received.set())
+        alice_node.add_message_handler(lambda n, s, m: alice_received.set())
         bob_node = storjnode.network.Node(
             self.__class__.btctxstore.create_key(),
             bootstrap_nodes=[("127.0.0.1", alice_node.port)],
@@ -384,7 +384,7 @@ class TestNode(unittest.TestCase):
             disable_data_transfer=True
         )
         bob_received = threading.Event()
-        bob_node.add_message_handler(lambda s, m: bob_received.set())
+        bob_node.add_message_handler(lambda n, s, m: bob_received.set())
         time.sleep(QUERY_TIMEOUT)  # wait until network overlay stable, 2 peers
         try:
             alice_node.direct_message(bob_node.get_id(), "hi bob")
@@ -484,7 +484,7 @@ class TestNode(unittest.TestCase):
         receiver = self.swarm[SWARM_SIZE - 1]
         received_event = threading.Event()
 
-        def handler(source, message):
+        def handler(node, source, message):
             received_event.set()
             raise Exception("Test error")
         receiver.add_message_handler(handler)

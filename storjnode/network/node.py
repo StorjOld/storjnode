@@ -7,7 +7,7 @@ from twisted.internet import defer
 from collections import OrderedDict
 from crochet import wait_for, run_in_reactor
 from twisted.internet.task import LoopingCall
-from storjnode.util import valid_ip
+from storjnode import util
 from storjnode.network.message import sign, verify_signature
 from storjnode.network.server import Server, QUERY_TIMEOUT, WALK_TIMEOUT
 from pyp2p.unl import UNL
@@ -37,6 +37,40 @@ DEFAULT_BOOTSTRAP_NODES = [
 
 
 SIMULATE_DHT = False
+
+
+def _process_unl_requests(node, src_id, msg):  # FIXME move to file module
+    unl = node._data_transfer.net.unl.value
+    try:
+        msg = OrderedDict(msg)
+
+        # Not a UNL request.
+        if msg[u"type"] != u"unl_request":
+            return
+
+        # Check signature.
+        their_node_id = binascii.unhexlify(msg[u"requester"])
+        if not verify_signature(msg, node.get_key(), their_node_id):
+            return
+
+        # Response.
+        our_node_id_hex = binascii.hexlify(node.get_id())
+        our_node_id_hex = our_node_id_hex.decode("utf-8")
+        response = sign(OrderedDict(
+            {
+                u"type": u"unl_response",
+                u"requestee": our_node_id_hex,
+                u"unl": unl
+            }
+        ), node.get_key())
+
+        # Send response.
+        node.relay_message(their_node_id, response.items())
+
+    except (ValueError, KeyError) as e:
+        global _log
+        _log.debug(str(e))
+        _log.debug("Protocol: invalid JSON")
 
 
 class Node(object):
@@ -106,7 +140,7 @@ class Node(object):
         # passive bind
         # FIXME just use storjnode.util.get_inet_facing_ip ?
         passive_bind = passive_bind or "0.0.0.0"
-        assert(valid_ip(passive_bind))
+        assert(util.valid_ip(passive_bind))
 
         # validate bootstrap_nodes
         if bootstrap_nodes is None:
@@ -115,7 +149,7 @@ class Node(object):
             assert(isinstance(address, tuple) or isinstance(address, list))
             assert(len(address) == 2)
             other_ip, other_port = address
-            assert(valid_ip(other_ip))
+            assert(util.valid_ip(other_ip))
             assert(isinstance(other_port, int))
             assert(0 <= other_port < 2 ** 16)
 
@@ -134,52 +168,12 @@ class Node(object):
         self._setup_message_dispatcher()
 
         # Process UNL requests.
-        def build_process_unl_requests(unl, wif):
-            def process_unl_requests(src_id, msg):
-                try:
-                    msg = OrderedDict(msg)
-
-                    # Not a UNL request.
-                    if msg[u"type"] != u"unl_request":
-                        return
-
-                    # Check signature.
-                    their_node_id = binascii.unhexlify(msg[u"requester"])
-                    if not verify_signature(msg, wif, their_node_id):
-                        return
-
-                    # Response.
-                    our_node_id_hex = binascii.hexlify(self.get_id())
-                    our_node_id_hex = our_node_id_hex.decode("utf-8")
-                    response = sign(OrderedDict(
-                        {
-                            u"type": u"unl_response",
-                            u"requestee": our_node_id_hex,
-                            u"unl": unl
-                        }
-                    ), wif)
-
-                    # Send response.
-                    self.relay_message(their_node_id, response.items())
-
-                except (ValueError, KeyError) as e:
-                    global _log
-                    _log.debug(str(e))
-                    _log.debug("Protocol: invalid JSON")
-
-            return process_unl_requests
-
         if not self.disable_data_transfer:
             self._setup_data_transfer_client(
                 store_config, passive_port, passive_bind,
                 node_type, nat_type, wan_ip
             )
-
-            # Enable unl_request processor.
-            unl = self._data_transfer.net.unl.value
-            self.add_message_handler(
-                build_process_unl_requests(unl, self.get_key())
-            )
+            self.add_message_handler(_process_unl_requests)
 
     def _setup_message_dispatcher(self):
         self._message_handlers = set()
@@ -256,6 +250,9 @@ class Node(object):
     def get_id(self):
         """Returns 160bit node id as bytes."""
         return self.server.get_id()
+
+    def get_address(self):
+        return self.server.get_address()
 
     def get_hex_id(self):
         return self.server.get_hex_id()
@@ -343,7 +340,7 @@ class Node(object):
 
         # Handle responses for this request.
         def handler_builder(self, d, their_node_id, wif):
-            def handler(src_id, msg):
+            def handler(node, src_id, msg):
                 # Is this a response to our request?
                 try:
                     msg = OrderedDict(msg)
@@ -365,7 +362,7 @@ class Node(object):
                     d.callback(msg[u"unl"])
 
                     # Remove this callback.
-                    return -1
+                    node.remove_message_handler(handler)
                 except (ValueError, KeyError) as e:
                     global _log
                     _log.debug(str(e))
@@ -375,12 +372,7 @@ class Node(object):
 
         # Build message handler.
         d = defer.Deferred()
-        handler = handler_builder(
-            self,
-            d,
-            node_id,
-            self.get_key()
-        )
+        handler = handler_builder(self, d, node_id, self.get_key())
 
         # Register new handler for this UNL request.
         self.add_message_handler(handler)
@@ -601,7 +593,7 @@ class Node(object):
     def _dispatch_message(self, received, handler):
         try:
             source = received["source"].id if received["source"] else None
-            return handler(source, received["message"])
+            handler(self, source, received["message"])
         except Exception as e:
             msg = "Message handler raised exception: {0}"
             _log.error(msg.format(repr(e)))
@@ -613,34 +605,31 @@ class Node(object):
             else:
                 messages = self.server.get_messages()
 
-            expired_handlers = set()
             for received in messages:
                 for handler in self._message_handlers:
-                    ret = self._dispatch_message(received, handler)
-                    if ret == -1:
-                        expired_handlers.add(handler)
-
-            # Remove expired handlers.
-            for handler in expired_handlers:
-                self.remove_message_handler(handler)
+                    self._dispatch_message(received, handler)
 
             time.sleep(0.002)
 
     def add_message_handler(self, handler):
         """Add message handler to be call when a message is received.
 
-        The handler must be callable and accept two arguments. The first
-        argument is the source id and the second the message. The source id
-        will be None if it was a relay message.
+        The handler must be callable and accept two arguments. The first is the
+        calling node itself, the second argument is the source id and the third
+        the message. The source id will be None if it was a relay message.
+
+        Returns:
+            The given handler.
 
         Example:
            node = Node()
-           def on_message(source_id, message):
+           def on_message(node, source_id, message):
                t = "relay" if source_id is None else "direct"
                print("Received {0} message: {1}".format(t, message))
            node.add_message_handler(handler)
         """
         self._message_handlers.add(handler)
+        return handler
 
     def remove_message_handler(self, handler):
         """Remove a message handler from the Node.

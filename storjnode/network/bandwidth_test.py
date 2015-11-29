@@ -36,7 +36,7 @@ class BandwidthTest():
         self.api.add_message_handler(handle_responses)
 
     def handle_responses_builder(self):
-        def handle_responses(src_node_id, msg):
+        def handle_responses(node, src_node_id, msg):
             # Check message type.
             msg = OrderedDict(msg)
             if msg[u"type"] != u"test_bandwidth_response":
@@ -82,7 +82,7 @@ class BandwidthTest():
 
     def handle_requests_builder(self):
         # Handle bandwidth requests.
-        def handle_requests(src_node_id, msg):
+        def handle_requests(node, src_node_id, msg):
             print("In handle requests")
 
             # Check message type.

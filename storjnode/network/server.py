@@ -37,15 +37,13 @@ class Server(KademliaServer):
         self.thread_sleep_time = 0.02
         self._default_hop_limit = default_hop_limit
         self._refresh_neighbours_interval = refresh_neighbours_interval
-        self._cached_id = None
+        self._cached_address = None
 
-        # TODO validate key is valid wif/hwif for mainnet or testnet
-        testnet = False  # FIXME get from wif/hwif
-        self._btctxstore = btctxstore.BtcTxStore(testnet=testnet)
+        self.btctxstore = btctxstore.BtcTxStore(testnet=False)
 
         # allow hwifs
-        is_hwif = self._btctxstore.validate_wallet(key)
-        self.key = self._btctxstore.get_key(key) if is_hwif else key
+        is_hwif = self.btctxstore.validate_wallet(key)
+        self.key = self.btctxstore.get_key(key) if is_hwif else key
 
         # XXX kademlia.network.Server.__init__ cant use super because Protocol
         # passing the protocol class should be added upstream
@@ -91,11 +89,13 @@ class Server(KademliaServer):
         self.bootstrap(self.bootstrappableNeighbors())
 
     def get_id(self):
-        if self._cached_id is not None:
-            return self._cached_id
-        address = self._btctxstore.get_address(self.key)
-        self._cached_id = storjnode.util.address_to_node_id(address)
-        return self._cached_id
+        return storjnode.util.address_to_node_id(self.get_address())
+
+    def get_address(self):
+        if self._cached_address is not None:
+            return self._cached_address
+        self._cached_address = self.btctxstore.get_address(self.key)
+        return self._cached_address
 
     def get_known_peers(self):
         """Returns list of known node."""
