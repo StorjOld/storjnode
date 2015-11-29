@@ -154,13 +154,11 @@ class Node(object):
                     # Response.
                     our_node_id_hex = binascii.hexlify(self.get_id())
                     our_node_id_hex = our_node_id_hex.decode("utf-8")
-                    response = sign_msg(OrderedDict(
-                        {
-                            u"type": u"unl_response",
-                            u"requestee": our_node_id_hex,
-                            u"unl": unl
-                        }
-                    ), wif)
+                    response = sign_msg(OrderedDict([
+                        (u"type", u"unl_response"),
+                        (u"requestee", our_node_id_hex),
+                        (u"unl", unl)
+                    ]), wif)
 
                     # Send response.
                     response = json.dumps(response, ensure_ascii=True)
@@ -336,12 +334,10 @@ class Node(object):
         # UNL request.
         our_node_id_as_hex = binascii.hexlify(self.get_id())
         our_node_id_as_hex = our_node_id_as_hex.decode("utf-8")
-        unl_req = OrderedDict(
-            {
-                u"type": u"unl_request",
-                u"requester": our_node_id_as_hex
-            }
-        )
+        unl_req = OrderedDict([
+            (u"type", u"unl_request"),
+            (u"requester", our_node_id_as_hex)
+        ])
 
         # Sign UNL request.
         unl_req = sign_msg(unl_req, self.get_key())

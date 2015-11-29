@@ -202,11 +202,11 @@ def process_syn(client, msg, enable_accept_handlers=ENABLE_ACCEPT_HANDLERS):
         _log.debug("Rejected data request")
 
         # Build reject reply.
-        reply = OrderedDict({
-            u"status": u"RST",
-            u"contract_id": contract_id,
-            u"src_unl": client.net.unl.value
-        })
+        reply = OrderedDict([
+            (u"status", u"RST"),
+            (u"contract_id", contract_id),
+            (u"src_unl", client.net.unl.value)
+        ])
         # Sign reply.
         reply = client.sign_contract(reply)
 
@@ -236,10 +236,10 @@ def process_syn(client, msg, enable_accept_handlers=ENABLE_ACCEPT_HANDLERS):
     }
 
     # Create reply.
-    reply = OrderedDict({
-        u"status": u"SYN-ACK",
-        u"syn": msg,
-    })
+    reply = OrderedDict([
+        (u"status", u"SYN-ACK"),
+        (u"syn", msg),
+    ])
 
     # Sign reply.
     reply = client.sign_contract(reply)
@@ -308,10 +308,10 @@ def process_syn_ack(client, msg):
     }
 
     # Create reply contract.
-    reply = OrderedDict({
-        u"status": u"ACK",
-        u"syn_ack": msg
-    })
+    reply = OrderedDict([
+        (u"status", u"ACK"),
+        (u"syn_ack", msg)
+    ])
 
     # Sign reply.
     reply = client.sign_contract(reply)

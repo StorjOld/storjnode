@@ -2,15 +2,16 @@
 Not complete, don't add to __init__
 """
 
-
-
+from __future__ import _log.debug_function
 from decimal import Decimal
 from collections import OrderedDict
+import logging
 import time
 import binascii
 import json
 import tempfile
 import pyp2p
+import copy
 import os
 import storjnode.storage.manager
 from storjnode.storage.shard import get_hash
@@ -19,10 +20,14 @@ from storjnode.network.file_transfer import FileTransfer
 from storjnode.util import sign_msg, check_sig, address_to_node_id, parse_node_id_from_unl, generate_random_file
 from twisted.internet import defer
 from btctxstore import BtcTxStore
+from twisted.internet.task import LoopingCall
+from crochet import setup
+setup()
 
+_log = logging.getLogger(__name__)
+_log.setLevel("DEBUG")
 
-#ONE_MB = 1048576
-ONE_MB = 1 # Easier for testing.
+ONE_MB = 1048576
 
 class BandwidthTest():
     def __init__(self, wif, transfer, api):
@@ -36,12 +41,12 @@ class BandwidthTest():
         # Stored in BYTES per second.
         self.results = {
             "upload": {
-                "transferred": Decimal(0),
+                "transferred": int(0),
                 "start_time": int(0),
                 "end_time": int(0)
             },
             "download": {
-                "transferred": Decimal(0),
+                "transferred": int(0),
                 "start_time": int(0),
                 "end_time": int(0)
             }
@@ -57,37 +62,37 @@ class BandwidthTest():
         # Handle bandwidth requests.
         def handle_requests(src_node_id, msg):
             try:
-                print("In handle requests")
+                _log.debug("In handle requests")
 
                 # Check message type.
                 msg = json.loads(msg, object_pairs_hook=OrderedDict)
                 if msg[u"type"] != u"test_bandwidth_request":
-                    print("req: Invalid request")
+                    _log.debug("req: Invalid request")
                     return
 
                 # Drop request if test already active.
                 if self.test_node_unl is not None:
-                    print("req: test already active")
+                    _log.debug("req: test already active")
                     return
 
                 # Check sig.
                 src_node_id = parse_node_id_from_unl(msg[u"requester"])
                 if not check_sig(msg, self.wif, src_node_id):
-                    print("req: Invalid sig")
+                    _log.debug("req: Invalid sig")
                     return
 
                 # Build response.
                 our_unl = self.transfer.net.unl.value
-                res = OrderedDict({
-                    u"type": u"test_bandwidth_response",
-                    u"timestamp": int(time.time()),
-                    u"requestee": our_unl,
-                    u"request": msg
-                })
+                res = OrderedDict([
+                    (u"type", u"test_bandwidth_response"),
+                    (u"timestamp", int(time.time())),
+                    (u"requestee", our_unl),
+                    (u"request", msg)
+                ])
 
                 # Check they got our node ID right.
                 if our_unl != msg[u"test_node_unl"]:
-                    print("req: they got our node id wrong")
+                    _log.debug("req: they got our node id wrong")
                     return
 
                 # Sign response
@@ -98,75 +103,107 @@ class BandwidthTest():
 
                 # Accept transfers.
                 def accept_handler(contract_id, src_unl, data_id, file_size):
-                    print("In download accept handler!")
-                    print(data_id)
-                    print(msg[u"data_id"])
-                    print()
-                    print(self.test_node_unl)
-                    print(src_unl)
-                    print()
-                    print(msg[u"file_size"])
+                    _log.debug("In download accept handler!")
+                    _log.debug(data_id)
+                    _log.debug(msg[u"data_id"])
+                    _log.debug()
+                    _log.debug(self.test_node_unl)
+                    _log.debug(src_unl)
+                    _log.debug()
+                    _log.debug(msg[u"file_size"])
 
 
                     if data_id != msg[u"data_id"]:
+                        _log.debug("data id not = in bob accept\a")
                         return 0
 
                     # Invalid node making this connection.
                     if self.test_node_unl != src_unl:
+                        _log.debug("unl not = in bob accept\a")
                         return 0
 
                     # Invalid file_size request size for test.
                     test_data_size = (self.test_size * ONE_MB)
                     if msg[u"file_size"] > (test_data_size + 1024):
+                        _log.debug("file size not = in bob accept\a")
                         return 0
 
                     # Update download test results.
                     def completion_handler(client, found_contract_id, con):
-                        # This is completion for another transfer!
-                        if found_contract_id != contract_id:
+                        contract = self.transfer.contracts[found_contract_id]
+                        if contract[u"data_id"] != msg[u"data_id"]:
                             return
 
-                        # Check test data.
-                        if not self.check_test_file(data_id, src_unl):
-                            print("Test data was incorrect in download!")
-                            return
+                        if self.transfer.get_direction(found_contract_id) == u"send":
+                            test = "upload"
+                            if contract[u"dest_unl"] != self.test_node_unl:
+                                _log.debug("Bob upload: invalid src unl")
+                                _log.debug("\a")
+                                return 0
 
-                        transferred = client.con_info[con]
-                        transferred = transferred[contract_id]["file_size"]
-                        self.results["download"]["end_time"] = int(time.time())
-                        self.results["download"]["transferred"] = transferred
+                            self.test_node_unl = None
+                            self.transfer.remove_handler("accept", accept_handler)
+                        else:
+                            test = "download"
+                            if contract[u"src_unl"] != self.test_node_unl:
+                                _log.debug("Alice dl: src unl incorrect.")
+                                return 0
 
-                        print("\a")
-                        print("download transfer complete!")
-                        print(self.results)
+                            # Send download request to remote host!
+                            self.transfer.data_request(
+                                "download",
+                                msg[u"data_id"],
+                                msg[u"file_size"],
+                                self.test_node_unl
+                            )
 
-                        # Send download request to remote host!
-                        self.transfer.data_request(
-                            "download",
-                            msg[u"data_id"],
-                            msg[u"file_size"],
-                            self.test_node_unl
-                        )
+                        self.results[test]["end_time"] = int(time.time())
+                        self.results[test]["transferred"] = test_data_size
+
+                        _log.debug("\a")
+                        _log.debug("Bob transfer complete!")
+                        _log.debug(self.results)
+
+                        if test == "upload":
+                            return -1
+                        else:
+                            return 1
 
                     # Register complete handler.
                     self.transfer.add_handler("complete", completion_handler)
 
-                    return -1
+                    return 1
 
                 # Add accept handler for bandwidth tests.
                 self.transfer.add_handler("accept", accept_handler)
 
                 # Update start time for download test.
-                def start_handler(client, con, contract_id):
-                    contract = self.transfer.contracts[contract_id]
+                def start_handler(client, con, start_contract_id):
+                    _log.debug("IN BOB START HANDLER")
+                    contract = self.transfer.contracts[start_contract_id]
                     if contract[u"data_id"] != msg[u"data_id"]:
-                        return
+                        _log.debug("Bob data id not equal!")
+                        _log.debug("\a")
+                        return 0
 
-                    # Update start time.
-                    self.results["download"]["start_time"] = int(time.time())
+                    # Determine test.
+                    if self.transfer.get_direction(start_contract_id) == u"send":
+                        test = "upload"
+                    else:
+                        test = "download"
 
-                    print("Downlaod start handler")
-                    print()
+                    # Set start time.
+                    self.results[test]["start_time"] = int(time.time())
+
+                    # Delete handler.
+                    if test == "upload":
+                        return -1
+
+                    _log.debug(test)
+                    _log.debug("Downlaod start handler")
+                    _log.debug()
+
+                    return 1
 
                 # Add start handler.
                 self.transfer.add_handler("start", start_handler)
@@ -174,10 +211,10 @@ class BandwidthTest():
                 # Send request back to source.
                 res = json.dumps(res, ensure_ascii=True)
                 self.api.relay_message(src_node_id, res)
-                print("req: got request")
+                _log.debug("req: got request")
             except (ValueError, KeyError) as e:
-                print(e)
-                print("Error in req")
+                _log.debug(e)
+                _log.debug("Error in req")
 
         return handle_requests
 
@@ -187,31 +224,31 @@ class BandwidthTest():
                 # Check message type.
                 msg = json.loads(msg, object_pairs_hook=OrderedDict)
                 if msg[u"type"] != u"test_bandwidth_response":
-                    print("res: Invalid response")
+                    _log.debug("res: Invalid response")
                     return
 
                 # Transfer already active.
                 if self.test_node_unl is not None:
-                    print("res: transfer already active")
+                    _log.debug("res: transfer already active")
                     return
 
                 # Check we sent the request.
                 req = msg[u"request"]
-                print(req)
+                _log.debug(req)
 
                 if not check_sig(msg[u"request"], self.wif, self.api.get_id()):
-                    print("res: our request sig was invalid")
+                    _log.debug("res: our request sig was invalid")
                     return
 
                 # Check node IDs match.
                 if req[u"test_node_unl"] != msg[u"requestee"]:
-                    print("res: node ids don't match")
+                    _log.debug("res: node ids don't match")
                     return
 
                 # Check their sig.
                 src_node_id = parse_node_id_from_unl(msg[u"requestee"])
                 if not check_sig(msg, self.wif, src_node_id):
-                    print("res: their sig did not match")
+                    _log.debug("res: their sig did not match")
                     return
 
                 # Set active node ID.
@@ -220,17 +257,17 @@ class BandwidthTest():
                 # Handle accept transfer (for download requests.)
                 def accept_handler(contract_id, src_unl, data_id, file_size):
                     if src_unl != self.test_node_unl:
-                        print("SRC UNL != \a")
+                        _log.debug("SRC UNL != \a")
                         return 0
 
                     if data_id != req[u"data_id"]:
-                        print("Data id != \a")
+                        _log.debug("Data id != \a")
                         return 0
 
                     # Invalid file_size request size for test.
                     test_data_size = (self.test_size * ONE_MB)
                     if req[u"file_size"] > (test_data_size + 1024):
-                        print("file size != \a")
+                        _log.debug("file size != \a")
                         return 0
 
                     return 1
@@ -240,24 +277,24 @@ class BandwidthTest():
 
                 # Handle start transfer.
                 def start_handler(client, con, contract_id):
-                    print("In upload start handler!")
-                    print("IN ALICE start handler")
+                    _log.debug("In upload start handler!")
+                    _log.debug("IN ALICE start handler")
 
 
                     contract = self.transfer.contracts[contract_id]
-                    print(contract)
-                    print(req[u"data_id"])
+                    _log.debug(contract)
+                    _log.debug(req[u"data_id"])
 
                     # Check this corrosponds to something.
                     if contract[u"data_id"] != req[u"data_id"]:
-                        print("Alice start: invalid data id")
+                        _log.debug("Alice start: invalid data id")
                         return 0
 
                     # Determine test.
                     if self.transfer.get_direction(contract_id) == u"send":
                         test = "upload"
-                        if contract[u"src_unl"] != self.test_node_unl:
-                            print("Alice upload: invalid src unl")
+                        if contract[u"dest_unl"] != self.test_node_unl:
+                            _log.debug("Alice upload: invalid src unl")
                             return 0
                     else:
                         test = "download"
@@ -266,7 +303,12 @@ class BandwidthTest():
                     # Set start time.
                     self.results[test]["start_time"] = int(time.time())
 
-                    print(self.results)
+                    if test == "download":
+                        return -1
+                    else:
+                        return 1
+
+                    _log.debug(self.results)
 
                 # Register start handler.
                 self.transfer.add_handler("start", start_handler)
@@ -280,17 +322,27 @@ class BandwidthTest():
                     req[u"test_node_unl"]
                 )
 
+                # Fire error.
+                def errback(ret):
+                    self.active_test.errback(ret)
+
+                # Register error handler for transfer.
+                self.transfer.defers[contract_id].addErrback(errback)
+
                 def completion_handler(client, found_contract_id, con):
                     # What test is this for?
-                    print("IN ALICE completion handler")
+                    _log.debug("IN ALICE completion handler")
                     contract = self.transfer.contracts[found_contract_id]
                     if contract[u"data_id"] != req[u"data_id"]:
                         return
 
                     if self.transfer.get_direction(found_contract_id) == u"send":
-                        print("\a")
-                        print("Upload transfer complete!")
+                        _log.debug("\a")
+                        _log.debug("Upload transfer complete!")
                         test = "upload"
+                        if contract[u"dest_unl"] != self.test_node_unl:
+                            _log.debug("Alice dl: src unl incorrect.")
+                            return
 
                         # Delete our copy of the file.
                         storjnode.storage.manager.remove(
@@ -299,78 +351,111 @@ class BandwidthTest():
                         )
                     else:
                         # Check the source of the request.
-                        print(contract[u"src_unl"])
-                        print(self.test_node_unl)
+                        _log.debug(contract[u"src_unl"])
+                        _log.debug(self.test_node_unl)
                         test = "download"
                         if contract[u"src_unl"] != self.test_node_unl:
-                            print("Alice dl: src unl incorrect.")
+                            _log.debug("Alice dl: src unl incorrect.")
                             return
 
-                        # Check test data.
-                        if not self.check_test_file(
-                                req[u"data_id"],
-                                self.test_node_unl
-                        ):
-                            print("Test data was incorrect in download!")
-                            return
+                        self.transfer.remove_handler("accept", accept_handler)
 
-                        print("Alice download")
+                        _log.debug("Alice download")
 
                     self.results[test]["end_time"] = int(time.time())
                     self.results[test]["transferred"] = file_size
-                    print(self.results)
+                    _log.debug(self.results)
+
+                    if test == "download":
+                        # Check results.
+                        if self.is_bad_results():
+                            return -1
+
+
+                        # Schedule next call if it returned too fast.
+                        if self.is_bad_test():
+                            _log.debug("SCHEDUALING NEW TRANSFER!")
+                            node_unl = copy.deepcopy(self.test_node_unl)
+                            self.test_node_unl = None
+                            self.start(
+                                node_unl,
+                                size=self.test_size * 10
+                            )
+                        else:
+                            # Cleanup.
+                            self.test_node_unl = None
+                            _log.debug("TRANSFER ALL DONE!")
+                            _log.debug(self.results)
+
+                            # Convert results to bytes per second.
+                            speeds = self.interpret_results()
+
+                            # Return results.
+                            self.active_test.callback(speeds)
+                            self.active_test = None
+
+
+                        return -1
+                    else:
+                        return 1
 
                 # Register completion handler.
                 self.transfer.add_handler("complete", completion_handler)
 
-                print("res: got response")
+                _log.debug("res: got response")
             except (ValueError, KeyError) as e:
-                print("Error in res")
-                print(e)
+                _log.debug("Error in res")
+                _log.debug(e)
                 return
 
         return handle_responses
 
-    def check_test_file(self, data_id, node_unl):
-        # Size of the test data (without appended sig.)
-        test_data_size = self.test_size * ONE_MB
+    def interpret_results(self):
+        speeds = {}
+        for test in list(self.results):
+            # Seconds.
+            start_time = self.results[test]["start_time"]
+            end_time = self.results[test]["end_time"]
+            seconds = Decimal(end_time - start_time)
+            transferred = Decimal(self.results[test]["transferred"])
+            speeds[test] = int(transferred / seconds)
 
-        # Hash partial content.
-        path = storjnode.storage.manager.find(
-            self.transfer.store_config,
-            data_id
-        )
-        shard = open(path, "rb")
-        fingerprint = get_hash(shard, limit=test_data_size)
-        print("FINGERPRINT HASH")
-        print(fingerprint)
+        return speeds
 
-        # File meta data.
-        meta = OrderedDict({
-            u"file_size": test_data_size,
-            u"algorithm": u"sha256",
-            u"hash": fingerprint.decode("utf-8")
-        })
+    def is_bad_results(self):
+        for test in list(self.results):
+            # Bad start time.
+            start_time = self.results[test]["start_time"]
+            if not start_time:
+                return 1
 
-        # Check signature.
-        node_id = parse_node_id_from_unl(node_unl)
-        sig_size = os.path.getsize(path) - test_data_size
-        shard.seek(1, test_data_size)
-        sig = shard.read(sig_size)
-        meta[u"signature"] = sig
-        print("SIG")
-        print(sig)
+            # Bad end time.
+            end_time = self.results[test]["end_time"]
+            if not end_time:
+                return 1
 
-        print("UNL")
-        print(node_unl)
+            # Bad transfer size.
+            transferred = self.results[test]["transferred"]
+            if not transferred:
+                return 1
 
-        print("META")
-        print(meta)
+        return 0
 
-        return check_sig(meta, self.wif, node_id)
+    def is_bad_test(self):
+        threshold = 2
+        for test in list(self.results):
+            start_time = self.results[test]["start_time"]
+            end_time = self.results[test]["end_time"]
+            assert(start_time)
+            assert(end_time)
 
+            duration = end_time - start_time
+            if duration < threshold:
+                return 1
 
-    def start(self, node_unl, test_unit="kbps", size=1):
+        return 0
+
+    def start(self, node_unl, size=1):
         """
         :param node_unl: UNL of target
         :param size: MB to send in transfer
@@ -381,60 +466,54 @@ class BandwidthTest():
         if self.test_node_unl is not None:
             return 0
 
+        # Reset test size.
+        self.test_size = size
+
+        # Reset deferred.
+        self.active_test = defer.Deferred()
+
         # Generate random file to upload.
-        file_size = self.test_size * ONE_MB
+        file_size = size * ONE_MB
         shard = generate_random_file(file_size)
 
         # Hash partial content.
-        fingerprint = get_hash(shard)
-        print("FINGERPRINT HASH")
-        print(fingerprint)
+        data_id = get_hash(shard)
+        _log.debug("FINGER_log.debug HASH")
+        _log.debug(data_id)
 
         # File meta data.
-        meta = OrderedDict({
-            u"file_size": file_size,
-            u"algorithm": u"sha256",
-            u"hash": fingerprint.decode("utf-8")
-        })
+        meta = OrderedDict([
+            (u"file_size", file_size),
+            (u"algorithm", u"sha256"),
+            (u"hash", data_id.decode("utf-8"))
+        ])
 
 
 
-        print("UNL")
-        print(self.transfer.net.unl.value)
+        _log.debug("UNL")
+        _log.debug(self.transfer.net.unl.value)
 
-        print("META")
-        print(meta)
+        _log.debug("META")
+        _log.debug(meta)
 
         # Sign meta data.
         sig = sign_msg(meta, self.wif)[u"signature"]
 
-        print("SIG")
-        print(sig)
-
-
-        # Write signature to file.
-        shard.seek(0, 2) # EOF
-        shard.write(sig)
-        shard.seek(0) # Beginning.
-
-        # Update file size.
-        file_size += len(sig)
-
-        # Get data_id of resulting file content (rand data + sig)
-        data_id = get_hash(shard)
+        _log.debug("SIG")
+        _log.debug(sig)
 
         # Add file to storage.
         storjnode.storage.manager.add(self.transfer.store_config, shard)
 
         # Build bandwidth test request.
-        req = OrderedDict({
-            u"type": u"test_bandwidth_request",
-            u"timestamp": int(time.time()),
-            u"requester": self.transfer.net.unl.value,
-            u"test_node_unl": node_unl,
-            u"data_id": data_id.decode("utf-8"),
-            u"file_size": file_size
-        })
+        req = OrderedDict([
+            (u"type", u"test_bandwidth_request"),
+            (u"timestamp", int(time.time())),
+            (u"requester", self.transfer.net.unl.value),
+            (u"test_node_unl", node_unl),
+            (u"data_id", data_id.decode("utf-8")),
+            (u"file_size", file_size)
+        ])
 
         # Sign request.
         req = sign_msg(req, self.wif)
@@ -442,7 +521,22 @@ class BandwidthTest():
         # Send request.
         node_id = parse_node_id_from_unl(node_unl)
         req = json.dumps(req, ensure_ascii=True)
-        self.api.relay_message(node_id, req)
+        #self.api.relay_message(node_id, req)
+
+        # Timeout bandwidth test after 5 minutes.
+        start_time = time.time()
+        def timeout():
+            duration = time.time() - start_time
+            if duration >= 300:
+                if self.active_test is not None:
+                    self.active_test.errback(Exception("Timed out"))
+                    self.active_test = None
+                    self.test_node_unl = None
+
+            return 1
+
+        # Schedule timeout.
+        LoopingCall(timeout).start(60, now=True)
 
         # Return deferred.
         return self.active_test
@@ -466,8 +560,8 @@ if __name__ == "__main__":
         store_config={tempfile.mkdtemp(): None}
     )
 
-    print("Alice UNL")
-    print(alice_transfer.net.unl.value)
+    _log.debug("Alice UNL")
+    _log.debug(alice_transfer.net.unl.value)
 
     # Bob sample node.
     bob_wallet = BtcTxStore(testnet=False, dryrun=True)
@@ -486,21 +580,26 @@ if __name__ == "__main__":
         store_config={tempfile.mkdtemp(): None}
     )
 
-    print("Bob UNL")
-    print(bob_transfer.net.unl.value)
+    _log.debug("Bob UNL")
+    _log.debug(bob_transfer.net.unl.value)
+
+    # Show bandwidth.
+    def show_bandwidth(results):
+        _log.debug(results)
 
     # Test bandwidth between Alice and Bob.
     bob_test = BandwidthTest(bob_wif, bob_transfer, bob_dht)
     alice_test = BandwidthTest(alice_wif, alice_transfer, alice_dht)
     d = alice_test.start(bob_transfer.net.unl.value)
+    d.addCallback(show_bandwidth)
 
     # Main event loop.
-    while 1:
+    while alice_test.active_test is not None:
         for client in [alice_transfer, bob_transfer]:
             if client == alice_transfer:
-                print("Alice")
+                _log.debug("Alice")
             else:
-                print("Bob")
+                _log.debug("Bob")
             process_transfers(client)
 
         time.sleep(1)

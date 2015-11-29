@@ -100,14 +100,14 @@ class TestFileHandshake(unittest.TestCase):
         self.bob.net.unl.connect = unl_connect
 
         # Record syn.
-        self.syn = OrderedDict({
-            u"status": u"SYN",
-            u"data_id": u"5feceb66ffc86f38d952786c6d696c79c2dbc239dd4e91b46729d73a27fb57e9",
-            u"file_size": 100,
-            u"host_unl": self.alice.net.unl.value,
-            u"dest_unl": self.bob.net.unl.value,
-            u"src_unl": self.alice.net.unl.value
-        })
+        self.syn = OrderedDict([
+            (u"status", u"SYN"),
+            (u"data_id", u"5feceb66ffc86f38d952786c6d696c79c2dbc239dd4e91b46729d73a27fb57e9"),
+            (u"file_size", 100),
+            (u"host_unl", self.alice.net.unl.value),
+            (u"dest_unl", self.bob.net.unl.value),
+            (u"src_unl", self.alice.net.unl.value)
+        ])
 
     def tearDown(self):
         self.alice.net.stop()
@@ -462,11 +462,11 @@ class TestFileHandshake(unittest.TestCase):
 
         contract_id = self.alice.contract_id(syn)
 
-        rst = OrderedDict({
-                u"status": u"RST",
-                u"contract_id": contract_id,
-                u"src_unl": self.bob.net.unl.value
-        })
+        rst = OrderedDict([
+            (u"status", u"RST"),
+            (u"contract_id", contract_id),
+            (u"src_unl", self.bob.net.unl.value)
+        ])
 
         # Contract ID not in message.
         rst_2 = copy.deepcopy(rst)

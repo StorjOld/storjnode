@@ -84,14 +84,12 @@ class FileTransfer:
     def add_handler(self, type, handler):
         # todo: change handler for when new data is transferred
         # might be helpful to have for updating UI progress
-        valid_handlers = [
-            u"complete",
-            u"accept",
-            u"start"
-        ]
-
-        if type in valid_handlers:
+        if type in list(self.handlers):
             self.handlers[type].add(handler)
+
+    def remove_handler(self, type, handler):
+        if type in list(self.handlers):
+            self.handlers[type].remove(handler)
 
     def get_their_unl(self, contract):
         if self.net.unl == pyp2p.unl.UNL(value=contract["dest_unl"]):
@@ -304,14 +302,14 @@ class FileTransfer:
                 node_unl = unicode(node_unl)
 
         # Create contract.
-        contract = OrderedDict({
-            u"status": u"SYN",
-            u"data_id": data_id,
-            u"file_size": file_size,
-            u"host_unl": host_unl,
-            u"dest_unl": node_unl,
-            u"src_unl": self.net.unl.value,
-        })
+        contract = OrderedDict([
+            (u"status", u"SYN"),
+            (u"data_id", data_id),
+            (u"file_size", file_size),
+            (u"host_unl", host_unl),
+            (u"dest_unl", node_unl),
+            (u"src_unl", self.net.unl.value)
+        ])
 
         # Sign contract.
         contract = self.sign_contract(contract)
