@@ -24,7 +24,7 @@ bob_node = storjnode.network.Node(
 
 try:
     # add message handler to bob node
-    def message_handler(source, message):
+    def message_handler(node, source, message):
         src = binascii.hexlify(source) if source is not None else "unknown"
         print("%s from %s" % (message, src))
     alice_node.add_message_handler(message_handler)

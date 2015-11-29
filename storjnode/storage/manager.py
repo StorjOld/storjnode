@@ -116,6 +116,37 @@ def open(store_config, shard_id):
         raise KeyError("Shard {0} not found!".format(shard_id))
 
 
+def capacity(store_config):
+    """ Get the total, used and free capacity of the store.
+
+    Args:
+        store_config: Dict of storage paths to optional attributes.
+                      limit: The dir size limit in bytes, 0 for no limit.
+                      use_folder_tree: Files organized in a folder tree
+                                       (always on for fat partitions).
+
+    Returns:
+        {"total": int, "used": int, "free": int}
+
+    Raises:
+        AssertionError: If input not valid.
+
+    Example:
+        import storjnode
+        store_config = {"path/alpha": None, "path/beta": None}
+        print(storjnode.storage.manager.capacity(store_config))
+    """
+    store_config = setup(store_config=store_config)  # setup if needed
+    total, used, free = 0, 0, 0
+    for store_path, attributes in store_config.items():
+        limit = attributes["limit"]
+        path_used = storjnode.util.get_folder_size(store_path)
+        total += limit
+        used += path_used
+        free += limit - used
+    return {"total": total, "used": used, "free": free}
+
+
 def add(store_config, shard):
     """ Add a shard to the storage.
 
@@ -139,7 +170,7 @@ def add(store_config, shard):
         with open("path/to/loose/shard", "rb") as shard:
             storjnode.storage.store.add(store_config, shard)
     """
-    store_config = setup(store_config)  # setup if needed
+    store_config = setup(store_config=store_config)  # setup if needed
     shard_id = storjnode.storage.shard.get_id(shard)
     shard_size = storjnode.storage.shard.get_size(shard)
 
@@ -156,19 +187,19 @@ def add(store_config, shard):
         # check if store path limit reached
         limit = attributes["limit"]
         used = storjnode.util.get_folder_size(store_path)
-        available = limit - used
-        if limit > 0 and shard_size > available:
+        free = limit - used
+        if limit > 0 and shard_size > free:
             msg = ("Store path limit reached for {3} cannot add {0}: "
-                   "Required {1} > {2} available.")
+                   "Required {1} > {2} free.")
             _log.warning(msg.format(shard_id, shard_size,
-                                    available, store_path))
+                                    free, store_path))
             continue  # try next storepath
 
         # check if enough free disc space
         free_space = storjnode.util.get_free_space(store_path)
         if shard_size > free_space:
             msg = ("Not enough disc space in {3} to add {0}: "
-                   "Required {1} > {2} available.")
+                   "Required {1} > {2} free.")
             msg = msg.format(shard_id, shard_size, free_space, store_path)
             _log.warning(msg)
             continue  # try next storepath
@@ -231,7 +262,7 @@ def find(store_config, shard_id):
         print("shard located at %s" % shard_path)
     """
     assert(storjnode.storage.shard.valid_id(shard_id))
-    store_config = setup(store_config)  # setup if needed
+    store_config = setup(store_config=store_config)  # setup if needed
     for store_path, attributes in store_config.items():
         use_folder_tree = attributes["use_folder_tree"]
         shard_path = _get_shard_path(store_path, shard_id, use_folder_tree)
@@ -252,13 +283,13 @@ def find(store_config, shard_id):
 #                 All required shards to reconstruct a file can be obtained
 #                 from the root shard.
 #     """
-#     store_config = setup(store_config)  # setup if needed
+#     store_config = setup(store_config=store_config)  # setup if needed
 #     # FIXME add encryption
 #     # TODO implement
 #
 #
 # def export_file(store_config, root_shard_id, dest_path):
 #     assert(storjnode.storage.shard.valid_id(root_shard_id))
-#     store_config = setup(store_config)  # setup if needed
+#     store_config = setup(store_config=store_config)  # setup if needed
 #     # FIXME add encryption
 #     # TODO implement
