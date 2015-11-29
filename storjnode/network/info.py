@@ -6,8 +6,8 @@ from storjnode import config
 from collections import namedtuple
 
 
-Info = namedtuple('Info', ['request', 'capacity', 'peers'])  # TODO add version
 Capacity = namedtuple('Capacity', ['total', 'used', 'free'])
+Info = namedtuple('Info', ['request', 'capacity', 'peers'])  # TODO add version
 
 
 def create_request(btctxstore, wif):
@@ -22,45 +22,48 @@ def read_request(btctxstore, msg):
 
 
 def create_response(btctxstore, wif, request, total, used, free, peers):
-    capacity = [total, used, free]
-    return message.create(btctxstore, wif, "info", [request, capacity, peers])
+    capacity = Capacity(total=total, used=used, free=free)
+    info = Info(request=request, capacity=capacity, peers=peers)
+    return message.create(btctxstore, wif, "info", info)
 
 
 def read_respones(btctxstore, address, msg):
-    msg = message.read(btctxstore, msg)
-    if msg is None or msg.kind != "info":
+    if message.read(btctxstore, msg) is None or msg[1] != "info":
         return None
 
     # check info given
-    if not isinstance(msg.body, list) or len(msg.body) != 3:
+    info = msg[2]
+    if not isinstance(info, list) or len(info) != 3:
         return None
-    msg.body = Info(*msg.body)
 
     # invalid request
-    msg.body.request = read_request(btctxstore, msg.body.request)
-    if msg.body.request is None:
+    request = read_request(btctxstore, info[0])
+    if request is None:
         return None
 
     # we did not send the original request
-    if msg.body.request.sender != address:
+    if request.sender != address:
         return None
 
     # check capacity given
-    if not isinstance(msg.body.capacity, list) or len(msg.body.capacity) != 3:
+    capacity = info[1]
+    if not isinstance(capacity, list) or len(capacity) != 3:
         return None
 
     # check capacity values >= 0
-    if not all(isinstance(i, int) and i >= 0 for i in msg.body.capacity):
+    if not all(isinstance(i, int) and i >= 0 for i in capacity):
         return None
-    msg.body.capacity = Capacity(*msg.body.capacity)
+    capacity = Capacity(*capacity)
 
     # peers must be a list of valid addresses
-    if not isinstance(msg.body.peers, list):
+    peers = info[2]
+    if not isinstance(peers, list):
         return None
-    if not all(btctxstore.validate_address(p) for p in msg.body.peers):
+    if not all(btctxstore.validate_address(p) for p in peers):
         return None
 
-    return msg
+    msg[2] = Info(request=request, capacity=capacity, peers=peers)
+    return message.Message(*msg)
 
 
 def send_request(node, target):

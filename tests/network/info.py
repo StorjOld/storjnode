@@ -20,7 +20,6 @@ class TestInfo(unittest.TestCase):
         self.assertIsNotNone(read)
         self.assertEqual(created, read)
 
-    @unittest.skip("broken")
     def test_create_read_response(self):
         request = storjnode.network.info.create_request(
             self.btctxstore, self.wif

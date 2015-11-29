@@ -1,3 +1,5 @@
+import umsgpack
+import binascii
 from collections import OrderedDict
 from collections import namedtuple
 from btctxstore import BtcTxStore
@@ -9,7 +11,8 @@ Message = namedtuple('Message', ['sender', 'kind', 'body', 'signature'])
 
 def create(btctxstore, wif, kind, body):
     address = btctxstore.get_address(wif)
-    signature = btctxstore.sign_unicode(wif, str(kind) + str(body))
+    data = binascii.hexlify(umsgpack.packb([kind, body]))
+    signature = btctxstore.sign_data(wif, data)
     return Message(address, kind, body, signature)
 
 
@@ -18,8 +21,8 @@ def read(btctxstore, message):
     if not isinstance(message, list) or len(message) != 4:
         return None
     msg = Message(*message)
-    if btctxstore.verify_signature_unicode(msg.sender, msg.signature,
-                                           str(msg.kind) + str(msg.body)):
+    data = binascii.hexlify(umsgpack.packb([msg.kind, msg.body]))
+    if btctxstore.verify_signature(msg.sender, msg.signature, data):
         return msg
     return None
 
