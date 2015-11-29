@@ -479,16 +479,8 @@ class Node(object):
 
         src_unl = The UNL of the source node ending the transfer request
         data_id = The shard ID of the data to download or upload
-<<<<<<< HEAD:storjnode/network/api.py
         direction = Direction from the perspective of the requester: e.g. send (upload data_id to requester) or receive (download data_id from requester)
         file_size = The size of the file they wish to transfer
-
-
-=======
-        direction = Direction from the perspective of the requester: e.g.
-        send (upload data_id to requester) or
-        receive (download data_id from requester)
->>>>>>> 0e655c6117532fb13b75251b3ac111720e06ce1b:storjnode/network/node.py
 
         Example:
             def on_transfer_request(node_unl, data_id, direction, file_size):
@@ -519,14 +511,9 @@ class Node(object):
         The handler must be callable and accept four arguments
         (node_id, data_id, direction).
 
-<<<<<<< HEAD:storjnode/network/api.py
         TO DO: this has changed completely.
 
         node_id = The node_ID we sent the transfer request to. (May be our node_id if the request was sent to us.)
-=======
-        node_id = The node_ID we sent the transfer request to. (May be
-        our node_id if the request was sent to us.)
->>>>>>> 0e655c6117532fb13b75251b3ac111720e06ce1b:storjnode/network/node.py
         data_id = The shard to download or upload.
         direction = The direction of the transfer (e.g. send or receive.)
 
