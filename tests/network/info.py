@@ -1,6 +1,5 @@
 import os
 import unittest
-import binascii
 import umsgpack
 import storjnode
 import btctxstore
@@ -37,12 +36,11 @@ class TestInfo(unittest.TestCase):
         # test create
         peers = [os.urandom(20) for i in range(20)]
         created = storjnode.network.info.create_response(
-            self.btctxstore, self.wif, 3, 2, 1, peers
+            self.btctxstore, self.wif, 3, 2, peers
         )
 
         # check package data < min package size
         packed = umsgpack.packb(created)
-        print(len(packed))
         self.assertLessEqual(len(packed), storjnode.common.MAX_PACKAGE_DATA)
 
         # repack to eliminate namedtuples and simulate io

@@ -1,13 +1,18 @@
 # from storjnode.common import CONFIG_PATH
 # from storjnode import util
+from storjnode import __version__
 from storjnode.network import message
 # from storjnode.storage import manager
 # from storjnode import config
 from collections import namedtuple
 
 
-Capacity = namedtuple('Capacity', ['total', 'used', 'free'])
-Info = namedtuple('Info', ['capacity', 'peers'])  # TODO add version
+Info = namedtuple('Info', [
+    'version',  # version of storgnode
+    'total',  # total disc space reserved
+    'used',  # disc space used reserved
+    'peers'  # concatenated peer ids (one every 20 bytes)
+])
 
 
 def create_request(btctxstore, wif):
@@ -21,11 +26,10 @@ def read_request(btctxstore, msg):
     return msg
 
 
-def create_response(btctxstore, wif, total, used, free, peers):
+def create_response(btctxstore, node_wif, total, used, peers):
     peers = reduce(lambda a, b: a + b, peers, b"")
-    capacity = Capacity(total=total, used=used, free=free)
-    info = Info(capacity=capacity, peers=peers)
-    return message.create(btctxstore, wif, info)
+    info = Info(__version__, total, used, peers)
+    return message.create(btctxstore, node_wif, info)
 
 
 def read_respones(btctxstore, nodeid, msg):
@@ -36,25 +40,25 @@ def read_respones(btctxstore, nodeid, msg):
 
     # check info given
     info = msg[1]
-    if not isinstance(info, list) or len(info) != 2:
+    if not isinstance(info, list) or len(info) != 4:
         return None
+    # TODO version = info[0]
 
-    # check capacity given
-    capacity = info[0]
-    if not isinstance(capacity, list) or len(capacity) != 3:
-        return None
+    total = info[1]
+    used = info[2]
 
-    # check capacity values >= 0
-    if not all(isinstance(i, int) and i >= 0 for i in capacity):
+    # check capacity values
+    if not all(isinstance(i, int) and i >= 0 for i in [total, used]):
         return None
-    capacity = Capacity(*capacity)
+    if used > total:
+        return None
 
     # peers must be a list of valid node ids
-    peers = info[1]
+    peers = info[3]
     if not isinstance(peers, bytes) and len(peers) % 20 == 0:
         return None
 
-    msg[1] = Info(capacity=capacity, peers=peers)
+    msg[1] = Info(*info)
     return message.Message(*msg)
 
 
