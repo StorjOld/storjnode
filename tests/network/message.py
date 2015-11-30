@@ -27,10 +27,20 @@ class TestNetworkMessage(unittest.TestCase):
         ))
 
     def test_creat_validate(self):
+
+        # test create
         created = storjnode.network.message.create(
             self.btctxstore, self.wif, "testkind", "testbody"
         )
-        repacked = umsgpack.unpackb(umsgpack.packb(created))
+
+        # check package data < min package size
+        packed = umsgpack.packb(created)
+        self.assertLessEqual(len(packed), storjnode.common.MAX_PACKAGE_DATA)
+
+        # repack to eliminate namedtuples and simulate io
+        repacked = umsgpack.unpackb(packed)
+
+        # test read
         read = storjnode.network.message.read(self.btctxstore, repacked)
         self.assertIsNotNone(read)
         self.assertEqual(created, read)

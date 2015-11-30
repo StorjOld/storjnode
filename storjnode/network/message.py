@@ -1,19 +1,26 @@
+import base64
 import umsgpack
 import binascii
 from collections import OrderedDict
 from collections import namedtuple
 from btctxstore import BtcTxStore
-from storjnode.util import node_id_to_address
+from storjnode.util import node_id_to_address, address_to_node_id
 
 
-Message = namedtuple('Message', ['sender', 'kind', 'body', 'signature'])
+Message = namedtuple('Message', ['sender', 'kind', 'body', 'rawsig'])
 
 
-def create(btctxstore, wif, kind, body):
-    address = btctxstore.get_address(wif)
+def create(btctxstore, node_wif, kind, body):
+
+    # sign data in serialized form so unpacking is not required
     data = binascii.hexlify(umsgpack.packb([kind, body]))
-    signature = btctxstore.sign_data(wif, data)
-    return Message(address, kind, body, signature)
+    signature = btctxstore.sign_data(node_wif, data)
+
+    # use compact unencoded data to conserve package bytes
+    nodeid = address_to_node_id(btctxstore.get_address(node_wif))
+    rawsig = base64.b64decode(signature)
+
+    return Message(nodeid, kind, body, rawsig)
 
 
 def read(btctxstore, message):
@@ -21,8 +28,21 @@ def read(btctxstore, message):
     if not isinstance(message, list) or len(message) != 4:
         return None
     msg = Message(*message)
+
     data = binascii.hexlify(umsgpack.packb([msg.kind, msg.body]))
-    if btctxstore.verify_signature(msg.sender, msg.signature, data):
+
+    # check if valid nodeid
+    if not isinstance(msg.sender, bytes) or len(msg.sender) != 20:
+        return None
+
+    # check if valid rawsig
+    if not isinstance(msg.rawsig, bytes) or len(msg.rawsig) != 65:
+        return None
+
+    # verify signature
+    address = node_id_to_address(msg.sender)
+    signature = base64.b64encode(msg.rawsig)
+    if btctxstore.verify_signature(address, signature, data):
         return msg
     return None
 
