@@ -29,19 +29,29 @@ def read(btctxstore, message):
     return None
 
 
-def sign(msg, wif):  # FIXME use create instead
-    assert(isinstance(msg, OrderedDict))
-    assert("signature" not in msg)  # must be unsigned
+def sign(dict_obj, wif):  # FIXME use create instead
+    assert(isinstance(dict_obj, OrderedDict))
+    if "signature" in dict_obj:
+        del dict_obj["signature"]
+
+    if sys.version_info >= (3, 0, 0):
+        msg = str(dict_obj).encode("ascii")
+    else:
+        msg = str(dict_obj)
+
+    #assert("signature" not in msg)  # must be unsigned
+    #todo: fix this
+
     api = BtcTxStore(testnet=False, dryrun=True)
     msg = binascii.hexlify(msg).decode("utf-8")
     sig = api.sign_data(wif, msg)
 
     if sys.version_info >= (3, 0, 0):
-        contract[u"signature"] = sig.decode("utf-8")
+        dict_obj[u"signature"] = sig.decode("utf-8")
     else:
-        contract[u"signature"] = unicode(sig)
+        dict_obj[u"signature"] = unicode(sig)
 
-    return contract
+    return dict_obj
 
 
 def verify_signature(msg, wif, node_id=None):  # FIXME use read instead

@@ -76,7 +76,7 @@ class BandwidthTest():
 
     def handle_requests_builder(self):
         # Handle bandwidth requests.
-        def handle_requests(src_node_id, msg):
+        def handle_requests(node, src_node_id, msg):
             try:
                 _log.debug("In handle requests")
 
@@ -238,7 +238,7 @@ class BandwidthTest():
         return handle_requests
 
     def handle_responses_builder(self):
-        def handle_responses(src_node_id, msg):
+        def handle_responses(node, src_node_id, msg):
             try:
                 # Check message type.
                 msg = json.loads(msg, object_pairs_hook=OrderedDict)
