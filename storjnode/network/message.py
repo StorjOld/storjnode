@@ -7,29 +7,27 @@ from btctxstore import BtcTxStore
 from storjnode.util import node_id_to_address, address_to_node_id
 
 
-Message = namedtuple('Message', ['sender', 'kind', 'body', 'rawsig'])
+Message = namedtuple('Message', ['sender', 'body', 'rawsig'])
 
 
-def create(btctxstore, node_wif, kind, body):
+def create(btctxstore, node_wif, body):
 
     # sign data in serialized form so unpacking is not required
-    data = binascii.hexlify(umsgpack.packb([kind, body]))
+    data = binascii.hexlify(umsgpack.packb(body))
     signature = btctxstore.sign_data(node_wif, data)
 
     # use compact unencoded data to conserve package bytes
     nodeid = address_to_node_id(btctxstore.get_address(node_wif))
     rawsig = base64.b64decode(signature)
 
-    return Message(nodeid, kind, body, rawsig)
+    return Message(nodeid, body, rawsig)
 
 
 def read(btctxstore, message):
     # FIXME make sure body does not contain dicts
-    if not isinstance(message, list) or len(message) != 4:
+    if not isinstance(message, list) or len(message) != 3:
         return None
     msg = Message(*message)
-
-    data = binascii.hexlify(umsgpack.packb([msg.kind, msg.body]))
 
     # check if valid nodeid
     if not isinstance(msg.sender, bytes) or len(msg.sender) != 20:
@@ -42,6 +40,7 @@ def read(btctxstore, message):
     # verify signature
     address = node_id_to_address(msg.sender)
     signature = base64.b64encode(msg.rawsig)
+    data = binascii.hexlify(umsgpack.packb(msg.body))
     if btctxstore.verify_signature(address, signature, data):
         return msg
     return None

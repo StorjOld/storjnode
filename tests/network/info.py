@@ -1,3 +1,4 @@
+import os
 import unittest
 import binascii
 import umsgpack
@@ -33,19 +34,15 @@ class TestInfo(unittest.TestCase):
         self.assertEqual(created, read)
 
     def test_create_read_response(self):
-        request = storjnode.network.info.create_request(
-            self.btctxstore, self.wif
-        )
-
         # test create
-
-        peers = [binascii.unhexlify("deadbeef" * 5)] * 20
+        peers = [os.urandom(20) for i in range(20)]
         created = storjnode.network.info.create_response(
-            self.btctxstore, self.wif, request, 3, 2, 1, peers
+            self.btctxstore, self.wif, 3, 2, 1, peers
         )
 
         # check package data < min package size
         packed = umsgpack.packb(created)
+        print(len(packed))
         self.assertLessEqual(len(packed), storjnode.common.MAX_PACKAGE_DATA)
 
         # repack to eliminate namedtuples and simulate io

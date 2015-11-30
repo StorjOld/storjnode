@@ -7,46 +7,40 @@ from collections import namedtuple
 
 
 Capacity = namedtuple('Capacity', ['total', 'used', 'free'])
-Info = namedtuple('Info', ['request', 'capacity', 'peers'])  # TODO add version
+Info = namedtuple('Info', ['capacity', 'peers'])  # TODO add version
 
 
 def create_request(btctxstore, wif):
-    return message.create(btctxstore, wif, "inforequest", None)
+    return message.create(btctxstore, wif, "inforequest")
 
 
 def read_request(btctxstore, msg):
     msg = message.read(btctxstore, msg)
-    if msg is None or msg.kind != "inforequest" or msg.body is not None:
+    if msg is None or msg.body != "inforequest":
         return None
     return msg
 
 
-def create_response(btctxstore, wif, request, total, used, free, peers):
+def create_response(btctxstore, wif, total, used, free, peers):
+    peers = reduce(lambda a, b: a + b, peers, b"")
     capacity = Capacity(total=total, used=used, free=free)
-    info = Info(request=request, capacity=capacity, peers=peers)
-    return message.create(btctxstore, wif, "info", info)
+    info = Info(capacity=capacity, peers=peers)
+    return message.create(btctxstore, wif, info)
 
 
 def read_respones(btctxstore, nodeid, msg):
-    if message.read(btctxstore, msg) is None or msg[1] != "info":
+
+    # not a valid message
+    if message.read(btctxstore, msg) is None:
         return None
 
     # check info given
-    info = msg[2]
-    if not isinstance(info, list) or len(info) != 3:
-        return None
-
-    # invalid request
-    request = read_request(btctxstore, info[0])
-    if request is None:
-        return None
-
-    # we did not send the original request
-    if request.sender != nodeid:
+    info = msg[1]
+    if not isinstance(info, list) or len(info) != 2:
         return None
 
     # check capacity given
-    capacity = info[1]
+    capacity = info[0]
     if not isinstance(capacity, list) or len(capacity) != 3:
         return None
 
@@ -56,13 +50,11 @@ def read_respones(btctxstore, nodeid, msg):
     capacity = Capacity(*capacity)
 
     # peers must be a list of valid node ids
-    peers = info[2]
-    if not isinstance(peers, list):
-        return None
-    if not all(isinstance(p, bytes) and len(p) == 20 for p in peers):
+    peers = info[1]
+    if not isinstance(peers, bytes) and len(peers) % 20 == 0:
         return None
 
-    msg[2] = Info(request=request, capacity=capacity, peers=peers)
+    msg[1] = Info(capacity=capacity, peers=peers)
     return message.Message(*msg)
 
 

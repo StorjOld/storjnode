@@ -30,7 +30,7 @@ class TestNetworkMessage(unittest.TestCase):
 
         # test create
         created = storjnode.network.message.create(
-            self.btctxstore, self.wif, "testkind", "testbody"
+            self.btctxstore, self.wif, "testbody"
         )
 
         # check package data < min package size
