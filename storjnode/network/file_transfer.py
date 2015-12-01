@@ -8,11 +8,15 @@ import six
 import time
 import hashlib
 import sys
+import json
 from threading import Lock
 from twisted.internet import defer
-
+from storjnode.util import address_to_node_id
+from storjnode.util import parse_node_id_from_unl, ordered_dict_to_list
+from storjnode.network.process_transfers import process_transfers
 
 _log = storjnode.log.getLogger(__name__)
+_log.setLevel("DEBUG")
 
 
 class FileTransfer:
@@ -37,9 +41,11 @@ class FileTransfer:
         if self.handlers is None:
             self.handlers = {}
         if "complete" not in self.handlers:
-            self.handlers["complete"] = []
+            self.handlers["complete"] = set()
         if "accept" not in self.handlers:
-            self.handlers["accept"] = []
+            self.handlers["accept"] = set()
+        if "start" not in self.handlers:
+            self.handlers["start"] = set()
 
         # Start networking.
         if not self.net.is_net_started:
@@ -72,6 +78,16 @@ class FileTransfer:
         # Lock threads.
         self.mutex = Lock()
 
+    def add_handler(self, type, handler):
+        # todo: change handler for when new data is transferred
+        # might be helpful to have for updating UI progress
+        if type in list(self.handlers):
+            self.handlers[type].add(handler)
+
+    def remove_handler(self, type, handler):
+        if type in list(self.handlers):
+            self.handlers[type].remove(handler)
+
     def get_their_unl(self, contract):
         if self.net.unl == pyp2p.unl.UNL(value=contract["dest_unl"]):
             their_unl = contract["src_unl"]
@@ -79,11 +95,6 @@ class FileTransfer:
             their_unl = contract["dest_unl"]
 
         return their_unl
-
-    def get_node_id_from_unl(self, unl):
-        unl = pyp2p.unl.UNL(value=unl).deconstruct()
-
-        return unl["node_id"]
 
     def is_queued(self, con=None):
         if con is not None:
@@ -107,7 +118,7 @@ class FileTransfer:
         # Cleanup downloading.
         contract = self.contracts[contract_id]
         if contract["data_id"] in self.downloading:
-            if contract["direction"] == "receive":
+            if self.get_direction(contract_id) == u"receive":
                 del self.downloading[contract["data_id"]]
 
         # Cleanup handshakes.
@@ -150,8 +161,10 @@ class FileTransfer:
         return contract_id
 
     def send_msg(self, msg, unl):
+        assert(type(msg) == OrderedDict)
         node_id = self.net.unl.deconstruct(unl)["node_id"]
-        self.net.dht_node.relay_message(node_id, msg.items())
+        msg = ordered_dict_to_list(msg)
+        self.net.dht_node.relay_message(node_id, msg)
 
     def contract_id(self, contract):
         if sys.version_info >= (3, 0, 0):
@@ -168,12 +181,27 @@ class FileTransfer:
         return storjnode.network.message.verify_signature(contract, self.wif,
                                                           node_id=node_id)
 
+    def get_direction(self, contract_id, contract=None):
+        """
+        The direction of a transfer is relative to the node.
+        """
+        contract = contract or self.contracts[contract_id]
+        our_unl = self.net.unl
+        host_unl = pyp2p.unl.UNL(value=contract[u"host_unl"])
+        if our_unl == host_unl:
+            direction = u"send"
+        else:
+            direction = u"receive"
+
+        return direction
+
     def simple_data_request(self, data_id, node_unl, direction):
         file_size = 0
         if direction == u"send":
-            action = u"upload"
-        else:
             action = u"download"
+        else:
+            # We're download: so tell the peer to upload to us.
+            action = u"upload"
 
         return self.data_request(action, data_id, file_size, node_unl)
 
@@ -182,31 +210,34 @@ class FileTransfer:
         Action = put (upload), get (download.)
         """
         _log.debug("In data request function")
+        node_unl = node_unl.decode("utf-8")
+        if node_unl == self.net.unl.value:
+            _log.debug("Can;t send data request to ourself")
+            return
 
         # Who is hosting this data?
-        if action == "upload":
+        if action == u"download":
             # We store this data.
-            direction = u"send"
-            host_unl = self.net.unl.value
+            host_unl = self.net.unl.value.decode("utf-8")
             cfg = self.store_config
+            _log.debug(cfg)
+            _log.debug(data_id)
             assert(storjnode.storage.manager.find(cfg, data_id) is not None)
         else:
             # They store the data.
-            direction = u"receive"
             host_unl = node_unl
             if data_id in self.downloading:
                 raise Exception("Already trying to download this.")
 
         # Create contract.
-        contract = OrderedDict({
-            u"status": u"SYN",
-            u"direction": direction,
-            u"data_id": six.text_type(data_id),
-            u"file_size": file_size,
-            u"host_unl": six.text_type(host_unl),
-            u"dest_unl": six.text_type(node_unl),
-            u"src_unl": self.net.unl.value,
-        })
+        contract = OrderedDict([
+            (u"status", u"SYN"),
+            (u"data_id", data_id.decode("utf-8")),
+            (u"file_size", file_size),
+            (u"host_unl", host_unl),
+            (u"dest_unl", node_unl),
+            (u"src_unl", self.net.unl.value)
+        ])
 
         # Sign contract.
         contract = self.sign_contract(contract)
@@ -258,13 +289,75 @@ class FileTransfer:
             return buf
 
     def save_data_chunk(self, data_id, chunk):
-        _log.debug("Saving data chunk for " + str(data_id))
-        _log.debug("of size + " + str(len(chunk)))
         assert(data_id in self.downloading)
 
         # Find temp file path.
         path = self.downloading[data_id]
 
-        _log.debug(path)
         with open(path, "ab") as fp:
             fp.write(chunk)
+
+if __name__ == "__main__":
+    from crochet import setup
+    setup()
+
+    # Alice sample node.
+    alice_wallet = BtcTxStore(testnet=False, dryrun=True)
+    alice_wif = alice_wallet.create_key()
+    alice_node_id = address_to_node_id(alice_wallet.get_address(alice_wif))
+    alice_dht_node = pyp2p.dht_msg.DHT(node_id=alice_node_id)
+
+    alice = FileTransfer(
+        pyp2p.net.Net(
+            net_type="direct",
+            node_type="passive",
+            nat_type="preserving",
+            passive_port=60400,
+            dht_node=alice_dht_node,
+        ),
+        wif=alice_wif,
+        store_config={"/home/laurence/Storj/Alice": None}
+    )
+
+    # Bob sample node.
+    bob_wallet = BtcTxStore(testnet=False, dryrun=True)
+    bob_wif = bob_wallet.create_key()
+    bob_node_id = address_to_node_id(bob_wallet.get_address(bob_wif))
+    bob_dht = pyp2p.dht_msg.DHT(node_id=bob_node_id)
+
+    bob = FileTransfer(
+        pyp2p.net.Net(
+            net_type="direct",
+            node_type="passive",
+            nat_type="preserving",
+            passive_port=60401,
+            dht_node=bob_dht,
+        ),
+        wif=bob_wif,
+        store_config={"/home/laurence/Storj/Bob": None},
+    )
+
+    _log.debug(alice.net.unl.deconstruct())
+    _log.debug(bob.net.unl.deconstruct())
+
+    _log.debug(type(alice.net.unl))
+    _log.debug(type(pyp2p.unl.UNL(value=bob.net.unl.value)))
+
+    # Alice wants data from Bob.
+    d = alice.data_request(
+        "upload",
+        "ed980e5ef780d5b9ca1a6200a03302f2a91223044bc63dacc6d9f07eead663ab",
+        0,
+        bob.net.unl.value
+    )
+
+    # Main event loop.
+    while 1:
+        for client in [alice, bob]:
+            if client == alice:
+                _log.debug("Alice")
+            else:
+                _log.debug("Bob")
+            process_transfers(client)
+
+        time.sleep(1)

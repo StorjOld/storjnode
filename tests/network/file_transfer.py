@@ -50,7 +50,7 @@ class TestFileTransfer(unittest.TestCase):
                 node_type="simultaneous",
                 nat_type="preserving",
                 net_type="direct",
-                passive_port=60400,
+                passive_port=0,
                 dht_node=self.dht_node,
                 debug=1
             ),
@@ -71,7 +71,6 @@ class TestFileTransfer(unittest.TestCase):
 
         assert(self.client.get_con_by_contract_id(contract_id) == con)
 
-    @unittest.skip("")
     def test_multiple_transfers(self):
 
         def make_random_file(file_size=1024 * 100,
@@ -109,7 +108,7 @@ class TestFileTransfer(unittest.TestCase):
         # Upload file from storage.
         for file_info in file_infos:
             self.client.data_request(
-                "upload",
+                "download",
                 file_info["data_id"],
                 0,
                 TEST_NODE["unl"]
@@ -140,7 +139,7 @@ class TestFileTransfer(unittest.TestCase):
         _log.debug("Testing download.")
         for file_info in file_infos:
             self.client.data_request(
-                "download",
+                "upload",
                 file_info["data_id"],
                 0,
                 TEST_NODE["unl"]

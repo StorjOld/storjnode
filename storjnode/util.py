@@ -2,14 +2,58 @@ import os
 import psutil
 import socket
 import pyp2p
+import tempfile
 from crochet import wait_for
 from pycoin.encoding import a2b_hashed_base58, b2a_hashed_base58
+from collections import OrderedDict
+
+
+def ordered_dict_to_list(o):
+    l = []
+    for key in list(o):
+        value = o[key]
+        if type(value) == OrderedDict:
+            value = ordered_dict_to_list(value)
+
+        pair = (key, value)
+        l.append(pair)
+
+    return l
+
+
+def list_to_ordered_dict(l):
+    d = OrderedDict()
+    for key, value in l:
+        if type(value) == list:
+            d[key] = list_to_ordered_dict(value)
+        else:
+            d[key] = value
+
+    return d
+
+
+def generate_random_file(file_size):
+    max_chunk_size = 8192
+    remaining = file_size
+    junk, path = tempfile.mkstemp()
+    fp = open(path, "ab+", 0)  # Unbuffered.
+    while remaining:
+        if remaining < max_chunk_size:
+            chunk_size = remaining
+        else:
+            chunk_size = max_chunk_size
+
+        chunk = os.urandom(chunk_size)
+        fp.write(chunk)
+        remaining -= chunk_size
+
+    fp.seek(0, 0)
+    return fp
 
 
 def parse_node_id_from_unl(unl):
     try:
         unl = pyp2p.unl.UNL(value=unl).deconstruct()
-
         return unl["node_id"]
     except:
         return b""

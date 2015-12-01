@@ -6,10 +6,15 @@ import pyp2p.dht_msg
 import tempfile
 import sys
 import storjnode
+import logging
+import json
+import storjnode.storage as storage
+from storjnode.util import parse_node_id_from_unl
+from storjnode.util import ordered_dict_to_list, list_to_ordered_dict
+from ast import literal_eval
 
-
-_log = storjnode.log.getLogger(__name__)
-
+_log = logging.getLogger(__name__)
+_log.setLevel("DEBUG")
 
 # If this is disabled then any node can transfer with any other node
 # Without having a corresponding accept handler.
@@ -30,7 +35,6 @@ def is_valid_syn(client, msg):
     # List of expected fields.
     syn_schema = (
         u"status",
-        u"direction",
         u"data_id",
         u"file_size",
         u"host_unl",
@@ -59,12 +63,6 @@ def is_valid_syn(client, msg):
         _log.debug("SYN is too big")
         return -4
 
-    # Check direction is valid.
-    direction_tuple = (u"send", u"receive")
-    if msg[u"direction"] not in direction_tuple:
-        _log.debug("Missing required direction tuple.")
-        return -5
-
     # Check the UNLs are valid.
     unl_tuple = (u"host_unl", u"dest_unl", u"src_unl")
     for unl_key in unl_tuple:
@@ -85,7 +83,7 @@ def is_valid_syn(client, msg):
         return -7
 
     # Are we the host?
-    if client.net.unl == pyp2p.unl.UNL(value=msg[u"host_unl"]):
+    if client.get_direction(None, msg) == u"send":
         # Then check we have this file.
         path = storjnode.storage.manager.find(client.store_config,
                                               msg[u"data_id"])
@@ -133,7 +131,7 @@ def success_wrapper(client, contract_id, host_unl):
                 client.con_info[con][contract_id] = {
                     "contract_id": contract_id,
                     "remaining": 350,  # Tree fiddy.
-                    "file_size": file_size,
+                    "file_size": 0,  # Sent as part of protocol.
                     "file_size_buf": b""
                 }
 
@@ -177,49 +175,65 @@ def process_syn(client, msg, enable_accept_handlers=ENABLE_ACCEPT_HANDLERS):
         _log.debug("SYN: invalid syn.")
         return -1
 
-    # Should we accept this?
-    contract_id = client.contract_id(msg).decode("utf-8")
-    src_node_id = client.get_node_id_from_unl(msg[u"src_unl"])
-    if enable_accept_handlers:
-        accept_this = 0
-        for handler in client.handlers[u"accept"]:
-            accept_this = handler(
-                src_node_id,
-                msg[u"data_id"],
-                msg[u"direction"]
-            )
-
-            if accept_this:
-                break
-
-        # Their handshake will timeout.
-        if not accept_this:
-            _log.debug("Rejected data request")
-
-            # Build reject reply.
-            reply = OrderedDict({
-                u"status": u"RST",
-                u"contract_id": contract_id,
-                u"src_unl": client.net.unl.value
-            })
-            # Sign reply.
-            reply = client.sign_contract(reply)
-
-            # Send reply to source.
-            client.net.dht_node.relay_message(src_node_id, reply.items())
-
-            # Quit.
-            return -2
-
     # Check our UNL is correct.
     if msg[u"dest_unl"] != client.net.unl.value:
         _log.debug("They got our UNL wrong.")
         return -3
 
     # Check their sig is valid.
+    contract_id = client.contract_id(msg).decode("utf-8")
+    src_node_id = parse_node_id_from_unl(msg[u"src_unl"])
     if not client.is_valid_contract_sig(msg, src_node_id):
+        _log.debug(msg)
         _log.debug("Their signature was incorrect.")
         return -4
+
+    # Should we accept this?
+    expired_handlers = set()
+    accept_this = 0
+    for handler in client.handlers[u"accept"]:
+        ret = handler(
+            contract_id,
+            msg[u"src_unl"],
+            msg[u"data_id"],
+            msg[u"file_size"]
+        )
+
+        if ret == -1:
+            accept_this = 1
+            expired_handlers.add(handler)
+            break
+
+        if ret == 1:
+            accept_this = 1
+            break
+
+    # Their handshake will timeout.
+    if not accept_this and enable_accept_handlers:
+        _log.debug("Rejected data request")
+
+        # Build reject reply.
+        reply = OrderedDict([
+            (u"status", u"RST"),
+            (u"contract_id", contract_id),
+            (u"src_unl", client.net.unl.value)
+        ])
+        # Sign reply.
+        reply = client.sign_contract(reply)
+
+        # Send reply to source.
+        reply = json.dumps(reply, ensure_ascii=True)
+        client.net.dht_node.relay_message(
+            src_node_id,
+            reply
+        )
+
+        # Quit.
+        return -2
+
+    # Remove expired accept handler.
+    for handler in expired_handlers:
+        client.handlers[u"accept"].remove(handler)
 
     # Check handshake state.
     if contract_id in client.handshake:
@@ -233,10 +247,10 @@ def process_syn(client, msg, enable_accept_handlers=ENABLE_ACCEPT_HANDLERS):
     }
 
     # Create reply.
-    reply = OrderedDict({
-        u"status": u"SYN-ACK",
-        u"syn": msg,
-    })
+    reply = OrderedDict([
+        (u"status", u"SYN-ACK"),
+        (u"syn", msg),
+    ])
 
     # Sign reply.
     reply = client.sign_contract(reply)
@@ -285,8 +299,9 @@ def process_syn_ack(client, msg):
 
     # Check their sig is valid.
     contract = client.contracts[contract_id]
-    their_node_id = client.get_node_id_from_unl(contract["dest_unl"])
+    their_node_id = parse_node_id_from_unl(contract["dest_unl"])
     if not client.is_valid_contract_sig(msg, their_node_id):
+        _log.debug(msg)
         _log.debug("Their signature was incorrect.")
         return -6
 
@@ -306,10 +321,10 @@ def process_syn_ack(client, msg):
     }
 
     # Create reply contract.
-    reply = OrderedDict({
-        u"status": u"ACK",
-        u"syn_ack": msg
-    })
+    reply = OrderedDict([
+        (u"status", u"ACK"),
+        (u"syn_ack", msg)
+    ])
 
     # Sign reply.
     reply = client.sign_contract(reply)
@@ -474,7 +489,7 @@ def process_rst(client, msg):
         return -4
 
     # Check sig matches the UNL.
-    node_id = client.get_node_id_from_unl(found_unl)
+    node_id = parse_node_id_from_unl(found_unl)
     if not client.is_valid_contract_sig(msg, node_id):
         _log.debug("RST: sig doesn't match")
         return -5
@@ -491,10 +506,11 @@ def process_rst(client, msg):
 
 
 def protocol(client, msg):
+    assert(type(msg) != str)
     try:
-        msg = OrderedDict(msg)
-    except ValueError:
-        _log.debug("Protocol: invalid JSON")
+        msg = list_to_ordered_dict(msg)
+    except (ValueError, TypeError) as e:
+        _log.debug("Protocol: unable to serialize as OrderedDict")
         return -1
 
     msg_handlers = {
@@ -519,5 +535,7 @@ def protocol(client, msg):
     if status in msg_handlers:
         msg_handlers[status](client, msg)
         return 1
+    else:
+        print("MSG HANDLER NOT FOUND")
 
     return -4

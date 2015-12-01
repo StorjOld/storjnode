@@ -18,7 +18,7 @@ sense of it all. The protocol is actually quite simple:
   contract_id) and the process continues.
 """
 
-
+import logging
 import struct
 import time
 import os
@@ -34,7 +34,15 @@ import sys
 import storjnode
 
 
+logging.VERBOSE = 5
+logging.addLevelName(logging.VERBOSE, "VERBOSE")
+logging.Logger.verbose = lambda inst, msg, *args, **kwargs:\
+    inst.log(logging.VERBOSE, msg, *args, **kwargs)
+logging.verbose = lambda msg, *args, **kwargs:\
+    logging.log(logging.VERBOSE, msg, *args, **kwargs)
+
 _log = storjnode.log.getLogger(__name__)
+_log.setLevel("DEBUG")
 
 
 class TransferError(Exception):
@@ -79,7 +87,7 @@ def expire_handshakes(client):
 
 
 def do_upload(client, con, contract, con_info):
-    _log.debug("Uploading: Found our UNL")
+    _log.verbose("Upload")
 
     # Send file size.
     if not con_info["file_size"]:
@@ -121,12 +129,11 @@ def do_upload(client, con, contract, con_info):
 
     # Upload chunk binary to socket.
     bytes_sent = con.send(data_chunk)
-    _log.debug(bytes_sent)
     if bytes_sent:
         con_info["remaining"] -= bytes_sent
 
-    _log.debug("Remaining = ")
-    _log.debug(con_info["remaining"])
+    _log.verbose("Remaining = ")
+    _log.verbose(con_info["remaining"])
 
     # Everything uploaded.
     if not con_info["remaining"]:
@@ -136,7 +143,7 @@ def do_upload(client, con, contract, con_info):
 
 
 def do_download(client, con, contract, con_info):
-    _log.debug("Attempting to download.")
+    _log.verbose("upload")
 
     # Get file size.
     if not con_info["file_size"]:
@@ -166,14 +173,13 @@ def do_download(client, con, contract, con_info):
         con_info["remaining"],
         encoding="ascii"
     )
-    _log.debug(con.connected)
 
     if len(data):
         con_info["remaining"] -= len(data)
         client.save_data_chunk(contract["data_id"], data)
 
-    _log.debug("Remaining = ")
-    _log.debug(con_info["remaining"])
+    _log.verbose("Remaining = ")
+    _log.verbose(con_info["remaining"])
 
     # When done downloading close con.
     if not con_info["remaining"]:
@@ -186,7 +192,7 @@ def do_download(client, con, contract, con_info):
             if found_hash != data_id:
                 _log.debug(found_hash)
                 _log.debug(data_id)
-                _log.debug("Error: downloaded file doesn't hash right!")
+                _log.debug("Error: downloaded file doesn't hash right! \a")
                 os.remove(temp_path)
                 return 0
 
@@ -228,7 +234,7 @@ def get_contract_id(client, con, contract_id):
         return 0
 
 
-def finish_transfer(client, contract_id, con):
+def complete_transfer(client, contract_id, con):
     # Determine who is master.
     contract = client.contracts[contract_id]
     their_unl = client.get_their_unl(contract)
@@ -242,13 +248,11 @@ def finish_transfer(client, contract_id, con):
         del client.defers[contract_id]
 
     # Call the completion handlers.
-    dest_node_id = client.net.unl.deconstruct(contract["dest_unl"])
-    dest_node_id = dest_node_id["node_id"]
     for handler in client.handlers["complete"]:
         handler(
-            dest_node_id,
-            contract["data_id"],
-            contract["direction"]
+            client,
+            contract_id,
+            con
         )
 
     if is_master:
@@ -267,20 +271,19 @@ def process_dht_messages(client):
 
         processed = []
         for msg in client.net.dht_messages:
-            _log.debug("Processing: " + msg["message"])
+            _log.debug("Processing: " + str(msg["message"]))
             if protocol(client, msg["message"]):
                 processed.append(msg)
 
         for msg in processed:
             client.net.dht_messages.remove(msg)
     except Exception as e:
+        _log.debug("In process DHT message")
         _log.debug(e)
         pass
 
 
 def process_transfers(client):
-    _log.debug("In process transfers")
-
     # Process DHT messages.
     process_dht_messages(client)
 
@@ -295,8 +298,6 @@ def process_transfers(client):
 
     # Process connections.
     for con in client.cons:
-        _log.debug("In con.")
-
         # Socket has hung ungracefully.
         duration = time.time() - con.alive
         if duration >= 60.0:
@@ -306,14 +307,13 @@ def process_transfers(client):
 
         # Wait until there's new transfers to process.
         if not client.is_queued(con):
-            _log.debug("Not queued: skipping")
             continue
 
         # Get active contract ID (if we're not master.)
         contract_id = client.con_transfer[con]
-        _log.debug("Contract id =")
-        _log.debug(contract_id)
         if len(contract_id) < 64:
+            _log.debug("Contract id =")
+            _log.debug(contract_id)
             if not get_contract_id(client, con, contract_id):
                 continue
             else:
@@ -332,25 +332,40 @@ def process_transfers(client):
 
         # Reached end of transfer queue.
         if contract_id == u"0" * 64:
-            _log.debug("Skippng end of queue")
             continue
 
         # Anything left to do?
         con_info = client.con_info[con][contract_id]
         if not con_info["remaining"]:
-            _log.debug("Skipping remaining.")
             continue
+
+        # Execute start callbacks.
+        if not con_info["file_size"]:
+            _log.debug("In con, and starting new transfer =")
+            old_handlers = set()
+            for handler in client.handlers["start"]:
+                # Test start handler.
+                ret = handler(client, con, contract_id)
+
+                # Handler was associated with this transfer.
+                if ret == -1:
+                    old_handlers.add(handler)
+
+            # Remove old start handlers.
+            for handler in old_handlers:
+                client.handlers["start"].remove(handler)
 
         # Transfer data.
         contract = client.contracts[contract_id]
-        if client.net.unl == pyp2p.unl.UNL(value=contract["host_unl"]):
+        if client.get_direction(contract_id) == u"send":
             transfer_complete = do_upload(client, con, contract, con_info)
         else:
             transfer_complete = do_download(client, con, contract, con_info)
 
         # Run any callbacks and schedule next transfer.
         if transfer_complete:
-            finish_transfer(client, contract_id, con)
+            _log.debug("Transfer completed")
+            complete_transfer(client, contract_id, con)
 
     # Only reschedule the Looping call when this is done.
     d = defer.Deferred()

@@ -4,7 +4,9 @@ from collections import OrderedDict
 import unittest
 import pyp2p.dht_msg
 import pyp2p.unl
+import json
 from twisted.internet import defer
+from storjnode.util import parse_node_id_from_unl
 from storjnode.network.file_transfer import FileTransfer
 from storjnode.network.file_handshake import (is_valid_syn, process_syn,
                                               process_syn_ack, process_ack,
@@ -35,7 +37,7 @@ class TestFileHandshake(unittest.TestCase):
                 net_type="direct",
                 node_type="passive",
                 nat_type="preserving",
-                passive_port=60405,
+                passive_port=0,
                 dht_node=self.alice_dht_node,
                 debug=1
             ),
@@ -55,7 +57,7 @@ class TestFileHandshake(unittest.TestCase):
                 net_type="direct",
                 node_type="passive",
                 nat_type="preserving",
-                passive_port=60409,
+                passive_port=0,
                 dht_node=self.bob_dht_node,
                 debug=1
             ),
@@ -106,16 +108,16 @@ class TestFileHandshake(unittest.TestCase):
         self.bob.net.unl.connect = unl_connect
 
         # Record syn.
-        self.syn = OrderedDict({
-            u"status": u"SYN",
-            u"direction": u"send",
-            u"data_id": ("5feceb66ffc86f38d952786c6d696c79"
-                         "c2dbc239dd4e91b46729d73a27fb57e9"),
-            u"file_size": 100,
-            u"host_unl": self.alice.net.unl.value,
-            u"dest_unl": self.bob.net.unl.value,
-            u"src_unl": self.alice.net.unl.value
-        })
+        data_id = u"5feceb66ffc86f38d952786c6d696c79"
+        data_id += u"c2dbc239dd4e91b46729d73a27fb57e9"
+        self.syn = OrderedDict([
+            (u"status", u"SYN"),
+            (u"data_id", data_id),
+            (u"file_size", 100),
+            (u"host_unl", self.alice.net.unl.value),
+            (u"dest_unl", self.bob.net.unl.value),
+            (u"src_unl", self.alice.net.unl.value)
+        ])
 
     def tearDown(self):
         self.alice.net.stop()
@@ -144,6 +146,10 @@ class TestFileHandshake(unittest.TestCase):
         syn = self.alice.contracts[contract_id]
         self.assertIsInstance(syn, OrderedDict)
 
+        print(self.alice.net.unl.value)
+        print(self.bob.net.unl.value)
+        print(syn)
+
         # Bob: process SYN, build SYN-ACK.
         syn_ack = process_syn(self.bob, syn)
         self.assertIsInstance(syn_ack, OrderedDict)
@@ -158,41 +164,6 @@ class TestFileHandshake(unittest.TestCase):
 
         print("")
         print("Done testing message flow")
-        print("")
-
-    def test_protocol(self):
-        print("")
-        print("Testing protocol")
-        print("")
-
-        # Create file we're suppose to be uploading.
-        path = os.path.join(self.alice_storage, self.syn[u"data_id"])
-        if not os.path.exists(path):
-            with open(path, "w") as fp:
-                fp.write("0")
-
-        # Clear existing contracts.
-        self.clean_slate_all()
-
-        # Test broken JSON.
-        msg = "{"
-        self.assertEqual(protocol(self.bob, msg), -1)
-
-        # No status in message.
-        msg = []
-        self.assertEqual(protocol(self.bob, msg), -2)
-
-        # Invalid status.
-        msg = [("status", "X")]
-        self.assertEqual(protocol(self.bob, msg), -4)
-
-        # Test valid message handlers.
-        syn = copy.deepcopy(self.syn)
-        syn = self.alice.sign_contract(syn)
-        self.assertEqual(protocol(self.bob, syn), 1)
-
-        print("")
-        print("Done testing protocol")
         print("")
 
     def clean_slate(self, client):
@@ -225,13 +196,16 @@ class TestFileHandshake(unittest.TestCase):
         self.assertEqual(
             self.alice.is_valid_contract_sig(signed_syn, node_id), 1
         )
-        node_id = self.alice.get_node_id_from_unl(self.alice.net.unl.value)
+        node_id = parse_node_id_from_unl(self.alice.net.unl.value)
         self.assertEqual(
             self.alice.is_valid_contract_sig(signed_syn, node_id), 1
         )
         print(node_id)
 
         self.assertTrue(syn[u"src_unl"] == self.alice.net.unl.value)
+
+        print("Bob's perspective")
+        assert(self.bob.is_valid_contract_sig(signed_syn, node_id))
 
         print("----")
         print(signed_syn)
@@ -255,24 +229,27 @@ class TestFileHandshake(unittest.TestCase):
                 fp.write("0")
 
         # Test accept SYN with a handler.
-        def request_handler(src_node_id, data_id, direction):
+        def request_handler(contract_id, src_unl, data_id, file_size):
             return 1
         self.bob.handlers["accept"] = [request_handler]
+        syn = copy.deepcopy(self.syn)
         self.assertIsInstance(process_syn(
             self.bob, self.alice.sign_contract(syn), enable_accept_handlers=1
         ), OrderedDict)
         del syn["signature"]
 
         # Test reject SYN with a handler.
-        def request_handler(src_node_id, data_id, direction):
+        def request_handler(contract_id, src_unl, data_id, file_size):
             return 0
         self.bob.handlers["accept"] = [request_handler]
+        syn = copy.deepcopy(self.syn)
         self.assertTrue(process_syn(
             self.bob, self.alice.sign_contract(syn), enable_accept_handlers=1
         ) == -2)
         del syn["signature"]
 
         # Our UNL is incorrect.
+        syn = copy.deepcopy(self.syn)
         syn[u"dest_unl"] = self.alice.net.unl.value
         self.assertTrue(process_syn(
             self.bob, self.alice.sign_contract(syn), enable_accept_handlers=0
@@ -281,6 +258,7 @@ class TestFileHandshake(unittest.TestCase):
         del syn["signature"]
 
         # Their sig is invalid.
+        syn = copy.deepcopy(self.syn)
         syn[u"signature"] = "x"
         self.assertTrue(process_syn(
             self.bob, syn, enable_accept_handlers=0
@@ -288,6 +266,7 @@ class TestFileHandshake(unittest.TestCase):
         del syn["signature"]
 
         # Handshake state is incorrect.
+        syn = copy.deepcopy(self.syn)
         syn = self.alice.sign_contract(syn)
         contract_id = self.bob.contract_id(syn)
         self.bob.handshake[contract_id] = "SYN"
@@ -477,11 +456,11 @@ class TestFileHandshake(unittest.TestCase):
 
         contract_id = self.alice.contract_id(syn)
 
-        rst = OrderedDict({
-                u"status": u"RST",
-                u"contract_id": contract_id,
-                u"src_unl": self.bob.net.unl.value
-        })
+        rst = OrderedDict([
+            (u"status", u"RST"),
+            (u"contract_id", contract_id),
+            (u"src_unl", self.bob.net.unl.value)
+        ])
 
         # Contract ID not in message.
         rst_2 = copy.deepcopy(rst)
@@ -565,14 +544,6 @@ class TestFileHandshake(unittest.TestCase):
         ) == -4)
         syn[u"file_size"] = 1
         """
-
-        # Invalid direction.
-        syn["direction"] = "x"
-        self.assertTrue(is_valid_syn(
-            self.alice, self.alice.sign_contract(syn)) == -5
-        )
-        syn["direction"] = "send"
-        del syn["signature"]
 
         # Invalid UNLs.
         syn["host_unl"] = "0"

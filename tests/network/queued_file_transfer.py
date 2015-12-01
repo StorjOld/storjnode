@@ -66,13 +66,17 @@ def test_queued():
         with open(path, "w") as fp:
             fp.write("0")
 
-    # Alice wants data from Bob.
-    # upload_contract_id = alice.data_request("upload", data_id, 0,
-    #                                         bob.net.unl.value)
+    # Alice wants to upload data to Bob.
+    upload_contract_id = alice.data_request(
+        "download",
+        data_id,
+        0,
+        bob.net.unl.value
+    )
 
     # Delete source file.
     def callback_builder(path, alice, bob, data_id):
-        def callback(node_id, data_id, direction):
+        def callback(client, contract_id, con):
             print("Upload succeeded")
             print("Removing content and downloading back")
             os.remove(path)
@@ -95,7 +99,7 @@ def test_queued():
 
             # Queued transfer:
             download_contract_id = alice.data_request(
-                "download",
+                "upload",
                 data_id,
                 0,
                 bob.net.unl.value
@@ -104,13 +108,13 @@ def test_queued():
             print("Download contract ID =")
             print(download_contract_id)
 
-            # Indicate Alice's download succeeded.
+            # Indicate Bob's download succeeded.
             def alice_callback(val):
                 print("Download succeeded")
                 global queue_succeeded
                 queue_succeeded = 1
 
-            # Hook download from bob.
+            # Hook upload from bob.
             d = alice.defers[download_contract_id]
             d.addCallback(alice_callback)
 
@@ -145,8 +149,6 @@ def test_queued():
 
 
 class TestQueuedTransfers(unittest.TestCase):
-
-    @unittest.skip("test broken?")
     def test_00001(self):
         test_queued()
 
