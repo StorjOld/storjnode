@@ -9,7 +9,8 @@ import storjnode
 import logging
 import json
 import storjnode.storage as storage
-from storjnode.util import parse_node_id_from_unl, ordered_dict_to_list, list_to_ordered_dict
+from storjnode.util import parse_node_id_from_unl
+from storjnode.util import ordered_dict_to_list, list_to_ordered_dict
 from ast import literal_eval
 
 _log = logging.getLogger(__name__)
@@ -129,8 +130,8 @@ def success_wrapper(client, contract_id, host_unl):
             if contract_id not in client.con_info[con]:
                 client.con_info[con][contract_id] = {
                     "contract_id": contract_id,
-                    "remaining": 350, # Tree fiddy.
-                    "file_size": 0, # Sent as part of protocol.
+                    "remaining": 350,  # Tree fiddy.
+                    "file_size": 0,  # Sent as part of protocol.
                     "file_size_buf": b""
                 }
 

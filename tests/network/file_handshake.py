@@ -108,9 +108,11 @@ class TestFileHandshake(unittest.TestCase):
         self.bob.net.unl.connect = unl_connect
 
         # Record syn.
+        data_id = u"5feceb66ffc86f38d952786c6d696c79"
+        data_id += u"c2dbc239dd4e91b46729d73a27fb57e9"
         self.syn = OrderedDict([
             (u"status", u"SYN"),
-            (u"data_id", u"5feceb66ffc86f38d952786c6d696c79c2dbc239dd4e91b46729d73a27fb57e9"),
+            (u"data_id", data_id),
             (u"file_size", 100),
             (u"host_unl", self.alice.net.unl.value),
             (u"dest_unl", self.bob.net.unl.value),

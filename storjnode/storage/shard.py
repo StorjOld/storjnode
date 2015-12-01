@@ -35,6 +35,7 @@ def get_hash(shard, salt=None, limit=None):
     # Don't read whole file into memory.
     remaining = limit
     max_chunk_size = 4096
+
     def get_chunk_size(remaining, max_chunk_size):
         if remaining is not None:
             if remaining < max_chunk_size:

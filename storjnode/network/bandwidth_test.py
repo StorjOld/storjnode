@@ -16,7 +16,9 @@ from storjnode.storage.shard import get_hash
 from storjnode.network.process_transfers import process_transfers
 from storjnode.network.file_transfer import FileTransfer
 from storjnode.network.message import sign, verify_signature
-from storjnode.util import address_to_node_id, parse_node_id_from_unl, address_to_node_id, parse_node_id_from_unl, generate_random_file, ordered_dict_to_list, list_to_ordered_dict
+from storjnode.util import address_to_node_id, parse_node_id_from_unl
+from storjnode.util import generate_random_file, ordered_dict_to_list
+from storjnode.util import list_to_ordered_dict
 from twisted.internet import defer
 from btctxstore import BtcTxStore
 from twisted.internet.task import LoopingCall
@@ -36,7 +38,7 @@ class BandwidthTest():
         self.transfer = transfer
         self.test_node_unl = None
         self.active_test = defer.Deferred()
-        self.test_size = 1 # MB
+        self.test_size = 1  # MB
 
         # Stored in BYTES per second.
         self.results = {
@@ -60,6 +62,7 @@ class BandwidthTest():
 
         # Timeout bandwidth test after 5 minutes.
         self.start_time = 0
+
         def timeout():
             duration = time.time() - self.start_time
             if duration >= 300:
@@ -127,7 +130,6 @@ class BandwidthTest():
                     _log.debug("nl")
                     _log.debug(msg[u"file_size"])
 
-
                     if data_id != msg[u"data_id"]:
                         _log.debug("data id not = in bob accept\a")
                         return 0
@@ -144,12 +146,12 @@ class BandwidthTest():
                         return 0
 
                     # Update download test results.
-                    def completion_handler(client, found_contract_id, con):
-                        contract = self.transfer.contracts[found_contract_id]
+                    def completion_handler(client, found, con):
+                        contract = self.transfer.contracts[found]
                         if contract[u"data_id"] != msg[u"data_id"]:
                             return
 
-                        if self.transfer.get_direction(found_contract_id) == u"send":
+                        if self.transfer.get_direction(found) == u"send":
                             test = "upload"
                             if contract[u"dest_unl"] != self.test_node_unl:
                                 _log.debug("Bob upload: invalid src unl")
@@ -157,7 +159,10 @@ class BandwidthTest():
                                 return 0
 
                             self.test_node_unl = None
-                            self.transfer.remove_handler("accept", accept_handler)
+                            self.transfer.remove_handler(
+                                "accept",
+                                accept_handler
+                            )
                         else:
                             test = "download"
                             if contract[u"src_unl"] != self.test_node_unl:
@@ -201,8 +206,13 @@ class BandwidthTest():
                         _log.debug("\a")
                         return 0
 
+                    # Determine direction.
+                    direction = self.transfer.get_direction(
+                        start_contract_id
+                    )
+
                     # Determine test.
-                    if self.transfer.get_direction(start_contract_id) == u"send":
+                    if direction == u"send":
                         test = "upload"
                     else:
                         test = "download"
@@ -254,7 +264,15 @@ class BandwidthTest():
                 req = msg[u"request"]
                 _log.debug(req)
 
-                if not verify_signature(msg[u"request"], self.wif, self.api.get_id()):
+                # Check signature.
+                valid_sig = verify_signature(
+                    msg[u"request"],
+                    self.wif,
+                    self.api.get_id()
+                )
+
+                # Quit if sig is invalid.
+                if not valid_sig:
                     _log.debug("res: our request sig was invalid")
                     return
 
@@ -298,7 +316,6 @@ class BandwidthTest():
                     _log.debug("In upload start handler!")
                     _log.debug("IN ALICE start handler")
 
-
                     contract = self.transfer.contracts[contract_id]
                     _log.debug(contract)
                     _log.debug(req[u"data_id"])
@@ -317,10 +334,8 @@ class BandwidthTest():
                     else:
                         test = "download"
 
-
                     # Set start time.
                     self.results[test]["start_time"] = int(time.time())
-
                     if test == "download":
                         return -1
                     else:
@@ -354,7 +369,13 @@ class BandwidthTest():
                     if contract[u"data_id"] != req[u"data_id"]:
                         return
 
-                    if self.transfer.get_direction(found_contract_id) == u"send":
+                    # Get direction of transfer.
+                    direction = self.transfer.get_direction(
+                        found_contract_id
+                    )
+
+                    # Process test.
+                    if direction == u"send":
                         _log.debug("\a")
                         _log.debug("Upload transfer complete!")
                         test = "upload"
@@ -389,7 +410,6 @@ class BandwidthTest():
                         if self.is_bad_results():
                             return -1
 
-
                         # Schedule next call if it returned too fast.
                         if self.is_bad_test():
                             _log.debug("SCHEDUALING NEW TRANSFER!")
@@ -411,7 +431,6 @@ class BandwidthTest():
                             # Return results.
                             self.active_test.callback(speeds)
                             self.active_test = None
-
 
                         return -1
                     else:
@@ -505,8 +524,6 @@ class BandwidthTest():
             (u"algorithm", u"sha256"),
             (u"hash", data_id.decode("utf-8"))
         ])
-
-
 
         _log.debug("UNL")
         _log.debug(self.transfer.net.unl.value)

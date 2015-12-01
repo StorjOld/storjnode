@@ -17,7 +17,8 @@ from storjnode.storage.shard import get_hash
 from storjnode.network.process_transfers import process_transfers
 from storjnode.network.file_transfer import FileTransfer
 from storjnode.network.message import sign, verify_signature
-from storjnode.util import address_to_node_id, parse_node_id_from_unl, address_to_node_id, parse_node_id_from_unl, generate_random_file
+from storjnode.util import address_to_node_id
+from storjnode.util import parse_node_id_from_unl, generate_random_file
 from twisted.internet import defer
 from btctxstore import BtcTxStore
 import unittest
@@ -28,8 +29,9 @@ setup()
 
 _log = logging.getLogger(__name__)
 _log.setLevel("DEBUG")
-
 test_success = 0
+
+
 class TestBandwidthTest(unittest.TestCase):
     def test_bandwidth_test(self):
         # Alice sample node.

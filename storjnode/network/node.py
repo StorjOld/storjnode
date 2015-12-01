@@ -476,9 +476,12 @@ class Node(object):
     def sync_request_data_transfer(self, data_id, peer_unl, direction):
         """Request data be transfered to or from a peer.
 
-        This call will block until the data has been transfered full or failed.
+        This call will block until the data has been
+         transferred full or failed.
 
-        Maybe this should be changed to match the params for the other handlers. No - because the contract isn't available yet -- that's what accept determines.
+        Maybe this should be changed to match the params for
+        the other handlers. No - because the contract isn't
+        available yet -- that's what accept determines.
 
         Args:
             data_id: The sha256 sum of the data to be transfered.
@@ -506,7 +509,9 @@ class Node(object):
 
         src_unl = The UNL of the source node ending the transfer request
         data_id = The shard ID of the data to download or upload
-        direction = Direction from the perspective of the requester: e.g. send (upload data_id to requester) or receive (download data_id from requester)
+        direction = Direction from the perspective of the requester:
+         e.g. send (upload data_id to requester) or receive
+         (download data_id from requester)
         file_size = The size of the file they wish to transfer
 
         Example:
@@ -540,7 +545,8 @@ class Node(object):
 
         TO DO: this has changed completely.
 
-        node_id = The node_ID we sent the transfer request to. (May be our node_id if the request was sent to us.)
+        node_id = The node_ID we sent the transfer request to.
+        (May be our node_id if the request was sent to us.)
         data_id = The shard to download or upload.
         direction = The direction of the transfer (e.g. send or receive.)
 

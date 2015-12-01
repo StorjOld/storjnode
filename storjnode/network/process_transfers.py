@@ -36,11 +36,14 @@ import storjnode
 
 logging.VERBOSE = 5
 logging.addLevelName(logging.VERBOSE, "VERBOSE")
-logging.Logger.verbose = lambda inst, msg, *args, **kwargs: inst.log(logging.VERBOSE, msg, *args, **kwargs)
-logging.verbose = lambda msg, *args, **kwargs: logging.log(logging.VERBOSE, msg, *args, **kwargs)
+logging.Logger.verbose = lambda inst, msg, *args, **kwargs:\
+    inst.log(logging.VERBOSE, msg, *args, **kwargs)
+logging.verbose = lambda msg, *args, **kwargs:\
+    logging.log(logging.VERBOSE, msg, *args, **kwargs)
 
 _log = storjnode.log.getLogger(__name__)
 _log.setLevel("DEBUG")
+
 
 class TransferError(Exception):
     pass

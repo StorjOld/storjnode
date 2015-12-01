@@ -71,7 +71,6 @@ class TestFileTransfer(unittest.TestCase):
 
         assert(self.client.get_con_by_contract_id(contract_id) == con)
 
-
     def test_multiple_transfers(self):
 
         def make_random_file(file_size=1024 * 100,

@@ -11,7 +11,8 @@ import sys
 import json
 from threading import Lock
 from twisted.internet import defer
-from storjnode.util import address_to_node_id, parse_node_id_from_unl, ordered_dict_to_list
+from storjnode.util import address_to_node_id
+from storjnode.util import parse_node_id_from_unl, ordered_dict_to_list
 from storjnode.network.process_transfers import process_transfers
 
 _log = storjnode.log.getLogger(__name__)
@@ -94,7 +95,6 @@ class FileTransfer:
             their_unl = contract["dest_unl"]
 
         return their_unl
-
 
     def is_queued(self, con=None):
         if con is not None:
@@ -183,7 +183,7 @@ class FileTransfer:
 
     def get_direction(self, contract_id, contract=None):
         """
-        The direction of a transfer is relative to the node. Send means we're sending the data: receive means we're downloading it.
+        The direction of a transfer is relative to the node.
         """
         contract = contract or self.contracts[contract_id]
         our_unl = self.net.unl
@@ -325,7 +325,6 @@ if __name__ == "__main__":
     bob_node_id = address_to_node_id(bob_wallet.get_address(bob_wif))
     bob_dht = pyp2p.dht_msg.DHT(node_id=bob_node_id)
 
-
     bob = FileTransfer(
         pyp2p.net.Net(
             net_type="direct",
@@ -340,7 +339,6 @@ if __name__ == "__main__":
 
     _log.debug(alice.net.unl.deconstruct())
     _log.debug(bob.net.unl.deconstruct())
-
 
     _log.debug(type(alice.net.unl))
     _log.debug(type(pyp2p.unl.UNL(value=bob.net.unl.value)))

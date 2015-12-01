@@ -67,8 +67,12 @@ def test_queued():
             fp.write("0")
 
     # Alice wants to upload data to Bob.
-    upload_contract_id = alice.data_request("download", data_id, 0,
-                                             bob.net.unl.value)
+    upload_contract_id = alice.data_request(
+        "download",
+        data_id,
+        0,
+        bob.net.unl.value
+    )
 
     # Delete source file.
     def callback_builder(path, alice, bob, data_id):
