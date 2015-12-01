@@ -11,7 +11,7 @@ import sys
 import json
 from threading import Lock
 from twisted.internet import defer
-from storjnode.util import address_to_node_id
+from storjnode.util import address_to_node_id, parse_node_id_from_unl, ordered_dict_to_list
 from storjnode.network.process_transfers import process_transfers
 
 _log = storjnode.log.getLogger(__name__)
@@ -161,8 +161,9 @@ class FileTransfer:
         return contract_id
 
     def send_msg(self, msg, unl):
+        assert(type(msg) == OrderedDict)
         node_id = self.net.unl.deconstruct(unl)["node_id"]
-        msg = json.dumps(msg, ensure_ascii=True)
+        msg = ordered_dict_to_list(msg)
         self.net.dht_node.relay_message(node_id, msg)
 
     def contract_id(self, contract):
@@ -288,14 +289,11 @@ class FileTransfer:
             return buf
 
     def save_data_chunk(self, data_id, chunk):
-        _log.debug("Saving data chunk for " + str(data_id))
-        _log.debug("of size + " + str(len(chunk)))
         assert(data_id in self.downloading)
 
         # Find temp file path.
         path = self.downloading[data_id]
 
-        _log.debug(path)
         with open(path, "ab") as fp:
             fp.write(chunk)
 

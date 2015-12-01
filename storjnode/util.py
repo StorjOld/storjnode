@@ -5,7 +5,29 @@ import pyp2p
 import tempfile
 from crochet import wait_for
 from pycoin.encoding import a2b_hashed_base58, b2a_hashed_base58
+from collections import OrderedDict
 
+def ordered_dict_to_list(o):
+    l = []
+    for key in list(o):
+        value = o[key]
+        if type(value) == OrderedDict:
+            value = ordered_dict_to_list(value)
+
+        pair = (key, value)
+        l.append(pair)
+
+    return l
+
+def list_to_ordered_dict(l):
+    d = OrderedDict()
+    for key, value in l:
+        if type(value) == list:
+            d[key] = list_to_ordered_dict(value)
+        else:
+            d[key] = value
+
+    return d
 
 def generate_random_file(file_size):
     max_chunk_size = 8192

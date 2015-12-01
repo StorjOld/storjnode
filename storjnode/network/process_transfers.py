@@ -18,7 +18,7 @@ sense of it all. The protocol is actually quite simple:
   contract_id) and the process continues.
 """
 
-
+import logging
 import struct
 import time
 import os
@@ -34,9 +34,13 @@ import sys
 import storjnode
 
 
+logging.VERBOSE = 5
+logging.addLevelName(logging.VERBOSE, "VERBOSE")
+logging.Logger.verbose = lambda inst, msg, *args, **kwargs: inst.log(logging.VERBOSE, msg, *args, **kwargs)
+logging.verbose = lambda msg, *args, **kwargs: logging.log(logging.VERBOSE, msg, *args, **kwargs)
+
 _log = storjnode.log.getLogger(__name__)
 _log.setLevel("DEBUG")
-
 
 class TransferError(Exception):
     pass
@@ -80,6 +84,8 @@ def expire_handshakes(client):
 
 
 def do_upload(client, con, contract, con_info):
+    _log.verbose("Upload")
+
     # Send file size.
     if not con_info["file_size"]:
         # Get file size.
@@ -123,6 +129,9 @@ def do_upload(client, con, contract, con_info):
     if bytes_sent:
         con_info["remaining"] -= bytes_sent
 
+    _log.verbose("Remaining = ")
+    _log.verbose(con_info["remaining"])
+
     # Everything uploaded.
     if not con_info["remaining"]:
         return 1
@@ -131,6 +140,8 @@ def do_upload(client, con, contract, con_info):
 
 
 def do_download(client, con, contract, con_info):
+    _log.verbose("upload")
+
     # Get file size.
     if not con_info["file_size"]:
         file_size_buf = con_info["file_size_buf"]
@@ -159,11 +170,13 @@ def do_download(client, con, contract, con_info):
         con_info["remaining"],
         encoding="ascii"
     )
-    _log.debug(con.connected)
 
     if len(data):
         con_info["remaining"] -= len(data)
         client.save_data_chunk(contract["data_id"], data)
+
+    _log.verbose("Remaining = ")
+    _log.verbose(con_info["remaining"])
 
     # When done downloading close con.
     if not con_info["remaining"]:
@@ -255,13 +268,14 @@ def process_dht_messages(client):
 
         processed = []
         for msg in client.net.dht_messages:
-            _log.debug("Processing: " + msg["message"])
+            _log.debug("Processing: " + str(msg["message"]))
             if protocol(client, msg["message"]):
                 processed.append(msg)
 
         for msg in processed:
             client.net.dht_messages.remove(msg)
     except Exception as e:
+        _log.debug("In process DHT message")
         _log.debug(e)
         pass
 

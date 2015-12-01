@@ -5,7 +5,6 @@ Not complete, don't add to __init__
 
 from decimal import Decimal
 from collections import OrderedDict
-import json
 import logging
 import time
 import tempfile
@@ -17,7 +16,7 @@ from storjnode.storage.shard import get_hash
 from storjnode.network.process_transfers import process_transfers
 from storjnode.network.file_transfer import FileTransfer
 from storjnode.network.message import sign, verify_signature
-from storjnode.util import address_to_node_id, parse_node_id_from_unl, address_to_node_id, parse_node_id_from_unl, generate_random_file
+from storjnode.util import address_to_node_id, parse_node_id_from_unl, address_to_node_id, parse_node_id_from_unl, generate_random_file, ordered_dict_to_list, list_to_ordered_dict
 from twisted.internet import defer
 from btctxstore import BtcTxStore
 from twisted.internet.task import LoopingCall
@@ -81,7 +80,7 @@ class BandwidthTest():
                 _log.debug("In handle requests")
 
                 # Check message type.
-                msg = json.loads(msg, object_pairs_hook=OrderedDict)
+                msg = list_to_ordered_dict(msg)
                 if msg[u"type"] != u"test_bandwidth_request":
                     _log.debug("req: Invalid request")
                     return
@@ -228,7 +227,7 @@ class BandwidthTest():
                 self.start_time = time.time()
 
                 # Send request back to source.
-                res = json.dumps(res, ensure_ascii=True)
+                res = ordered_dict_to_list(res)
                 self.api.relay_message(src_node_id, res)
                 _log.debug("req: got request")
             except (ValueError, KeyError) as e:
@@ -241,7 +240,7 @@ class BandwidthTest():
         def handle_responses(node, src_node_id, msg):
             try:
                 # Check message type.
-                msg = json.loads(msg, object_pairs_hook=OrderedDict)
+                msg = list_to_ordered_dict(msg)
                 if msg[u"type"] != u"test_bandwidth_response":
                     _log.debug("res: Invalid response")
                     return
@@ -539,7 +538,7 @@ class BandwidthTest():
 
         # Send request.
         node_id = parse_node_id_from_unl(node_unl)
-        req = json.dumps(req, ensure_ascii=True)
+        req = ordered_dict_to_list(req)
         self.api.relay_message(node_id, req)
 
         # Set start time.

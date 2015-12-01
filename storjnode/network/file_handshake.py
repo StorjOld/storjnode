@@ -9,7 +9,7 @@ import storjnode
 import logging
 import json
 import storjnode.storage as storage
-from storjnode.util import parse_node_id_from_unl
+from storjnode.util import parse_node_id_from_unl, ordered_dict_to_list, list_to_ordered_dict
 from ast import literal_eval
 
 _log = logging.getLogger(__name__)
@@ -300,6 +300,7 @@ def process_syn_ack(client, msg):
     contract = client.contracts[contract_id]
     their_node_id = parse_node_id_from_unl(contract["dest_unl"])
     if not client.is_valid_contract_sig(msg, their_node_id):
+        _log.debug(msg)
         _log.debug("Their signature was incorrect.")
         return -6
 
@@ -504,10 +505,11 @@ def process_rst(client, msg):
 
 
 def protocol(client, msg):
+    assert(type(msg) != str)
     try:
-        msg = json.loads(msg, object_pairs_hook=OrderedDict)
+        msg = list_to_ordered_dict(msg)
     except (ValueError, TypeError) as e:
-        _log.debug("Protocol: invalid JSON")
+        _log.debug("Protocol: unable to serialize as OrderedDict")
         return -1
 
     msg_handlers = {

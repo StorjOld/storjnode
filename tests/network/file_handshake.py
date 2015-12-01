@@ -121,7 +121,6 @@ class TestFileHandshake(unittest.TestCase):
         self.alice.net.stop()
         self.bob.net.stop()
 
-
     def test_message_flow(self):
         print("")
         print("Testing message flow")
@@ -165,43 +164,6 @@ class TestFileHandshake(unittest.TestCase):
         print("Done testing message flow")
         print("")
 
-
-    def test_protocol(self):
-        print("")
-        print("Testing protocol")
-        print("")
-
-        # Create file we're suppose to be uploading.
-        path = os.path.join(self.alice_storage, self.syn[u"data_id"])
-        if not os.path.exists(path):
-            with open(path, "w") as fp:
-                fp.write("0")
-
-        # Clear existing contracts.
-        self.clean_slate_all()
-
-        # Test broken JSON.
-        msg = "{"
-        self.assertEqual(protocol(self.bob, msg), -1)
-
-        # No status in message.
-        msg = "{}"
-        self.assertEqual(protocol(self.bob, msg), -2)
-
-        # Invalid status.
-        msg = '{"status": "X"}'
-        self.assertEqual(protocol(self.bob, msg), -4)
-
-        # Test valid message handlers.
-        syn = copy.deepcopy(self.syn)
-        syn = self.alice.sign_contract(syn)
-        msg = json.dumps(syn, ensure_ascii=True)
-        self.assertEqual(protocol(self.bob, msg), 1)
-
-        print("")
-        print("Done testing protocol")
-        print("")
-
     def clean_slate(self, client):
         client.contracts = {}
         client.cons = []
@@ -214,7 +176,6 @@ class TestFileHandshake(unittest.TestCase):
     def clean_slate_all(self):
         for client in [self.alice, self.bob]:
             self.clean_slate(client)
-
 
     def test_sign_syn(self):
         print("")
@@ -250,7 +211,6 @@ class TestFileHandshake(unittest.TestCase):
         print("")
         print("End sign syn")
         print("")
-
 
     def test_process_syn(self):
         print("")
@@ -321,7 +281,6 @@ class TestFileHandshake(unittest.TestCase):
         print("")
         print("Ending process syn")
         print("")
-
 
     def test_valid_syn_ack(self):
         print("")
@@ -413,7 +372,6 @@ class TestFileHandshake(unittest.TestCase):
         print("Ending process syn-ack")
         print("")
 
-
     def test_valid_ack(self):
         print("")
         print("Testing process ack")
@@ -482,7 +440,6 @@ class TestFileHandshake(unittest.TestCase):
         print("Ending process ack")
         print("")
 
-
     def test_valid_rst(self):
         print("")
         print("Testing process rst")
@@ -547,7 +504,6 @@ class TestFileHandshake(unittest.TestCase):
         print("")
         print("Ending process rst")
         print("")
-
 
     def test_valid_syn(self):
         print("")

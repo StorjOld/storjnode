@@ -87,10 +87,6 @@ class TestBandwidthTest(unittest.TestCase):
         # Main event loop.
         while alice_test.active_test is not None:
             for client in [alice_transfer, bob_transfer]:
-                if client == alice_transfer:
-                    _log.debug("Alice")
-                else:
-                    _log.debug("Bob")
                 process_transfers(client)
 
             time.sleep(0.002)

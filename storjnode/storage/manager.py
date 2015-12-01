@@ -80,7 +80,7 @@ def setup(store_config=None):
             "use_folder_tree": use_folder_tree, "limit": limit
         }
         msg = "Storing data in '{0}' with a capacity of {1}bytes!"
-        _log.info(msg.format(path, limit or available))
+        #_log.info(msg.format(path, limit or available))
     return normal_paths
 
 
