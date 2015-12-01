@@ -44,7 +44,7 @@ class TestInfo(unittest.TestCase):
         self.assertLessEqual(len(packed), storjnode.common.MAX_PACKAGE_DATA)
 
         # repack to eliminate namedtuples and simulate io
-        repacked = umsgpack.unpackb(umsgpack.packb(created))
+        repacked = umsgpack.unpackb(packed)
 
         # test read
         read = storjnode.network.info.read_respones(
@@ -53,6 +53,88 @@ class TestInfo(unittest.TestCase):
         self.assertIsNotNone(read)
         self.assertEqual(created, read)
 
+    def test_invalid_info_message(self):
+        created = storjnode.network.message.create(
+            self.btctxstore, self.wif, None
+        )
+        repacked = umsgpack.unpackb(umsgpack.packb(created))
+        repacked[0] = "invalidnodeid"
+
+        self.assertIsNone(storjnode.network.info.read_respones(
+            self.btctxstore, self.nodeid, repacked
+        ))
+
+    def test_invalid_info_body_type(self):
+        created = storjnode.network.message.create(
+            self.btctxstore, self.wif, "invalidbodytype"
+        )
+        repacked = umsgpack.unpackb(umsgpack.packb(created))
+        self.assertIsNone(storjnode.network.info.read_respones(
+            self.btctxstore, self.nodeid, repacked
+        ))
+
+    def test_invalid_info_body_len(self):
+        created = storjnode.network.message.create(
+            self.btctxstore, self.wif, []
+        )
+        repacked = umsgpack.unpackb(umsgpack.packb(created))
+        self.assertIsNone(storjnode.network.info.read_respones(
+            self.btctxstore, self.nodeid, repacked
+        ))
+
+    def test_invalid_info_capacity_type(self):
+        created = storjnode.network.message.create(
+            self.btctxstore, self.wif, ["0.0.0", "total", "used", b""]
+        )
+        repacked = umsgpack.unpackb(umsgpack.packb(created))
+        self.assertIsNone(storjnode.network.info.read_respones(
+            self.btctxstore, self.nodeid, repacked
+        ))
+
+    def test_invalid_info_capacity_value(self):
+        created = storjnode.network.message.create(
+            self.btctxstore, self.wif, ["0.0.0", -1, -1, b""]
+        )
+        repacked = umsgpack.unpackb(umsgpack.packb(created))
+        self.assertIsNone(storjnode.network.info.read_respones(
+            self.btctxstore, self.nodeid, repacked
+        ))
+
+    def test_invalid_info_capacity_impossable(self):
+        created = storjnode.network.message.create(
+            self.btctxstore, self.wif, ["0.0.0", 1, 2, b""]
+        )
+        repacked = umsgpack.unpackb(umsgpack.packb(created))
+        self.assertIsNone(storjnode.network.info.read_respones(
+            self.btctxstore, self.nodeid, repacked
+        ))
+
+    def test_invalid_info_peer_type(self):
+        created = storjnode.network.message.create(
+            self.btctxstore, self.wif, ["0.0.0", 2, 1, u""]
+        )
+        repacked = umsgpack.unpackb(umsgpack.packb(created))
+        self.assertIsNone(storjnode.network.info.read_respones(
+            self.btctxstore, self.nodeid, repacked
+        ))
+
+    def test_invalid_info_peer_len(self):
+        created = storjnode.network.message.create(
+            self.btctxstore, self.wif, ["0.0.0", 2, 1, b"invalid"]
+        )
+        repacked = umsgpack.unpackb(umsgpack.packb(created))
+        self.assertIsNone(storjnode.network.info.read_respones(
+            self.btctxstore, self.nodeid, repacked
+        ))
+
+    def test_invalid_info_version_type(self):
+        created = storjnode.network.message.create(
+            self.btctxstore, self.wif, [1, 2, 1, b"invalid"]
+        )
+        repacked = umsgpack.unpackb(umsgpack.packb(created))
+        self.assertIsNone(storjnode.network.info.read_respones(
+            self.btctxstore, self.nodeid, repacked
+        ))
 
 if __name__ == "__main__":
     unittest.main()

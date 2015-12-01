@@ -8,9 +8,9 @@ from collections import namedtuple
 
 
 Info = namedtuple('Info', [
-    'version',  # version of storgnode
-    'total',  # total disc space reserved
-    'used',  # disc space used reserved
+    'version',  # version of storjnode
+    'total',  # total storage space
+    'used',  # storage space used
     'peers'  # concatenated peer ids (one every 20 bytes)
 ])
 
@@ -42,10 +42,13 @@ def read_respones(btctxstore, nodeid, msg):
     info = msg[1]
     if not isinstance(info, list) or len(info) != 4:
         return None
-    # TODO version = info[0]
 
-    total = info[1]
-    used = info[2]
+    # unpack info
+    version, total, used, peers = info
+
+    # check version
+    if not isinstance(version, str):
+        return None
 
     # check capacity values
     if not all(isinstance(i, int) and i >= 0 for i in [total, used]):
@@ -54,8 +57,7 @@ def read_respones(btctxstore, nodeid, msg):
         return None
 
     # peers must be a list of valid node ids
-    peers = info[3]
-    if not isinstance(peers, bytes) and len(peers) % 20 == 0:
+    if not isinstance(peers, bytes) or len(peers) % 20 != 0:
         return None
 
     msg[1] = Info(*info)
