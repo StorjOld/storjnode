@@ -25,4 +25,5 @@ after_success:
   - coveralls
 
 notifications:
-  email: matthew@roberts.pm
+  slack: storjcommunity:TZfUO9ycY8R9UYwztWZTo0jk
+  email: false
