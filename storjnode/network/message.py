@@ -39,8 +39,8 @@ def sign(dict_obj, wif):  # FIXME use create instead
     else:
         msg = str(dict_obj)
 
-    #assert("signature" not in msg)  # must be unsigned
-    #todo: fix this
+    # assert("signature" not in msg)  # must be unsigned
+    # todo: fix this
 
     api = BtcTxStore(testnet=False, dryrun=True)
     msg = binascii.hexlify(msg).decode("utf-8")
