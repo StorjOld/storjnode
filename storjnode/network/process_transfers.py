@@ -264,20 +264,15 @@ def process_dht_messages(client):
     if isinstance(client.net.dht_node, DHT):
         client.net.dht_node.get_messages()
 
-    print("DHT MSGES = ")
-    print(client.net.dht_messages)
-
-    processed = []
-    for msg in client.net.dht_messages:
-        _log.debug("Processing: " + msg["message"])
-        if protocol(client, msg["message"]):
-            processed.append(msg)
-
-    for msg in processed:
-        client.net.dht_messages.remove(msg)
-
     try:
-        pass
+        processed = []
+        for msg in client.net.dht_messages:
+            _log.debug("Processing: " + msg["message"])
+            if protocol(client, msg["message"]):
+                processed.append(msg)
+
+        for msg in processed:
+            client.net.dht_messages.remove(msg)
     except Exception as e:
         _log.debug(e)
         pass

@@ -19,11 +19,10 @@ script:
   - pep8 storjnode
   - pep8 examples
   - pep8 tests
-  - coverage run --source="storjnode" -m unittest --quiet tests
+  - coverage run --source="storjnode" -m unittest -v tests
 
 after_success:
   - coveralls
 
 notifications:
-  slack: storjcommunity:TZfUO9ycY8R9UYwztWZTo0jk
-  email: false
+  email: matthew@roberts.pm
