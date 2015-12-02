@@ -14,6 +14,7 @@ from storjnode.util import ordered_dict_to_list, list_to_ordered_dict
 from ast import literal_eval
 
 _log = logging.getLogger(__name__)
+_log.setLevel("DEBUG")
 
 # If this is disabled then any node can transfer with any other node
 # Without having a corresponding accept handler.

@@ -88,7 +88,8 @@ class TestBandwidthTest(unittest.TestCase):
 
         # Main event loop.
         # and not test_success
-        while alice_test.active_test is not None:
+        end_time = time.time() + 60
+        while alice_test.active_test is not None and time.time() < end_time:
             for client in [alice_transfer, bob_transfer]:
                 process_transfers(client)
 

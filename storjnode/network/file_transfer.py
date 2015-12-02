@@ -20,7 +20,7 @@ from storjnode.network.message import sign
 from storjnode.network.process_transfers import process_transfers
 
 _log = storjnode.log.getLogger(__name__)
-
+_log.setLevel("DEBUG")
 
 def process_unl_requests(node, src_id, msg):
     unl = node._data_transfer.net.unl.value

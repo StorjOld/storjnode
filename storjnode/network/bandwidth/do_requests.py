@@ -13,7 +13,7 @@ from storjnode.util import list_to_ordered_dict
 from storjnode.network.message import sign, verify_signature
 
 _log = logging.getLogger(__name__)
-
+_log.setLevel("DEBUG")
 
 def build_start_handler(self, msg):
     # Update start time for download test.
