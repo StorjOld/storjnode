@@ -92,7 +92,7 @@ def read(btctxstore, msg):
 
     if not _validate_storage(storage):
         return None
-    if not _validate_network(network):
+    if not _validate_network(network):  # TODO test it
         return None
 
     msg[3] = Info(version, Storage(*storage), Network(*network))

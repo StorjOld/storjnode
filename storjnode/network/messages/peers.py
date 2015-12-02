@@ -6,7 +6,7 @@ def create(btctxstore, node_wif, peers):
     return base.create(btctxstore, node_wif, "peers", peers)
 
 
-def read(btctxstore, nodeid, msg):
+def read(btctxstore, msg):
 
     # not a valid message
     msg = base.read(btctxstore, msg)
