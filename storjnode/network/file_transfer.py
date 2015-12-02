@@ -16,7 +16,6 @@ from storjnode.util import parse_node_id_from_unl, ordered_dict_to_list
 from storjnode.network.process_transfers import process_transfers
 
 _log = storjnode.log.getLogger(__name__)
-_log.setLevel("DEBUG")
 
 
 class FileTransfer:

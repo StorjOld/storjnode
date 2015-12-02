@@ -42,7 +42,6 @@ logging.verbose = lambda msg, *args, **kwargs:\
     logging.log(logging.VERBOSE, msg, *args, **kwargs)
 
 _log = storjnode.log.getLogger(__name__)
-_log.setLevel("VERBOSE")
 
 
 class TransferError(Exception):

@@ -14,7 +14,6 @@ from storjnode.util import parse_node_id_from_unl
 from storjnode.util import list_to_ordered_dict
 
 _log = logging.getLogger(__name__)
-_log.setLevel("DEBUG")
 
 
 def build_accept_handler(self, req):
