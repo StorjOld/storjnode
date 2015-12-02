@@ -54,7 +54,7 @@ def build_start_handler(self, msg):
 
 
 def build_completion_handler(self, msg, accept_handler):
-   # Update download test results.
+    # Update download test results.
     def completion_handler(client, found, con):
         # Handler has expired.
         if completion_handler not in self.handlers["complete"]:

@@ -44,7 +44,7 @@ def build_accept_handler(self, req):
 
 
 def build_start_handler(self, req):
-   # Handle start transfer.
+    # Handle start transfer.
     def start_handler(client, con, contract_id):
         # Handler has expired.
         if start_handler not in self.handlers["start"]:
