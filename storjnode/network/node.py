@@ -15,12 +15,13 @@ from pyp2p.unl import UNL
 
 # File transfer.
 from storjnode.network.file_transfer import FileTransfer
+from storjnode.network.file_transfer import process_unl_requests
 from storjnode.network.process_transfers import process_transfers
 from pyp2p.net import Net
-from pyp2p.dht_msg import DHT as SimDHT
 
 
 _log = storjnode.log.getLogger(__name__)
+_log.setLevel("DEBUG")
 
 
 DEFAULT_BOOTSTRAP_NODES = [
@@ -34,43 +35,6 @@ DEFAULT_BOOTSTRAP_NODES = [
     # F483's server 4c2acf7bdbdc57a3ae512ffba3ccf4f72a0367f9
     ("78.46.188.55", 4653),
 ]
-
-
-SIMULATE_DHT = False
-
-
-def _process_unl_requests(node, src_id, msg):  # FIXME move to file module
-    unl = node._data_transfer.net.unl.value
-    try:
-        msg = OrderedDict(msg)
-
-        # Not a UNL request.
-        if msg[u"type"] != u"unl_request":
-            return
-
-        # Check signature.
-        their_node_id = binascii.unhexlify(msg[u"requester"])
-        if not verify_signature(msg, node.get_key(), their_node_id):
-            return
-
-        # Response.
-        our_node_id_hex = binascii.hexlify(node.get_id())
-        our_node_id_hex = our_node_id_hex.decode("utf-8")
-        response = sign(OrderedDict(
-            {
-                u"type": u"unl_response",
-                u"requestee": our_node_id_hex,
-                u"unl": unl
-            }
-        ), node.get_key())
-
-        # Send response.
-        node.relay_message(their_node_id, response.items())
-
-    except (ValueError, KeyError) as e:
-        global _log
-        _log.debug(str(e))
-        _log.debug("Protocol: invalid JSON")
 
 
 class Node(object):
@@ -92,7 +56,7 @@ class Node(object):
                  node_type="unknown",  # FIMME what is this ?
                  nat_type="unknown",  # FIXME what is this ?
                  wan_ip=None,  # FIXME replace with sync_get_wan_ip calls
-                 simulate_dht=SIMULATE_DHT):
+                 ):
         """Create a blocking storjnode instance.
 
         Args:
@@ -116,7 +80,6 @@ class Node(object):
             nat_type: TODO doc string
             wan_ip: TODO doc string
         """
-        self.simulate_dht = simulate_dht
         self.disable_data_transfer = bool(disable_data_transfer)
         self._transfer_request_handlers = set()
         self._transfer_complete_handlers = set()
@@ -158,13 +121,6 @@ class Node(object):
         self._setup_server(key, ksize, dht_storage, max_messages,
                            refresh_neighbours_interval, bootstrap_nodes)
 
-        # Simulate DHT for tests.
-        if self.simulate_dht:
-            self.dht_node = SimDHT(node_id=self.get_id())
-        else:
-            # Disable simulated node.
-            self.dht_node = None
-
         # Process incoming messages.
         self._setup_message_dispatcher()
 
@@ -173,7 +129,7 @@ class Node(object):
                 store_config, passive_port, passive_bind,
                 node_type, nat_type, wan_ip
             )
-            self.add_message_handler(_process_unl_requests)
+            self.add_message_handler(process_unl_requests)
 
     def _setup_message_dispatcher(self):
         self._message_handlers = set()
@@ -327,6 +283,7 @@ class Node(object):
         """
 
         # UNL request.
+        _log.debug("In get UNL by node id")
         our_node_id_as_hex = binascii.hexlify(self.get_id())
         our_node_id_as_hex = our_node_id_as_hex.decode("utf-8")
         unl_req = OrderedDict([
@@ -346,22 +303,25 @@ class Node(object):
 
                     # Not a UNL response.
                     if msg[u"type"] != u"unl_response":
+                        _log.debug("unl response: type !=")
                         return
 
                     # Invalid UNL.
                     their_unl = UNL(value=msg[u"unl"]).deconstruct()
                     if their_unl is None:
+                        _log.debug("unl response:their unl !=")
                         return
 
                     # Invalid signature.
                     if not verify_signature(msg, wif, their_node_id):
+                        _log.debug("unl response: their sig")
                         return
 
                     # Everything passed: fire callback.
                     d.callback(msg[u"unl"])
 
                     # Remove this callback.
-                    node.remove_message_handler(handler)
+                    return -1
                 except (ValueError, KeyError) as e:
                     global _log
                     _log.debug(str(e))
@@ -597,30 +557,31 @@ class Node(object):
             True if message was added to relay queue, otherwise False.
         """
 
-        if self.simulate_dht:
-            self.dht_node.relay_message(nodeid, message)
-            return True
-        else:
-            return self.server.relay_message(nodeid, message)
+        return self.server.relay_message(nodeid, message)
 
     def _dispatch_message(self, received, handler):
         try:
             source = received["source"].id if received["source"] else None
-            handler(self, source, received["message"])
+            return handler(self, source, received["message"])
         except Exception as e:
             msg = "Message handler raised exception: {0}"
             _log.error(msg.format(repr(e)))
 
     def _message_dispatcher_loop(self):
         while not self._message_dispatcher_thread_stop:
-            if self.simulate_dht:
-                messages = self.dht_node.get_messages()
-            else:
-                messages = self.server.get_messages()
+            messages = self.server.get_messages()
 
+            old_handlers = set()
             for received in messages:
+                _log.debug(str(received))
+                _log.debug(str(type(received)))
                 for handler in self._message_handlers:
-                    self._dispatch_message(received, handler)
+                    ret = self._dispatch_message(received, handler)
+                    if ret == -1:
+                        old_handlers.add(handler)
+
+            for handler in old_handlers:
+                self._message_handlers.remove(handler)
 
             time.sleep(0.002)
 

@@ -12,6 +12,7 @@ import unittest
 import btctxstore
 import storjnode
 from pyp2p.lib import get_wan_ip
+from pyp2p.unl import UNL
 from storjnode.network.server import QUERY_TIMEOUT, WALK_TIMEOUT
 from crochet import setup
 
@@ -20,6 +21,7 @@ setup()
 signal.signal(signal.SIGINT, signal.default_int_handler)
 
 _log = storjnode.log.getLogger(__name__)
+_log.setLevel("DEBUG")
 
 WALK_TIMEOUT = WALK_TIMEOUT / 2.0
 
@@ -29,6 +31,7 @@ MAX_MESSAGES = 2
 PORT = 3000
 STORAGE_DIR = tempfile.mkdtemp()
 WAN_IP = get_wan_ip()
+test_get_unl_success = 0
 
 
 class TestNode(unittest.TestCase):
@@ -92,6 +95,31 @@ class TestNode(unittest.TestCase):
         stats.strip_dirs()
         stats.sort_stats('cumtime')
         stats.print_stats()
+
+    def test_get_unl(self):
+        peer = storjnode.network.Node(
+            self.__class__.btctxstore.create_wallet(),
+            bootstrap_nodes=[("127.0.0.1", 3001)],
+            refresh_neighbours_interval=0.0,
+            max_messages=MAX_MESSAGES,
+            store_config={STORAGE_DIR: None},
+            nat_type="preserving",
+            node_type="passive",
+            wan_ip=WAN_IP,
+            disable_data_transfer=False
+        )
+
+        time.sleep(2)
+        def check_unl(unl):
+            global test_get_unl_success
+            test_get_unl_success = 1
+
+        node_id = peer.get_id()
+        d = self.swarm[1].get_unl_by_node_id(node_id)
+        d.addCallback(check_unl)
+        time.sleep(10)
+        peer.stop()
+        self.assertTrue(test_get_unl_success)
 
     #################################
     # test util and debug functions #
