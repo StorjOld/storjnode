@@ -1,8 +1,10 @@
 import re
-from storjnode.util import valid_ip, valid_port
-from storjnode.network.messages import base
-# from storjnode.storage import manager
 from collections import namedtuple
+from twisted.internet import defer
+from storjnode.util import valid_ip, valid_port, wait_for_defered
+from storjnode.network.messages import base
+from storjnode.network.messages import signal
+from storjnode.storage import manager
 from storjnode import __version__
 
 
@@ -99,30 +101,34 @@ def read(btctxstore, msg):
     return base.Message(*msg)
 
 
-# def send_request(node, receiver):
-#     msg = create_request(node.server.btctxstore, node.get_key())
-#     return node.relay_message(receiver, msg)
-#
-#
-# def send_response(node, receiver, config):
-#     btctxstore = node.server.btctxstore
-#     capacity = manager.capacity(config.get("store"))
-#     peers = []  # TODO get peers
-#     msg = create_response(btctxstore, node.get_key(), capacity["total"],
-#                           capacity["used"], peers)
-#     return node.relay_message(receiver, msg)
-#
-#
-# def enable(node, config):
-#
-#     class _Handler(object):
-#
-#         def __init__(self, config):
-#             self.config = config
-#
-#         def __call__(self, node, source_id, msg):
-#             request = read_request(node.server.btctxstore, msg)
-#             if request is not None:
-#                 send_response(node, request.sender, self.config)
-#
-#     return node.add_message_handler(_Handler(config))
+def request(node, receiver):
+    msg = signal.create(node.server.btctxstore, node.get_key(), "request_info")
+    return node.relay_message(receiver, msg)
+
+
+def respond(node, receiver, config):
+    capacity = manager.capacity(config.get("store"))
+
+    defered = defer.gatherResults(
+        [node.async_has_public_ip(), node.async_get_wan_ip()]
+    )
+    is_public, transport = wait_for_defered(defered)
+
+    msg = create(node.server.btctxstore, node.get_key(),
+                 capacity, transport, is_public)
+    return node.relay_message(receiver, msg)
+
+
+def enable(node, config):
+
+    class _Handler(object):
+
+        def __init__(self, config):
+            self.config = config
+
+        def __call__(self, node, source_id, msg):
+            request = signal.read(node.server.btctxstore, msg, "request_info")
+            if request is not None:
+                respond(node, request.sender, self.config)
+
+    return node.add_message_handler(_Handler(config))
