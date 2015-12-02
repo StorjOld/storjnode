@@ -1,51 +1,8 @@
-import base64
-import umsgpack
-import binascii
-from collections import OrderedDict
-from collections import namedtuple
-from btctxstore import BtcTxStore
 import sys
 import binascii
-from storjnode.util import node_id_to_address, address_to_node_id
-
-
-Message = namedtuple('Message', ['sender', 'body', 'rawsig'])
-
-
-def create(btctxstore, node_wif, body):
-
-    # sign data in serialized form so unpacking is not required
-    data = binascii.hexlify(umsgpack.packb(body))
-    signature = btctxstore.sign_data(node_wif, data)
-
-    # use compact unencoded data to conserve package bytes
-    nodeid = address_to_node_id(btctxstore.get_address(node_wif))
-    rawsig = base64.b64decode(signature)
-
-    return Message(nodeid, body, rawsig)
-
-
-def read(btctxstore, message):
-    # FIXME make sure body does not contain dicts
-    if not isinstance(message, list) or len(message) != 3:
-        return None
-    msg = Message(*message)
-
-    # check if valid nodeid
-    if not isinstance(msg.sender, bytes) or len(msg.sender) != 20:
-        return None
-
-    # check if valid rawsig
-    if not isinstance(msg.rawsig, bytes) or len(msg.rawsig) != 65:
-        return None
-
-    # verify signature
-    address = node_id_to_address(msg.sender)
-    signature = base64.b64encode(msg.rawsig)
-    data = binascii.hexlify(umsgpack.packb(msg.body))
-    if btctxstore.verify_signature(address, signature, data):
-        return msg
-    return None
+from collections import OrderedDict
+from btctxstore import BtcTxStore
+from storjnode.util import node_id_to_address
 
 
 def sign(dict_obj, wif):  # FIXME use create instead

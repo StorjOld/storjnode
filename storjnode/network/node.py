@@ -128,12 +128,12 @@ class Node(object):
 
         # validate port (randomish user port by default)
         port = port or random.choice(range(1024, 49151))
-        assert(0 <= port < 2 ** 16)
+        assert(util.valid_port(port))
         self.port = port
 
         # passive port (randomish user port by default)
         passive_port = passive_port or random.choice(range(1024, 49151))
-        assert(0 <= port < 2 ** 16)
+        assert(util.valid_port(passive_port))
 
         # FIXME chance of same port and passive_port being the same
         # FIXME exclude ports already being used on the machine

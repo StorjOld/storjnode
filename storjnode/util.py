@@ -146,6 +146,10 @@ def valid_ip(ip):
     return valid_ipv4(ip) or valid_ipv6(ip)
 
 
+def valid_port(port):
+    return isinstance(port, int) and (0 <= port < 2 ** 16)
+
+
 def chunks(items, size):
     """ Split list into chunks of the given size.
     Original order is preserved.

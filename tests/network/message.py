@@ -33,12 +33,8 @@ class TestNetworkMessage(unittest.TestCase):
             self.btctxstore, self.wif, "testbody"
         )
 
-        # check package data < min package size
-        packed = umsgpack.packb(created)
-        self.assertLessEqual(len(packed), storjnode.common.MAX_PACKAGE_DATA)
-
         # repack to eliminate namedtuples and simulate io
-        repacked = umsgpack.unpackb(packed)
+        repacked = umsgpack.unpackb(umsgpack.packb(created))
 
         # test read
         read = storjnode.network.message.read(self.btctxstore, repacked)
