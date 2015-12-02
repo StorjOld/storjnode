@@ -168,6 +168,12 @@ class TestFileTransfer(unittest.TestCase):
 
         _log.debug("Download succeeded.")
 
+        # Test cleanup transfers.
+        for con in list(self.client.con_info):
+            con.close()
+            for contract_id in list(self.client.con_info[con]):
+                self.client.cleanup_transfers(con, contract_id)
+
 
 if __name__ == "__main__":
     unittest.main()

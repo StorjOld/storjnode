@@ -9,14 +9,51 @@ import time
 import hashlib
 import sys
 import json
+import binascii
 from threading import Lock
 from twisted.internet import defer
 from storjnode.util import address_to_node_id
 from storjnode.util import parse_node_id_from_unl, ordered_dict_to_list
+from storjnode.network.message import verify_signature
+from storjnode.network.message import sign
+
 from storjnode.network.process_transfers import process_transfers
 
 _log = storjnode.log.getLogger(__name__)
 _log.setLevel("DEBUG")
+
+def process_unl_requests(node, src_id, msg):
+    unl = node._data_transfer.net.unl.value
+    try:
+        msg = OrderedDict(msg)
+
+        # Not a UNL request.
+        if msg[u"type"] != u"unl_request":
+            return
+
+        # Check signature.
+        their_node_id = binascii.unhexlify(msg[u"requester"])
+        if not verify_signature(msg, node.get_key(), their_node_id):
+            return
+
+        # Response.
+        our_node_id_hex = binascii.hexlify(node.get_id())
+        our_node_id_hex = our_node_id_hex.decode("utf-8")
+        response = sign(OrderedDict(
+            {
+                u"type": u"unl_response",
+                u"requestee": our_node_id_hex,
+                u"unl": unl
+            }
+        ), node.get_key())
+
+        # Send response.
+        node.relay_message(their_node_id, response.items())
+
+    except (ValueError, KeyError) as e:
+        global _log
+        _log.debug(str(e))
+        _log.debug("Protocol: invalid JSON")
 
 
 class FileTransfer:
@@ -296,68 +333,3 @@ class FileTransfer:
 
         with open(path, "ab") as fp:
             fp.write(chunk)
-
-if __name__ == "__main__":
-    from crochet import setup
-    setup()
-
-    # Alice sample node.
-    alice_wallet = BtcTxStore(testnet=False, dryrun=True)
-    alice_wif = alice_wallet.create_key()
-    alice_node_id = address_to_node_id(alice_wallet.get_address(alice_wif))
-    alice_dht_node = pyp2p.dht_msg.DHT(node_id=alice_node_id)
-
-    alice = FileTransfer(
-        pyp2p.net.Net(
-            net_type="direct",
-            node_type="passive",
-            nat_type="preserving",
-            passive_port=60400,
-            dht_node=alice_dht_node,
-        ),
-        wif=alice_wif,
-        store_config={"/home/laurence/Storj/Alice": None}
-    )
-
-    # Bob sample node.
-    bob_wallet = BtcTxStore(testnet=False, dryrun=True)
-    bob_wif = bob_wallet.create_key()
-    bob_node_id = address_to_node_id(bob_wallet.get_address(bob_wif))
-    bob_dht = pyp2p.dht_msg.DHT(node_id=bob_node_id)
-
-    bob = FileTransfer(
-        pyp2p.net.Net(
-            net_type="direct",
-            node_type="passive",
-            nat_type="preserving",
-            passive_port=60401,
-            dht_node=bob_dht,
-        ),
-        wif=bob_wif,
-        store_config={"/home/laurence/Storj/Bob": None},
-    )
-
-    _log.debug(alice.net.unl.deconstruct())
-    _log.debug(bob.net.unl.deconstruct())
-
-    _log.debug(type(alice.net.unl))
-    _log.debug(type(pyp2p.unl.UNL(value=bob.net.unl.value)))
-
-    # Alice wants data from Bob.
-    d = alice.data_request(
-        "upload",
-        "ed980e5ef780d5b9ca1a6200a03302f2a91223044bc63dacc6d9f07eead663ab",
-        0,
-        bob.net.unl.value
-    )
-
-    # Main event loop.
-    while 1:
-        for client in [alice, bob]:
-            if client == alice:
-                _log.debug("Alice")
-            else:
-                _log.debug("Bob")
-            process_transfers(client)
-
-        time.sleep(1)

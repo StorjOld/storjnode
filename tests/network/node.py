@@ -12,6 +12,7 @@ import unittest
 import btctxstore
 import storjnode
 from pyp2p.lib import get_wan_ip
+from pyp2p.unl import UNL
 from storjnode.network.server import QUERY_TIMEOUT, WALK_TIMEOUT
 from crochet import setup
 
@@ -20,6 +21,7 @@ setup()
 signal.signal(signal.SIGINT, signal.default_int_handler)
 
 _log = storjnode.log.getLogger(__name__)
+_log.setLevel("DEBUG")
 
 WALK_TIMEOUT = WALK_TIMEOUT / 2.0
 
@@ -29,6 +31,7 @@ MAX_MESSAGES = 2
 PORT = 3000
 STORAGE_DIR = tempfile.mkdtemp()
 WAN_IP = get_wan_ip()
+test_get_unl_success = 0
 
 
 class TestNode(unittest.TestCase):
@@ -66,14 +69,33 @@ class TestNode(unittest.TestCase):
             msg = "TEST: created node {0} @ 127.0.0.1:{1}"
             print(msg.format(node.get_hex_id(), node.port))
 
+        # Peer used for get unl requests.
+        unl_peer_bootstrap_nodes = [
+            ("127.0.0.1", PORT + x)
+            for x in range(SWARM_SIZE)
+        ][-20:]
+        cls.test_get_unl_peer = storjnode.network.Node(
+            cls.btctxstore.create_wallet(),
+            bootstrap_nodes=unl_peer_bootstrap_nodes,
+            refresh_neighbours_interval=0.0,
+            max_messages=MAX_MESSAGES,
+            store_config={STORAGE_DIR: None},
+            nat_type="preserving",
+            node_type="passive",
+            wan_ip=WAN_IP,
+            disable_data_transfer=False
+        )
+
         # stabalize network overlay
         print("TEST: stabalize network overlay")
         time.sleep(WALK_TIMEOUT)
         for node in cls.swarm:
             node.refresh_neighbours()
+        cls.test_get_unl_peer.refresh_neighbours()
         time.sleep(WALK_TIMEOUT)
         for node in cls.swarm:
             node.refresh_neighbours()
+        cls.test_get_unl_peer.refresh_neighbours()
         time.sleep(WALK_TIMEOUT)
 
         print("TEST: created swarm")
@@ -92,6 +114,24 @@ class TestNode(unittest.TestCase):
         stats.strip_dirs()
         stats.sort_stats('cumtime')
         stats.print_stats()
+
+    @unittest.skip("broken until full duplex is fixed")
+    def test_get_unl(self):
+        time.sleep(2)
+
+        def check_unl(unl):
+            global test_get_unl_success
+            test_get_unl_success = 1
+            print(unl)
+
+        node_id = self.test_get_unl_peer.get_id()
+        d = self.swarm[1].get_unl_by_node_id(node_id)
+        d.addCallback(check_unl)
+        time.sleep(10)
+        self.test_get_unl_peer.stop()
+        self.assertTrue(test_get_unl_success)
+        print("\a")
+        print("here")
 
     #################################
     # test util and debug functions #

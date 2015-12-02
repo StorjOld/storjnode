@@ -22,7 +22,7 @@ from storjnode.util import parse_node_id_from_unl, generate_random_file
 from twisted.internet import defer
 from btctxstore import BtcTxStore
 import unittest
-from storjnode.network.bandwidth_test import BandwidthTest
+from storjnode.network.bandwidth.test import BandwidthTest
 from twisted.internet.task import LoopingCall
 from crochet import setup
 setup()
@@ -82,13 +82,15 @@ class TestBandwidthTest(unittest.TestCase):
             _log.debug(results)
 
         # Test bandwidth between Alice and Bob.
-        bob_test = BandwidthTest(bob_wif, bob_transfer, bob_dht)
-        alice_test = BandwidthTest(alice_wif, alice_transfer, alice_dht)
+        bob_test = BandwidthTest(bob_wif, bob_transfer, bob_dht, 0)
+        alice_test = BandwidthTest(alice_wif, alice_transfer, alice_dht, 0)
         d = alice_test.start(bob_transfer.net.unl.value)
         d.addCallback(show_bandwidth)
 
         # Main event loop.
-        while alice_test.active_test is not None:
+        # and not test_success
+        end_time = time.time() + 60
+        while alice_test.active_test is not None and time.time() < end_time:
             for client in [alice_transfer, bob_transfer]:
                 process_transfers(client)
 
