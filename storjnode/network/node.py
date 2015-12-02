@@ -168,40 +168,6 @@ class Node(object):
         # Process incoming messages.
         self._setup_message_dispatcher()
 
-        # Process UNL requests.
-        def build_process_unl_requests(unl, wif):
-            def process_unl_requests(src_id, msg):
-                try:
-                    msg = OrderedDict(msg)
-
-                    # Not a UNL request.
-                    if msg[u"type"] != u"unl_request":
-                        return
-
-                    # Check signature.
-                    their_node_id = binascii.unhexlify(msg[u"requester"])
-                    if not verify_signature(msg, wif, their_node_id):
-                        return
-
-                    # Response.
-                    our_node_id_hex = binascii.hexlify(self.get_id())
-                    our_node_id_hex = our_node_id_hex.decode("utf-8")
-                    response = sign_msg(OrderedDict([
-                        (u"type", u"unl_response"),
-                        (u"requestee", our_node_id_hex),
-                        (u"unl", unl)
-                    ]), wif)
-
-                    # Send response.
-                    self.relay_message(their_node_id, response.items())
-
-                except (ValueError, KeyError) as e:
-                    global _log
-                    _log.debug(str(e))
-                    _log.debug("Protocol: invalid JSON")
-
-            return process_unl_requests
-
         if not self.disable_data_transfer:
             self._setup_data_transfer_client(
                 store_config, passive_port, passive_bind,

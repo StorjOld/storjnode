@@ -42,7 +42,7 @@ logging.verbose = lambda msg, *args, **kwargs:\
     logging.log(logging.VERBOSE, msg, *args, **kwargs)
 
 _log = storjnode.log.getLogger(__name__)
-_log.setLevel("DEBUG")
+_log.setLevel("VERBOSE")
 
 
 class TransferError(Exception):
@@ -143,7 +143,7 @@ def do_upload(client, con, contract, con_info):
 
 
 def do_download(client, con, contract, con_info):
-    _log.verbose("upload")
+    _log.verbose("download")
 
     # Get file size.
     if not con_info["file_size"]:
@@ -248,12 +248,21 @@ def complete_transfer(client, contract_id, con):
         del client.defers[contract_id]
 
     # Call the completion handlers.
+    # todo: remove handler
+    old_handlers = set()
     for handler in client.handlers["complete"]:
-        handler(
+        ret = handler(
             client,
             contract_id,
             con
         )
+
+        if ret == -1:
+            old_handlers.add(handler)
+
+    # Remove old handlers.
+    for handler in old_handlers:
+        client.handlers["complete"].remove(handler)
 
     if is_master:
         # Set next contract ID and send to client.

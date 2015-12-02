@@ -11,4 +11,4 @@ from . node import Node  # NOQA
 from . node import DEFAULT_BOOTSTRAP_NODES  # NOQA
 from . protocol import Protocol  # NOQA
 from . server import Server, QUERY_TIMEOUT, WALK_TIMEOUT  # NOQA
-from . bandwidth_test import BandwidthTest
+from . bandwidth import *
