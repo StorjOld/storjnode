@@ -118,7 +118,7 @@ class TestNode(unittest.TestCase):
         node_id = peer.get_id()
         d = self.swarm[1].get_unl_by_node_id(node_id)
         d.addCallback(check_unl)
-        time.sleep(10)
+        time.sleep(QUERY_TIMEOUT)
         peer.stop()
         self.assertTrue(test_get_unl_success)
 
