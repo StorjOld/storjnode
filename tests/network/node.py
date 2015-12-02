@@ -110,6 +110,7 @@ class TestNode(unittest.TestCase):
         )
 
         time.sleep(2)
+
         def check_unl(unl):
             global test_get_unl_success
             test_get_unl_success = 1
