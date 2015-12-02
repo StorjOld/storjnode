@@ -70,9 +70,13 @@ class TestNode(unittest.TestCase):
             print(msg.format(node.get_hex_id(), node.port))
 
         # Peer used for get unl requests.
-        self.test_get_unl_peer = storjnode.network.Node(
-            self.__class__.btctxstore.create_wallet(),
-            bootstrap_nodes=[("127.0.0.1", 3001)],
+        unl_peer_bootstrap_nodes = [
+            ("127.0.0.1", PORT + x)
+            for x in range(SWARM_SIZE)
+        ][-20:]
+        cls.test_get_unl_peer = storjnode.network.Node(
+            cls.btctxstore.create_wallet(),
+            bootstrap_nodes=unl_peer_bootstrap_nodes,
             refresh_neighbours_interval=0.0,
             max_messages=MAX_MESSAGES,
             store_config={STORAGE_DIR: None},
@@ -87,9 +91,11 @@ class TestNode(unittest.TestCase):
         time.sleep(WALK_TIMEOUT)
         for node in cls.swarm:
             node.refresh_neighbours()
+        cls.test_get_unl_peer.refresh_neighbours()
         time.sleep(WALK_TIMEOUT)
         for node in cls.swarm:
             node.refresh_neighbours()
+        cls.test_get_unl_peer.refresh_neighbours()
         time.sleep(WALK_TIMEOUT)
 
         print("TEST: created swarm")
@@ -115,13 +121,16 @@ class TestNode(unittest.TestCase):
         def check_unl(unl):
             global test_get_unl_success
             test_get_unl_success = 1
+            print(unl)
 
         node_id = self.test_get_unl_peer.get_id()
         d = self.swarm[1].get_unl_by_node_id(node_id)
         d.addCallback(check_unl)
-        time.sleep(QUERY_TIMEOUT)
+        time.sleep(10)
         self.test_get_unl_peer.stop()
         self.assertTrue(test_get_unl_success)
+        print("\a")
+        print("here")
 
     #################################
     # test util and debug functions #
