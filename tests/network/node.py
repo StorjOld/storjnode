@@ -69,6 +69,19 @@ class TestNode(unittest.TestCase):
             msg = "TEST: created node {0} @ 127.0.0.1:{1}"
             print(msg.format(node.get_hex_id(), node.port))
 
+        # Peer used for get unl requests.
+        self.test_get_unl_peer = storjnode.network.Node(
+            self.__class__.btctxstore.create_wallet(),
+            bootstrap_nodes=[("127.0.0.1", 3001)],
+            refresh_neighbours_interval=0.0,
+            max_messages=MAX_MESSAGES,
+            store_config={STORAGE_DIR: None},
+            nat_type="preserving",
+            node_type="passive",
+            wan_ip=WAN_IP,
+            disable_data_transfer=False
+        )
+
         # stabalize network overlay
         print("TEST: stabalize network overlay")
         time.sleep(WALK_TIMEOUT)
@@ -97,29 +110,17 @@ class TestNode(unittest.TestCase):
         stats.print_stats()
 
     def test_get_unl(self):
-        peer = storjnode.network.Node(
-            self.__class__.btctxstore.create_wallet(),
-            bootstrap_nodes=[("127.0.0.1", 3001)],
-            refresh_neighbours_interval=0.0,
-            max_messages=MAX_MESSAGES,
-            store_config={STORAGE_DIR: None},
-            nat_type="preserving",
-            node_type="passive",
-            wan_ip=WAN_IP,
-            disable_data_transfer=False
-        )
-
         time.sleep(2)
 
         def check_unl(unl):
             global test_get_unl_success
             test_get_unl_success = 1
 
-        node_id = peer.get_id()
+        node_id = self.test_get_unl_peer.get_id()
         d = self.swarm[1].get_unl_by_node_id(node_id)
         d.addCallback(check_unl)
         time.sleep(QUERY_TIMEOUT)
-        peer.stop()
+        self.test_get_unl_peer.stop()
         self.assertTrue(test_get_unl_success)
 
     #################################
