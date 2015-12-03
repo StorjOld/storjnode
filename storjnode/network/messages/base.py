@@ -40,7 +40,9 @@ def create(btctxstore, node_wif, token, body):
     packed_message = umsgpack.packb(message)
     if len(packed_message) > MAX_MESSAGE_DATA:
         txt = "Message size {0} > {1} allowed."
-        raise MaxSizeExceeded(txt.format(len(packed_message), MAX_MESSAGE_DATA))
+        raise MaxSizeExceeded(
+            txt.format(len(packed_message), MAX_MESSAGE_DATA)
+        )
 
     return message
 

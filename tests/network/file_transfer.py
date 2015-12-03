@@ -17,6 +17,7 @@ setup()
 
 
 _log = storjnode.log.getLogger(__name__)
+_log.setLevel("DEBUG")
 
 
 TEST_NODE = {
@@ -71,6 +72,7 @@ class TestFileTransfer(unittest.TestCase):
 
         assert(self.client.get_con_by_contract_id(contract_id) == con)
 
+    @unittest.skip("Disable because too slow: move to node test code")
     def test_multiple_transfers(self):
 
         def make_random_file(file_size=1024 * 100,

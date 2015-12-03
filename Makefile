@@ -1,4 +1,4 @@
-PY_VERSION := 3
+PY_VERSION := 2.7
 WHEEL_DIR := /tmp/wheelhouse
 PIP := env/bin/pip
 PY := env/bin/python
@@ -41,6 +41,7 @@ clean:
 virtualenv: clean
 	virtualenv -p /usr/bin/python$(PY_VERSION) env
 	$(PIP) install wheel
+	$(PIP) install pygraphviz --install-option="--include-path=/usr/include/graphviz" --install-option="--library-path=/usr/lib/graphviz/"
 
 
 wheels: virtualenv
@@ -72,7 +73,7 @@ test: setup
 	$(PEP8) storjnode
 	$(PEP8) examples
 	$(PEP8) tests
-	$(COVERAGE) run --source="storjnode" -m unittest --quiet tests
+	$(COVERAGE) debug --source="storjnode" -m unittest -v tests
 	$(COVERAGE) report --fail-under=65
 
 

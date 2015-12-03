@@ -30,10 +30,9 @@ class TestProcessTransfers(unittest.TestCase):
             os.path.join(self.test_storage_dir, "storage"): {"limit": 0}
         }
 
-        # dht_node = pyp2p.dht_msg.DHT(node_id=node_id)
-        self.dht_node = storjnode.network.Node(
-            self.wif, bootstrap_nodes=DEFAULT_BOOTSTRAP_NODES,
-            disable_data_transfer=True
+        self.dht_node = pyp2p.dht_msg.DHT(
+            node_id=self.node_id,
+            networking=0
         )
 
         # Transfer client.
@@ -44,6 +43,7 @@ class TestProcessTransfers(unittest.TestCase):
                 net_type="direct",
                 passive_port=60500,
                 dht_node=self.dht_node,
+                wan_ip="8.8.8.8",
                 debug=1
             ),
             wif=self.wif,
@@ -52,7 +52,7 @@ class TestProcessTransfers(unittest.TestCase):
 
     def tearDown(self):
         shutil.rmtree(self.test_storage_dir)
-        self.dht_node.stop()
+        self.client.net.stop()
 
     def test_get_contract_id(self):
         con = Sock("towel.blinkenlights.nl", 23, blocking=1)

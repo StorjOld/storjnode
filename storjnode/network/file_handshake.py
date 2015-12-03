@@ -506,10 +506,12 @@ def process_rst(client, msg):
 
 
 def protocol(client, msg):
-    assert(type(msg) != str)
     try:
+        assert(type(msg) != str)
+        _log.debug(msg)
         msg = list_to_ordered_dict(msg)
     except (ValueError, TypeError) as e:
+        _log.debug(e)
         _log.debug("Protocol: unable to serialize as OrderedDict")
         return -1
 

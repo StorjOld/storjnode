@@ -70,17 +70,25 @@ class BandwidthTest():
 
                 self.reset_state()
 
+        # Handle errors.
+        def handle_errors(ret):
+            print("An unknown error occurred in handle timeout")
+            print(ret)
+
         # Schedule timeout.
-        LoopingCall(handle_timeout).start(10, now=True)
+        d = LoopingCall(handle_timeout).start(10, now=True)
+        d.addErrback(handle_errors)
 
     def increase_test_size(self):
+        # Sanity check.
+        if self.test_size == 1000:  # 1000 MB
+            return self.test_size
+
         # Calculate test size.
         if self.test_size == 1:
             new_size = 5
         else:
             new_size = self.test_size * 10
-
-        self.test_size = new_size
 
         return new_size
 

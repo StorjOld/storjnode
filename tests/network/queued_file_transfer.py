@@ -26,14 +26,18 @@ def test_queued():
     alice_wallet = BtcTxStore(testnet=False, dryrun=True)
     alice_wif = alice_wallet.create_key()
     alice_node_id = address_to_node_id(alice_wallet.get_address(alice_wif))
-    alice_dht_node = pyp2p.dht_msg.DHT(node_id=alice_node_id)
+    alice_dht = pyp2p.dht_msg.DHT(
+        node_id=alice_node_id,
+        networking=0
+    )
     alice = FileTransfer(
         pyp2p.net.Net(
             net_type="direct",
             node_type="passive",
             nat_type="preserving",
             passive_port=63400,
-            dht_node=alice_dht_node,
+            dht_node=alice_dht,
+            wan_ip="8.8.8.8",
             debug=1
         ),
         wif=alice_wif,
@@ -44,7 +48,10 @@ def test_queued():
     bob_wallet = BtcTxStore(testnet=False, dryrun=True)
     bob_wif = bob_wallet.create_key()
     bob_node_id = address_to_node_id(bob_wallet.get_address(bob_wif))
-    bob_dht = pyp2p.dht_msg.DHT(node_id=bob_node_id)
+    bob_dht = pyp2p.dht_msg.DHT(
+        node_id=bob_node_id,
+        networking=0
+    )
     bob = FileTransfer(
         pyp2p.net.Net(
             net_type="direct",
@@ -52,11 +59,16 @@ def test_queued():
             nat_type="preserving",
             passive_port=63401,
             dht_node=bob_dht,
+            wan_ip="8.8.8.8",
             debug=1
         ),
         wif=bob_wif,
         store_config={tempfile.mkdtemp(): None}
     )
+
+    # Simulate Alice + Bob "connecting"
+    alice_dht.add_relay_link(bob_dht)
+    bob_dht.add_relay_link(alice_dht)
 
     # Create file we're suppose to be uploading.
     data_id = ("5feceb66ffc86f38d952786c6d696c"
@@ -114,9 +126,14 @@ def test_queued():
                 global queue_succeeded
                 queue_succeeded = 1
 
+            def alice_errback(val):
+                print("Download failed! Error:")
+                print(val)
+
             # Hook upload from bob.
             d = alice.defers[download_contract_id]
             d.addCallback(alice_callback)
+            d.addErrback(alice_errback)
 
         return callback
 
@@ -143,9 +160,10 @@ def test_queued():
     if not queue_succeeded:
         print("\a")
 
-    assert(queue_succeeded == 1)
     for client in [alice, bob]:
         client.net.stop()
+
+    assert(queue_succeeded == 1)
 
 
 class TestQueuedTransfers(unittest.TestCase):

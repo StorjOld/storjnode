@@ -354,8 +354,15 @@ class Node(object):
         if self.disable_data_transfer:
             raise Exception("Data transfer disabled!")
 
-        LoopingCall(process_transfers, self._data_transfer).start(0.002,
-                                                                  now=True)
+        def process_transfers_error(ret):
+            print("An unknown error occured in process_transfers deferred")
+            print(ret)
+
+        d = LoopingCall(
+            process_transfers,
+            self._data_transfer
+        ).start(0.002, now=True)
+        d.addErrback(process_transfers_error)
 
     ###########################
     # data transfer interface #

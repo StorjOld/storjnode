@@ -15,6 +15,7 @@ from storjnode.network.message import sign, verify_signature
 _log = logging.getLogger(__name__)
 _log.setLevel("DEBUG")
 
+
 def build_start_handler(self, msg):
     # Update start time for download test.
     def start_handler(client, con, start_contract_id):
@@ -107,7 +108,7 @@ def build_completion_handler(self, msg, accept_handler):
                 if self.is_bad_results():
                     self.reset_state()
                 else:
-                    self.increase_test_size()
+                    self.test_size = self.increase_test_size()
             else:
                 self.reset_state()
 

@@ -107,6 +107,7 @@ class TestNode(unittest.TestCase):
         print("TEST: stopping swarm")
         for node in cls.swarm:
             node.stop()
+        cls.test_get_unl_peer.stop()
         shutil.rmtree(STORAGE_DIR)
 
         # get profiler stats
@@ -128,7 +129,6 @@ class TestNode(unittest.TestCase):
         d = self.swarm[1].get_unl_by_node_id(node_id)
         d.addCallback(check_unl)
         time.sleep(10)
-        self.test_get_unl_peer.stop()
         self.assertTrue(test_get_unl_success)
         print("\a")
         print("here")
