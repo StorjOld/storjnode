@@ -106,7 +106,7 @@ def request(node, receiver):
     return node.relay_message(receiver, msg)
 
 
-def respond(node, receiver, config):
+def _respond(node, receiver, config):
     capacity = manager.capacity(config.get("store"))
 
     defered = defer.gatherResults(
@@ -129,6 +129,6 @@ def enable(node, config):
         def __call__(self, node, source_id, msg):
             request = signal.read(node.server.btctxstore, msg, "request_info")
             if request is not None:
-                respond(node, request.sender, self.config)
+                _respond(node, request.sender, self.config)
 
     return node.add_message_handler(_Handler(config))

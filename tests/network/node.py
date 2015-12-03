@@ -11,8 +11,8 @@ import random
 import unittest
 import btctxstore
 import storjnode
+from kademlia.node import Node as KademliaNode
 from pyp2p.lib import get_wan_ip
-from pyp2p.unl import UNL
 from storjnode.network.server import QUERY_TIMEOUT, WALK_TIMEOUT
 from crochet import setup
 
@@ -187,8 +187,8 @@ class TestNode(unittest.TestCase):
         random_peer = random.choice(self.swarm)
         peers = random_peer.get_known_peers()
         self.assertTrue(isinstance(peers, list))
-        for peerid in peers:
-            self.assertTrue(isinstance(peerid, str))
+        for peer in peers:
+            self.assertTrue(isinstance(peer, KademliaNode))
 
     ########################
     # test relay messaging #

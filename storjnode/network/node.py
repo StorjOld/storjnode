@@ -196,9 +196,11 @@ class Node(object):
         self.server.refresh_neighbours()
 
     def get_known_peers(self):
-        """Returns list of hex encoded node ids."""
-        peers = list(self.server.get_known_peers())
-        return list(map(lambda n: binascii.hexlify(n.id), peers))
+        """Returns list of know peers.
+
+        Returns: iterable of kademlia.node.Node
+        """
+        return self.server.get_known_peers()
 
     def get_key(self):
         """Returns Bitcoin wif for auth, encryption and node id"""

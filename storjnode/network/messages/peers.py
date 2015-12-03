@@ -28,3 +28,18 @@ def read(btctxstore, msg):
         return None
 
     return msg
+
+
+def request(node, receiver):
+    msg = signal.create(node.server.btctxstore, node.get_key(), "request_peers")
+    return node.relay_message(receiver, msg)
+
+
+def enable(node):
+    def handler(self, node, source_id, msg):
+        request = signal.read(node.server.btctxstore, msg, "request_peers")
+        if request is not None:
+            peers = list(map(lambda n: n.id, peers))
+            msg = create(node.server.btctxstore, node.get_key(), peers)
+            node.relay_message(request.sender, msg)
+    return node.add_message_handler(handler)
