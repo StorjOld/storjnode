@@ -1,5 +1,4 @@
 import unittest
-import umsgpack
 import storjnode
 import btctxstore
 from collections import OrderedDict
@@ -25,21 +24,6 @@ class TestNetworkMessage(unittest.TestCase):
         self.assertTrue(storjnode.network.message.verify_signature(
             signed_msg, self.wif, node_id
         ))
-
-    def test_creat_validate(self):
-
-        # test create
-        created = storjnode.network.message.create(
-            self.btctxstore, self.wif, "testbody"
-        )
-
-        # repack to eliminate namedtuples and simulate io
-        repacked = umsgpack.unpackb(umsgpack.packb(created))
-
-        # test read
-        read = storjnode.network.message.read(self.btctxstore, repacked)
-        self.assertIsNotNone(read)
-        self.assertEqual(created, read)
 
 
 if __name__ == "__main__":
