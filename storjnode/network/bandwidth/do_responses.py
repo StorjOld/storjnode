@@ -16,6 +16,7 @@ from storjnode.util import list_to_ordered_dict
 _log = logging.getLogger(__name__)
 _log.setLevel("DEBUG")
 
+
 def build_accept_handler(self, req):
     # Handle accept transfer (for download requests.)
     def accept_handler(contract_id, src_unl, data_id, file_size):
@@ -145,6 +146,11 @@ def build_completion_handler(self, req, accept_handler):
 
                 # Calculate test size.
                 new_size = self.increase_test_size()
+                if new_size == self.test_size:
+                    # Avoid DoS.
+                    return
+                else:
+                    self.test_size = new_size
 
                 # Start new transfer.
                 self.start(

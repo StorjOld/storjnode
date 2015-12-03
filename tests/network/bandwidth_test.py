@@ -32,20 +32,24 @@ _log.setLevel("DEBUG")
 test_success = 0
 
 
-@unittest.skip("broken")
 class TestBandwidthTest(unittest.TestCase):
     def test_bandwidth_test(self):
         # Alice sample node.
         alice_wallet = BtcTxStore(testnet=False, dryrun=True)
         alice_wif = alice_wallet.create_key()
         alice_node_id = address_to_node_id(alice_wallet.get_address(alice_wif))
-        alice_dht = pyp2p.dht_msg.DHT(node_id=alice_node_id)
+        alice_dht = pyp2p.dht_msg.DHT(
+            node_id=alice_node_id,
+            networking=0
+        )
         alice_transfer = FileTransfer(
             pyp2p.net.Net(
                 net_type="direct",
                 node_type="passive",
                 nat_type="preserving",
                 passive_port=63600,
+                debug=1,
+                wan_ip="8.8.8.8",
                 dht_node=alice_dht,
             ),
             wif=alice_wif,
@@ -59,18 +63,27 @@ class TestBandwidthTest(unittest.TestCase):
         bob_wallet = BtcTxStore(testnet=False, dryrun=True)
         bob_wif = bob_wallet.create_key()
         bob_node_id = address_to_node_id(bob_wallet.get_address(bob_wif))
-        bob_dht = pyp2p.dht_msg.DHT(node_id=bob_node_id)
+        bob_dht = pyp2p.dht_msg.DHT(
+            node_id=bob_node_id,
+            networking=0
+        )
         bob_transfer = FileTransfer(
             pyp2p.net.Net(
                 net_type="direct",
                 node_type="passive",
                 nat_type="preserving",
                 passive_port=63601,
-                dht_node=bob_dht,
+                debug=1,
+                wan_ip="8.8.8.8",
+                dht_node=bob_dht
             ),
             wif=bob_wif,
             store_config={tempfile.mkdtemp(): None}
         )
+
+        # Link DHT nodes.
+        alice_dht.add_relay_link(bob_dht)
+        bob_dht.add_relay_link(alice_dht)
 
         _log.debug("Bob UNL")
         _log.debug(bob_transfer.net.unl.value)
@@ -95,6 +108,10 @@ class TestBandwidthTest(unittest.TestCase):
                 process_transfers(client)
 
             time.sleep(0.002)
+
+        # End net.
+        for client in [alice_transfer, bob_transfer]:
+            client.net.stop()
 
         self.assertTrue(test_success == 1)
 

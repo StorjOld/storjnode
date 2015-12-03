@@ -30,7 +30,10 @@ class TestFileHandshake(unittest.TestCase):
         self.alice_node_id = address_to_node_id(
             self.alice_wallet.get_address(self.alice_wif)
         )
-        self.alice_dht_node = pyp2p.dht_msg.DHT(node_id=self.alice_node_id)
+        self.alice_dht_node = pyp2p.dht_msg.DHT(
+            node_id=self.alice_node_id,
+            networking=0
+        )
         self.alice_storage = tempfile.mkdtemp()
         self.alice = FileTransfer(
             pyp2p.net.Net(
@@ -39,6 +42,7 @@ class TestFileHandshake(unittest.TestCase):
                 nat_type="preserving",
                 passive_port=0,
                 dht_node=self.alice_dht_node,
+                wan_ip="8.8.8.8",
                 debug=1
             ),
             wif=self.alice_wif,
@@ -50,7 +54,10 @@ class TestFileHandshake(unittest.TestCase):
         self.bob_wif = "L3DBWWbuL3da2x7qAmVwBpiYKjhorJuAGobecCYQMCV7tZMAnDsr"
         self.bob_node_id = address_to_node_id(
             self.bob_wallet.get_address(self.bob_wif))
-        self.bob_dht_node = pyp2p.dht_msg.DHT(node_id=self.bob_node_id)
+        self.bob_dht_node = pyp2p.dht_msg.DHT(
+            node_id=self.bob_node_id,
+            networking=1
+        )
         self.bob_storage = tempfile.mkdtemp()
         self.bob = FileTransfer(
             pyp2p.net.Net(
@@ -59,11 +66,16 @@ class TestFileHandshake(unittest.TestCase):
                 nat_type="preserving",
                 passive_port=0,
                 dht_node=self.bob_dht_node,
+                wan_ip="8.8.8.8",
                 debug=1
             ),
             wif=self.bob_wif,
             store_config={self.bob_storage: None}
         )
+
+        # Link DHT nodes.
+        self.alice_dht_node.add_relay_link(self.bob_dht_node)
+        self.bob_dht_node.add_relay_link(self.alice_dht_node)
 
         # Bypass sending messages for client.
         def send_msg(dict_obj, unl):

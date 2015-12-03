@@ -52,7 +52,12 @@ class TestNetworkMessagesPeers(unittest.TestCase):
         self.assertIsNone(peers.read(self.btctxstore, repacked))
 
     def test_invalid_peer_len(self):
-        created = base.create(self.btctxstore, self.wif, "peers", b"invalidlen")
+        created = base.create(
+            self.btctxstore,
+            self.wif,
+            "peers",
+            b"invalidlen"
+        )
 
         # repack to eliminate namedtuples and simulate io
         repacked = umsgpack.unpackb(umsgpack.packb(created))
