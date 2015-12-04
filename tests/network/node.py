@@ -16,18 +16,18 @@ from pyp2p.lib import get_wan_ip
 from storjnode.network.server import QUERY_TIMEOUT, WALK_TIMEOUT
 from crochet import setup
 
+
 # start twisted via crochet and remove twisted handler
 setup()
 signal.signal(signal.SIGINT, signal.default_int_handler)
 
+
 _log = storjnode.log.getLogger(__name__)
-_log.setLevel("DEBUG")
 
 WALK_TIMEOUT = WALK_TIMEOUT / 2.0
 
-
+PROFILE = False
 SWARM_SIZE = 32
-MAX_MESSAGES = 2
 PORT = 3000
 STORAGE_DIR = tempfile.mkdtemp()
 WAN_IP = get_wan_ip()
@@ -40,8 +40,9 @@ class TestNode(unittest.TestCase):
     def setUpClass(cls):
 
         # start profiler
-        cls.profile = cProfile.Profile()
-        cls.profile.enable()
+        if PROFILE:
+            cls.profile = cProfile.Profile()
+            cls.profile.enable()
 
         # create swarm
         print("TEST: creating swarm")
@@ -57,13 +58,14 @@ class TestNode(unittest.TestCase):
                 cls.btctxstore.create_wallet(), port=(PORT + i), ksize=8,
                 bootstrap_nodes=bootstrap_nodes,
                 refresh_neighbours_interval=0.0,
-                max_messages=MAX_MESSAGES,
                 store_config={STORAGE_DIR: None},
                 nat_type="preserving",
                 node_type="passive",
                 wan_ip=WAN_IP,
                 disable_data_transfer=True
             )
+            storjnode.network.messages.info.enable(node, {})
+            storjnode.network.messages.peers.enable(node)
             cls.swarm.append(node)
 
             msg = "TEST: created node {0} @ 127.0.0.1:{1}"
@@ -78,7 +80,6 @@ class TestNode(unittest.TestCase):
             cls.btctxstore.create_wallet(),
             bootstrap_nodes=unl_peer_bootstrap_nodes,
             refresh_neighbours_interval=0.0,
-            max_messages=MAX_MESSAGES,
             store_config={STORAGE_DIR: None},
             nat_type="preserving",
             node_type="passive",
@@ -111,10 +112,11 @@ class TestNode(unittest.TestCase):
         shutil.rmtree(STORAGE_DIR)
 
         # get profiler stats
-        stats = Stats(cls.profile)
-        stats.strip_dirs()
-        stats.sort_stats('cumtime')
-        stats.print_stats()
+        if PROFILE:
+            stats = Stats(cls.profile)
+            stats.strip_dirs()
+            stats.sort_stats('cumtime')
+            stats.print_stats()
 
     @unittest.skip("broken until full duplex is fixed")
     def test_get_unl(self):
@@ -142,7 +144,6 @@ class TestNode(unittest.TestCase):
         alice_node = storjnode.network.Node(
             self.__class__.btctxstore.create_key(),
             bootstrap_nodes=[("240.0.0.0", 1337)],
-            max_messages=MAX_MESSAGES,
             store_config={STORAGE_DIR: None},
             refresh_neighbours_interval=interval,
             nat_type="preserving",
@@ -156,7 +157,6 @@ class TestNode(unittest.TestCase):
         bob_node = storjnode.network.Node(
             self.__class__.btctxstore.create_key(),
             bootstrap_nodes=[("127.0.0.1", alice_node.port)],
-            max_messages=MAX_MESSAGES,
             store_config={STORAGE_DIR: None},
             refresh_neighbours_interval=interval,
             nat_type="preserving",
@@ -186,7 +186,6 @@ class TestNode(unittest.TestCase):
     def test_get_known_peers(self):  # for coverage
         random_peer = random.choice(self.swarm)
         peers = random_peer.get_known_peers()
-        self.assertTrue(isinstance(peers, list))
         for peer in peers:
             self.assertTrue(isinstance(peer, KademliaNode))
 
@@ -248,24 +247,37 @@ class TestNode(unittest.TestCase):
         time.sleep(QUERY_TIMEOUT)  # wait until relayed
 
     def test_max_relay_messages(self):  # for coverage
-        random_peer = random.choice(self.swarm)
+        node = storjnode.network.Node(
+            self.__class__.btctxstore.create_key(),
+            bootstrap_nodes=[("240.0.0.0", 1337)],
+            refresh_neighbours_interval=0.0,
+            max_messages=2,
+            store_config={STORAGE_DIR: None},
+            nat_type="preserving",
+            node_type="passive",
+            wan_ip=WAN_IP,
+            disable_data_transfer=True
+        )
+        time.sleep(QUERY_TIMEOUT)  # wait until network overlay stable, 2 peers
+        try:
+            void_id = binascii.unhexlify("DEADBEEF" * 5)
 
-        void_id = binascii.unhexlify("DEADBEEF" * 5)
+            # avoid queue being processed during test
+            old_sleep_time = node.thread_sleep_time = 0.5
+            node.thread_sleep_time = 0.5
+            time.sleep(0.002)
 
-        # avoid queue being processed during test
-        old_sleep_time = random_peer.thread_sleep_time = 0.5
-        random_peer.thread_sleep_time = 0.5
-        time.sleep(0.002)
+            queued = node.relay_message(void_id, "into the void")
+            self.assertTrue(queued)
+            queued = node.relay_message(void_id, "into the void")
+            self.assertTrue(queued)
+            queued = node.relay_message(void_id, "into the void")
+            self.assertFalse(queued)  # relay queue full
 
-        queued = random_peer.relay_message(void_id, "into the void")
-        self.assertTrue(queued)
-        queued = random_peer.relay_message(void_id, "into the void")
-        self.assertTrue(queued)
-        queued = random_peer.relay_message(void_id, "into the void")
-        self.assertFalse(queued)  # relay queue full
-
-        time.sleep(QUERY_TIMEOUT)  # wait until relayed
-        random_peer.thread_sleep_time = old_sleep_time  # restore value
+            time.sleep(QUERY_TIMEOUT)  # wait until relayed
+            node.thread_sleep_time = old_sleep_time  # restore value
+        finally:
+            node.stop()
 
     @unittest.skip("broken!")
     def test_relay_message_full_duplex(self):
@@ -273,7 +285,6 @@ class TestNode(unittest.TestCase):
             self.__class__.btctxstore.create_key(),
             bootstrap_nodes=[("240.0.0.0", 1337)],
             refresh_neighbours_interval=0.0,
-            max_messages=MAX_MESSAGES,
             store_config={STORAGE_DIR: None},
             nat_type="preserving",
             node_type="passive",
@@ -286,7 +297,6 @@ class TestNode(unittest.TestCase):
             self.__class__.btctxstore.create_key(),
             bootstrap_nodes=[("127.0.0.1", alice_node.port)],
             refresh_neighbours_interval=0.0,
-            max_messages=MAX_MESSAGES,
             store_config={STORAGE_DIR: None},
             nat_type="preserving",
             node_type="passive",
@@ -384,7 +394,6 @@ class TestNode(unittest.TestCase):
             self.__class__.btctxstore.create_wallet(),
             bootstrap_nodes=[("240.0.0.0", 1337)],  # isolated peer
             refresh_neighbours_interval=0.0,
-            max_messages=MAX_MESSAGES,
             store_config={STORAGE_DIR: None},
             nat_type="preserving",
             node_type="passive",
@@ -404,7 +413,6 @@ class TestNode(unittest.TestCase):
             self.__class__.btctxstore.create_key(),
             bootstrap_nodes=[("240.0.0.0", 1337)],
             refresh_neighbours_interval=0.0,
-            max_messages=MAX_MESSAGES,
             store_config={STORAGE_DIR: None},
             nat_type="preserving",
             node_type="passive",
@@ -417,7 +425,6 @@ class TestNode(unittest.TestCase):
             self.__class__.btctxstore.create_key(),
             bootstrap_nodes=[("127.0.0.1", alice_node.port)],
             refresh_neighbours_interval=0.0,
-            max_messages=MAX_MESSAGES,
             store_config={STORAGE_DIR: None},
             nat_type="preserving",
             node_type="passive",
@@ -443,7 +450,7 @@ class TestNode(unittest.TestCase):
             self.__class__.btctxstore.create_key(),
             bootstrap_nodes=[("240.0.0.0", 1337)],
             refresh_neighbours_interval=0.0,
-            max_messages=MAX_MESSAGES,
+            max_messages=2,
             store_config={STORAGE_DIR: None},
             nat_type="preserving",
             node_type="passive",
@@ -454,7 +461,7 @@ class TestNode(unittest.TestCase):
             self.__class__.btctxstore.create_key(),
             bootstrap_nodes=[("127.0.0.1", alice_node.port)],
             refresh_neighbours_interval=0.0,
-            max_messages=MAX_MESSAGES,
+            max_messages=2,
             store_config={STORAGE_DIR: None},
             nat_type="preserving",
             node_type="passive",
@@ -535,6 +542,16 @@ class TestNode(unittest.TestCase):
 
         received_event.wait(timeout=QUERY_TIMEOUT)
         receiver.remove_message_handler(handler)
+
+    ########################
+    # test network monitor #
+    ########################
+
+    def test_network_monitor(self):
+        random_peer = random.choice(self.swarm)
+        scanned, scanning, toscan = storjnode.network.monitor.run(random_peer,
+                                                                  timeout=60)
+        self.assertEqual(len(scanned), len(self.swarm))
 
 
 if __name__ == "__main__":

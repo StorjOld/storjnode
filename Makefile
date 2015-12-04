@@ -73,7 +73,7 @@ test: setup
 	$(PEP8) storjnode
 	$(PEP8) examples
 	$(PEP8) tests
-	$(COVERAGE) debug --source="storjnode" -m unittest -v tests
+	$(COVERAGE) run --source="storjnode" -m unittest -v tests
 	$(COVERAGE) report --fail-under=65
 
 

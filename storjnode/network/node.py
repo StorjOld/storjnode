@@ -21,7 +21,6 @@ from pyp2p.net import Net
 
 
 _log = storjnode.log.getLogger(__name__)
-_log.setLevel("DEBUG")
 
 
 DEFAULT_BOOTSTRAP_NODES = [
@@ -582,8 +581,6 @@ class Node(object):
 
             old_handlers = set()
             for received in messages:
-                _log.debug(str(received))
-                _log.debug(str(type(received)))
                 for handler in self._message_handlers:
                     ret = self._dispatch_message(received, handler)
                     if ret == -1:

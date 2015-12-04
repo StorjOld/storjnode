@@ -1,4 +1,5 @@
 import time
+import copy
 import datetime
 import storjnode
 from threading import Thread, RLock
@@ -22,11 +23,11 @@ DEFAULT_DATA = {
 
 class _Monitor(object):  # will not scale but good for now
 
-    def __init__(self, storjnode, worker_num=32, timeout=600):
+    def __init__(self, node, worker_num=32, timeout=600):
         """Network monitor to crawl the network and gather information.
 
         Args:
-            storjnode: Node used to crawl the network.
+            node: Node used to crawl the network.
             worker_num: Number of workers used to crawl the network.
         """
 
@@ -36,14 +37,14 @@ class _Monitor(object):  # will not scale but good for now
         self.scanned = {}  # {id: data}
 
         self.mutex = RLock()
-        self.node = storjnode
+        self.node = node
         self.server = self.node.server
         now = datetime.datetime.now()
         self.timeout = now + datetime.timedelta(seconds=timeout)
         self.worker_num = worker_num
 
         # start crawl at self
-        self.toscan[self.node.get_id()] = DEFAULT_DATA
+        self.toscan[self.node.get_id()] = copy.deepcopy(DEFAULT_DATA)
 
     def _handle_peers_message(self, node, source_id, message):
         received = datetime.datetime.now()
@@ -54,8 +55,16 @@ class _Monitor(object):  # will not scale but good for now
             data = self.scanning.get(message.sender)
             if data is None:
                 return  # not being scanned
+            _log.debug("Received peers from {0}!".format(
+                storjnode.util.node_id_to_address(message.sender))
+            )
             data["latency"][1] = received - data["latency"][1]
             data["peers"] = storjnode.util.chunks(message.body, 20)
+            for peer in data["peers"]:
+                if (peer not in self.scanned and
+                        peer not in self.scanning and
+                        peer not in self.toscan):
+                    self.toscan[peer] = copy.deepcopy(DEFAULT_DATA)
             self._check_scan_complete(message.sender, data)
 
     def _handle_info_message(self, node, source_id, message):
@@ -67,6 +76,9 @@ class _Monitor(object):  # will not scale but good for now
             data = self.scanning.get(message.sender)
             if data is None:
                 return  # not being scanned
+            _log.debug("Received info from {0}!".format(
+                storjnode.util.node_id_to_address(message.sender))
+            )
             data["latency"][0] = received - data["latency"][0]
             data["storage"] = message.body.storage
             data["network"] = message.body.network
@@ -95,6 +107,9 @@ class _Monitor(object):  # will not scale but good for now
 
     def _processed(self, nodeid, data):
         """Move node from scanning to scanned and add new nodes to pipeline."""
+        _log.debug("Processed {0}!".format(
+            storjnode.util.node_id_to_address(nodeid))
+        )
         with self.mutex:
             del self.scanning[nodeid]
             self.scanned[nodeid] = data
@@ -103,7 +118,7 @@ class _Monitor(object):  # will not scale but good for now
                     self.toscan[peerid] = DEFAULT_DATA
 
     def worker(self):
-        while self.timeout < datetime.datetime.now():
+        while self.timeout > datetime.datetime.now():
             time.sleep(0.002)
 
             # get next node to scan
@@ -117,6 +132,9 @@ class _Monitor(object):  # will not scale but good for now
                     continue
 
                 nodeid, data = entry
+                _log.debug("Requesting info/peers for {0}!".format(
+                    storjnode.util.node_id_to_address(nodeid))
+                )
                 request_peers(self.node, nodeid)
                 request_info(self.node, nodeid)
                 now = datetime.datetime.now()
@@ -129,7 +147,7 @@ class _Monitor(object):  # will not scale but good for now
             worker.start()
         for worker in workers:
             worker.join()
-        return self.scanned
+        return (self.scanned, self.scanning, self.toscan)
 
 
 def run(storjnode, worker_num=32, timeout=600):

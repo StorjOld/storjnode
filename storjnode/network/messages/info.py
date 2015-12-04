@@ -21,6 +21,7 @@ Info = namedtuple('Info', [
     'version',  # storjnode version
     'storage',
     'network',
+    # TODO add platform (window, linux, mac, etc)
 ])
 
 

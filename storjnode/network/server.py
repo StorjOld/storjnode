@@ -129,15 +129,17 @@ class Server(KademliaServer):
         hexid = binascii.hexlify(nodeid)
 
         if nodeid == self.node.id:
-            self.log.info("Dropping message to self.")
-            return False
-
-        # add to message relay queue
-        self.log.debug("Queuing relay messaging for %s: %s" % (hexid, message))
-        return self.protocol.queue_relay_message({
-            "dest": nodeid, "message": message,
-            "hop_limit": self._default_hop_limit
-        })
+            self.log.info("Adding message to self to received queue!.")
+            return self.protocol.queue_received_message({
+                "source": None, "message": message
+            })
+        else:
+            txt = "Queuing relay messaging for %s: %s"
+            self.log.debug(txt % (hexid, message))
+            return self.protocol.queue_relay_message({
+                "dest": nodeid, "message": message,
+                "hop_limit": self._default_hop_limit
+            })
 
     def _relay_message(self, entry):
         """Returns entry if failed to relay to a closer node or None"""

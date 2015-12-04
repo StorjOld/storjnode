@@ -1,4 +1,5 @@
 from storjnode.network.messages import base
+from storjnode.network.messages import signal
 
 
 def create(btctxstore, node_wif, peers):
@@ -31,12 +32,13 @@ def read(btctxstore, msg):
 
 
 def request(node, receiver):
-    msg = signal.create(node.server.btctxstore, node.get_key(), "request_peers")
+    msg = signal.create(node.server.btctxstore,
+                        node.get_key(), "request_peers")
     return node.relay_message(receiver, msg)
 
 
 def enable(node):
-    def handler(self, node, source_id, msg):
+    def handler(node, source_id, msg):
         request = signal.read(node.server.btctxstore, msg, "request_peers")
         if request is not None:
             peers = list(map(lambda n: n.id, peers))
