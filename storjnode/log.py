@@ -20,11 +20,15 @@ _logging.basicConfig(format=FORMAT, level=LEVEL_QUIET)
 _base_logger = _logging.getLogger()
 
 
-def getLogger(*args, **kwargs):
-    if not args and not kwargs:
-        child = _base_logger.getChild("default")
+def getLogger(suffix=None, name=None):
+    if suffix is None and name is None:
+        child = _base_logger.getChild("Default")
+    elif suffix is not None:
+        child = _base_logger.getChild(suffix)
+    elif name is not None:
+        child = _base_logger.getChild(name)
     else:
-        child = _base_logger.getChild(*args, **kwargs)
+        raise Exception("Unreachable code!")
 
     # full logging if --debug or --verbose arg given
     if "--debug" in sys.argv or "--verbose" in sys.argv:
