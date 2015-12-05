@@ -345,7 +345,7 @@ class Node(object):
                     d.callback(msg[u"unl"])
 
                     # Remove this callback.
-                    return -1
+                    node.remove_message_handler(handler)
                 except (ValueError, KeyError) as e:
                     _log.debug(str(e))
                     _log.debug("Protocol: invalid JSON")
@@ -651,15 +651,9 @@ class Node(object):
         while not self._message_dispatcher_thread_stop:
             messages = self.server.get_messages()
 
-            old_handlers = set()
             for received in messages:
                 for handler in self._message_handlers:
-                    ret = self._dispatch_message(received, handler)
-                    if ret == -1:
-                        old_handlers.add(handler)
-
-            for handler in old_handlers:
-                self._message_handlers.remove(handler)
+                    self._dispatch_message(received, handler)
 
             time.sleep(0.002)
 
