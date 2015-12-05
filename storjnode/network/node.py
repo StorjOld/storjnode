@@ -17,6 +17,7 @@ from pyp2p.unl import UNL
 from storjnode.network.file_transfer import FileTransfer
 from storjnode.network.file_transfer import process_unl_requests
 from storjnode.network.process_transfers import process_transfers
+from storjnode.network.bandwidth.test import BandwidthTest
 from pyp2p.net import Net
 
 
@@ -130,6 +131,11 @@ class Node(object):
                 node_type, nat_type, wan_ip
             )
             self.add_message_handler(process_unl_requests)
+            self.bandwidth_test = BandwidthTest(
+                self.get_key(),
+                self.self._data_transfer,
+                self
+            )
 
     def _setup_message_dispatcher(self):
         self._message_handlers = set()
@@ -363,6 +369,55 @@ class Node(object):
             self._data_transfer
         ).start(0.002, now=True)
         d.addErrback(process_transfers_error)
+
+    def test_bandwidth(self, test_node_id):
+        """Tests the bandwidth between yourself and a remote peer.
+        Only one test can be active at any given time! If a test
+        is already active: the deferred will call an errback that
+        resolves to an exception (the callback won't be called)
+        and the request won't go through.
+
+        :param test_node_id: binary node_id as returned from get_id.
+        :return: a deferred that returns this:
+        {'download': 1048576, 'upload': 1048576} to a callback
+        or raises an error to an errback on failure.
+
+        ^ Note that the units are in bytes so if you
+        want fancy measurement in kbs or mbs you will have
+        to convert it.
+
+        E.g.:
+        def show_bandwidth(results):
+            print(results)
+
+        def handle_error(results):
+            print(results)
+
+        d = test_bandwidth ...
+        d.addCallback(show_bandwidth)
+        d.addErrback(handle_error)
+
+        Todo: I am basically coding this function in a hurry so I
+        don't delay your work Fabian. There should probably be a
+        decorator to wrap functions that need a UNL (as the code
+        bellow is similar to the request_data_transfer function.)
+        """
+
+        if self.disable_data_transfer:
+            raise Exception("Data transfer disabled!")
+
+        # Get a deferred for their UNL.
+        d = self.get_unl_by_node_id(node_id)
+
+        # Make data request when we have their UNL.
+        def callback(peer_unl):
+            return self.bandwidth_test.start(peer_unl)
+
+        # Add callback to UNL deferred.
+        d.addCallback(callback)
+
+        # Return deferred.
+        return d
 
     ###########################
     # data transfer interface #

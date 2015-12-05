@@ -186,7 +186,9 @@ class BandwidthTest():
 
         # Any tests currently in progress?
         if self.test_node_unl is not None:
-            return 0
+            d = defer.Deferred()
+            d.errback(Exception("Test already in progress"))
+            return d
 
         # Reset test state
         self.test_size = size

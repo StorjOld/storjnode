@@ -24,7 +24,7 @@ import time
 import os
 from twisted.internet import defer
 import storjnode.storage as storage
-from .file_handshake import protocol
+from storjnode.network.file_handshake import protocol
 import pyp2p.unl
 import pyp2p.net
 import pyp2p.dht_msg
