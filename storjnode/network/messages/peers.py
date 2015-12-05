@@ -31,7 +31,11 @@ def read(btctxstore, msg):
 
 
 def request(node, receiver):
-    msg = signal.create(node.server.btctxstore, node.get_key(), "request_peers")
+    msg = signal.create(
+        node.server.btctxstore,
+        node.get_key(),
+        "request_peers"
+    )
     return node.relay_message(receiver, msg)
 
 
