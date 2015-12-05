@@ -55,7 +55,6 @@ class Node(object):
                  passive_bind=None,  # FIXME use utils.get_inet_facing_ip ?
                  node_type="unknown",  # FIMME what is this ?
                  nat_type="unknown",  # FIXME what is this ?
-                 wan_ip=None,  # FIXME replace with sync_get_wan_ip calls
                  ):
         """Create a blocking storjnode instance.
 
@@ -78,7 +77,6 @@ class Node(object):
             passive_bind (ip): LAN IP to receive inbound TCP connections on.
             node_type: TODO doc string
             nat_type: TODO doc string
-            wan_ip: TODO doc string
         """
         self.disable_data_transfer = bool(disable_data_transfer)
         self._transfer_request_handlers = set()
@@ -126,13 +124,12 @@ class Node(object):
 
         if not self.disable_data_transfer:
             self._setup_data_transfer_client(
-                store_config, passive_port, passive_bind,
-                node_type, nat_type, wan_ip
+                store_config, passive_port, passive_bind, node_type, nat_type
             )
             self.add_message_handler(process_unl_requests)
             self.bandwidth_test = BandwidthTest(
                 self.get_key(),
-                self.self._data_transfer,
+                self._data_transfer,
                 self
             )
 
@@ -155,7 +152,10 @@ class Node(object):
         self.server.bootstrap(bootstrap_nodes)
 
     def _setup_data_transfer_client(self, store_config, passive_port,
-                                    passive_bind, node_type, nat_type, wan_ip):
+                                    passive_bind, node_type, nat_type):
+
+        result = self.sync_get_transport_info()
+
         # Setup handlers for callbacks registered via the API.
         handlers = {
             "complete": self._transfer_complete_handlers,
@@ -175,7 +175,7 @@ class Node(object):
                 debug=1,
                 passive_port=passive_port,
                 passive_bind=passive_bind,
-                wan_ip=wan_ip
+                wan_ip=result[0] if result else None
             ),
             wif=wif,
             store_config=store_config,
@@ -183,7 +183,7 @@ class Node(object):
         )
 
         # Setup success callback values.
-        self._data_transfer.success_value = (self.sync_get_wan_ip(), self.port)
+        self._data_transfer.success_value = result
         self.process_data_transfers()
 
     def stop(self):
@@ -252,8 +252,10 @@ class Node(object):
             A twisted.internet.defer.Deferred that resloves to
             True if local IP is internet visible, otherwise False.
         """
-        def handle(results):
-            return result["wan"] == result["local"]
+        def handle(result):
+            if result is None:
+                return False
+            return result["wan"] == result["lan"]
         return self.async_get_transport_info().addCallback(handle)
 
     @wait_for(timeout=QUERY_TIMEOUT)
@@ -345,7 +347,6 @@ class Node(object):
                     # Remove this callback.
                     return -1
                 except (ValueError, KeyError) as e:
-                    global _log
                     _log.debug(str(e))
                     _log.debug("Protocol: invalid JSON")
 

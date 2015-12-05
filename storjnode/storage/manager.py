@@ -140,7 +140,8 @@ def capacity(store_config):
     total, used, free = 0, 0, 0
     # FIXME doesn't give correct total if multiple paths on same drive
     for store_path, attributes in store_config.items():
-        limit = attributes["limit"] or storjnode.util.get_free_space(store_path)
+        free_disc_space = storjnode.util.get_free_space(store_path)
+        limit = attributes["limit"] or free_disc_space
         path_used = storjnode.util.get_folder_size(store_path)
         total += limit
         used += path_used

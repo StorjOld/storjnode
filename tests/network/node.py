@@ -30,7 +30,6 @@ PROFILE = False
 SWARM_SIZE = 32
 PORT = 3000
 STORAGE_DIR = tempfile.mkdtemp()
-WAN_IP = get_wan_ip()
 test_get_unl_success = 0
 LAN_IP = storjnode.util.get_inet_facing_ip()
 
@@ -62,7 +61,6 @@ class TestNode(unittest.TestCase):
                 store_config={STORAGE_DIR: None},
                 nat_type="preserving",
                 node_type="passive",
-                wan_ip=WAN_IP,
                 disable_data_transfer=True
             )
             storjnode.network.messages.info.enable(node, {})
@@ -84,7 +82,6 @@ class TestNode(unittest.TestCase):
             store_config={STORAGE_DIR: None},
             nat_type="preserving",
             node_type="passive",
-            wan_ip=WAN_IP,
             disable_data_transfer=False
         )
 
@@ -149,7 +146,6 @@ class TestNode(unittest.TestCase):
             refresh_neighbours_interval=interval,
             nat_type="preserving",
             node_type="passive",
-            wan_ip=WAN_IP,
             disable_data_transfer=True
         )
         alice_received = threading.Event()
@@ -162,7 +158,6 @@ class TestNode(unittest.TestCase):
             refresh_neighbours_interval=interval,
             nat_type="preserving",
             node_type="passive",
-            wan_ip=WAN_IP,
             disable_data_transfer=True
         )
         bob_received = threading.Event()
@@ -256,7 +251,6 @@ class TestNode(unittest.TestCase):
             store_config={STORAGE_DIR: None},
             nat_type="preserving",
             node_type="passive",
-            wan_ip=WAN_IP,
             disable_data_transfer=True
         )
         time.sleep(QUERY_TIMEOUT)  # wait until network overlay stable, 2 peers
@@ -289,7 +283,6 @@ class TestNode(unittest.TestCase):
             store_config={STORAGE_DIR: None},
             nat_type="preserving",
             node_type="passive",
-            wan_ip=WAN_IP,
             disable_data_transfer=True
         )
         alice_received = threading.Event()
@@ -301,7 +294,6 @@ class TestNode(unittest.TestCase):
             store_config={STORAGE_DIR: None},
             nat_type="preserving",
             node_type="passive",
-            wan_ip=WAN_IP,
             disable_data_transfer=True
         )
         bob_received = threading.Event()
@@ -398,7 +390,6 @@ class TestNode(unittest.TestCase):
             store_config={STORAGE_DIR: None},
             nat_type="preserving",
             node_type="passive",
-            wan_ip=WAN_IP,
             disable_data_transfer=True
         )
         try:
@@ -417,7 +408,6 @@ class TestNode(unittest.TestCase):
             store_config={STORAGE_DIR: None},
             nat_type="preserving",
             node_type="passive",
-            wan_ip=WAN_IP,
             disable_data_transfer=True
         )
         alice_received = threading.Event()
@@ -429,7 +419,6 @@ class TestNode(unittest.TestCase):
             store_config={STORAGE_DIR: None},
             nat_type="preserving",
             node_type="passive",
-            wan_ip=WAN_IP,
             disable_data_transfer=True
         )
         bob_received = threading.Event()
@@ -455,7 +444,6 @@ class TestNode(unittest.TestCase):
             store_config={STORAGE_DIR: None},
             nat_type="preserving",
             node_type="passive",
-            wan_ip=WAN_IP,
             disable_data_transfer=True
         )
         bob_node = storjnode.network.Node(
@@ -466,7 +454,6 @@ class TestNode(unittest.TestCase):
             store_config={STORAGE_DIR: None},
             nat_type="preserving",
             node_type="passive",
-            wan_ip=WAN_IP,
             disable_data_transfer=True
         )
         time.sleep(QUERY_TIMEOUT)  # wait until network overlay stable, 2 peers
