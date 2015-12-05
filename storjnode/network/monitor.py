@@ -129,7 +129,6 @@ class _Monitor(object):  # will not scale but good for now
             with self.mutex:
                 entry = self.get_next_node()
                 if entry is None and len(self.scanning) == 0:
-                    import pudb;pu.db
                     return  # done! Nothing to scan and nothing being scanned
 
                 # none to scan but others still scanning, more may come
@@ -143,7 +142,6 @@ class _Monitor(object):  # will not scale but good for now
                 request_peers(self.node, nodeid)
                 request_info(self.node, nodeid)
                 data["latency"] = [_now(), _now()]
-        import pudb;pu.db
 
     def crawl(self):
         """Start workers and block until network is crawled."""

@@ -28,7 +28,6 @@ from crochet import setup
 setup()
 
 _log = logging.getLogger(__name__)
-_log.setLevel("DEBUG")
 test_success = 0
 
 
