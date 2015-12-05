@@ -28,7 +28,7 @@ def getLogger(suffix=None, name=None):
     elif name is not None:
         child = _base_logger.getChild(name)
     else:
-        raise Exception("Unreachable code!")
+        raise Exception("Unreachable code!")  # pragma: no cover
 
     # full logging if --debug or --verbose arg given
     if "--debug" in sys.argv or "--verbose" in sys.argv:
