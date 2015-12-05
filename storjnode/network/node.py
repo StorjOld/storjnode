@@ -141,7 +141,8 @@ class Node(object):
     def _setup_server(self, key, ksize, storage, max_messages,
                       refresh_neighbours_interval, bootstrap_nodes):
         self.server = Server(
-            key, ksize=ksize, storage=storage, max_messages=max_messages,
+            key, self.port, ksize=ksize, storage=storage,
+            max_messages=max_messages,
             refresh_neighbours_interval=refresh_neighbours_interval
         )
         self.server.listen(self.port)
@@ -201,6 +202,9 @@ class Node(object):
         """
         return self.server.get_known_peers()
 
+    def get_neighbours(self):
+        return self.server.get_neighbours()
+
     def get_key(self):
         """Returns Bitcoin wif for auth, encryption and node id"""
         return self.server.key
@@ -242,7 +246,9 @@ class Node(object):
             A twisted.internet.defer.Deferred that resloves to
             True if local IP is internet visible, otherwise False.
         """
-        return self.server.has_public_ip()
+        def handle(results):
+            return result["wan"] == result["local"]
+        return self.async_get_transport_info().addCallback(handle)
 
     @wait_for(timeout=QUERY_TIMEOUT)
     def sync_get_wan_ip(self):
@@ -263,7 +269,16 @@ class Node(object):
             A twisted.internet.defer.Deferred that resloves to
             The WAN IP or None.
         """
-        return self.server.get_wan_ip()
+        def handle(result):
+            return result["wan"][0]
+        return self.async_get_transport_info().addCallback(handle)
+
+    def async_get_transport_info(self):
+        return self.server.get_transport_info()
+
+    @wait_for(timeout=QUERY_TIMEOUT)
+    def sync_get_transport_info(self):
+        return self.async_get_transport_info()
 
     ######################################
     # depricated data transfer interface #
@@ -573,6 +588,7 @@ class Node(object):
             return handler(self, source, received["message"])
         except Exception as e:
             msg = "Message handler raised exception: {0}"
+            print(e)
             _log.error(msg.format(repr(e)))
 
     def _message_dispatcher_loop(self):

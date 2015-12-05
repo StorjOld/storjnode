@@ -1,12 +1,14 @@
 import re
 from collections import namedtuple
-from twisted.internet import defer
-from storjnode.util import valid_ip, valid_port, wait_for_defered
+from storjnode.util import valid_ip, valid_port
 from storjnode.network.messages import base
 from storjnode.network.messages import signal
 from storjnode.storage import manager
 from storjnode import __version__
+from storjnode.log import getLogger
 
+
+_log = getLogger(__name__)
 
 Storage = namedtuple('Storage', ['total', 'used', 'free'])
 
@@ -108,16 +110,14 @@ def request(node, receiver):
 
 
 def _respond(node, receiver, config):
-    capacity = manager.capacity(config.get("store"))
 
-    defered = defer.gatherResults(
-        [node.async_has_public_ip(), node.async_get_wan_ip()]
-    )
-    is_public, transport = wait_for_defered(defered)
+    def handler(result):
+        capacity = manager.capacity(config.get("store"))
+        msg = create(node.server.btctxstore, node.get_key(),
+                     capacity, result["wan"], result["wan"] == result["lan"])
+        return node.relay_message(receiver, msg)
 
-    msg = create(node.server.btctxstore, node.get_key(),
-                 capacity, transport, is_public)
-    return node.relay_message(receiver, msg)
+    node.async_get_transport_info().addCallback(handler)
 
 
 def enable(node, config):

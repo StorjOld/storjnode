@@ -1,7 +1,8 @@
 import time
 import copy
-import datetime
 import storjnode
+import datetime
+from datetime import timedelta
 from threading import Thread, RLock
 from storjnode.network.messages.peers import read as read_peers
 from storjnode.network.messages.peers import request as request_peers
@@ -9,6 +10,7 @@ from storjnode.network.messages.info import read as read_info
 from storjnode.network.messages.info import request as request_info
 
 
+_now = datetime.datetime.now
 _log = storjnode.log.getLogger(__name__)
 
 
@@ -17,13 +19,13 @@ DEFAULT_DATA = {
     "storage": None,          # (total, used, free)
     "network": None,          # ((ip, port), is_public)
     "version": None,          # (protocol, storjnode)
-    "latency": (None, None),  # (relay_info, relay_peers)
+    "latency": [None, None],  # (relay_info, relay_peers)
 }
 
 
 class _Monitor(object):  # will not scale but good for now
 
-    def __init__(self, node, worker_num=32, timeout=600):
+    def __init__(self, node, worker_num=4, timeout=600):
         """Network monitor to crawl the network and gather information.
 
         Args:
@@ -39,15 +41,17 @@ class _Monitor(object):  # will not scale but good for now
         self.mutex = RLock()
         self.node = node
         self.server = self.node.server
-        now = datetime.datetime.now()
-        self.timeout = now + datetime.timedelta(seconds=timeout)
+        self.timeout = _now() + timedelta(seconds=timeout)
         self.worker_num = worker_num
+
+        self.node.add_message_handler(self._handle_info_message)
+        self.node.add_message_handler(self._handle_peers_message)
 
         # start crawl at self
         self.toscan[self.node.get_id()] = copy.deepcopy(DEFAULT_DATA)
 
     def _handle_peers_message(self, node, source_id, message):
-        received = datetime.datetime.now()
+        received = _now()
         message = read_peers(node.server.btctxstore, message)
         if message is None:
             return  # dont care about this message
@@ -68,7 +72,7 @@ class _Monitor(object):  # will not scale but good for now
             self._check_scan_complete(message.sender, data)
 
     def _handle_info_message(self, node, source_id, message):
-        received = datetime.datetime.now()
+        received = _now()
         message = read_info(node.server.btctxstore, message)
         if message is None:
             return  # dont care about this message
@@ -115,16 +119,17 @@ class _Monitor(object):  # will not scale but good for now
             self.scanned[nodeid] = data
             for peerid in data["peers"]:
                 if peerid not in self.scanning and peerid not in self.scanned:
-                    self.toscan[peerid] = DEFAULT_DATA
+                    self.toscan[peerid] = copy.deepcopy(DEFAULT_DATA)
 
     def worker(self):
-        while self.timeout > datetime.datetime.now():
+        while _now() < self.timeout:
             time.sleep(0.002)
 
             # get next node to scan
             with self.mutex:
                 entry = self.get_next_node()
                 if entry is None and len(self.scanning) == 0:
+                    import pudb;pu.db
                     return  # done! Nothing to scan and nothing being scanned
 
                 # none to scan but others still scanning, more may come
@@ -137,8 +142,8 @@ class _Monitor(object):  # will not scale but good for now
                 )
                 request_peers(self.node, nodeid)
                 request_info(self.node, nodeid)
-                now = datetime.datetime.now()
-                data["latency"] = (now, now)
+                data["latency"] = [_now(), _now()]
+        import pudb;pu.db
 
     def crawl(self):
         """Start workers and block until network is crawled."""
@@ -150,5 +155,5 @@ class _Monitor(object):  # will not scale but good for now
         return (self.scanned, self.scanning, self.toscan)
 
 
-def run(storjnode, worker_num=32, timeout=600):
+def run(storjnode, worker_num=4, timeout=600):
     return _Monitor(storjnode, worker_num=worker_num, timeout=timeout).crawl()

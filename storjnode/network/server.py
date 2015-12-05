@@ -1,4 +1,5 @@
 import time
+import umsgpack
 import datetime
 import threading
 import btctxstore
@@ -21,7 +22,7 @@ WALK_TIMEOUT = QUERY_TIMEOUT * 24
 
 class Server(KademliaServer):
 
-    def __init__(self, key, ksize=20, alpha=3, storage=None,
+    def __init__(self, key, port, ksize=20, alpha=3, storage=None,
                  max_messages=1024, default_hop_limit=64,
                  refresh_neighbours_interval=0.0):
         """
@@ -34,6 +35,7 @@ class Server(KademliaServer):
             storage: implements :interface:`~kademlia.storage.IStorage`
             refresh_neighbours_interval (float): Auto refresh neighbours.
         """
+        self.port = port
         self.thread_sleep_time = 0.02
         self._default_hop_limit = default_hop_limit
         self._refresh_neighbours_interval = refresh_neighbours_interval
@@ -101,6 +103,9 @@ class Server(KademliaServer):
         """Returns list of known node."""
         return TableTraverser(self.protocol.router, self.node)
 
+    def get_neighbours(self):
+        return self.protocol.router.findNeighbors(self.node, exclude=self.node)
+
     def has_messages(self):
         return self.protocol.has_messages()
 
@@ -129,6 +134,7 @@ class Server(KademliaServer):
         hexid = binascii.hexlify(nodeid)
 
         if nodeid == self.node.id:
+            message = umsgpack.unpackb(umsgpack.packb(message))  # simulate io
             self.log.info("Adding message to self to received queue!.")
             return self.protocol.queue_received_message({
                 "source": None, "message": message
@@ -240,17 +246,25 @@ class Server(KademliaServer):
     def get_hex_id(self):
         return binascii.hexlify(self.get_id())
 
-    def has_public_ip(self):
-        def handle(ips):
-            self.log.debug("Internet visible IPs: %s" % ips)
-            ip = storjnode.util.get_inet_facing_ip()
-            self.log.debug("Internet facing IP: %s" % ip)
-            is_public = ip is not None and ip in ips
-            return is_public
-        return self.inetVisibleIP().addCallback(handle)
+    def get_transport_info(self):
+        def handle(results):
+            results = filter(lambda r: r[0], results)  # filter successful
+            if not results:
+                self.log.warning("No successful stun!")
+                return None
 
-    def get_wan_ip(self):
-        def handle(ips):
-            ips = list(set(ips))
-            return ips[0] if len(ips) > 0 else None
-        return self.inetVisibleIP().addCallback(handle)
+            # FIXME check all entries as some nodes may be on the local net
+            result = results[0][1]
+
+            if not result:
+                self.log.warning("No stun result!")
+                return None
+
+            wan = (result[0], result[1])
+            lan = (storjnode.util.get_inet_facing_ip(), self.port)
+            return {"wan": wan, "lan": lan}
+
+        ds = []
+        for neighbor in self.bootstrappableNeighbors():
+            ds.append(self.protocol.stun(neighbor))
+        return defer.gatherResults(ds).addCallback(handle)

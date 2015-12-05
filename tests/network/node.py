@@ -32,6 +32,7 @@ PORT = 3000
 STORAGE_DIR = tempfile.mkdtemp()
 WAN_IP = get_wan_ip()
 test_get_unl_success = 0
+LAN_IP = storjnode.util.get_inet_facing_ip()
 
 
 class TestNode(unittest.TestCase):
@@ -51,7 +52,7 @@ class TestNode(unittest.TestCase):
         for i in range(SWARM_SIZE):
 
             # isolate swarm
-            bootstrap_nodes = [("127.0.0.1", PORT + x) for x in range(i)][-20:]
+            bootstrap_nodes = [(LAN_IP, PORT + x) for x in range(i)][-20:]
 
             # create node
             node = storjnode.network.Node(
@@ -73,7 +74,7 @@ class TestNode(unittest.TestCase):
 
         # Peer used for get unl requests.
         unl_peer_bootstrap_nodes = [
-            ("127.0.0.1", PORT + x)
+            (LAN_IP, PORT + x)
             for x in range(SWARM_SIZE)
         ][-20:]
         cls.test_get_unl_peer = storjnode.network.Node(
@@ -156,7 +157,7 @@ class TestNode(unittest.TestCase):
 
         bob_node = storjnode.network.Node(
             self.__class__.btctxstore.create_key(),
-            bootstrap_nodes=[("127.0.0.1", alice_node.port)],
+            bootstrap_nodes=[(LAN_IP, alice_node.port)],
             store_config={STORAGE_DIR: None},
             refresh_neighbours_interval=interval,
             nat_type="preserving",
@@ -295,7 +296,7 @@ class TestNode(unittest.TestCase):
         alice_node.add_message_handler(lambda n, s, m: alice_received.set())
         bob_node = storjnode.network.Node(
             self.__class__.btctxstore.create_key(),
-            bootstrap_nodes=[("127.0.0.1", alice_node.port)],
+            bootstrap_nodes=[(LAN_IP, alice_node.port)],
             refresh_neighbours_interval=0.0,
             store_config={STORAGE_DIR: None},
             nat_type="preserving",
@@ -423,7 +424,7 @@ class TestNode(unittest.TestCase):
         alice_node.add_message_handler(lambda n, s, m: alice_received.set())
         bob_node = storjnode.network.Node(
             self.__class__.btctxstore.create_key(),
-            bootstrap_nodes=[("127.0.0.1", alice_node.port)],
+            bootstrap_nodes=[(LAN_IP, alice_node.port)],
             refresh_neighbours_interval=0.0,
             store_config={STORAGE_DIR: None},
             nat_type="preserving",
@@ -459,7 +460,7 @@ class TestNode(unittest.TestCase):
         )
         bob_node = storjnode.network.Node(
             self.__class__.btctxstore.create_key(),
-            bootstrap_nodes=[("127.0.0.1", alice_node.port)],
+            bootstrap_nodes=[(LAN_IP, alice_node.port)],
             refresh_neighbours_interval=0.0,
             max_messages=2,
             store_config={STORAGE_DIR: None},
@@ -550,8 +551,7 @@ class TestNode(unittest.TestCase):
     @unittest.skip("broken")
     def test_network_monitor(self):
         random_peer = random.choice(self.swarm)
-        scanned, scanning, toscan = storjnode.network.monitor.run(random_peer,
-                                                                  timeout=60)
+        scanned, scanning, toscan = storjnode.network.monitor.run(random_peer)
         self.assertEqual(len(scanned), len(self.swarm))
 
 
