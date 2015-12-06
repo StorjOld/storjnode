@@ -1,5 +1,6 @@
 import time
 import threading
+import traceback
 import binascii
 import random
 import storjnode
@@ -643,9 +644,8 @@ class Node(object):
             source = received["source"].id if received["source"] else None
             return handler(self, source, received["message"])
         except Exception as e:
-            msg = "Message handler raised exception: {0}"
-            print(e)
-            _log.error(msg.format(repr(e)))
+            txt = """Message handler raised exception: {0}\n\n{1}"""
+            _log.error(txt.format(repr(e), traceback.format_exc()))
 
     def _message_dispatcher_loop(self):
         while not self._message_dispatcher_thread_stop:

@@ -535,10 +535,14 @@ class TestNode(unittest.TestCase):
     # test network monitor #
     ########################
 
-    @unittest.skip("broken")
     def test_network_monitor(self):
         random_peer = random.choice(self.swarm)
-        scanned, scanning, toscan = storjnode.network.monitor.run(random_peer)
+        scanned, scanning = storjnode.network.monitor.run(
+            random_peer, timeout=600
+        )
+        if len(scanning) > 0:
+            print("SCANNING", scanning.keys())
+            print("INTERSECTION:", set(scanned.keys()).intersection(set(scanned.keys())))
         self.assertEqual(len(scanned), len(self.swarm))
 
 
