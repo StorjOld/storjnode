@@ -16,14 +16,10 @@ install:
   - python setup.py install
 
 script:
-  - pep8 storjnode
-  - pep8 examples
-  - pep8 tests
-  - coverage run --source="storjnode" -m unittest --quiet tests
+  - python -m unittest --verbose tests
 
 after_success:
   - coveralls
 
 notifications:
-  slack: storjcommunity:TZfUO9ycY8R9UYwztWZTo0jk
-  email: false
+  email: matthew@roberts.pm
