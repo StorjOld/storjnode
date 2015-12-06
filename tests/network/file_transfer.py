@@ -130,7 +130,7 @@ class TestFileTransfer(unittest.TestCase):
     def test_simple_data_request(self):
         self.client.simple_data_request(
             "something",
-            "some hosts unl",
+            self.client.net.unl.value,
             "receive"
         )
 
