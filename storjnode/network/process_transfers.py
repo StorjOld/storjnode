@@ -234,41 +234,43 @@ def get_contract_id(client, con, contract_id):
 
 
 def complete_transfer(client, contract_id, con):
-    # Determine who is master.
-    contract = client.contracts[contract_id]
-    their_unl = client.get_their_unl(contract)
-    is_master = client.net.unl.is_master(their_unl)
-    _log.debug("Is master = " + str(is_master))
+    with client.mutex:
+        # Determine who is master.
+        contract = client.contracts[contract_id]
+        their_unl = client.get_their_unl(contract)
+        is_master = client.net.unl.is_master(their_unl)
+        _log.debug("Is master = " + str(is_master))
 
-    # Return async success.
-    if contract_id in client.defers:
-        # Call any callbacks registered with this defer.
-        client.defers[contract_id].callback(client.success_value)
-        del client.defers[contract_id]
+        # Return async success.
+        if contract_id in client.defers:
+            # Call any callbacks registered with this defer.
+            client.defers[contract_id].callback(client.success_value)
+            del client.defers[contract_id]
 
-    # Call the completion handlers.
-    # todo: remove handler
-    old_handlers = set()
-    for handler in client.handlers["complete"]:
-        ret = handler(
-            client,
-            contract_id,
-            con
-        )
+        # Call the completion handlers.
+        # todo: remove handler
+        old_handlers = set()
+        for handler in client.handlers["complete"]:
+            ret = handler(
+                client,
+                contract_id,
+                con
+            )
 
-        if ret == -1:
-            old_handlers.add(handler)
+            if ret == -1:
+                old_handlers.add(handler)
 
-    # Remove old handlers.
-    for handler in old_handlers:
-        client.handlers["complete"].remove(handler)
+        # Remove old handlers.
+        for handler in old_handlers:
+            client.handlers["complete"].remove(handler)
 
-    if is_master:
-        # Set next contract ID and send to client.
-        client.queue_next_transfer(con)
-    else:
-        # Readying to receive a new contract ID.
-        client.con_transfer[con] = u""
+        # Queue next transfer.
+        if is_master:
+            # Set next contract ID and send to client.
+            client.queue_next_transfer(con)
+        else:
+            # Readying to receive a new contract ID.
+            client.con_transfer[con] = u""
 
 
 def process_dht_messages(client):
