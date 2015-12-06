@@ -42,7 +42,7 @@ def build_start_handler(self, msg):
             test = "download"
 
         # Set start time.
-        self.results[test]["start_time"] = int(time.time())
+        self.results[test]["start_time"] = time.time()
 
         _log.debug(test)
         _log.debug("Downlaod start handler")
@@ -98,7 +98,7 @@ def build_completion_handler(self, msg, accept_handler):
             self.transfer.defers[contract_id].addErrback(errback)
 
         test_data_size = (self.test_size * ONE_MB)
-        self.results[test]["end_time"] = int(time.time())
+        self.results[test]["end_time"] = time.time()
         self.results[test]["transferred"] = test_data_size
 
         if test == "upload":
@@ -193,7 +193,7 @@ def handle_requests_builder(self):
         our_unl = self.transfer.net.unl.value
         res = OrderedDict([
             (u"type", u"test_bandwidth_response"),
-            (u"timestamp", int(time.time())),
+            (u"timestamp", time.time()),
             (u"requestee", our_unl),
             (u"request", msg)
         ])
@@ -219,6 +219,9 @@ def handle_requests_builder(self):
 
         # Set start time.
         self.start_time = time.time()
+
+        # Save data id.
+        self.data_id = msg[u"data_id"]
 
         # Send request back to source.
         res = ordered_dict_to_list(res)
