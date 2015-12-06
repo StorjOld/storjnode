@@ -112,6 +112,9 @@ def request(node, receiver):
 def _respond(node, receiver, config):
 
     def handler(result):
+        if not result:
+            _log.warning("Couldn't get info for requested info message!")
+            return
         capacity = manager.capacity(config.get("store"))
         msg = create(node.server.btctxstore, node.get_key(),
                      capacity, result["wan"], result["wan"] == result["lan"])
