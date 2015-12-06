@@ -21,7 +21,7 @@ setup()
 _log = storjnode.log.getLogger(__name__)
 
 
-class TestDoRequests(unittest.TestCase):
+class TestSubBandwidthRequests(unittest.TestCase):
     @classmethod
     def setUpClass(cls):
         cls.alice_wallet = BtcTxStore(testnet=False, dryrun=True)

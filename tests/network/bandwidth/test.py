@@ -23,7 +23,7 @@ _log = storjnode.log.getLogger(__name__)
 timed_out = 0
 
 
-class TestDoRequests(unittest.TestCase):
+class TestSubBandwidthTest(unittest.TestCase):
     @classmethod
     def setUpClass(cls):
         cls.alice_wallet = BtcTxStore(testnet=False, dryrun=True)
