@@ -73,6 +73,14 @@ class TestFileHandshake(unittest.TestCase):
             store_config={self.bob_storage: None}
         )
 
+        # Accept all transfers.
+        def accept_handler(contract_id, src_unl, data_id, file_size):
+            return 1
+
+        # Add accept handler.
+        self.alice.handlers["accept"].add(accept_handler)
+        self.bob.handlers["accept"].add(accept_handler)
+
         # Link DHT nodes.
         self.alice_dht_node.add_relay_link(self.bob_dht_node)
         self.bob_dht_node.add_relay_link(self.alice_dht_node)

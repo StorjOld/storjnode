@@ -70,6 +70,14 @@ def test_queued():
     alice_dht.add_relay_link(bob_dht)
     bob_dht.add_relay_link(alice_dht)
 
+    # Accept all transfers.
+    def accept_handler(contract_id, src_unl, data_id, file_size):
+        return 1
+    
+    # Add accept handler.
+    alice.handlers["accept"].add(accept_handler)
+    bob.handlers["accept"].add(accept_handler)
+
     # Create file we're suppose to be uploading.
     data_id = ("5feceb66ffc86f38d952786c6d696c"
                "79c2dbc239dd4e91b46729d73a27fb57e9")

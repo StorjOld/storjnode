@@ -59,6 +59,13 @@ class TestFileTransfer(unittest.TestCase):
             store_config=self.store_config
         )
 
+        # Accept all transfers.
+        def accept_handler(contract_id, src_unl, data_id, file_size):
+            return 1
+
+        # Add accept handler.
+        self.client.handlers["accept"].add(accept_handler)
+
     def tearDown(self):
         shutil.rmtree(self.test_storage_dir)
         self.client.net.dht_node.stop()

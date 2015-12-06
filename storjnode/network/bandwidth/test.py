@@ -34,12 +34,30 @@ _log = logging.getLogger(__name__)
 
 class BandwidthTest():
     def __init__(self, wif, transfer, api, increasing_tests=1):
+        # Binary wallet import key.
         self.wif = wif
+
+        # A Node instance object (can also be pyp2p.dht_msg.DHT)
         self.api = api
+
+        # A FileTransfer object.
         self.transfer = transfer
+
+        # Boolean - whether to do successive tests if a test returns
+        # too soon (i.e. increase size for fast connections.)
         self.increasing_tests = increasing_tests
+
+        # The UNL of the remote node we're testing our bandwidth with.
         self.test_node_unl = None
+
+        # A deferred representing the future result for the active test.
         self.active_test = defer.Deferred()
+
+        # The data_id / hash of the current random file being transferred.
+        self.data_id = None
+
+        # Size in MB of current test - will increase if increasing_tests
+        # is enabled.
         self.test_size = 1  # MB
 
         # Stored in BYTES per second.
@@ -132,6 +150,15 @@ class BandwidthTest():
             "start": set()
         }
 
+        # Cleanup test shard.
+        if self.data_id is not None:
+            storjnode.storage.manager.remove(
+                self.transfer.store_config,
+                self.data_id
+            )
+
+            self.data_id = None
+
     def interpret_results(self):
         speeds = {}
         for test in list(self.results):
@@ -139,6 +166,9 @@ class BandwidthTest():
             start_time = self.results[test]["start_time"]
             end_time = self.results[test]["end_time"]
             seconds = Decimal(end_time - start_time)
+            if seconds == Decimal(0):
+                # Avoid divide by zero.
+                seconds = 1
             transferred = Decimal(self.results[test]["transferred"])
             speeds[test] = int(transferred / seconds)
 
@@ -201,15 +231,15 @@ class BandwidthTest():
         shard = generate_random_file(file_size)
 
         # Hash partial content.
-        data_id = get_hash(shard)
+        self.data_id = get_hash(shard).decode("utf-8")
         _log.debug("FINGER_log.debug HASH")
-        _log.debug(data_id)
+        _log.debug(self.data_id)
 
         # File meta data.
         meta = OrderedDict([
             (u"file_size", file_size),
             (u"algorithm", u"sha256"),
-            (u"hash", data_id.decode("utf-8"))
+            (u"hash", self.data_id.decode("utf-8"))
         ])
 
         _log.debug("UNL")
@@ -233,7 +263,7 @@ class BandwidthTest():
             (u"timestamp", int(time.time())),
             (u"requester", self.transfer.net.unl.value),
             (u"test_node_unl", node_unl),
-            (u"data_id", data_id.decode("utf-8")),
+            (u"data_id", self.data_id),
             (u"file_size", file_size)
         ])
 

@@ -73,7 +73,7 @@ def build_start_handler(self, req):
             test = "download"
 
         # Set start time.
-        self.results[test]["start_time"] = int(time.time())
+        self.results[test]["start_time"] = time.time()
         _log.debug(self.results)
         return 1
 
@@ -126,7 +126,7 @@ def build_completion_handler(self, req, accept_handler):
 
             _log.debug("Alice download")
 
-        self.results[test]["end_time"] = int(time.time())
+        self.results[test]["end_time"] = time.time()
         self.results[test]["transferred"] = req[u"file_size"]
         _log.debug(self.results)
 

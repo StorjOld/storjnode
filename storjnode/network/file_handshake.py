@@ -17,7 +17,7 @@ _log = logging.getLogger(__name__)
 
 # If this is disabled then any node can transfer with any other node
 # Without having a corresponding accept handler.
-ENABLE_ACCEPT_HANDLERS = 0
+ENABLE_ACCEPT_HANDLERS = 1
 
 # If connection reuse doesn't work out, set this to 0.
 # Controls whether files can be queued for download over same connection.
