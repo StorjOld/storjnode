@@ -4,6 +4,7 @@ If we're getting responses it means we attempted to
 initiate the request.
 """
 
+import storjnode
 import logging
 import time
 import copy
@@ -13,7 +14,7 @@ from storjnode.network.message import verify_signature
 from storjnode.util import parse_node_id_from_unl
 from storjnode.util import list_to_ordered_dict
 
-_log = logging.getLogger(__name__)
+_log = storjnode.log.getLogger(__name__)
 
 
 def build_accept_handler(self, req):

@@ -8,7 +8,13 @@ import tempfile
 import os
 import unittest
 import shutil
+import time
+import hashlib
+from twisted.internet import defer
 from storjnode.network.process_transfers import get_contract_id
+from storjnode.network.process_transfers import cleanup_cons
+from storjnode.network.process_transfers import expire_handshakes
+from storjnode.network.process_transfers import do_upload
 from pyp2p.sock import Sock
 from crochet import setup
 setup()
@@ -60,6 +66,42 @@ class TestProcessTransfers(unittest.TestCase):
         contract_id = b""
         assert(get_contract_id(self.client, con, contract_id) == 1)
         con.close()
+
+    def test_cleanup_cons(self):
+        con = Sock()
+        con.close()
+        self.client.con_info[con] = {}
+        self.client.con_info[con]["something"] = 1
+        self.client.defers["something"] = defer.Deferred()
+        self.client.cons.append(con)
+        cleanup_cons(self.client)
+
+    def test_expired_handshake(self):
+        contract_id = "something"
+        self.client.contracts[contract_id] = {}
+        self.client.handshake[contract_id] = {
+            "timestamp": time.time() - 10000
+        }
+        self.client.defers[contract_id] = defer.Deferred()
+        expire_handshakes(self.client)
+        self.assertTrue(contract_id not in self.client.defers)
+
+    def test_do_upload(self):
+        contract = {
+            "data_id": hashlib.sha256(b"0").hexdigest()
+        }
+
+        con_info = {
+            "file_size": 0
+        }
+
+        con = Sock()
+
+        # Data id doesn't exist.
+        self.assertTrue(do_upload(self.client, con, contract, con_info) == 0)
+
+    # Todo: add tests for other functions
+
 
 if __name__ == "__main__":
     unittest.main()

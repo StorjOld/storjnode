@@ -73,7 +73,7 @@ def test_queued():
     # Accept all transfers.
     def accept_handler(contract_id, src_unl, data_id, file_size):
         return 1
-    
+
     # Add accept handler.
     alice.handlers["accept"].add(accept_handler)
     bob.handlers["accept"].add(accept_handler)

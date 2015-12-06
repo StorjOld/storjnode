@@ -1,3 +1,4 @@
+import storjnode
 import pyp2p.unl
 import pyp2p.net
 import pyp2p.dht_msg
@@ -16,6 +17,7 @@ from storjnode.util import address_to_node_id
 from storjnode.util import parse_node_id_from_unl, ordered_dict_to_list
 from storjnode.network.message import verify_signature
 from storjnode.network.message import sign
+from storjnode.network.file_handshake import is_valid_syn
 
 from storjnode.network.process_transfers import process_transfers
 
@@ -153,10 +155,11 @@ class FileTransfer:
 
     def cleanup_transfers(self, con, contract_id):
         # Cleanup downloading.
-        contract = self.contracts[contract_id]
-        if contract["data_id"] in self.downloading:
-            if self.get_direction(contract_id) == u"receive":
-                del self.downloading[contract["data_id"]]
+        if contract_id in self.contracts:
+            contract = self.contracts[contract_id]
+            if contract["data_id"] in self.downloading:
+                if self.get_direction(contract_id) == u"receive":
+                    del self.downloading[contract["data_id"]]
 
         # Cleanup handshakes.
         if contract_id in self.handshake:
@@ -248,9 +251,12 @@ class FileTransfer:
         """
         _log.debug("In data request function")
         node_unl = node_unl.decode("utf-8")
+        d = defer.Deferred()
         if node_unl == self.net.unl.value:
-            _log.debug("Can;t send data request to ourself")
-            return
+            e = "Can;t send data request to ourself"
+            _log.debug(e)
+            d.errback(Exception(e))
+            return d
 
         # Who is hosting this data?
         if action == u"download":
@@ -264,7 +270,10 @@ class FileTransfer:
             # They store the data.
             host_unl = node_unl
             if data_id in self.downloading:
-                raise Exception("Already trying to download this.")
+                e = "Already trying to download this."
+                _log.debug(e)
+                d.errback(Exception(e))
+                return d
 
         # Create contract.
         contract = OrderedDict([
@@ -279,6 +288,13 @@ class FileTransfer:
         # Sign contract.
         contract = self.sign_contract(contract)
 
+        # Check contract is valid.
+        if not is_valid_syn(contract):
+            d = "our syn is invalid"
+            _log.debug(e)
+            d.errback(Exception(e))
+            return d
+
         # Route contract.
         contract_id = self.save_contract(contract)
         self.send_msg(contract, node_unl)
@@ -291,7 +307,6 @@ class FileTransfer:
         }
 
         # For async code.
-        d = defer.Deferred()
         self.defers[contract_id] = d
 
         # Return defer for async code.

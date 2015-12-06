@@ -2,7 +2,7 @@
 Not complete, don't add to __init__
 """
 
-
+import storjnode
 from decimal import Decimal
 from collections import OrderedDict
 import logging
@@ -29,7 +29,7 @@ from crochet import setup
 setup()
 
 
-_log = logging.getLogger(__name__)
+_log = storjnode.log.getLogger(__name__)
 
 
 class BandwidthTest():
@@ -88,14 +88,20 @@ class BandwidthTest():
 
                 self.reset_state()
 
+        # Schedule timeout.
+        def schedule_looping_call():
+            d = LoopingCall(handle_timeout).start(1, now=True)
+            d.addErrback(handle_errors)
+            return d
+
         # Handle errors.
         def handle_errors(ret):
             print("An unknown error occurred in handle timeout")
             print(ret)
+            self.reset_state()
+            return schedule_looping_call()
 
-        # Schedule timeout.
-        d = LoopingCall(handle_timeout).start(10, now=True)
-        d.addErrback(handle_errors)
+        schedule_looping_call()
 
     def increase_test_size(self):
         # Sanity check.

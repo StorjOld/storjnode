@@ -1,8 +1,4 @@
-"""
-Not complete, don't add to __init__
-"""
-
-
+import storjnode
 from decimal import Decimal
 from collections import OrderedDict
 import json

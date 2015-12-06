@@ -2,7 +2,7 @@
 Code that executes to handle bandwidth test requests
 (messages from other nodes to request starting a test.)
 """
-
+import storjnode
 import logging
 import time
 from collections import OrderedDict
@@ -12,7 +12,7 @@ from storjnode.util import ordered_dict_to_list
 from storjnode.util import list_to_ordered_dict
 from storjnode.network.message import sign, verify_signature
 
-_log = logging.getLogger(__name__)
+_log = storjnode.log.getLogger(__name__)
 
 
 def build_start_handler(self, msg):
@@ -28,7 +28,7 @@ def build_start_handler(self, msg):
         if contract[u"data_id"] != msg[u"data_id"]:
             _log.debug("Bob data id not equal!")
             _log.debug("\a")
-            return 0
+            return -2
 
         # Determine direction.
         direction = self.transfer.get_direction(
@@ -139,18 +139,18 @@ def build_accept_handler(self, msg):
 
         if data_id != msg[u"data_id"]:
             _log.debug("data id not = in bob accept\a")
-            return 0
+            return -2
 
         # Invalid node making this connection.
         if self.test_node_unl != src_unl:
             _log.debug("unl not = in bob accept\a")
-            return 0
+            return -3
 
         # Invalid file_size request size for test.
         test_data_size = (self.test_size * ONE_MB)
         if msg[u"file_size"] > (test_data_size + 1024):
             _log.debug("file size not = in bob accept\a")
-            return 0
+            return -4
 
         # Build completion handler.
         completion_handler = build_completion_handler(
@@ -176,32 +176,37 @@ def handle_requests_builder(self):
         msg = list_to_ordered_dict(msg)
         if msg[u"type"] != u"test_bandwidth_request":
             _log.debug("req: Invalid request")
-            return
+            return -1
 
         # Drop request if test already active.
         if self.test_node_unl is not None:
             _log.debug("req: test already active")
-            return
+            return -2
+
+        # Check they got our node unl right.
+        our_unl = self.transfer.net.unl.value
+        if our_unl != msg[u"test_node_unl"]:
+            _log.debug("req: they got our node unl wrong")
+            return -3
+
+        # Don't connect to ourself.
+        if our_unl == msg[u"requester"]:
+            _log.debug("req: cannot connect back to ourself")
+            return -5
 
         # Check sig.
         src_node_id = parse_node_id_from_unl(msg[u"requester"])
         if not verify_signature(msg, self.wif, src_node_id):
             _log.debug("req: Invalid sig")
-            return
+            return -4
 
         # Build response.
-        our_unl = self.transfer.net.unl.value
         res = OrderedDict([
             (u"type", u"test_bandwidth_response"),
             (u"timestamp", time.time()),
             (u"requestee", our_unl),
             (u"request", msg)
         ])
-
-        # Check they got our node ID right.
-        if our_unl != msg[u"test_node_unl"]:
-            _log.debug("req: they got our node id wrong")
-            return
 
         # Sign response
         res = sign(res, self.wif)
@@ -227,6 +232,7 @@ def handle_requests_builder(self):
         res = ordered_dict_to_list(res)
         self.api.relay_message(src_node_id, res)
         _log.debug("req: got request")
+        return 1
 
     def try_wrapper(node, src_node_id, msg):
         try:
