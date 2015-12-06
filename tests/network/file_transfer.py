@@ -59,6 +59,13 @@ class TestFileTransfer(unittest.TestCase):
             store_config=self.store_config
         )
 
+        # Accept all transfers.
+        def accept_handler(contract_id, src_unl, data_id, file_size):
+            return 1
+
+        # Add accept handler.
+        self.client.handlers["accept"].add(accept_handler)
+
     def tearDown(self):
         shutil.rmtree(self.test_storage_dir)
         self.client.net.dht_node.stop()
@@ -71,6 +78,61 @@ class TestFileTransfer(unittest.TestCase):
         }
 
         assert(self.client.get_con_by_contract_id(contract_id) == con)
+
+    def test_move_file_to_storage(self):
+        junk, path = tempfile.mkstemp()
+        with open(path, "rw+") as fp:
+            fp.write("1")
+            data_id = storjnode.storage.shard.get_id(fp)
+
+        self.client.move_file_to_storage(path)
+        self.client.remove_file_from_storage(data_id)
+
+    def test_cleanup_transfers(self):
+        con = "con"
+        contract_id = "contract_id"
+        data_id = "data_id"
+        self.client.contracts[contract_id] = {
+            "data_id": data_id,
+            "host_unl": self.client.net.unl.value,
+            "src_unl": self.client.net.unl.value,
+            "dest_unl": self.client.net.unl.value
+        }
+        self.client.handshake[contract_id] = {}
+        self.client.defers[contract_id] = {}
+        self.client.con_transfer[con] = {}
+        self.client.con_info[con] = {}
+        self.client.cleanup_transfers(con, contract_id)
+
+    def test_data_request(self):
+        # Sending data to ourselves.
+        self.client.data_request(
+            "upload",
+            "something",
+            100,
+            self.client.net.unl.value
+        )
+
+        # Already download this.
+        data_id = "something"
+        self.client.downloading[data_id] = 1
+        try:
+            self.client.data_request(
+                "upload",
+                data_id,
+                100,
+                "another hosts unl"
+            )
+            assert(0)
+        except:
+            return
+
+    def test_simple_data_request(self):
+        self.client.simple_data_request(
+            "something",
+            self.client.net.unl.value,
+            "receive"
+        )
 
     @unittest.skip("Disable because too slow: move to node test code")
     def test_multiple_transfers(self):

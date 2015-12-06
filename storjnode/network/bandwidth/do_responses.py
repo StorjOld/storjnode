@@ -4,6 +4,7 @@ If we're getting responses it means we attempted to
 initiate the request.
 """
 
+import storjnode
 import logging
 import time
 import copy
@@ -13,7 +14,7 @@ from storjnode.network.message import verify_signature
 from storjnode.util import parse_node_id_from_unl
 from storjnode.util import list_to_ordered_dict
 
-_log = logging.getLogger(__name__)
+_log = storjnode.log.getLogger(__name__)
 
 
 def build_accept_handler(self, req):
@@ -73,7 +74,7 @@ def build_start_handler(self, req):
             test = "download"
 
         # Set start time.
-        self.results[test]["start_time"] = int(time.time())
+        self.results[test]["start_time"] = time.time()
         _log.debug(self.results)
         return 1
 
@@ -126,7 +127,7 @@ def build_completion_handler(self, req, accept_handler):
 
             _log.debug("Alice download")
 
-        self.results[test]["end_time"] = int(time.time())
+        self.results[test]["end_time"] = time.time()
         self.results[test]["transferred"] = req[u"file_size"]
         _log.debug(self.results)
 

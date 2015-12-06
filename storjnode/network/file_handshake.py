@@ -1,3 +1,4 @@
+import storjnode
 from collections import OrderedDict
 import time
 import pyp2p.unl
@@ -13,11 +14,11 @@ from storjnode.util import parse_node_id_from_unl
 from storjnode.util import ordered_dict_to_list, list_to_ordered_dict
 from ast import literal_eval
 
-_log = logging.getLogger(__name__)
+_log = storjnode.log.getLogger(__name__)
 
 # If this is disabled then any node can transfer with any other node
 # Without having a corresponding accept handler.
-ENABLE_ACCEPT_HANDLERS = 0
+ENABLE_ACCEPT_HANDLERS = 1
 
 # If connection reuse doesn't work out, set this to 0.
 # Controls whether files can be queued for download over same connection.
