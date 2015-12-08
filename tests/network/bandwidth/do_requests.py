@@ -332,8 +332,8 @@ class TestSubBandwidthRequests(unittest.TestCase):
         ) == 1)
 
         # Test errback.
-        #d = self.bob_transfer.defers[contract_id]
-        #d.errback("test")
+        # d = self.bob_transfer.defers[contract_id]
+        # d.errback("test")
 
 
 if __name__ == "__main__":
