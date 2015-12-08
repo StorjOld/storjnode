@@ -15,6 +15,8 @@ from storjnode.network.process_transfers import get_contract_id
 from storjnode.network.process_transfers import cleanup_cons
 from storjnode.network.process_transfers import expire_handshakes
 from storjnode.network.process_transfers import do_upload
+from storjnode.network.process_transfers import do_download
+from storjnode.network.process_transfers import process_dht_messages
 from pyp2p.sock import Sock
 from crochet import setup
 setup()
@@ -100,7 +102,47 @@ class TestProcessTransfers(unittest.TestCase):
         # Data id doesn't exist.
         self.assertTrue(do_upload(self.client, con, contract, con_info) == 0)
 
-    # Todo: add tests for other functions
+    def test_do_download(self):
+        contract = {
+            "data_id": hashlib.sha256(b"0").hexdigest()
+        }
+
+        con_info = {
+            "file_size": 0,
+            "file_size_buf": b"x"
+        }
+
+        con = Sock("www.example.com", 80, blocking=1, timeout=5)
+        con.send_line("GET / HTTP/1.1")
+        con.send_line("Host: www.example.com\r\n\r\n")
+
+        # Invalid file size.
+        self.assertTrue(
+            do_download(
+                self.client,
+                con,
+                contract,
+                con_info
+            ) == -2)
+        con.close()
+
+        # Invalid found data hash.
+        con = Sock("www.example.com", 80, blocking=1, timeout=5)
+        con.send_line("GET / HTTP/1.1")
+        con.send_line("Host: www.example.com\r\n\r\n")
+        contract = {
+            "data_id": hashlib.sha256(b"0").hexdigest()
+        }
+        con_info = {
+            "file_size": 2,
+            "file_size_buf": b"x",
+            "remaining": 1
+        }
+        print(do_download(self.client, con, contract, con_info))
+        con.close()
+
+    def test_process_dht(self):
+        process_dht_messages(None)
 
 
 if __name__ == "__main__":

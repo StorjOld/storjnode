@@ -151,21 +151,21 @@ def do_download(client, con, contract, con_info):
             remaining = 20 - len(file_size_buf)
             partial = con.recv(remaining)
             if not len(partial):
-                return 0
+                return -1
 
             file_size_buf += partial
             if len(file_size_buf) == 20:
                 if re.match(b"[0-9]+", file_size_buf) is None:
                     _log.debug("Invalid file size.")
                     con.close()
-                    return 0
+                    return -2
 
                 file_size, = struct.unpack("<20s", file_size_buf)
                 file_size = int(file_size_buf.rstrip(b"\0"))
                 con_info["file_size"] = file_size
                 con_info["remaining"] = file_size
             else:
-                return 0
+                return -3
 
     # Download.
     data = con.recv(
@@ -193,7 +193,7 @@ def do_download(client, con, contract, con_info):
                 _log.debug(data_id)
                 _log.debug("Error: downloaded file doesn't hash right! \a")
                 os.remove(temp_path)
-                return 0
+                return -4
 
             # Move shard to storage.
             storage.manager.add(
@@ -207,7 +207,7 @@ def do_download(client, con, contract, con_info):
         # Ready for a new transfer (if there are any.)
         return 1
 
-    return 0
+    return -5
 
 
 def get_contract_id(client, con, contract_id):
@@ -373,7 +373,7 @@ def process_transfers(client):
             transfer_complete = do_download(client, con, contract, con_info)
 
         # Run any callbacks and schedule next transfer.
-        if transfer_complete:
+        if transfer_complete == 1:
             _log.debug("Transfer completed")
             complete_transfer(client, contract_id, con)
 

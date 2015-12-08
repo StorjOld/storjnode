@@ -65,19 +65,19 @@ def build_completion_handler(self, msg, accept_handler):
         contract = self.transfer.contracts[found]
         if contract[u"data_id"] != msg[u"data_id"]:
             _log.debug("Bob completion: invalid data id")
-            return 0
+            return -2
 
         if self.transfer.get_direction(found) == u"send":
             test = "upload"
             if contract[u"dest_unl"] != self.test_node_unl:
                 _log.debug("Bob upload: invalid src unl")
                 _log.debug("\a")
-                return 0
+                return -3
         else:
             test = "download"
             if contract[u"src_unl"] != self.test_node_unl:
                 _log.debug("Alice dl: src unl incorrect.")
-                return 0
+                return -4
 
             # Send download request to remote host!
             contract_id = self.transfer.data_request(
@@ -95,7 +95,8 @@ def build_completion_handler(self, msg, accept_handler):
                 self.reset_state()
 
             # Register error handler for transfer.
-            self.transfer.defers[contract_id].addErrback(errback)
+            if contract_id in self.transfer.defers:
+                self.transfer.defers[contract_id].addErrback(errback)
 
         test_data_size = (self.test_size * ONE_MB)
         self.results[test]["end_time"] = time.time()
@@ -232,7 +233,7 @@ def handle_requests_builder(self):
         res = ordered_dict_to_list(res)
         self.api.relay_message(src_node_id, res)
         _log.debug("req: got request")
-        return 1
+        return res
 
     def try_wrapper(node, src_node_id, msg):
         try:

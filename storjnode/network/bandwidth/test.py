@@ -204,8 +204,13 @@ class BandwidthTest():
         for test in list(self.results):
             start_time = self.results[test]["start_time"]
             end_time = self.results[test]["end_time"]
-            assert(start_time)
-            assert(end_time)
+            if not start_time:
+                _log.debug("Invalid start time")
+                return 0
+
+            if not end_time:
+                _log.debug("invalid end time")
+                return 0
 
             duration = end_time - start_time
             if duration < threshold:
