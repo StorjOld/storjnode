@@ -130,14 +130,16 @@ class TestProcessTransfers(unittest.TestCase):
         con = Sock("www.example.com", 80, blocking=1, timeout=5)
         con.send_line("GET / HTTP/1.1")
         con.send_line("Host: www.example.com\r\n\r\n")
+        data_id = hashlib.sha256(b"0").hexdigest()
         contract = {
-            "data_id": hashlib.sha256(b"0").hexdigest()
+            "data_id": data_id
         }
         con_info = {
             "file_size": 2,
             "file_size_buf": b"x",
             "remaining": 1
         }
+        junk, self.client.downloading[data_id] = tempfile.mkstemp()
         print(do_download(self.client, con, contract, con_info))
         con.close()
 
