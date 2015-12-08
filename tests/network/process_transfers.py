@@ -112,7 +112,7 @@ class TestProcessTransfers(unittest.TestCase):
             "file_size_buf": b"x"
         }
 
-        con = Sock("www.example.com", 80, blocking=1, timeout=5)
+        con = Sock("93.184.216.34", 80, blocking=1, timeout=15)
         con.send_line("GET / HTTP/1.1")
         con.send_line("Host: www.example.com\r\n\r\n")
 
@@ -127,7 +127,7 @@ class TestProcessTransfers(unittest.TestCase):
         con.close()
 
         # Invalid found data hash.
-        con = Sock("www.example.com", 80, blocking=1, timeout=5)
+        con = Sock("93.184.216.34", 80, blocking=1, timeout=15)
         con.send_line("GET / HTTP/1.1")
         con.send_line("Host: www.example.com\r\n\r\n")
         data_id = hashlib.sha256(b"0").hexdigest()
