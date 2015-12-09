@@ -133,7 +133,6 @@ class Server(KademliaServer):
             True if message was added to relay queue, otherwise False.
         """
 
-
         # check max message size
         packed_message = umsgpack.packb(message)
         assert(len(packed_message) <= MAX_MESSAGE_DATA)
