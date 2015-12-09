@@ -240,7 +240,6 @@ class TestNode(unittest.TestCase):
             msg = "TEST: sending relay message from {0} to {1}"
             print(msg.format(sender.get_hex_id(), receiver.get_hex_id()))
             self._test_relay_message(sender, receiver, True)
-            time.sleep(0.1)
 
     def test_relay_message_to_void(self):  # for coverage
         random_peer = random.choice(self.swarm)
@@ -388,7 +387,6 @@ class TestNode(unittest.TestCase):
             msg = "TEST: sending direct message from {0} to {1}"
             print(msg.format(sender.get_hex_id(), receiver.get_hex_id()))
             self._test_direct_message(sender, receiver, True)
-            time.sleep(0.1)
 
     def test_direct_message_to_void(self):  # for coverage
         peer = storjnode.network.Node(
@@ -547,7 +545,7 @@ class TestNode(unittest.TestCase):
 
     def test_network_monitor(self):
         random_peer = random.choice(self.swarm)
-        scanned = storjnode.network.monitor.run(
+        scanned = storjnode.network.monitor.crawl(
             random_peer, limit=KSIZE, timeout=600
         )
         self.assertTrue(len(scanned) >= KSIZE)

@@ -7,6 +7,7 @@ import storjnode
 from btctxstore import BtcTxStore
 from crochet import setup
 
+
 # start twisted via crochet and remove twisted handler
 setup()
 signal.signal(signal.SIGINT, signal.default_int_handler)

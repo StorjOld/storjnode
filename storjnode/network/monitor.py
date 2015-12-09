@@ -21,25 +21,22 @@ DEFAULT_DATA = {
 }
 
 
-class _Monitor(object):  # will not scale but good for now
+class Crawler(object):  # will not scale but good for now
 
     def __init__(self, node, limit=20, timeout=600):
         # pipeline: scanning -> scanned
         self.scanning = {}  # {id: data}
         self.scanned = {}  # {id: data}
 
+        self.stop_thread = False
         self.mutex = RLock()
         self.node = node
         self.server = self.node.server
         self.timeout = time.time() + timeout
         self.limit = limit
 
-        # add handlers
-        self.node.add_message_handler(self._handle_info_message)
-        self.node.add_message_handler(self._handle_peers_message)
-
-        # start crawl at self
-        self.scanning[self.node.get_id()] = copy.deepcopy(DEFAULT_DATA)
+    def stop(self):
+        self.stop_thread = True
 
     def _handle_peers_message(self, node, source_id, message):
         received = time.time()
@@ -94,7 +91,7 @@ class _Monitor(object):  # will not scale but good for now
             len(self.scanned), len(self.scanning)
         ))
 
-    def process(self, nodeid, data):
+    def _process(self, nodeid, data):
 
         # request with exponential backoff
         now = time.time()
@@ -109,12 +106,18 @@ class _Monitor(object):  # will not scale but good for now
 
         # request peers
         if data["peers"] is None:
+            _log.info("Requesting peers of {0}".format(
+                storjnode.util.node_id_to_address(nodeid)
+            ))
             request_peers(self.node, nodeid)
             if data["latency"]["peers"] is None:
                 data["latency"]["peers"] = now
 
         # request info
         if data["network"] is None:
+            _log.info("Requesting info of {0}".format(
+                storjnode.util.node_id_to_address(nodeid)
+            ))
             request_info(self.node, nodeid)
             if data["latency"]["info"] is None:
                 data["latency"]["info"] = now
@@ -122,8 +125,8 @@ class _Monitor(object):  # will not scale but good for now
         data["request"]["last"] = now
         data["request"]["tries"] = data["request"]["tries"] + 1
 
-    def worker(self):
-        while time.time() < self.timeout:
+    def _process_scanning(self):
+        while not self.stop_thread and time.time() < self.timeout:
             time.sleep(0.002)
 
             # get next node to scan
@@ -136,27 +139,32 @@ class _Monitor(object):  # will not scale but good for now
                     return  # done! limit set and reached
 
                 for nodeid, data in self.scanning.copy().items():
-                    self.process(nodeid, data)
+                    self._process(nodeid, data)
                     time.sleep(0.1)  # not to fast
 
-        # done! because of timeout
+        # done! because of timeout or stop flag
 
     def crawl(self):
-        """Start workers and block until network is crawled."""
 
-        worker = Thread(target=self.worker)
-        worker.start()
-        worker.join()
+        # add info and peers message handlers
+        self.node.add_message_handler(self._handle_info_message)
+        self.node.add_message_handler(self._handle_peers_message)
 
-        # remove handlers
+        # start crawl at self
+        self.scanning[self.node.get_id()] = copy.deepcopy(DEFAULT_DATA)
+
+        # process scanning until done
+        self._process_scanning()
+
+        # remove info and peers message handlers
         self.node.remove_message_handler(self._handle_info_message)
         self.node.remove_message_handler(self._handle_peers_message)
 
         return self.scanned
 
 
-def run(node, limit=20, timeout=600):
-    """Monitor to crawl the net and gather info of the nearest peers.
+def crawl(node, limit=20, timeout=600):
+    """Crawl the net and gather info of the nearest peers.
 
     The crawler will scan nodes from nearest to farthest.
 
@@ -165,4 +173,44 @@ def run(node, limit=20, timeout=600):
         limit: Number of results after which to stop, 0 to crawl entire net.
         timeout: Time in seconds after which to stop.
     """
-    return _Monitor(node, limit=limit, timeout=timeout).crawl()
+    return Crawler(node, limit=limit, timeout=timeout).crawl()
+
+
+class Monitor(object):
+
+    def __init__(self, node, config, limit=20, interval=600):
+        self.config = config
+        self.node = node
+        self.limit = limit
+        self.interval = interval
+        self.mutex = RLock()
+        self.crawler = None
+        self.last_crawl = 0
+        self.stop_thread = False
+        self.thread = Thread(target=self.monitor)
+        self.thread.start()
+
+    def stop(self):
+        with self.mutex:
+            self.crawler.stop()
+        self.stop_thread = True
+        self.thread.join()
+
+    def monitor(self):
+        while not self.stop_thread:
+
+            if self.last_crawl + self.interval < time.time():
+
+                # crawl network
+                with self.mutex:
+                    self.crawler = Crawler(
+                        self.node, limit=self.limit, timeout=self.interval
+                    )
+                scanned = self.crawler.crawl()
+
+                # TODO save results to store
+                # TODO add store predictable id to dht
+
+                self.last_crawl = time.time()
+
+            time.sleep(0.002)
