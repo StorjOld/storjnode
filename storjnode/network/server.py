@@ -21,6 +21,9 @@ QUERY_TIMEOUT = 5.0
 WALK_TIMEOUT = QUERY_TIMEOUT * 24
 
 
+_log = storjnode.log.getLogger(__name__)
+
+
 class Server(KademliaServer):
 
     def __init__(self, key, port, ksize=20, alpha=3, storage=None,
@@ -52,7 +55,7 @@ class Server(KademliaServer):
         # passing the protocol class should be added upstream
         self.ksize = ksize
         self.alpha = alpha
-        self.log = storjnode.log.getLogger(__name__)
+        self.log = storjnode.log.getLogger("kademlia.network")
 
         self.storage = storage or ForgetfulStorage()
         self.node = KademliaNode(self.get_id())
@@ -88,7 +91,7 @@ class Server(KademliaServer):
         # FIXME actually disconnect from port and stop properly
 
     def refresh_neighbours(self):
-        self.log.debug("Refreshing neighbours ...")
+        _log.debug("Refreshing neighbours ...")
         self.bootstrap(self.bootstrappableNeighbors())
 
     def get_id(self):
@@ -139,13 +142,13 @@ class Server(KademliaServer):
         message = umsgpack.unpackb(packed_message)  # sanatize abstract types
 
         if nodeid == self.node.id:
-            self.log.info("Adding message to self to received queue!.")
+            _log.info("Adding message to self to received queue!.")
             return self.protocol.queue_received_message({
                 "source": None, "message": message
             })
         else:
             txt = "Queuing relay messaging for %s: %s"
-            self.log.debug(txt % (binascii.hexlify(nodeid), message))
+            _log.debug(txt % (binascii.hexlify(nodeid), message))
             return self.protocol.queue_relay_message({
                 "dest": nodeid, "message": message,
                 "hop_limit": self._default_hop_limit
@@ -156,18 +159,18 @@ class Server(KademliaServer):
 
         dest = KademliaNode(entry["dest"])
         nearest = self.protocol.router.findNeighbors(dest, exclude=self.node)
-        self.log.debug("Relaying to nearest: %s" % repr(nearest))
+        _log.debug("Relaying to nearest: %s" % repr(nearest))
         for relay_node in nearest:
 
             # do not relay away from node
             if dest.distanceTo(self.node) <= dest.distanceTo(relay_node):
                 msg = "Skipping %s, farther then self."
-                self.log.debug(msg % repr(relay_node))
+                _log.debug(msg % repr(relay_node))
                 continue
 
             # relay message
             hexid = binascii.hexlify(relay_node.id)
-            self.log.debug("Attempting to relay message for %s" % hexid)
+            _log.debug("Attempting to relay message for %s" % hexid)
             defered = self.protocol.callRelayMessage(
                 relay_node, entry["dest"], entry["hop_limit"], entry["message"]
             )
@@ -179,17 +182,17 @@ class Server(KademliaServer):
                                                          timeout=QUERY_TIMEOUT)
             except TimeoutError:  # pragma: no cover
                 msg = "Timeout while relayed message to %s"  # pragma: no cover
-                self.log.debug(msg % hexid)  # pragma: no cover
+                _log.debug(msg % hexid)  # pragma: no cover
                 result = None  # pragma: no cover
 
             # successfull relay
             if result is not None:
-                self.log.debug("Successfully relayed message to %s" % hexid)
+                _log.debug("Successfully relayed message to %s" % hexid)
                 return  # relay to nearest peer, avoid amplification attacks
 
         # failed to relay message
         dest_hexid = binascii.hexlify(entry["dest"])
-        self.log.debug("Failed to relay message for %s" % dest_hexid)
+        _log.debug("Failed to relay message for %s" % dest_hexid)
 
     def _refresh_loop(self):
         last_refresh = datetime.datetime.now()
@@ -223,16 +226,16 @@ class Server(KademliaServer):
             Defered own transport address (ip, port) if successfull else None
         """
         hexid = binascii.hexlify(nodeid)
-        self.log.debug("Direct messaging %s: %s" % (hexid, message))
+        _log.debug("Direct messaging %s: %s" % (hexid, message))
 
         def found_callback(nodes):
             nodes = filter(lambda n: n.id == nodeid, nodes)
             if len(nodes) == 0:
                 msg = "{0} couldn't find destination node {1}"
-                self.log.warning(msg.format(self.get_hex_id(), hexid))
+                _log.warning(msg.format(self.get_hex_id(), hexid))
                 return defer.succeed(None)
             else:
-                self.log.debug("found node %s" % binascii.hexlify(nodes[0].id))
+                _log.debug("found node %s" % binascii.hexlify(nodes[0].id))
                 async = self.protocol.callDirectMessage(nodes[0], message)
                 return async.addCallback(lambda r: r[0] and r[1] or None)
 
@@ -240,7 +243,7 @@ class Server(KademliaServer):
         nearest = self.protocol.router.findNeighbors(node)
         if len(nearest) == 0:
             msg = "{0} has no known neighbors to find {1}"
-            self.log.warning(msg.format(self.get_hex_id(), hexid))
+            _log.warning(msg.format(self.get_hex_id(), hexid))
             return defer.succeed(None)
         spider = NodeSpiderCrawl(
             self.protocol, node, nearest, self.ksize, self.alpha
@@ -254,14 +257,14 @@ class Server(KademliaServer):
         def handle(results):
             results = filter(lambda r: r[0], results)  # filter successful
             if not results:
-                self.log.warning("No successful stun!")
+                _log.warning("No successful stun!")
                 return None
 
             # FIXME check all entries as some nodes may be on the local net
             result = results[0][1]
 
             if not result:
-                self.log.warning("No stun result!")
+                _log.warning("No stun result!")
                 return None
 
             wan = (result[0], result[1])

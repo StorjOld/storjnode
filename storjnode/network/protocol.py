@@ -27,6 +27,9 @@ def _findNearest(self, node, k=None, exclude=None):
 RoutingTable.findNeighbors = _findNearest  # XXX monkey patch find neighbors
 
 
+_log = storjnode.log.getLogger(__name__)
+
+
 class Protocol(KademliaProtocol):
 
     def __init__(self, *args, **kwargs):
@@ -35,7 +38,7 @@ class Protocol(KademliaProtocol):
         self.messages_relay = Queue(maxsize=max_messages)
         self.messages_received = Queue(maxsize=max_messages)
         KademliaProtocol.__init__(self, *args, **kwargs)
-        self.log = storjnode.log.getLogger(__name__)
+        self.log = storjnode.log.getLogger("kademlia.protocol")
         self.noisy = False
 
     def has_messages(self):

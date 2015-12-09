@@ -1,6 +1,8 @@
 import time
+import json
 import copy
 import storjnode
+from io import import BytesIO
 from threading import Thread, RLock
 from storjnode.network.messages.peers import read as read_peers
 from storjnode.network.messages.peers import request as request_peers
@@ -208,8 +210,22 @@ class Monitor(object):
                     )
                 scanned = self.crawler.crawl()
 
-                # TODO save results to store
+                # create shard
+                shard = BytesIO()
+                shard.write(json.dumps(scanned))
+
+                # predictable id
+                shardkey = "monitor_dataset_{0}_{1}".format(
+                    storjnode.util.node_id_to_address(node.get_id()),
+                    "TODO predictable id"
+                )
+                raise Exception("use predictable id")
+
+                # save results to store
+                storjnode.storage.manager.add(self.config.get("store"), shard)
+
                 # TODO add store predictable id to dht
+                self.node[shardkey] = storjnode.storage.shard.get_id(shard)
 
                 self.last_crawl = time.time()
 
