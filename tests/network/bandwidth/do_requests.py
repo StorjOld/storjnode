@@ -157,11 +157,11 @@ class TestSubBandwidthRequests(unittest.TestCase):
 
         # Success.
         req = copy.deepcopy(self.req)
-        self.assertTrue(handle_requests(
+        self.assertTrue(type(handle_requests(
             self.alice_dht,
             self.alice_node_id,
             req
-        ) == 1)
+        )) == list)
 
         """
         ----------------------
@@ -258,7 +258,82 @@ class TestSubBandwidthRequests(unittest.TestCase):
         ----------------------
         Test completion handler.
         ----------------------
+        completion_handler(client, contract_id, con):
         """
+
+        # Handler expired.
+        req = list_to_ordered_dict(copy.deepcopy(self.req))
+        complete_handler = self.bob_test.handlers["complete"].pop()
+        contract_id = ""
+        self.assertTrue(complete_handler(
+            self.bob_transfer,
+            contract_id,
+            None
+        ) == -1)
+        self.bob_test.handlers["complete"].add(complete_handler)
+
+        # Invalid data id.
+        req = list_to_ordered_dict(copy.deepcopy(self.req))
+        contract_id = "test"
+        contract = {
+            "data_id": "yyy"
+        }
+        self.bob_transfer.contracts[contract_id] = contract
+        self.assertTrue(complete_handler(
+            self.bob_transfer,
+            contract_id,
+            None
+        ) == -2)
+
+        # Upload: invalid src unl.
+        req = list_to_ordered_dict(copy.deepcopy(self.req))
+        contract_id = "test"
+        contract = {
+            "data_id": req["data_id"],
+            "dest_unl": self.bob_transfer.net.unl.value,
+            "host_unl": self.bob_transfer.net.unl.value
+        }
+        self.bob_transfer.contracts[contract_id] = contract
+        self.assertTrue(complete_handler(
+            self.bob_transfer,
+            contract_id,
+            None
+        ) == -3)
+
+        # Download: invalid src unl.
+        req = list_to_ordered_dict(copy.deepcopy(self.req))
+        contract_id = "test"
+        contract = {
+            "data_id": req["data_id"],
+            "dest_unl": self.bob_transfer.net.unl.value,
+            "host_unl": self.alice_transfer.net.unl.value,
+            "src_unl": self.bob_transfer.net.unl.value
+        }
+        self.bob_transfer.contracts[contract_id] = contract
+        self.assertTrue(complete_handler(
+            self.bob_transfer,
+            contract_id,
+            None
+        ) == -4)
+
+        # Upload: bad results
+        req = list_to_ordered_dict(copy.deepcopy(self.req))
+        contract_id = "test"
+        contract = {
+            "data_id": req["data_id"],
+            "dest_unl": self.alice_transfer.net.unl.value,
+            "host_unl": self.bob_transfer.net.unl.value
+        }
+        self.bob_transfer.contracts[contract_id] = contract
+        self.assertTrue(complete_handler(
+            self.bob_transfer,
+            contract_id,
+            None
+        ) == 1)
+
+        # Test errback.
+        # d = self.bob_transfer.defers[contract_id]
+        # d.errback("test")
 
 
 if __name__ == "__main__":

@@ -289,8 +289,8 @@ class FileTransfer:
         contract = self.sign_contract(contract)
 
         # Check contract is valid.
-        if not is_valid_syn(self, contract):
-            d = "our syn is invalid"
+        if is_valid_syn(self, contract) != 1:
+            e = "our syn is invalid"
             _log.debug(e)
             d.errback(Exception(e))
             return d

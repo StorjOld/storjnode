@@ -134,6 +134,13 @@ class TestFileTransfer(unittest.TestCase):
             "receive"
         )
 
+    def test_invalid_our_syn(self):
+        self.client.simple_data_request(
+            "something",
+            "invalid unl",
+            "receive"
+        )
+
     @unittest.skip("Disable because too slow: move to node test code")
     def test_multiple_transfers(self):
 

@@ -121,7 +121,7 @@ class TestSubBandwidthTest(unittest.TestCase):
         time.sleep(2)
         self.assertTrue(timed_out == 1)
 
-    def increase_test_size(self):
+    def test_increase_test_size(self):
         # Too big.
         self.alice_test.test_size = 1000
         self.assertTrue(self.alice_test.increase_test_size() == 1000)
