@@ -28,6 +28,7 @@ WALK_TIMEOUT = WALK_TIMEOUT / 2.0
 
 PROFILE = False
 SWARM_SIZE = 16
+KSIZE = SWARM_SIZE / 2 if SWARM_SIZE / 2 < 20 else 20
 PORT = 3000
 STORAGE_DIR = tempfile.mkdtemp()
 test_get_unl_success = 0
@@ -55,7 +56,7 @@ class TestNode(unittest.TestCase):
 
             # create node
             node = storjnode.network.Node(
-                cls.btctxstore.create_wallet(), port=(PORT + i), ksize=8,
+                cls.btctxstore.create_wallet(), port=(PORT + i), ksize=KSIZE,
                 bootstrap_nodes=bootstrap_nodes,
                 refresh_neighbours_interval=0.0,
                 store_config={STORAGE_DIR: None},
@@ -546,11 +547,10 @@ class TestNode(unittest.TestCase):
 
     def test_network_monitor(self):
         random_peer = random.choice(self.swarm)
-        scanned, scanning = storjnode.network.monitor.run(
-            random_peer, timeout=600
+        scanned = storjnode.network.monitor.run(
+            random_peer, limit=KSIZE, timeout=600
         )
-        self.assertEqual(len(scanned), len(self.swarm))
-        self.assertEqual(len(scanning), 0)
+        self.assertTrue(len(scanned) >= KSIZE)
 
 
 if __name__ == "__main__":

@@ -652,7 +652,7 @@ class Node(object):
             messages = self.server.get_messages()
 
             for received in messages:
-                for handler in self._message_handlers:
+                for handler in self._message_handlers.copy():
                     self._dispatch_message(received, handler)
 
             time.sleep(0.002)

@@ -23,13 +23,7 @@ DEFAULT_DATA = {
 
 class _Monitor(object):  # will not scale but good for now
 
-    def __init__(self, node, timeout=600):
-        """Network monitor to crawl the network and gather information.
-
-        Args:
-            node: Node used to crawl the network.
-        """
-
+    def __init__(self, node, limit=20, timeout=600):
         # pipeline: scanning -> scanned
         self.scanning = {}  # {id: data}
         self.scanned = {}  # {id: data}
@@ -38,6 +32,7 @@ class _Monitor(object):  # will not scale but good for now
         self.node = node
         self.server = self.node.server
         self.timeout = time.time() + timeout
+        self.limit = limit
 
         # add handlers
         self.node.add_message_handler(self._handle_info_message)
@@ -137,6 +132,9 @@ class _Monitor(object):  # will not scale but good for now
                 if len(self.scanning) == 0:
                     return  # done! Nothing to scan and nothing being scanned
 
+                if self.limit > 0 and len(self.scanned) >= self.limit:
+                    return  # done! limit set and reached
+
                 for nodeid, data in self.scanning.copy().items():
                     self.process(nodeid, data)
                     time.sleep(0.1)  # not to fast
@@ -145,6 +143,7 @@ class _Monitor(object):  # will not scale but good for now
 
     def crawl(self):
         """Start workers and block until network is crawled."""
+
         worker = Thread(target=self.worker)
         worker.start()
         worker.join()
@@ -153,8 +152,17 @@ class _Monitor(object):  # will not scale but good for now
         self.node.remove_message_handler(self._handle_info_message)
         self.node.remove_message_handler(self._handle_peers_message)
 
-        return (self.scanned, self.scanning)
+        return self.scanned
 
 
-def run(storjnode, timeout=600):
-    return _Monitor(storjnode, timeout=timeout).crawl()
+def run(node, limit=20, timeout=600):
+    """Monitor to crawl the net and gather info of the nearest peers.
+
+    The crawler will scan nodes from nearest to farthest.
+
+    Args:
+        node: Node used to crawl the network.
+        limit: Number of results after which to stop, 0 to crawl entire net.
+        timeout: Time in seconds after which to stop.
+    """
+    return _Monitor(node, limit=limit, timeout=timeout).crawl()
