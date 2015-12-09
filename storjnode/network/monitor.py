@@ -16,7 +16,7 @@ DEFAULT_DATA = {
     "storage": None,                     # [total, used, free]
     "network": None,                     # [[ip, port], is_public]
     "version": None,                     # [protocol, storjnode]
-    "latency": {"info": None, "peers": None },
+    "latency": {"info": None, "peers": None},
     "request": {"tries": 0, "last": 0},
 }
 
@@ -39,6 +39,7 @@ class _Monitor(object):  # will not scale but good for now
         self.server = self.node.server
         self.timeout = time.time() + timeout
 
+        # add handlers
         self.node.add_message_handler(self._handle_info_message)
         self.node.add_message_handler(self._handle_peers_message)
 
@@ -138,6 +139,7 @@ class _Monitor(object):  # will not scale but good for now
 
                 for nodeid, data in self.scanning.copy().items():
                     self.process(nodeid, data)
+                    time.sleep(0.1)  # not to fast
 
         # done! because of timeout
 
@@ -146,6 +148,11 @@ class _Monitor(object):  # will not scale but good for now
         worker = Thread(target=self.worker)
         worker.start()
         worker.join()
+
+        # remove handlers
+        self.node.remove_message_handler(self._handle_info_message)
+        self.node.remove_message_handler(self._handle_peers_message)
+
         return (self.scanned, self.scanning)
 
 

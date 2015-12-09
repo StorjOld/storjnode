@@ -14,6 +14,7 @@ from storjnode.network.protocol import Protocol
 from twisted.internet import defer
 from twisted.internet.task import LoopingCall
 from crochet import TimeoutError
+from storjnode.network.messages.base import MAX_MESSAGE_DATA
 
 
 QUERY_TIMEOUT = 5.0
@@ -131,17 +132,21 @@ class Server(KademliaServer):
         Returns:
             True if message was added to relay queue, otherwise False.
         """
-        hexid = binascii.hexlify(nodeid)
+
+
+        # check max message size
+        packed_message = umsgpack.packb(message)
+        assert(len(packed_message) <= MAX_MESSAGE_DATA)
+        message = umsgpack.unpackb(packed_message)  # sanatize abstract types
 
         if nodeid == self.node.id:
-            message = umsgpack.unpackb(umsgpack.packb(message))  # simulate io
             self.log.info("Adding message to self to received queue!.")
             return self.protocol.queue_received_message({
                 "source": None, "message": message
             })
         else:
             txt = "Queuing relay messaging for %s: %s"
-            self.log.debug(txt % (hexid, message))
+            self.log.debug(txt % (binascii.hexlify(nodeid), message))
             return self.protocol.queue_relay_message({
                 "dest": nodeid, "message": message,
                 "hop_limit": self._default_hop_limit
