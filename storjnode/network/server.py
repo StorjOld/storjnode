@@ -3,7 +3,6 @@ import umsgpack
 import datetime
 import threading
 import btctxstore
-import binascii
 import storjnode
 from kademlia.network import Server as KademliaServer
 from kademlia.storage import ForgetfulStorage
@@ -149,7 +148,8 @@ class Server(KademliaServer):
             })
         else:
             txt = "Queuing relay messaging for %s: %s"
-            _log.debug(txt % (binascii.hexlify(nodeid), message))
+            address = storjnode.util.node_id_to_address(nodeid)
+            _log.debug(txt % (address, message))
             return self.protocol.queue_relay_message({
                 "dest": nodeid, "message": message,
                 "hop_limit": self._default_hop_limit
@@ -170,8 +170,8 @@ class Server(KademliaServer):
                 continue
 
             # relay message
-            hexid = binascii.hexlify(relay_node.id)
-            _log.debug("Attempting to relay message for %s" % hexid)
+            address = storjnode.util.node_id_to_address(relay_node.id)
+            _log.debug("Attempting to relay message for %s" % address)
             defered = self.protocol.callRelayMessage(
                 relay_node, entry["dest"], entry["hop_limit"], entry["message"]
             )
@@ -183,17 +183,17 @@ class Server(KademliaServer):
                                                          timeout=QUERY_TIMEOUT)
             except TimeoutError:  # pragma: no cover
                 msg = "Timeout while relayed message to %s"  # pragma: no cover
-                _log.debug(msg % hexid)  # pragma: no cover
+                _log.debug(msg % address)  # pragma: no cover
                 result = None  # pragma: no cover
 
             # successfull relay
             if result is not None:
-                _log.debug("Successfully relayed message to %s" % hexid)
+                _log.debug("Successfully relayed message to %s" % address)
                 return  # relay to nearest peer, avoid amplification attacks
 
         # failed to relay message
-        dest_hexid = binascii.hexlify(entry["dest"])
-        _log.debug("Failed to relay message for %s" % dest_hexid)
+        dest_address = storjnode.util.node_id_to_address(entry["dest"])
+        _log.debug("Failed to relay message for %s" % dest_address)
 
     def _refresh_loop(self):
         last_refresh = datetime.datetime.now()
@@ -226,33 +226,23 @@ class Server(KademliaServer):
         Returns:
             Defered own transport address (ip, port) if successfull else None
         """
-        hexid = binascii.hexlify(nodeid)
-        _log.debug("Direct messaging %s: %s" % (hexid, message))
 
         def found_callback(nodes):
             nodes = filter(lambda n: n.id == nodeid, nodes)
             if len(nodes) == 0:
-                msg = "{0} couldn't find destination node {1}"
-                _log.warning(msg.format(self.get_hex_id(), hexid))
                 return defer.succeed(None)
             else:
-                _log.debug("found node %s" % binascii.hexlify(nodes[0].id))
                 async = self.protocol.callDirectMessage(nodes[0], message)
                 return async.addCallback(lambda r: r[0] and r[1] or None)
 
         node = KademliaNode(nodeid)
         nearest = self.protocol.router.findNeighbors(node)
         if len(nearest) == 0:
-            msg = "{0} has no known neighbors to find {1}"
-            _log.warning(msg.format(self.get_hex_id(), hexid))
             return defer.succeed(None)
         spider = NodeSpiderCrawl(
             self.protocol, node, nearest, self.ksize, self.alpha
         )
         return spider.find().addCallback(found_callback)
-
-    def get_hex_id(self):
-        return binascii.hexlify(self.get_id())
 
     def get_transport_info(self):
         def handle(results):

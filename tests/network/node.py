@@ -69,7 +69,7 @@ class TestNode(unittest.TestCase):
             cls.swarm.append(node)
 
             msg = "TEST: created node {0} @ 127.0.0.1:{1}"
-            print(msg.format(node.get_hex_id(), node.port))
+            print(msg.format(node.get_address(), node.port))
             time.sleep(0.1)  # not to fast
 
         # Peer used for get unl requests.
@@ -238,7 +238,7 @@ class TestNode(unittest.TestCase):
         random.shuffle(receivers)
         for sender, receiver in zip(senders, receivers):
             msg = "TEST: sending relay message from {0} to {1}"
-            print(msg.format(sender.get_hex_id(), receiver.get_hex_id()))
+            print(msg.format(sender.get_address(), receiver.get_address()))
             self._test_relay_message(sender, receiver, True)
 
     def test_relay_message_to_void(self):  # for coverage
@@ -385,7 +385,7 @@ class TestNode(unittest.TestCase):
         random.shuffle(receivers)
         for sender, receiver in zip(senders, receivers):
             msg = "TEST: sending direct message from {0} to {1}"
-            print(msg.format(sender.get_hex_id(), receiver.get_hex_id()))
+            print(msg.format(sender.get_address(), receiver.get_address()))
             self._test_direct_message(sender, receiver, True)
 
     def test_direct_message_to_void(self):  # for coverage

@@ -173,7 +173,7 @@ def crawl(node, limit=20, timeout=600):
 
 
 def predictable_key(node, num):
-    return "monitor_dataset_{0}_{1}".format(node.get_hex_id(), str(num))
+    return "monitor_dataset_{0}_{1}".format(node.get_address(), str(num))
 
 
 def find_next_free_dataset_num(node):
@@ -229,7 +229,7 @@ class Monitor(object):
             # create shard
             shard = BytesIO()
             shard.write(json.dumps({
-                "node": self.node.get_hex_id(),
+                "node": self.node.get_address(),
                 "num": self.dataset_num,
                 "begin": begin,
                 "end": end,

@@ -1,7 +1,6 @@
 import os
 import time
 import datetime
-import binascii
 import pygraphviz
 import storjnode
 from kademlia.node import Node
@@ -85,8 +84,8 @@ class _NetworkMapper(object):  # will not scale but good for now
                 neighbours = util.wait_for_defered(d, timeout=QUERY_TIMEOUT)
             except TimeoutError:  # pragma: no cover
                 msg = "Timeout getting neighbors of %s"  # pragma: no cover
-                hexid = binascii.hexlify(node.id)
-                _log.debug(msg % hexid)  # pragma: no cover
+                address = storjnode.util.node_id_to_address(node.id)
+                _log.debug(msg % address)  # pragma: no cover
                 neighbours = []  # pragma: no cover
 
             # add to results and neighbours to scanned
@@ -120,18 +119,18 @@ def render(network_map, path=None):
 
     # add nodes
     for nodeid, results in network_map.items():
-        nodehexid = binascii.hexlify(nodeid)
+        node_address = storjnode.util.node_id_to_address(nodeid)
         ip, port = results["addr"]
-        # label = "%s\n%s:%i" % (nodehexid, ip, port)
+        # label = "%s\n%s:%i" % (node_address, ip, port)
         has_peers = len(results["peers"]) > 0
-        graph.add_node(nodehexid, color='green' if has_peers else "blue")
+        graph.add_node(node_address, color='green' if has_peers else "blue")
 
     # add connections
     for nodeid, results in network_map.items():
-        nodehexid = binascii.hexlify(nodeid)
+        node_address = storjnode.util.node_id_to_address(nodeid)
         for peerid, ip, port in results["peers"]:
-            peerhexid = binascii.hexlify(peerid)
-            graph.add_edge(nodehexid, peerhexid)
+            peer_address = storjnode.util.node_id_to_address(peerid)
+            graph.add_edge(node_address, peer_address)
 
     # render graph
     graph.layout(prog='dot')

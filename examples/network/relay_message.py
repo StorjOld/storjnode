@@ -1,6 +1,5 @@
 #!/usr/bin/env python
 import time
-import binascii
 import storjnode
 import signal
 from crochet import setup, TimeoutError
@@ -25,7 +24,10 @@ bob_node = storjnode.network.Node(
 try:
     # add message handler to bob node
     def message_handler(node, source, message):
-        src = binascii.hexlify(source) if source is not None else "unknown"
+        if source is not None:
+            src = storjnode.util.node_id_to_address(source)
+        else:
+            src = "unknown"
         print("%s from %s" % (message, src))
     alice_node.add_message_handler(message_handler)
     bob_node.add_message_handler(message_handler)

@@ -1,7 +1,6 @@
 import time
 import threading
 import traceback
-import binascii
 import random
 import storjnode
 from twisted.internet import defer
@@ -223,9 +222,6 @@ class Node(object):
     def get_address(self):
         return self.server.get_address()
 
-    def get_hex_id(self):
-        return self.server.get_hex_id()
-
     ########################
     # networking interface #
     ########################
@@ -309,11 +305,9 @@ class Node(object):
 
         # UNL request.
         _log.debug("In get UNL by node id")
-        our_node_id_as_hex = binascii.hexlify(self.get_id())
-        our_node_id_as_hex = our_node_id_as_hex.decode("utf-8")
         unl_req = OrderedDict([
             (u"type", u"unl_request"),
-            (u"requester", our_node_id_as_hex)
+            (u"requester", self.get_address())
         ])
 
         # Sign UNL request.
