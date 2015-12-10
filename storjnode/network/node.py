@@ -176,7 +176,7 @@ class Node(object):
                 debug=1,
                 passive_port=passive_port,
                 passive_bind=passive_bind,
-                wan_ip=result[0] if result else None
+                wan_ip=result["wan"][0] if result else None
             ),
             wif=wif,
             store_config=store_config,
