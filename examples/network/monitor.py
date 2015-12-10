@@ -23,7 +23,9 @@ try:
     time.sleep(storjnode.network.WALK_TIMEOUT)
 
     # start monitor
-    monitor = storjnode.network.monitor.Monitor(node, storj_config, interval=3600)
+    monitor = storjnode.network.monitor.Monitor(
+        node, storj_config, interval=3600
+    )
 
     # monitor forever
     while True:

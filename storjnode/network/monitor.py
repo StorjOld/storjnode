@@ -2,7 +2,7 @@ import time
 import json
 import copy
 import storjnode
-from io import import BytesIO
+from io import BytesIO
 from threading import Thread, RLock
 from storjnode.network.messages.peers import read as read_peers
 from storjnode.network.messages.peers import request as request_peers
@@ -108,18 +108,12 @@ class Crawler(object):  # will not scale but good for now
 
         # request peers
         if data["peers"] is None:
-            _log.info("Requesting peers of {0}".format(
-                storjnode.util.node_id_to_address(nodeid)
-            ))
             request_peers(self.node, nodeid)
             if data["latency"]["peers"] is None:
                 data["latency"]["peers"] = now
 
         # request info
         if data["network"] is None:
-            _log.info("Requesting info of {0}".format(
-                storjnode.util.node_id_to_address(nodeid)
-            ))
             request_info(self.node, nodeid)
             if data["latency"]["info"] is None:
                 data["latency"]["info"] = now
@@ -178,6 +172,18 @@ def crawl(node, limit=20, timeout=600):
     return Crawler(node, limit=limit, timeout=timeout).crawl()
 
 
+def predictable_key(node, num):
+    return "monitor_dataset_{0}_{1}".format(node.get_hex_id(), str(num))
+
+
+def find_next_free_dataset_num(node):
+    # FIXME find unused exponential increase then binary search lowest unused
+    num = 0
+    while node[predictable_key(node, num)] is None:
+        num += 1
+    return num
+
+
 class Monitor(object):
 
     def __init__(self, node, config, limit=20, interval=600):
@@ -189,6 +195,7 @@ class Monitor(object):
         self.crawler = None
         self.last_crawl = 0
         self.stop_thread = False
+        self.dataset_num = find_next_free_dataset_num(self.node)
         self.thread = Thread(target=self.monitor)
         self.thread.start()
 
@@ -204,29 +211,39 @@ class Monitor(object):
             if self.last_crawl + self.interval < time.time():
 
                 # crawl network
+                _log.debug("Crawling dataset {0}".format(self.dataset_num))
+                begin = time.time()
                 with self.mutex:
                     self.crawler = Crawler(
                         self.node, limit=self.limit, timeout=self.interval
                     )
                 scanned = self.crawler.crawl()
+                end = time.time()
 
                 # create shard
                 shard = BytesIO()
-                shard.write(json.dumps(scanned))
-
-                # predictable id
-                shardkey = "monitor_dataset_{0}_{1}".format(
-                    storjnode.util.node_id_to_address(node.get_id()),
-                    "TODO predictable id"
-                )
-                raise Exception("use predictable id")
+                shard.write(json.dumps({
+                    "node": self.node.get_hex_id(),
+                    "num": self.dataset_num,
+                    "begin": begin,
+                    "end": end,
+                    "scanned": scanned,
+                }))
 
                 # save results to store
+                shardid = storjnode.storage.shard.get_id(shard)
                 storjnode.storage.manager.add(self.config.get("store"), shard)
+                _log.debug("Saved dataset {0} as shard {1}".format(
+                    self.dataset_num, shardid
+                ))
 
-                # TODO add store predictable id to dht
-                self.node[shardkey] = storjnode.storage.shard.get_id(shard)
+                # add store predictable id to dht
+                key = predictable_key(self.node, self.dataset_num)
+                self.node[key] = shardid
+                _log.debug("Added DHT entry {0} => {1}".format(key, shardid))
 
+                # update dataset num and last crawl time
+                self.dataset_num = self.dataset_num + 1
                 self.last_crawl = time.time()
 
             time.sleep(0.002)
