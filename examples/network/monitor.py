@@ -8,22 +8,30 @@ from crochet import setup
 setup()
 signal.signal(signal.SIGINT, signal.default_int_handler)
 
-config = {}
+store_config = {}
 node = None
 monitor = None
 
 try:
-    # setup node
     key = "Kyh4a6zF1TkBZW6gyzwe7XRVtJ18Y75C2bC2d9axeWZnoUdAVXYc"
-    node = storjnode.network.Node(key)  # create a dht node
-    storjnode.network.messages.info.enable(node, config)
+
+    # create a dht node
+    node = storjnode.network.Node(key)
+
+    # enable responses to info requests
+    storjnode.network.messages.info.enable(node, store_config)
+
+    # enable responses to peer requests
     storjnode.network.messages.peers.enable(node)
 
     print("Giving nodes some time to find peers.")
     time.sleep(storjnode.network.WALK_TIMEOUT)
 
     # start monitor
-    monitor = storjnode.network.monitor.Monitor(node, config, interval=3600)
+    print("Starting monitor")
+    monitor = storjnode.network.monitor.Monitor(
+        node, store_config, interval=3600
+    )
 
     # monitor forever
     while True:

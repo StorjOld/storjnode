@@ -109,13 +109,13 @@ def request(node, receiver):
     return node.relay_message(receiver, msg)
 
 
-def _respond(node, receiver, config):
+def _respond(node, receiver, store_config):
 
     def handler(result):
         if not result:
             _log.warning("Couldn't get info for requested info message!")
             return
-        capacity = manager.capacity(config.get("store"))
+        capacity = manager.capacity(store_config)
         msg = create(node.server.btctxstore, node.get_key(),
                      capacity, result["wan"], result["wan"] == result["lan"])
         return node.relay_message(receiver, msg)
@@ -123,16 +123,16 @@ def _respond(node, receiver, config):
     node.async_get_transport_info().addCallback(handler)
 
 
-def enable(node, config):
+def enable(node, store_config):
 
     class _Handler(object):
 
-        def __init__(self, config):
-            self.config = config
+        def __init__(self, store_config):
+            self.store_config = store_config
 
         def __call__(self, node, source_id, msg):
             request = signal.read(node.server.btctxstore, msg, "request_info")
             if request is not None:
-                _respond(node, request.sender, self.config)
+                _respond(node, request.sender, self.store_config)
 
-    return node.add_message_handler(_Handler(config))
+    return node.add_message_handler(_Handler(store_config))

@@ -39,6 +39,7 @@ class Protocol(KademliaProtocol):
         self.messages_received = Queue(maxsize=max_messages)
         KademliaProtocol.__init__(self, *args, **kwargs)
         self.log = storjnode.log.getLogger("kademlia.protocol")
+        self.log.setLevel(60)
         self.noisy = False
 
     def has_messages(self):
