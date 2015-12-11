@@ -178,7 +178,7 @@ def predictable_key(node, num):
 
 
 def find_next_free_dataset_num(node):
-    # FIXME find unused exponential increase then binary search lowest unused
+    # FIXME probe with exponential increase then binary search lowest unused
     num = 0
     while node[predictable_key(node, num)] is not None:
         _log.info("Dataset {0} already exists!".format(num))
