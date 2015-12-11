@@ -4,6 +4,7 @@ import copy
 import storjnode
 from io import BytesIO
 from threading import Thread, RLock
+from storjnode.util import node_id_to_address
 from storjnode.network.messages.peers import read as read_peers
 from storjnode.network.messages.peers import request as request_peers
 from storjnode.network.messages.info import read as read_info
@@ -27,8 +28,8 @@ class Crawler(object):  # will not scale but good for now
 
     def __init__(self, node, limit=20, timeout=600):
         # pipeline: scanning -> scanned
-        self.scanning = {}  # {id: data}
-        self.scanned = {}  # {id: data}
+        self.scanning = {}  # {node_address: data}
+        self.scanned = {}  # {node_address: data}
 
         self.stop_thread = False
         self.mutex = RLock()
@@ -50,7 +51,7 @@ class Crawler(object):  # will not scale but good for now
             if data is None:
                 return  # not being scanned
             _log.info("Received peers from {0}!".format(
-                storjnode.util.node_id_to_address(message.sender))
+                node_id_to_address(message.sender))
             )
             data["latency"]["peers"] = received - data["latency"]["peers"]
             data["peers"] = storjnode.util.chunks(message.body, 20)
@@ -69,7 +70,7 @@ class Crawler(object):  # will not scale but good for now
             if data is None:
                 return  # not being scanned
             _log.info("Received info from {0}!".format(
-                storjnode.util.node_id_to_address(message.sender))
+                node_id_to_address(message.sender))
             )
             data["latency"]["info"] = received - data["latency"]["info"]
             data["storage"] = message.body.storage
@@ -89,7 +90,7 @@ class Crawler(object):  # will not scale but good for now
 
         txt = "Processed {0}, scanned {1}, scanning {2}!"
         _log.info(txt.format(
-            storjnode.util.node_id_to_address(nodeid),
+            node_id_to_address(nodeid),
             len(self.scanned), len(self.scanning)
         ))
 
@@ -102,7 +103,7 @@ class Crawler(object):  # will not scale but good for now
             return  # wait for response
 
         _log.info("Requesting info/peers for {0}, try {1}!".format(
-            storjnode.util.node_id_to_address(nodeid),
+            node_id_to_address(nodeid),
             data["request"]["tries"]
         ))
 
@@ -185,6 +186,27 @@ def find_next_free_dataset_num(node):
     return num
 
 
+def create_shard(node, num, begin, end, scanned):
+
+    # encode scanned data
+    encoded_scanned = {}
+    for nodeid, data in scanned:
+        node_address = node_id_to_address(nodeid)
+        data["peers"] = [node_id_to_address(p) for p in data["peers"]]
+        encoded_scanned[node_address] = data
+
+    # write info to shard
+    shard = BytesIO()
+    shard.write(json.dumps({
+        "node": node.get_address(),
+        "num": num,
+        "begin": begin,
+        "end": end,
+        "scanned": encoded_scanned,
+    }))
+    return shard
+
+
 class Monitor(object):
 
     def __init__(self, node, store_config, limit=20, interval=600):
@@ -224,17 +246,12 @@ class Monitor(object):
                     self.node, limit=self.limit, timeout=self.interval
                 )
             scanned = self.crawler.crawl()
+
             end = time.time()
 
             # create shard
-            shard = BytesIO()
-            shard.write(json.dumps({
-                "node": self.node.get_address(),
-                "num": self.dataset_num,
-                "begin": begin,
-                "end": end,
-                "scanned": scanned,
-            }))
+            shard = create_shard(self.node, self.dataset_num,
+                                 begin, end, scanned)
 
             # save results to store
             shardid = storjnode.storage.shard.get_id(shard)
