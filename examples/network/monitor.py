@@ -30,7 +30,7 @@ try:
     # start monitor
     print("Starting monitor")
     monitor = storjnode.network.monitor.Monitor(
-        node, store_config, interval=60  # hourly
+        node, store_config, interval=60*60  # hourly
     )
 
     # monitor forever

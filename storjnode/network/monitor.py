@@ -19,6 +19,7 @@ DEFAULT_DATA = {
     "storage": None,                     # [total, used, free]
     "network": None,                     # [[ip, port], is_public]
     "version": None,                     # [protocol, storjnode]
+    "platform": None,                    # "platform info"
     "latency": {"info": None, "peers": None},
     "request": {"tries": 0, "last": 0},
 }
@@ -76,6 +77,7 @@ class Crawler(object):  # will not scale but good for now
             data["storage"] = message.body.storage
             data["network"] = message.body.network
             data["version"] = (message.version, message.body.version)
+            data["platform"] = message.body.platform
             self._check_scan_complete(message.sender, data)
 
     def _check_scan_complete(self, nodeid, data):

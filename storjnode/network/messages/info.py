@@ -1,4 +1,5 @@
 import re
+import platform
 from collections import namedtuple
 from storjnode.util import valid_ip, valid_port
 from storjnode.network.messages import base
@@ -23,14 +24,14 @@ Info = namedtuple('Info', [
     'version',  # storjnode version
     'storage',
     'network',
-    # TODO add platform (window, linux, mac, etc)
+    'platform',
 ])
 
 
 def create(btctxstore, node_wif, capacity, transport, is_public):
     storage = Storage(**capacity)
     network = Network(transport, is_public)
-    info = Info(__version__, storage, network)
+    info = Info(__version__, storage, network, platform.platform())
     return base.create(btctxstore, node_wif, "info", info)
 
 
@@ -85,9 +86,9 @@ def read(btctxstore, msg):
     info = msg[3]
     if not isinstance(info, list):
         return None
-    if len(info) != 3:
+    if len(info) != 4:
         return None
-    version, storage, network = info
+    version, storage, network, platform = info
 
     # check version
     if not isinstance(version, str):
@@ -100,7 +101,11 @@ def read(btctxstore, msg):
     if not _validate_network(network):  # TODO test it
         return None
 
-    msg[3] = Info(version, Storage(*storage), Network(*network))
+    # validate platform
+    if not isinstance(platform, str):
+        return None
+
+    msg[3] = Info(version, Storage(*storage), Network(*network), platform)
     return base.Message(*msg)
 
 
