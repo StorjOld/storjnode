@@ -3,7 +3,6 @@
 
 import json
 import time
-import binascii
 import btctxstore
 import storjnode
 import argparse
@@ -51,7 +50,7 @@ def main(args):
             disable_data_transfer=True,
         )
         print("Running node on port {port} with id {id}".format(
-            id=binascii.hexlify(node.get_id()), port=node.port
+            id=storjnode.util.node_id_to_address(node.get_id()), port=node.port
         ))
 
         # print received message to terminal

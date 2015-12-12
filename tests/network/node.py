@@ -27,7 +27,8 @@ _log = storjnode.log.getLogger(__name__)
 WALK_TIMEOUT = WALK_TIMEOUT / 2.0
 
 PROFILE = False
-SWARM_SIZE = 32
+SWARM_SIZE = 16
+KSIZE = SWARM_SIZE / 2 if SWARM_SIZE / 2 < 20 else 20
 PORT = 3000
 STORAGE_DIR = tempfile.mkdtemp()
 test_get_unl_success = 0
@@ -55,7 +56,7 @@ class TestNode(unittest.TestCase):
 
             # create node
             node = storjnode.network.Node(
-                cls.btctxstore.create_wallet(), port=(PORT + i), ksize=8,
+                cls.btctxstore.create_wallet(), port=(PORT + i), ksize=KSIZE,
                 bootstrap_nodes=bootstrap_nodes,
                 refresh_neighbours_interval=0.0,
                 store_config={STORAGE_DIR: None},
@@ -68,7 +69,8 @@ class TestNode(unittest.TestCase):
             cls.swarm.append(node)
 
             msg = "TEST: created node {0} @ 127.0.0.1:{1}"
-            print(msg.format(node.get_hex_id(), node.port))
+            print(msg.format(node.get_address(), node.port))
+            time.sleep(0.1)  # not to fast
 
         # Peer used for get unl requests.
         unl_peer_bootstrap_nodes = [
@@ -90,10 +92,12 @@ class TestNode(unittest.TestCase):
         time.sleep(WALK_TIMEOUT)
         for node in cls.swarm:
             node.refresh_neighbours()
+            time.sleep(0.1)  # not to fast
         cls.test_get_unl_peer.refresh_neighbours()
         time.sleep(WALK_TIMEOUT)
         for node in cls.swarm:
             node.refresh_neighbours()
+            time.sleep(0.1)  # not to fast
         cls.test_get_unl_peer.refresh_neighbours()
         time.sleep(WALK_TIMEOUT)
 
@@ -106,6 +110,7 @@ class TestNode(unittest.TestCase):
         print("TEST: stopping swarm")
         for node in cls.swarm:
             node.stop()
+            time.sleep(0.1)  # not to fast
         cls.test_get_unl_peer.stop()
         shutil.rmtree(STORAGE_DIR)
 
@@ -233,7 +238,7 @@ class TestNode(unittest.TestCase):
         random.shuffle(receivers)
         for sender, receiver in zip(senders, receivers):
             msg = "TEST: sending relay message from {0} to {1}"
-            print(msg.format(sender.get_hex_id(), receiver.get_hex_id()))
+            print(msg.format(sender.get_address(), receiver.get_address()))
             self._test_relay_message(sender, receiver, True)
 
     def test_relay_message_to_void(self):  # for coverage
@@ -380,7 +385,7 @@ class TestNode(unittest.TestCase):
         random.shuffle(receivers)
         for sender, receiver in zip(senders, receivers):
             msg = "TEST: sending direct message from {0} to {1}"
-            print(msg.format(sender.get_hex_id(), receiver.get_hex_id()))
+            print(msg.format(sender.get_address(), receiver.get_address()))
             self._test_direct_message(sender, receiver, True)
 
     def test_direct_message_to_void(self):  # for coverage
@@ -491,12 +496,14 @@ class TestNode(unittest.TestCase):
         for key, value in inserted.items():
             random_peer = random.choice(self.swarm)
             random_peer[key] = value
+            time.sleep(0.1)
 
         # retrieve values randomly
         for key, inserted_value in inserted.items():
             random_peer = random.choice(self.swarm)
             found_value = random_peer[key]
             self.assertEqual(found_value, inserted_value)
+            time.sleep(0.1)
 
     ########################
     # test network mapping #
@@ -536,11 +543,12 @@ class TestNode(unittest.TestCase):
     # test network monitor #
     ########################
 
-    @unittest.skip("broken")
     def test_network_monitor(self):
         random_peer = random.choice(self.swarm)
-        scanned, scanning, toscan = storjnode.network.monitor.run(random_peer)
-        self.assertEqual(len(scanned), len(self.swarm))
+        scanned = storjnode.network.monitor.crawl(
+            random_peer, limit=KSIZE, timeout=600
+        )
+        self.assertTrue(len(scanned) >= KSIZE)
 
 
 if __name__ == "__main__":

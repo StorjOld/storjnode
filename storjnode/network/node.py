@@ -1,6 +1,6 @@
 import time
 import threading
-import binascii
+import traceback
 import random
 import storjnode
 from twisted.internet import defer
@@ -175,7 +175,7 @@ class Node(object):
                 debug=1,
                 passive_port=passive_port,
                 passive_bind=passive_bind,
-                wan_ip=result[0] if result else None
+                wan_ip=result["wan"][0] if result else None
             ),
             wif=wif,
             store_config=store_config,
@@ -221,9 +221,6 @@ class Node(object):
 
     def get_address(self):
         return self.server.get_address()
-
-    def get_hex_id(self):
-        return self.server.get_hex_id()
 
     ########################
     # networking interface #
@@ -308,11 +305,9 @@ class Node(object):
 
         # UNL request.
         _log.debug("In get UNL by node id")
-        our_node_id_as_hex = binascii.hexlify(self.get_id())
-        our_node_id_as_hex = our_node_id_as_hex.decode("utf-8")
         unl_req = OrderedDict([
             (u"type", u"unl_request"),
-            (u"requester", our_node_id_as_hex)
+            (u"requester", self.get_address())
         ])
 
         # Sign UNL request.
@@ -643,16 +638,15 @@ class Node(object):
             source = received["source"].id if received["source"] else None
             return handler(self, source, received["message"])
         except Exception as e:
-            msg = "Message handler raised exception: {0}"
-            print(e)
-            _log.error(msg.format(repr(e)))
+            txt = """Message handler raised exception: {0}\n\n{1}"""
+            _log.error(txt.format(repr(e), traceback.format_exc()))
 
     def _message_dispatcher_loop(self):
         while not self._message_dispatcher_thread_stop:
             messages = self.server.get_messages()
 
             for received in messages:
-                for handler in self._message_handlers:
+                for handler in self._message_handlers.copy():
                     self._dispatch_message(received, handler)
 
             time.sleep(0.002)

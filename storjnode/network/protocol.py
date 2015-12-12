@@ -1,4 +1,3 @@
-import binascii
 import heapq
 import operator
 try:
@@ -27,6 +26,9 @@ def _findNearest(self, node, k=None, exclude=None):
 RoutingTable.findNeighbors = _findNearest  # XXX monkey patch find neighbors
 
 
+_log = storjnode.log.getLogger(__name__)
+
+
 class Protocol(KademliaProtocol):
 
     def __init__(self, *args, **kwargs):
@@ -35,7 +37,8 @@ class Protocol(KademliaProtocol):
         self.messages_relay = Queue(maxsize=max_messages)
         self.messages_received = Queue(maxsize=max_messages)
         KademliaProtocol.__init__(self, *args, **kwargs)
-        self.log = storjnode.log.getLogger(__name__)
+        self.log = storjnode.log.getLogger("kademlia.protocol")
+        self.log.setLevel(60)
         self.noisy = False
 
     def has_messages(self):
@@ -50,7 +53,8 @@ class Protocol(KademliaProtocol):
             return True
         except Full:
             msg = "Relay message queue full, dropping message for %s"
-            self.log.warning(msg % binascii.hexlify(entry["dest"]))
+            address = storjnode.util.node_id_to_address(entry["dest"])
+            self.log.warning(msg % address)
             return False
 
     def queue_received_message(self, entry):
@@ -65,8 +69,8 @@ class Protocol(KademliaProtocol):
                           hop_limit, message):
         # FIXME self.welcomeIfNewNode(Node(sender_id, sender[0], sender[1]))
 
-        logargs = (sender, binascii.hexlify(sender_id),
-                   binascii.hexlify(dest_id), hop_limit)
+        logargs = (sender, storjnode.util.node_id_to_address(sender_id),
+                   storjnode.util.node_id_to_address(dest_id), hop_limit)
         msg = "Got relay message from {1} at {0} for {2} with limit {3}."
         self.log.debug(msg.format(*logargs))
 
@@ -98,7 +102,7 @@ class Protocol(KademliaProtocol):
 
     def rpc_direct_message(self, sender, sender_id, message):
         self.log.debug("Got direct message from {0} at {1}".format(
-            binascii.hexlify(sender_id), sender
+            storjnode.util.node_id_to_address(sender_id), sender
         ))
         source = Node(sender_id, sender[0], sender[1])
         # FIXME self.welcomeIfNewNode(source)

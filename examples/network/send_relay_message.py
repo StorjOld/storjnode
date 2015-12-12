@@ -2,7 +2,6 @@
 # coding: utf-8
 
 import time
-import binascii
 import btctxstore
 import storjnode
 import argparse
@@ -29,7 +28,7 @@ def parse_args(args):
     parser.add_argument('--quiet', action='store_true', help=msg)
 
     # nodeid
-    msg = "The node to receive the message."
+    msg = "The node to receive the message, as a bitcoin address."
     parser.add_argument("nodeid", default=None, help=msg)
 
     # message
@@ -53,7 +52,8 @@ def main(args):
         # send relay message
         receiverid = arguments["nodeid"]
         message = arguments["message"]
-        node.relay_message(binascii.unhexlify(receiverid), message)
+        node.relay_message(storjnode.util.address_to_node_id(receiverid),
+                           message)
 
     except KeyboardInterrupt:
         pass

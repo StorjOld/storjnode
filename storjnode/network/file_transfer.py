@@ -10,10 +10,9 @@ import time
 import hashlib
 import sys
 import json
-import binascii
 from threading import Lock
 from twisted.internet import defer
-from storjnode.util import address_to_node_id
+from storjnode.util import address_to_node_id, node_id_to_address
 from storjnode.util import parse_node_id_from_unl, ordered_dict_to_list
 from storjnode.network.message import verify_signature
 from storjnode.network.message import sign
@@ -34,17 +33,15 @@ def process_unl_requests(node, src_id, msg):
             return
 
         # Check signature.
-        their_node_id = binascii.unhexlify(msg[u"requester"])
+        their_node_id = address_to_node_id(msg[u"requester"])
         if not verify_signature(msg, node.get_key(), their_node_id):
             return
 
         # Response.
-        our_node_id_hex = binascii.hexlify(node.get_id())
-        our_node_id_hex = our_node_id_hex.decode("utf-8")
         response = sign(OrderedDict(
             {
                 u"type": u"unl_response",
-                u"requestee": our_node_id_hex,
+                u"requestee": node.get_address(),
                 u"unl": unl
             }
         ), node.get_key())

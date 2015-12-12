@@ -1,7 +1,6 @@
 import os
 import time
 import datetime
-import binascii
 import pygraphviz
 import storjnode
 from kademlia.node import Node
@@ -79,14 +78,15 @@ class _NetworkMapper(object):  # will not scale but good for now
                 continue
 
             # get neighbors
+            address = storjnode.util.node_id_to_address(node.id)
+            _log.info("Scanning {0}".format(address))
             d = self.server.protocol.callFindNode(node, node)
             d = util.default_defered(d, [])
             try:
                 neighbours = util.wait_for_defered(d, timeout=QUERY_TIMEOUT)
             except TimeoutError:  # pragma: no cover
                 msg = "Timeout getting neighbors of %s"  # pragma: no cover
-                hexid = binascii.hexlify(node.id)
-                _log.debug(msg % hexid)  # pragma: no cover
+                _log.warning(msg % address)  # pragma: no cover
                 neighbours = []  # pragma: no cover
 
             # add to results and neighbours to scanned
@@ -111,27 +111,28 @@ def render(network_map, path=None):
               Saves to '~/.storj/graphs/network map TIMESTAMP.png' by default.
     """
 
-    name = "network map %s" % str(datetime.datetime.now())
+    now = datetime.datetime.now()
+    name = "network_map_%s" % now.strftime('%Y-%m-%d_%H:%M:%S')
     path = path or os.path.join(storjnode.common.STORJ_HOME,
                                 "graphs", "%s.png" % name)
+    path = util.full_path(path)
     util.ensure_path_exists(os.path.dirname(path))
 
     graph = pygraphviz.AGraph()  # (strict=False,directed=True)
 
     # add nodes
     for nodeid, results in network_map.items():
-        nodehexid = binascii.hexlify(nodeid)
+        node_address = storjnode.util.node_id_to_address(nodeid)
         ip, port = results["addr"]
-        # label = "%s\n%s:%i" % (nodehexid, ip, port)
         has_peers = len(results["peers"]) > 0
-        graph.add_node(nodehexid, color='green' if has_peers else "blue")
+        graph.add_node(node_address, color='green' if has_peers else "blue")
 
     # add connections
     for nodeid, results in network_map.items():
-        nodehexid = binascii.hexlify(nodeid)
+        node_address = storjnode.util.node_id_to_address(nodeid)
         for peerid, ip, port in results["peers"]:
-            peerhexid = binascii.hexlify(peerid)
-            graph.add_edge(nodehexid, peerhexid)
+            peer_address = storjnode.util.node_id_to_address(peerid)
+            graph.add_edge(node_address, peer_address)
 
     # render graph
     graph.layout(prog='dot')
