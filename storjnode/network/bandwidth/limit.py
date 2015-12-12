@@ -72,6 +72,10 @@ class BandwidthLimit:
         # Unix timestamp of next month.
         self.next_month = 0
 
+        # What % of sec limit is (initially) reserved for file transfers.
+        # The remaining % is for small protocol headers + other.
+        self.cake_scale = 0.95
+
     def calculate_next_month(self):
         # Find current time.
         now = datetime.datetime.utcnow()
@@ -188,6 +192,8 @@ class BandwidthLimit:
         cake = self.cake[bw_type]
         if contract_id is not None:
             if contract_id in cake["slices"]:
+                print("Found contract id in slices")
+
                 # Free reserved resources.
                 cake_slice = cake["slices"][contract_id]
                 reserved = cake_slice["size"] - cake_slice["stale"]
@@ -271,13 +277,15 @@ class BandwidthLimit:
         # Bake a new cake if we need to.
         if cake["no"] != cake_no:
             # Calculate cake size.
-            cake_size = sec["limit"]
+            # 5% of bandwidth reserved for control messages / misc.
+            cake_size = int(sec["limit"] * self.cake_scale)
             if not cake_size:
                 return 0
 
             # Slice the cake.
             cake_slices = {}
             transfer_no = len(self.transfers)
+            sec["used"] = 0  # Rest used.
             for transfer in self.transfers:
                 size = int(cake_size / transfer_no)
                 if size < 1:
@@ -290,12 +298,14 @@ class BandwidthLimit:
                 }
 
                 cake_slices[transfer] = cake_slice
+                sec["used"] += size
 
             # Allocate remaining pieces.
             if transfer_no:
                 remainder = int(cake_size % transfer_no)
                 if remainder:
                     cake_slices[list(cake_slices)[0]]["size"] += remainder
+                    sec["used"] += remainder
 
             # Build new cake.
             cake = self.cake[bw_type] = {
@@ -303,13 +313,10 @@ class BandwidthLimit:
                 "slices": cake_slices
             }
 
-            # All pieces reserved for now!
-            if transfer_no:
-                sec["used"] = sec["limit"]
+            # No bandwidth left.
+            if transfer_no and self.cake_scale == 100:
                 if contract_id is None:
                     return 0
-            else:
-                sec["used"] = 0
 
         # Reduce cake slice size over time.
         progress = time.time() - cake_no

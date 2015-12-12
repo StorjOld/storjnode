@@ -36,6 +36,9 @@ class TestLimit(unittest.TestCase):
         # Reset next month timestamp.
         self.bandwidth.next_month = 0
 
+        # Reset scale factor.
+        self.bandwidth.cake_scale = 0.95
+
     def test_limit(self):
         self.bandwidth.limit(1025, "sec", "upstream")
         self.assertTrue(
@@ -43,15 +46,19 @@ class TestLimit(unittest.TestCase):
         )
 
     def test_slice_remainder(self):
+        limit = 1025
+        cake_size = int(limit * 0.95)
+
         self.bandwidth.limit(1025, "sec", "upstream")
         self.bandwidth.register_transfer("slice_1")
         self.bandwidth.register_transfer("slice_2")
         allowance = self.bandwidth.request("upstream", "slice_1")
-        self.assertTrue(allowance == 513)
+        expected = int(cake_size / 2) + int(cake_size % 2)
+        self.assertTrue(allowance == expected)
+
         allowance = self.bandwidth.request("upstream", "slice_2")
-        self.assertTrue(allowance == 512)
-        map(self.bandwidth.remove_transfer, ["slice_1", "slice_2"])
-        assert(not len(self.bandwidth.transfers))
+        expected = int(cake_size / 2)
+        self.assertTrue(allowance == expected)
 
     def test_monthly_limit(self):
         self.bandwidth.limit(2000, "month", "upstream")
@@ -93,7 +100,20 @@ class TestLimit(unittest.TestCase):
 
         # Test decay.
         time.sleep(0.2)
-        self.assertTrue(self.bandwidth.request("upstream", "t1") != 200)
+        self.assertTrue(self.bandwidth.request("upstream", "t1") != 2000)
+
+        # Check reallocation.
+        cake_slice = self.bandwidth.cake["upstream"]["slices"]["t1"]
+        chunk = 100
+        remaining = cake_slice["size"] - cake_slice["stale"]
+        expected = chunk
+        used = self.bandwidth.info["sec"]["upstream"]["used"]
+        self.assertTrue(used == remaining)
+        self.bandwidth.update("upstream", chunk, "t1")
+        ret = "t1" not in self.bandwidth.cake["upstream"]["slices"]
+        self.assertTrue(ret)
+        used = self.bandwidth.info["sec"]["upstream"]["used"]
+        self.assertTrue(expected == used)
 
     def test_ceiling(self):
         self.bandwidth.limit(1025, "sec", "upstream")
@@ -102,6 +122,19 @@ class TestLimit(unittest.TestCase):
         allowance = self.bandwidth.request("upstream", "slice_1", 100)
         self.assertTrue(allowance == 100)
 
+    def test_non_transfer_bandwidth(self):
+        self.bandwidth.limit(1025, "sec", "upstream")
+        self.bandwidth.register_transfer("slice_1")
+        self.assertTrue(self.bandwidth.request("upstream") == 52)
+
+    def test_reallocation(self):
+        self.bandwidth.limit(1025, "sec", "upstream")
+        self.bandwidth.register_transfer("slice_1")
+        self.bandwidth.request("upstream", "slice_1")
+        self.bandwidth.update("upstream", 100, "slice_1")
+        expected = 100
+        used = self.bandwidth.info["sec"]["upstream"]["used"]
+        self.assertTrue(expected == used)
 
 if __name__ == "__main__":
     unittest.main()
