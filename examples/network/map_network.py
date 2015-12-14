@@ -38,12 +38,26 @@ def _parse_args(args):
     return vars(parser.parse_args(args=args))
 
 
+def print_stats(netmap):
+    private_nodes = 0
+    public_nodes = 0
+    for nodeid, results in netmap.items():
+        if len(results["peers"]) > 0:
+            public_nodes += 1
+        else:
+            private_nodes += 1
+    print("Private nodes:", private_nodes)
+    print("Public nodes:", public_nodes)
+    print("Total nodes:", private_nodes + public_nodes)
+
+
 if __name__ == "__main__":
     arguments = _parse_args(sys.argv[1:])
 
     node = None
     try:
         # setup node
+        # FIXME generate key
         key = "Kyh4a6zF1TkBZW6gyzwe7XRVtJ18Y75C2bC2d9axeWZnoUdAVXYc"
         node = storjnode.network.Node(key)
 
@@ -51,6 +65,7 @@ if __name__ == "__main__":
         time.sleep(storjnode.network.WALK_TIMEOUT)
 
         netmap = storjnode.network.map.generate(node)
+        print_stats(netmap)
         print(storjnode.network.map.render(netmap, arguments["path"]))
 
     except KeyboardInterrupt:

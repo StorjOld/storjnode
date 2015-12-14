@@ -24,7 +24,9 @@ signal.signal(signal.SIGINT, signal.default_int_handler)
 
 _log = storjnode.log.getLogger(__name__)
 
+
 WALK_TIMEOUT = WALK_TIMEOUT / 2.0
+
 
 PROFILE = False
 SWARM_SIZE = 16
@@ -543,12 +545,31 @@ class TestNode(unittest.TestCase):
     # test network monitor #
     ########################
 
-    def test_network_monitor(self):
+    def test_network_monitor_crawl(self):
         random_peer = random.choice(self.swarm)
         scanned = storjnode.network.monitor.crawl(
             random_peer, limit=KSIZE, timeout=600
         )
         self.assertTrue(len(scanned) >= KSIZE)
+
+    def test_network_monitor_service(self):
+        crawled_event = threading.Event()
+        results = {}
+
+        def handler(**kwargs):
+            print("KWARGS", kwargs)
+            results.update(kwargs)
+            crawled_event.set()
+        random_peer = random.choice(self.swarm)
+        monitor = storjnode.network.monitor.Monitor(
+            random_peer,
+            {},  # FIXME use tmp dir
+            interval=600  # hourly
+        )
+
+        crawled_event.wait(timeout=WALK_TIMEOUT * 8)
+        monitor.stop()
+        print("RESULTS", results)
 
 
 if __name__ == "__main__":

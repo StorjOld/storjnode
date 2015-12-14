@@ -19,7 +19,7 @@ DEFAULT_DATA = {
     "storage": None,                     # [total, used, free]
     "network": None,                     # [[ip, port], is_public]
     "version": None,                     # [protocol, storjnode]
-    "platform": None,                    # "platform info"
+    "platform": None,                    # [system, release, version, machine]
     "latency": {"info": None, "peers": None},
     "request": {"tries": 0, "last": 0},
 }
@@ -192,10 +192,11 @@ def create_shard(node, num, begin, end, scanned):
 
     # encode scanned data
     encoded_scanned = {}
-    for nodeid, data in scanned:
-        node_address = node_id_to_address(nodeid)
-        data["peers"] = [node_id_to_address(p) for p in data["peers"]]
-        encoded_scanned[node_address] = data
+    if scanned:
+        for nodeid, data in scanned.items():
+            node_address = node_id_to_address(nodeid)
+            data["peers"] = [node_id_to_address(p) for p in data["peers"]]
+            encoded_scanned[node_address] = data
 
     # write info to shard
     shard = BytesIO()
@@ -211,7 +212,9 @@ def create_shard(node, num, begin, end, scanned):
 
 class Monitor(object):
 
-    def __init__(self, node, store_config, limit=20, interval=600):
+    def __init__(self, node, store_config, limit=20,
+                 interval=3600, on_crawl_complete=None):
+        self.on_crawl_complete = on_crawl_complete
         self.store_config = store_config
         self.node = node
         self.limit = limit
@@ -266,6 +269,13 @@ class Monitor(object):
             key = predictable_key(self.node, self.dataset_num)
             self.node[key] = shardid
             _log.info("Added DHT entry {0} => {1}".format(key, shardid))
+
+            # call handler if given
+            if self.on_crawl_complete is not None:
+                self.on_crawl_complete(key=key, shardid=shardid,
+                                       num=self.dataset_num,
+                                       begin=begin, end=end,
+                                       scanned=scanned)
 
             # update dataset num and last crawl time
             self.dataset_num = self.dataset_num + 1

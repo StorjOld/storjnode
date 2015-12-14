@@ -11,7 +11,9 @@ from storjnode.log import getLogger
 
 _log = getLogger(__name__)
 
+
 Storage = namedtuple('Storage', ['total', 'used', 'free'])
+Platform = namedtuple('Platform', ['system', 'release', 'version', 'machine'])
 
 
 Network = namedtuple('Network', [
@@ -31,7 +33,9 @@ Info = namedtuple('Info', [
 def create(btctxstore, node_wif, capacity, transport, is_public):
     storage = Storage(**capacity)
     network = Network(transport, is_public)
-    info = Info(__version__, storage, network, platform.platform())
+    plat = Platform(platform.system(), platform.release(),
+                    platform.version(), platform.machine())
+    info = Info(__version__, storage, network, plat)
     return base.create(btctxstore, node_wif, "info", info)
 
 
@@ -88,7 +92,7 @@ def read(btctxstore, msg):
         return None
     if len(info) != 4:
         return None
-    version, storage, network, platform = info
+    version, storage, network, plat = info
 
     # check version
     if not isinstance(version, str):
@@ -98,14 +102,19 @@ def read(btctxstore, msg):
 
     if not _validate_storage(storage):
         return None
-    if not _validate_network(network):  # TODO test it
+    if not _validate_network(network):
         return None
 
     # validate platform
-    if not isinstance(platform, str):
+    if not isinstance(plat, list):
+        return None
+    if len(plat) != 4:
+        return None
+    if not all([isinstance(prop, str) for prop in plat]):
         return None
 
-    msg[3] = Info(version, Storage(*storage), Network(*network), platform)
+    msg[3] = Info(version, Storage(*storage),
+                  Network(*network), Platform(*plat))
     return base.Message(*msg)
 
 
