@@ -155,7 +155,7 @@ class TestNode(unittest.TestCase):
             disable_data_transfer=True
         )
         alice_received = threading.Event()
-        alice_node.add_message_handler(lambda n, s, m: alice_received.set())
+        alice_node.add_message_handler(lambda n, m: alice_received.set())
 
         bob_node = storjnode.network.Node(
             self.__class__.btctxstore.create_key(),
@@ -167,7 +167,7 @@ class TestNode(unittest.TestCase):
             disable_data_transfer=True
         )
         bob_received = threading.Event()
-        bob_node.add_message_handler(lambda n, s, m: bob_received.set())
+        bob_node.add_message_handler(lambda n, m: bob_received.set())
         time.sleep(interval * 2)  # wait until network overlay stable, 2 peers
         try:
             alice_node.relay_message(bob_node.get_id(), "hi bob")
@@ -202,8 +202,8 @@ class TestNode(unittest.TestCase):
 
         received_event = threading.Event()
 
-        def handler(node, source, message):
-            received.append({"source": source, "message": message})
+        def handler(node, message):
+            received.append(message)
             received_event.set()
         received = []
         receiver.add_message_handler(handler)
@@ -219,9 +219,8 @@ class TestNode(unittest.TestCase):
             self.assertEqual(len(received), 1)
 
             # check if correct message received
-            source, message = received[0]["source"], received[0]["message"]
+            message = received[0]
             self.assertEqual(testmessage, message)
-            self.assertEqual(source, None)
 
     @unittest.skip("Broken")
     def test_relay_messaging_success(self):
@@ -294,7 +293,7 @@ class TestNode(unittest.TestCase):
             disable_data_transfer=True
         )
         alice_received = threading.Event()
-        alice_node.add_message_handler(lambda n, s, m: alice_received.set())
+        alice_node.add_message_handler(lambda n, m: alice_received.set())
         bob_node = storjnode.network.Node(
             self.__class__.btctxstore.create_key(),
             bootstrap_nodes=[(LAN_IP, alice_node.port)],
@@ -305,7 +304,7 @@ class TestNode(unittest.TestCase):
             disable_data_transfer=True
         )
         bob_received = threading.Event()
-        bob_node.add_message_handler(lambda n, s, m: bob_received.set())
+        bob_node.add_message_handler(lambda n, m: bob_received.set())
         time.sleep(QUERY_TIMEOUT)
         # wait until network overlay stable, 2 peers
         try:
@@ -417,7 +416,7 @@ class TestNode(unittest.TestCase):
         receiver = self.swarm[SWARM_SIZE - 1]
         received_event = threading.Event()
 
-        def handler(node, source, message):
+        def handler(node, message):
             received_event.set()
             raise Exception("Test error")
         receiver.add_message_handler(handler)

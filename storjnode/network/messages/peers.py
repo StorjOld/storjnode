@@ -38,7 +38,7 @@ def request(node, receiver):
 
 
 def enable(node):
-    def handler(node, source_id, msg):
+    def handler(node, msg):
         request = signal.read(node.server.btctxstore, msg, "request_peers")
         if request is not None:
             peers = list(map(lambda n: n.id, node.get_neighbours()))

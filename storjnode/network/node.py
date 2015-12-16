@@ -315,7 +315,7 @@ class Node(object):
 
         # Handle responses for this request.
         def handler_builder(self, d, their_node_id, wif):
-            def handler(node, src_id, msg):
+            def handler(node, msg):
                 # Is this a response to our request?
                 try:
                     msg = OrderedDict(msg)
@@ -596,21 +596,18 @@ class Node(object):
 
         return self.server.relay_message(nodeid, message)
 
-    def _dispatch_message(self, received, handler):
+    def _dispatch_message(self, message, handler):
         try:
-            source = received["source"].id if received["source"] else None
-            return handler(self, source, received["message"])
+            return handler(self, message)
         except Exception as e:
             txt = """Message handler raised exception: {0}\n\n{1}"""
             _log.error(txt.format(repr(e), traceback.format_exc()))
 
     def _message_dispatcher_loop(self):
         while not self._message_dispatcher_thread_stop:
-            messages = self.server.get_messages()
-
-            for received in messages:
+            for message in self.server.get_messages():
                 for handler in self._message_handlers.copy():
-                    self._dispatch_message(received, handler)
+                    self._dispatch_message(message, handler)
 
             time.sleep(0.002)
 
@@ -618,17 +615,15 @@ class Node(object):
         """Add message handler to be call when a message is received.
 
         The handler must be callable and accept two arguments. The first is the
-        calling node itself, the second argument is the source id and the third
-        the message. The source id will be None if it was a relay message.
+        calling node itself, the second argument is the message.
 
         Returns:
             The given handler.
 
         Example:
            node = Node()
-           def on_message(node, source_id, message):
-               t = "relay" if source_id is None else "direct"
-               print("Received {0} message: {1}".format(t, message))
+           def on_message(node, message):
+               print("Received message: {0}".format(message))
            node.add_message_handler(handler)
         """
         self._message_handlers.add(handler)

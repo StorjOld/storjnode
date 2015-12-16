@@ -142,9 +142,7 @@ class Server(KademliaServer):
 
         if nodeid == self.node.id:
             _log.info("Adding message to self to received queue!.")
-            return self.protocol.queue_received_message({
-                "source": None, "message": message
-            })
+            return self.protocol.queue_received_message(message)
         else:
             txt = "Queuing relay messaging for %s: %s"
             address = storjnode.util.node_id_to_address(nodeid)

@@ -1,7 +1,6 @@
 #!/usr/bin/env python
 # coding: utf-8
 
-import json
 import time
 import btctxstore
 import storjnode
@@ -54,8 +53,8 @@ def main(args):
         ))
 
         # print received message to terminal
-        def message_handler(source, message):
-            print("Received message: %s" % json.dumps(message))
+        def message_handler(node, message):
+            print("Received message: %s" % message)
         node.add_message_handler(message_handler)
 
         # run forever

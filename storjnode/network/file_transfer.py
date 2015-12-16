@@ -23,7 +23,7 @@ from storjnode.network.process_transfers import process_transfers
 _log = storjnode.log.getLogger(__name__)
 
 
-def process_unl_requests(node, src_id, msg):
+def process_unl_requests(node, msg):
     unl = node._data_transfer.net.unl.value
     try:
         msg = OrderedDict(msg)

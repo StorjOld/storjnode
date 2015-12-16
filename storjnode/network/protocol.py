@@ -57,9 +57,9 @@ class Protocol(KademliaProtocol):
             self.log.warning(msg % address)
             return False
 
-    def queue_received_message(self, entry):
+    def queue_received_message(self, message):
         try:
-            self.messages_received.put_nowait(entry)
+            self.messages_received.put_nowait(message)
             return True
         except Full:
             self.log.warning("Received message queue full, dropping message.")
@@ -76,9 +76,7 @@ class Protocol(KademliaProtocol):
 
         # message is for this node
         if dest_id == self.sourceNode.id:
-            queued = self.queue_received_message({
-                "source": None, "message": message
-            })
+            queued = self.queue_received_message(message)
             return (sender[0], sender[1]) if queued else None
 
         # invalid hop limit

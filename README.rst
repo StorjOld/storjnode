@@ -144,19 +144,6 @@ See examples/network/multinode.py
 Node messaging
 ==============
 
-Nodes can send messages to each other. You can send direct messages or relay
-messages from node to node.
-
-**Direct messages**: 
-
-The node spidercrawls the network to find the receiving node and sends the
-message directly. This will fail if the receiving node is behind a NAT and
-doesn't have a public ip.
-
-See examples/network/direct_message.py
-
-**Relay messages**:
-
 Relay messages are sent to the node nearest the receiver in the routing table
 that accepts the relay message. This continues until it reaches the destination
 or the nearest node to the receiver is reached.

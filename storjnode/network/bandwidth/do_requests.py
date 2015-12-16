@@ -3,7 +3,6 @@ Code that executes to handle bandwidth test requests
 (messages from other nodes to request starting a test.)
 """
 import storjnode
-import logging
 import time
 from collections import OrderedDict
 from storjnode.network.bandwidth.constants import ONE_MB
@@ -170,7 +169,7 @@ def build_accept_handler(self, msg):
 
 def handle_requests_builder(self):
     # Handle bandwidth requests.
-    def handle_requests(node, src_node_id, msg):
+    def handle_requests(node, msg):
         _log.debug("In handle requests")
 
         # Check message type.
@@ -235,9 +234,9 @@ def handle_requests_builder(self):
         _log.debug("req: got request")
         return res
 
-    def try_wrapper(node, src_node_id, msg):
+    def try_wrapper(node, msg):
         try:
-            return handle_requests(node, src_node_id, msg)
+            return handle_requests(node, msg)
         except (ValueError, KeyError) as e:
             _log.debug(e)
             _log.debug("Error in req")

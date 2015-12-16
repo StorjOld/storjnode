@@ -144,7 +144,7 @@ def enable(node, store_config):
         def __init__(self, store_config):
             self.store_config = store_config
 
-        def __call__(self, node, source_id, msg):
+        def __call__(self, node, msg):
             request = signal.read(node.server.btctxstore, msg, "request_info")
             if request is not None:
                 _respond(node, request.sender, self.store_config)

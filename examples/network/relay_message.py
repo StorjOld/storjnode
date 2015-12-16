@@ -23,12 +23,8 @@ bob_node = storjnode.network.Node(
 
 try:
     # add message handler to bob node
-    def message_handler(node, source, message):
-        if source is not None:
-            src = storjnode.util.node_id_to_address(source)
-        else:
-            src = "unknown"
-        print("%s from %s" % (message, src))
+    def message_handler(node, message):
+        print("Received message: %s" % message)
     alice_node.add_message_handler(message_handler)
     bob_node.add_message_handler(message_handler)
 

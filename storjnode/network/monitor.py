@@ -42,7 +42,7 @@ class Crawler(object):  # will not scale but good for now
     def stop(self):
         self.stop_thread = True
 
-    def _handle_peers_message(self, node, source_id, message):
+    def _handle_peers_message(self, node, message):
         received = time.time()
         message = read_peers(node.server.btctxstore, message)
         if message is None:
@@ -61,7 +61,7 @@ class Crawler(object):  # will not scale but good for now
                     self.scanning[peer] = copy.deepcopy(DEFAULT_DATA)
             self._check_scan_complete(message.sender, data)
 
-    def _handle_info_message(self, node, source_id, message):
+    def _handle_info_message(self, node, message):
         received = time.time()
         message = read_info(node.server.btctxstore, message)
         if message is None:

@@ -105,7 +105,6 @@ class TestSubBandwidthResponses(unittest.TestCase):
         handle_requests = handle_requests_builder(self.bob_test)
         res = handle_requests(
             self.alice_dht,
-            self.alice_node_id,
             self.req
         )
         print(res)

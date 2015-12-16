@@ -1,8 +1,5 @@
 
 import storjnode
-from collections import OrderedDict
-import logging
-import time
 import tempfile
 import pyp2p
 from storjnode.network.bandwidth.constants import ONE_MB
@@ -110,7 +107,6 @@ class TestSubBandwidthRequests(unittest.TestCase):
         req = ordered_dict_to_list(req)
         self.assertTrue(handle_requests(
             self.alice_dht,
-            self.alice_node_id,
             req
         ) == -1)
 
@@ -120,7 +116,6 @@ class TestSubBandwidthRequests(unittest.TestCase):
         self.bob_test.test_node_unl = True
         self.assertTrue(handle_requests(
             self.alice_dht,
-            self.alice_node_id,
             req
         ) == -2)
         self.bob_test.test_node_unl = None
@@ -131,7 +126,6 @@ class TestSubBandwidthRequests(unittest.TestCase):
         req = ordered_dict_to_list(req)
         self.assertTrue(handle_requests(
             self.alice_dht,
-            self.alice_node_id,
             req
         ) == -3)
 
@@ -141,7 +135,6 @@ class TestSubBandwidthRequests(unittest.TestCase):
         req = ordered_dict_to_list(req)
         self.assertTrue(handle_requests(
             self.alice_dht,
-            self.alice_node_id,
             req
         ) == -4)
 
@@ -151,7 +144,6 @@ class TestSubBandwidthRequests(unittest.TestCase):
         req = ordered_dict_to_list(req)
         self.assertTrue(handle_requests(
             self.alice_dht,
-            self.alice_node_id,
             req
         ) == -5)
 
@@ -159,7 +151,6 @@ class TestSubBandwidthRequests(unittest.TestCase):
         req = copy.deepcopy(self.req)
         self.assertTrue(type(handle_requests(
             self.alice_dht,
-            self.alice_node_id,
             req
         )) == list)
 
