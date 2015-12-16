@@ -1,4 +1,5 @@
 import os
+import sys
 import cProfile
 from pstats import Stats
 import signal
@@ -12,7 +13,6 @@ import unittest
 import btctxstore
 import storjnode
 from kademlia.node import Node as KademliaNode
-from pyp2p.lib import get_wan_ip
 from storjnode.network.server import QUERY_TIMEOUT, WALK_TIMEOUT
 from crochet import setup
 
@@ -557,20 +557,21 @@ class TestNode(unittest.TestCase):
         crawled_event = threading.Event()
         results = {}
 
-        def handler(**kwargs):
-            print("KWARGS", kwargs)
-            results.update(kwargs)
+        def handler(key, shard):
+            storjnode.storage.shard.copy(shard, sys.stdout)
+            results.update(dict(key=key, shard=shard))
             crawled_event.set()
         random_peer = random.choice(self.swarm)
         monitor = storjnode.network.monitor.Monitor(
             random_peer,
             {},  # FIXME use tmp dir
-            interval=600  # hourly
+            limit=KSIZE,
+            interval=WALK_TIMEOUT * 2,
+            on_crawl_complete=handler
         )
 
-        crawled_event.wait(timeout=WALK_TIMEOUT * 8)
+        crawled_event.wait(timeout=WALK_TIMEOUT * 2)
         monitor.stop()
-        print("RESULTS", results)
 
 
 if __name__ == "__main__":

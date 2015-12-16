@@ -41,7 +41,6 @@ clean:
 virtualenv: clean
 	virtualenv -p /usr/bin/python$(PY_VERSION) env
 	$(PIP) install wheel
-	$(PIP) install pygraphviz --install-option="--include-path=/usr/include/graphviz" --install-option="--library-path=/usr/lib/graphviz/"
 
 
 wheels: virtualenv

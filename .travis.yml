@@ -19,7 +19,7 @@ script:
   - pep8 storjnode
   - pep8 examples
   - pep8 tests
-  - coverage run --source="storjnode" -m unittest --quiet tests
+  - coverage run --source="storjnode" -m unittest tests
 
 after_success:
   - coveralls

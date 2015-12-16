@@ -2,11 +2,13 @@
 
 # This example requires pygraphviz >= 1.3.1
 
+import os
 import sys
 import signal
 import argparse
 import time
 import storjnode
+import datetime
 import pygraphviz
 from crochet import setup
 
@@ -68,8 +70,8 @@ def render(network_map, path=None):
     name = "network_map_%s" % now.strftime('%Y-%m-%d_%H:%M:%S')
     path = path or os.path.join(storjnode.common.STORJ_HOME,
                                 "graphs", "%s.png" % name)
-    path = util.full_path(path)
-    util.ensure_path_exists(os.path.dirname(path))
+    path = storjnode.util.full_path(path)
+    storjnode.util.ensure_path_exists(os.path.dirname(path))
 
     graph = pygraphviz.AGraph()  # (strict=False,directed=True)
 

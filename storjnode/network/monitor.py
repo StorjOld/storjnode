@@ -206,7 +206,7 @@ def create_shard(node, num, begin, end, scanned):
         "begin": begin,
         "end": end,
         "scanned": encoded_scanned,
-    }))
+    }, indent=2))
     return shard
 
 
@@ -272,10 +272,7 @@ class Monitor(object):
 
             # call handler if given
             if self.on_crawl_complete is not None:
-                self.on_crawl_complete(key=key, shardid=shardid,
-                                       num=self.dataset_num,
-                                       begin=begin, end=end,
-                                       scanned=scanned)
+                self.on_crawl_complete(key, shard)
 
             # update dataset num and last crawl time
             self.dataset_num = self.dataset_num + 1

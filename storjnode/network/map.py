@@ -1,6 +1,4 @@
-import os
 import time
-import datetime
 import storjnode
 from kademlia.node import Node
 from crochet import TimeoutError
