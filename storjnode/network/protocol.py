@@ -100,26 +100,9 @@ class Protocol(KademliaProtocol):
         })
         return (sender[0], sender[1]) if queued else None
 
-    def rpc_direct_message(self, sender, sender_id, message):
-        self.log.debug("Got direct message from {0} at {1}".format(
-            storjnode.util.node_id_to_address(sender_id), sender
-        ))
-        source = Node(sender_id, sender[0], sender[1])
-        # FIXME self.welcomeIfNewNode(source)
-        queued = self.queue_received_message({
-            "source": source, "message": message
-        })
-        return (sender[0], sender[1]) if queued else None
-
     def callRelayMessage(self, nodeToAsk, destid, hop_limit, message):
         address = (nodeToAsk.ip, nodeToAsk.port)
         self.log.debug("Sending relay message to {0}:{1}".format(*address))
         d = self.relay_message(address, self.sourceNode.id, destid,
                                hop_limit, message)
-        return d.addCallback(self.handleCallResponse, nodeToAsk)
-
-    def callDirectMessage(self, nodeToAsk, message):
-        address = (nodeToAsk.ip, nodeToAsk.port)
-        self.log.debug("Sending direct message to {0}:{1}".format(*address))
-        d = self.direct_message(address, self.sourceNode.id, message)
         return d.addCallback(self.handleCallResponse, nodeToAsk)

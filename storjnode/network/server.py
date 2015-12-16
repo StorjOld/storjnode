@@ -8,7 +8,6 @@ from kademlia.network import Server as KademliaServer
 from kademlia.storage import ForgetfulStorage
 from kademlia.node import Node as KademliaNode
 from kademlia.routing import TableTraverser
-from kademlia.crawling import NodeSpiderCrawl
 from storjnode.network.protocol import Protocol
 from twisted.internet import defer
 from twisted.internet.task import LoopingCall
@@ -211,38 +210,6 @@ class Server(KademliaServer):
             for entry in storjnode.util.empty_queue(q):
                 self._relay_message(entry)
             time.sleep(self.thread_sleep_time)
-
-    def direct_message(self, nodeid, message):
-        """Send direct message to a node.
-
-        Spidercrawls the network to find the node and sends the message
-        directly. This will fail if the node is behind a NAT and doesn't
-        have a public ip.
-
-        Args:
-            nodeid: 160bit nodeid of the reciever as bytes
-            message: iu-msgpack-python serializable message data
-
-        Returns:
-            Defered own transport address (ip, port) if successfull else None
-        """
-
-        def found_callback(nodes):
-            nodes = filter(lambda n: n.id == nodeid, nodes)
-            if len(nodes) == 0:
-                return defer.succeed(None)
-            else:
-                async = self.protocol.callDirectMessage(nodes[0], message)
-                return async.addCallback(lambda r: r[0] and r[1] or None)
-
-        node = KademliaNode(nodeid)
-        nearest = self.protocol.router.findNeighbors(node)
-        if len(nearest) == 0:
-            return defer.succeed(None)
-        spider = NodeSpiderCrawl(
-            self.protocol, node, nearest, self.ksize, self.alpha
-        )
-        return spider.find().addCallback(found_callback)
 
     def get_transport_info(self):
         def handle(results):

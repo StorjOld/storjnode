@@ -1,5 +1,4 @@
 import os
-import sys
 import cProfile
 from pstats import Stats
 import signal
@@ -171,11 +170,11 @@ class TestNode(unittest.TestCase):
         bob_node.add_message_handler(lambda n, s, m: bob_received.set())
         time.sleep(interval * 2)  # wait until network overlay stable, 2 peers
         try:
-            alice_node.direct_message(bob_node.get_id(), "hi bob")
-            time.sleep(0.01)  # wait for despatcher
+            alice_node.relay_message(bob_node.get_id(), "hi bob")
+            time.sleep(interval * 2)
             self.assertTrue(bob_received.isSet())
-            bob_node.direct_message(alice_node.get_id(), "hi alice")
-            time.sleep(0.01)  # wait for despatcher
+            bob_node.relay_message(alice_node.get_id(), "hi alice")
+            time.sleep(interval * 2)
             self.assertTrue(alice_received.isSet())
         finally:
             alice_node.stop()
@@ -332,119 +331,6 @@ class TestNode(unittest.TestCase):
     # test direct messaging #
     #########################
 
-    def _test_direct_message(self, sender, receiver, success_expected):
-        testmessage = binascii.hexlify(os.urandom(32))
-        receiver_id = receiver.get_id()
-        received = []
-        receiver.add_message_handler(lambda n, s, m: received.append(
-            {"source": s, "message": m}
-        ))
-
-        sender_address = sender.direct_message(receiver_id, testmessage)
-        time.sleep(0.01)  # wait for despatcher
-
-        if not success_expected:
-            self.assertTrue(sender_address is None)  # was not received
-            self.assertEqual(len(received), 0)
-
-        else:  # success expected
-
-            # check if got message
-            self.assertTrue(sender_address is not None)  # was received
-
-            # check returned transport address is valid
-            ip, port = sender_address
-            self.assertTrue(storjnode.util.valid_ip(ip))
-            self.assertTrue(isinstance(port, int))
-            self.assertTrue(port >= 0 and port <= 2**16)
-
-            # check one message received
-            self.assertEqual(len(received), 1)
-
-            # check if message and sender match
-            source, message = received[0]["source"], received[0]["message"]
-            self.assertEqual(testmessage, message)
-            self.assertEqual(source, sender.get_id())
-
-    def test_direct_messaging_success(self):
-        sender = self.swarm[0]
-        receiver = self.swarm[SWARM_SIZE - 1]
-        self._test_direct_message(sender, receiver, True)
-
-    def test_direct_messaging_failure(self):
-        testmessage = binascii.hexlify(os.urandom(32))
-        receiver_id = binascii.unhexlify("DEADBEEF" * 5)
-        sender = self.swarm[0]
-        result = sender.direct_message(receiver_id, testmessage)
-        self.assertTrue(result is None)
-
-    def test_direct_message_self(self):
-        sender = self.swarm[0]
-        receiver = self.swarm[0]
-        self._test_direct_message(sender, receiver, False)
-
-    def test_direct_messaging(self):
-        senders, receivers = storjnode.util.baskets(self.swarm, 2)
-        random.shuffle(senders)
-        random.shuffle(receivers)
-        for sender, receiver in zip(senders, receivers):
-            msg = "TEST: sending direct message from {0} to {1}"
-            print(msg.format(sender.get_address(), receiver.get_address()))
-            self._test_direct_message(sender, receiver, True)
-
-    def test_direct_message_to_void(self):  # for coverage
-        peer = storjnode.network.Node(
-            self.__class__.btctxstore.create_wallet(),
-            bootstrap_nodes=[("240.0.0.0", 1337)],  # isolated peer
-            refresh_neighbours_interval=0.0,
-            store_config={STORAGE_DIR: None},
-            nat_type="preserving",
-            node_type="passive",
-            disable_data_transfer=True
-        )
-        try:
-            void_id = b"void" * 5
-            result = peer.direct_message(void_id, "into the void")
-            time.sleep(0.1)  # wait for despatcher
-            self.assertTrue(result is None)
-        finally:
-            peer.stop()
-
-    def test_direct_message_full_duplex(self):
-        alice_node = storjnode.network.Node(
-            self.__class__.btctxstore.create_key(),
-            bootstrap_nodes=[("240.0.0.0", 1337)],
-            refresh_neighbours_interval=0.0,
-            store_config={STORAGE_DIR: None},
-            nat_type="preserving",
-            node_type="passive",
-            disable_data_transfer=True
-        )
-        alice_received = threading.Event()
-        alice_node.add_message_handler(lambda n, s, m: alice_received.set())
-        bob_node = storjnode.network.Node(
-            self.__class__.btctxstore.create_key(),
-            bootstrap_nodes=[(LAN_IP, alice_node.port)],
-            refresh_neighbours_interval=0.0,
-            store_config={STORAGE_DIR: None},
-            nat_type="preserving",
-            node_type="passive",
-            disable_data_transfer=True
-        )
-        bob_received = threading.Event()
-        bob_node.add_message_handler(lambda n, s, m: bob_received.set())
-        time.sleep(QUERY_TIMEOUT)  # wait until network overlay stable, 2 peers
-        try:
-            alice_node.direct_message(bob_node.get_id(), "hi bob")
-            time.sleep(0.1)  # wait for despatcher
-            self.assertTrue(bob_received.isSet())
-            bob_node.direct_message(alice_node.get_id(), "hi alice")
-            time.sleep(0.1)  # wait for despatcher
-            self.assertTrue(alice_received.isSet())
-        finally:
-            alice_node.stop()
-            bob_node.stop()
-
     def test_max_received_messages(self):
         alice_node = storjnode.network.Node(
             self.__class__.btctxstore.create_key(),
@@ -473,16 +359,20 @@ class TestNode(unittest.TestCase):
             bob_node._message_dispatcher_thread.join()
 
             message_a = binascii.hexlify(os.urandom(32))
-            result = alice_node.direct_message(bob_node.get_id(), message_a)
-            self.assertTrue(result is not None)
+            alice_node.relay_message(bob_node.get_id(), message_a)
 
             message_b = binascii.hexlify(os.urandom(32))
-            result = alice_node.direct_message(bob_node.get_id(), message_b)
-            self.assertTrue(result is not None)
+            alice_node.relay_message(bob_node.get_id(), message_b)
 
             message_c = binascii.hexlify(os.urandom(32))
-            result = alice_node.direct_message(bob_node.get_id(), message_c)
-            self.assertEqual(result, None)
+            alice_node.relay_message(bob_node.get_id(), message_c)
+
+            time.sleep(QUERY_TIMEOUT)  # wait until messages relayed
+
+            # XXX check messages
+            messages = bob_node.server.get_messages()
+            self.assertEqual(len(messages), 2)
+
         finally:
             alice_node.stop()
             bob_node.stop()
@@ -514,13 +404,9 @@ class TestNode(unittest.TestCase):
     ########################
 
     def test_mapnetwork(self):
-        path = tempfile.mktemp()
-        try:
-            random_peer = random.choice(self.swarm)
-            netmap = storjnode.network.map.generate(random_peer)
-            self.assertTrue(isinstance(netmap, dict))
-        finally:
-            os.remove(path)
+        random_peer = random.choice(self.swarm)
+        netmap = storjnode.network.map.generate(random_peer)
+        self.assertTrue(isinstance(netmap, dict))
 
     #########################
     # test message handlers #
@@ -546,19 +432,12 @@ class TestNode(unittest.TestCase):
     # test network monitor #
     ########################
 
-    def test_network_monitor_crawl(self):
-        random_peer = random.choice(self.swarm)
-        scanned = storjnode.network.monitor.crawl(
-            random_peer, limit=KSIZE, timeout=600
-        )
-        self.assertTrue(len(scanned) >= KSIZE)
-
     def test_network_monitor_service(self):
         crawled_event = threading.Event()
         results = {}
 
         def handler(key, shard):
-            storjnode.storage.shard.copy(shard, sys.stdout)
+            # storjnode.storage.shard.copy(shard, sys.stdout)
             results.update(dict(key=key, shard=shard))
             crawled_event.set()
         random_peer = random.choice(self.swarm)

@@ -380,14 +380,14 @@ class Node(object):
         ).start(0.002, now=True)
         d.addErrback(process_transfers_error)
 
-    def test_bandwidth(self, test_node_id):
+    def test_bandwidth(self, node_id):
         """Tests the bandwidth between yourself and a remote peer.
         Only one test can be active at any given time! If a test
         is already active: the deferred will call an errback that
         resolves to an exception (the callback won't be called)
         and the request won't go through.
 
-        :param test_node_id: binary node_id as returned from get_id.
+        :param node_id: binary node_id as returned from get_id.
         :return: a deferred that returns this:
         {'download': 1048576, 'upload': 1048576} to a callback
         or raises an error to an errback on failure.
@@ -573,43 +573,6 @@ class Node(object):
     #######################
     # messaging interface #
     #######################
-
-    def async_direct_message(self, nodeid, message):
-        """Send direct message to a node and return a defered result.
-
-        Spidercrawls the network to find the node and sends the message
-        directly. This will fail if the node is behind a NAT and doesn't
-        have a public ip.
-
-        Args:
-            nodeid: 160bit nodeid of the reciever as bytes
-            message: iu-msgpack-python serializable message data
-
-        Returns:
-            A twisted.internet.defer.Deferred that resloves to
-            own transport address (ip, port) if successfull else None
-        """
-        return self.server.direct_message(nodeid, message)
-
-    @wait_for(timeout=WALK_TIMEOUT)
-    def direct_message(self, nodeid, message):
-        """Send direct message to a node and block until complete.
-
-        Spidercrawls the network to find the node and sends the message
-        directly. This will fail if the node is behind a NAT and doesn't
-        have a public ip.
-
-        Args:
-            nodeid: 160bit nodeid of the reciever as bytes
-            message: iu-msgpack-python serializable message data
-
-        Returns:
-            Own transport address (ip, port) if successfull else None
-
-        Raises:
-            crochet.TimeoutError after storjnode.network.server.WALK_TIMEOUT
-        """
-        return self.server.direct_message(nodeid, message)
 
     def relay_message(self, nodeid, message):
         """Send relay message to a node.
