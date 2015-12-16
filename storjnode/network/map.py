@@ -1,7 +1,6 @@
 import os
 import time
 import datetime
-import pygraphviz
 import storjnode
 from kademlia.node import Node
 from crochet import TimeoutError
@@ -100,44 +99,6 @@ class _NetworkMapper(object):  # will not scale but good for now
         for worker in workers:
             worker.join()
         return self.scanned
-
-
-def render(network_map, path=None):
-    """ Render a network map.
-
-    Args:
-        network_map: The generated network map to render.
-        path: The path to save the rendered output at.
-              Saves to '~/.storj/graphs/network map TIMESTAMP.png' by default.
-    """
-
-    now = datetime.datetime.now()
-    name = "network_map_%s" % now.strftime('%Y-%m-%d_%H:%M:%S')
-    path = path or os.path.join(storjnode.common.STORJ_HOME,
-                                "graphs", "%s.png" % name)
-    path = util.full_path(path)
-    util.ensure_path_exists(os.path.dirname(path))
-
-    graph = pygraphviz.AGraph()  # (strict=False,directed=True)
-
-    # add nodes
-    for nodeid, results in network_map.items():
-        node_address = storjnode.util.node_id_to_address(nodeid)
-        ip, port = results["addr"]
-        has_peers = len(results["peers"]) > 0
-        graph.add_node(node_address, color='green' if has_peers else "blue")
-
-    # add connections
-    for nodeid, results in network_map.items():
-        node_address = storjnode.util.node_id_to_address(nodeid)
-        for peerid, ip, port in results["peers"]:
-            peer_address = storjnode.util.node_id_to_address(peerid)
-            graph.add_edge(node_address, peer_address)
-
-    # render graph
-    graph.layout(prog='dot')
-    graph.draw(path, prog='circo')
-    return path
 
 
 def generate(storjnode, worker_num=32):

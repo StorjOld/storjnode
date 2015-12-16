@@ -519,7 +519,6 @@ class TestNode(unittest.TestCase):
             random_peer = random.choice(self.swarm)
             netmap = storjnode.network.map.generate(random_peer)
             self.assertTrue(isinstance(netmap, dict))
-            storjnode.network.map.render(netmap, path=path)
         finally:
             os.remove(path)
 
