@@ -366,7 +366,7 @@ class TestNode(unittest.TestCase):
             message_c = binascii.hexlify(os.urandom(32))
             alice_node.relay_message(bob_node.get_id(), message_c)
 
-            time.sleep(QUERY_TIMEOUT)  # wait until messages relayed
+            time.sleep(QUERY_TIMEOUT * 2)  # wait until messages relayed
 
             # XXX check messages
             messages = bob_node.server.get_messages()
