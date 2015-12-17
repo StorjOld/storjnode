@@ -136,8 +136,6 @@ class TestNode(unittest.TestCase):
         d.addCallback(check_unl)
         time.sleep(10)
         self.assertTrue(test_get_unl_success)
-        print("\a")
-        print("here")
 
     #################################
     # test util and debug functions #
@@ -222,7 +220,6 @@ class TestNode(unittest.TestCase):
             message = received[0]
             self.assertEqual(testmessage, message)
 
-    @unittest.skip("Broken")
     def test_relay_messaging_success(self):
         sender = self.swarm[0]
         receiver = self.swarm[SWARM_SIZE - 1]
@@ -233,7 +230,6 @@ class TestNode(unittest.TestCase):
         receiver = self.swarm[0]
         self._test_relay_message(sender, receiver, True)
 
-    @unittest.skip("Broken")
     def test_relay_messaging(self):
         senders, receivers = storjnode.util.baskets(self.swarm, 2)
         random.shuffle(senders)
@@ -281,7 +277,6 @@ class TestNode(unittest.TestCase):
         finally:
             node.stop()
 
-    @unittest.skip("broken!")
     def test_relay_message_full_duplex(self):
         alice_node = storjnode.network.Node(
             self.__class__.btctxstore.create_key(),

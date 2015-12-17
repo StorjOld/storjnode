@@ -30,6 +30,9 @@ class TestInfo(unittest.TestCase):
         self.assertIsNotNone(read)
         self.assertEqual(created, read)
 
+    def test_invalid_message(self):
+        self.assertIsNone(info.read(self.btctxstore, None))
+
     def test_invalid_token(self):
         created = base.create(self.btctxstore, self.wif, None, None)
 
@@ -82,7 +85,7 @@ class TestInfo(unittest.TestCase):
         self.assertIsNone(info.read(self.btctxstore, repacked))
 
     def test_invalid_storage_len(self):
-        _info = ["0.0.0", [], None, None, None]
+        _info = ["0.0.0", [], None, None]
         created = base.create(self.btctxstore, self.wif, "info", _info)
 
         # repack to eliminate namedtuples and simulate io
