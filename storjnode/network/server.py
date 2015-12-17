@@ -4,6 +4,7 @@ import datetime
 import threading
 import btctxstore
 import storjnode
+from storjnode.common import THREAD_SLEEP
 from kademlia.network import Server as KademliaServer
 from kademlia.storage import ForgetfulStorage
 from kademlia.node import Node as KademliaNode
@@ -38,7 +39,6 @@ class Server(KademliaServer):
             refresh_neighbours_interval (float): Auto refresh neighbours.
         """
         self.port = port
-        self.thread_sleep_time = 0.02
         self._default_hop_limit = default_hop_limit
         self._refresh_neighbours_interval = refresh_neighbours_interval
         self._cached_address = None
@@ -164,7 +164,7 @@ class Server(KademliaServer):
             if dest.distanceTo(self.node) <= dest.distanceTo(relay_node):
                 msg = "Skipping %s, farther then self."
                 _log.debug(msg % repr(relay_node))
-                continue
+                break
 
             # relay message
             address = storjnode.util.node_id_to_address(relay_node.id)
@@ -199,7 +199,7 @@ class Server(KademliaServer):
             if (datetime.datetime.now() - last_refresh) > delta:
                 self.refresh_neighbours()
                 last_refresh = datetime.datetime.now()
-            time.sleep(self.thread_sleep_time)
+            time.sleep(THREAD_SLEEP)
 
     def _relay_loop(self):
         while not self._relay_thread_stop:
@@ -207,7 +207,7 @@ class Server(KademliaServer):
             q = self.protocol.messages_relay
             for entry in storjnode.util.empty_queue(q):
                 self._relay_message(entry)
-            time.sleep(self.thread_sleep_time)
+            time.sleep(THREAD_SLEEP)
 
     def get_transport_info(self):
         def handle(results):

@@ -5,6 +5,7 @@ from crochet import TimeoutError
 from threading import Thread
 from threading import RLock
 from storjnode import util
+from storjnode.common import THREAD_SLEEP
 from storjnode.network.server import QUERY_TIMEOUT
 
 
@@ -62,7 +63,7 @@ class _NetworkMapper(object):  # will not scale but good for now
     def worker(self):
         """Process nodes from toscan to scanned until network walked."""
         while True:
-            time.sleep(0.002)
+            time.sleep(THREAD_SLEEP)
 
             # get next node to scan
             with self.mutex:

@@ -1,5 +1,6 @@
 import os
 
+THREAD_SLEEP = 0.01
 
 PROTOCOL_VERSION = 1
 MAX_PACKAGE_DATA = 548  # 576 MTU - 20 IPv4 Header - 8 UDP Header == 548

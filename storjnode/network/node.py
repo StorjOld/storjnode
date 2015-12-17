@@ -3,6 +3,7 @@ import threading
 import traceback
 import random
 import storjnode
+from storjnode.common import THREAD_SLEEP
 from twisted.internet import defer
 from collections import OrderedDict
 from crochet import wait_for, run_in_reactor
@@ -609,7 +610,7 @@ class Node(object):
                 for handler in self._message_handlers.copy():
                     self._dispatch_message(message, handler)
 
-            time.sleep(0.002)
+            time.sleep(THREAD_SLEEP)
 
     def add_message_handler(self, handler):
         """Add message handler to be call when a message is received.

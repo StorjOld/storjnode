@@ -4,6 +4,7 @@ import copy
 import storjnode
 from io import BytesIO
 from threading import Thread, RLock
+from storjnode.common import THREAD_SLEEP
 from storjnode.util import node_id_to_address
 from storjnode.network.messages.peers import read as read_peers
 from storjnode.network.messages.peers import request as request_peers
@@ -126,7 +127,7 @@ class Crawler(object):  # will not scale but good for now
 
     def _process_scanning(self):
         while not self.stop_thread and time.time() < self.timeout:
-            time.sleep(0.002)
+            time.sleep(THREAD_SLEEP)
 
             # get next node to scan
             with self.mutex:
@@ -139,7 +140,6 @@ class Crawler(object):  # will not scale but good for now
 
                 for nodeid, data in self.scanning.copy().items():
                     self._process(nodeid, data)
-                    time.sleep(0.1)  # not to fast
 
         # done! because of timeout or stop flag
 
@@ -238,7 +238,7 @@ class Monitor(object):
     def monitor(self):
         _log.debug("started monitor thread")
         while not self.stop_thread:
-            time.sleep(0.002)
+            time.sleep(THREAD_SLEEP)
 
             if not ((self.last_crawl + self.interval) < time.time()):
                 continue
