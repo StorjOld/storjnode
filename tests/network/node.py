@@ -24,10 +24,11 @@ signal.signal(signal.SIGINT, signal.default_int_handler)
 _log = storjnode.log.getLogger(__name__)
 
 
-WALK_TIMEOUT = WALK_TIMEOUT / 2.0
+WALK_TIMEOUT = WALK_TIMEOUT / 4.0
+QUERY_TIMEOUT = QUERY_TIMEOUT / 4.0
 
 
-PROFILE = True
+PROFILE = False
 SWARM_SIZE = 16
 KSIZE = SWARM_SIZE / 2 if SWARM_SIZE / 2 < 20 else 20
 PORT = 3000

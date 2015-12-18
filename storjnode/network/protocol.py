@@ -11,6 +11,9 @@ from kademlia.node import Node
 import storjnode
 
 
+_log = storjnode.log.getLogger(__name__)
+
+
 def _findNearest(self, node, k=None, exclude=None):
     k = k or self.ksize
     nodes = []
@@ -24,9 +27,6 @@ def _findNearest(self, node, k=None, exclude=None):
 
 
 RoutingTable.findNeighbors = _findNearest  # XXX monkey patch find neighbors
-
-
-_log = storjnode.log.getLogger(__name__)
 
 
 class Protocol(KademliaProtocol):
