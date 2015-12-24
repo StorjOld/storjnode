@@ -103,7 +103,12 @@ class TestProcessTransfers(unittest.TestCase):
         con = Sock()
 
         # Data id doesn't exist.
-        self.assertTrue(do_upload(self.client, con, contract, con_info, None) == 0)
+        self.assertTrue(do_upload(
+            self.client,
+            con,
+            contract,
+            con_info,
+            None) == 0)
 
     def test_do_download(self):
         contract = {
