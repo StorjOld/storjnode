@@ -210,23 +210,23 @@ def migrate(btctxstore, cfg):
 
 
 class ConfigFile:
-    def __init__(self, wallet=None, password=None):
+    def __init__(self, api=None, password=None):
         # Config default path.
         self.path = os.path.join(
                 DEFAULT_CONFIG_PATH,
                 "config.json"
         )
 
-        self.wallet = wallet or BtcTxStore()
+        self.api = api or BtcTxStore()
         self.password = password
         self.cfg = get(
-            self.wallet,
+            self.api,
             self.path,
             self.password
         )
 
     def save(self):
-        save(self.wallet, self.path, self.cfg, self.password)
+        save(self.api, self.path, self.cfg, self.password)
 
     def __getitem__(self, key):
         return self.cfg[key]

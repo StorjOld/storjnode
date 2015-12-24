@@ -8,6 +8,8 @@ import argparse
 import signal
 import sys
 from crochet import setup
+from storjnode.network.bandwidth.limit import BandwidthLimit
+from storjnode.config import ConfigFile
 
 
 # start twisted via crochet and remove twisted handler
@@ -42,11 +44,13 @@ def main(args):
     arguments = parse_args(args)
     node = None
     key = arguments["key"] or btctxstore.BtcTxStore().create_wallet()
+    bandwidth = BandwidthLimit(ConfigFile())
     try:
         # start node
         node = storjnode.network.Node(
             key, port=arguments["port"],
             disable_data_transfer=True,
+            bandwidth=bandwidth
         )
         print("Running node on port {port} with id {id}".format(
             id=storjnode.util.node_id_to_address(node.get_id()), port=node.port
@@ -59,6 +63,8 @@ def main(args):
 
         # run forever
         while True:
+            # Todo: could run process_data_transfers here
+            # and remove run in reactor
             time.sleep(0.1)
 
     except KeyboardInterrupt:
