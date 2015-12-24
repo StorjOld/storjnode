@@ -2,6 +2,7 @@ import os
 import copy
 import json
 from .common import STORJ_HOME
+from btctxstore import BtcTxStore
 
 
 VERSION = "3.0.0"  # config version divorced from software version!
@@ -44,7 +45,15 @@ def save(btctxstore, path, cfg, password=None):
     Raises:
         storjnode.config.Invalid: If config is not valid.
     """
-    validate(btctxstore, cfg)  # always validate before saving
+    # always validate before saving
+    validate(btctxstore, cfg)
+
+    # Create root path if it doesn't already exist.
+    root_path = os.path.dirname(path)
+    if not os.path.exists(root_path):
+        os.makedirs(root_path)
+
+    # WRite config to file.
     if password is None:  # unencrypted
         with open(path, 'w') as config_file:
             config_file.write(json.dumps(cfg))
@@ -69,6 +78,17 @@ def create(btctxstore):
         "version": VERSION,
         "wallet": hwif,
         "payout_address": address,  # default to wallet address
+        "bandwidth": {  # All in bytes, btw.
+            "sec": {
+                "upstream": 0,  # No limit.
+                "downstream": 0
+            },
+            "month": {
+                "upstream": 10737418240,  # 10 GB.
+                "downstream": 10737418240,  # 10 GB.
+                "next": 0  # When is next month.
+            },
+        }
     }
     return cfg
 
@@ -104,6 +124,7 @@ def validate(btctxstore, cfg):
     if not btctxstore.validate_wallet(cfg.get("wallet")):
         msg = "Invalid 'wallet' entry: {0}!"
         raise InvalidConfig(msg.format(cfg.get("wallet")))
+
     return True
 
 
@@ -186,3 +207,30 @@ def migrate(btctxstore, cfg):
         cfg = _MIGRATIONS[cfg['version']](btctxstore, cfg)
 
     return cfg
+
+
+class ConfigFile:
+    def __init__(self, wallet=None, password=None):
+        # Config default path.
+        self.path = os.path.join(
+                DEFAULT_CONFIG_PATH,
+                "config.json"
+        )
+
+        self.wallet = wallet or BtcTxStore()
+        self.password = password
+        self.cfg = get(
+            self.wallet,
+            self.path,
+            self.password
+        )
+
+    def save(self):
+        save(self.wallet, self.path, self.cfg, self.password)
+
+    def __getitem__(self, key):
+        return self.cfg[key]
+
+    def __setitem__(self, key, value):
+        self.cfg[key] = value
+        self.save()
