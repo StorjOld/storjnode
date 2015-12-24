@@ -69,7 +69,8 @@ class BandwidthLimit:
         self.cake = {}
         for bw_type in self.valid_bw_types:
             self.cake[bw_type] = {
-                "no": -1
+                "no": -1,
+                "slices": {}
             }
 
         # Unix timestamp of next month.

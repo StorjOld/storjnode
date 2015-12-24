@@ -85,7 +85,7 @@ def expire_handshakes(client):
                     del client.defers[contract_id]
 
 
-def do_upload(client, con, contract, con_info):
+def do_upload(client, con, contract, con_info, contract_id):
     _log.verbose("Upload")
 
     # Send file size.
@@ -119,17 +119,31 @@ def do_upload(client, con, contract, con_info):
         # Send file size.
         con.send(net_file_size, send_all=1)
 
+    # Request bandwidth for transfer.
+    chunk_size = 1048576
+    allocation = client.bandwidth.request(
+        "upstream",
+        contract_id,
+        chunk_size
+    )
+
     # Get next chunk from file.
     position = con_info["file_size"] - con_info["remaining"]
     data_chunk = client.get_data_chunk(
         contract["data_id"],
-        position
+        position,
+        allocation
     )
 
     # Upload chunk binary to socket.
     bytes_sent = con.send(data_chunk)
     if bytes_sent:
         con_info["remaining"] -= bytes_sent
+        client.bandwidth.update(
+            "upstream",
+            bytes_sent,
+            contract_id
+        )
 
     _log.verbose("Remaining = ")
     _log.verbose(con_info["remaining"])
@@ -141,7 +155,7 @@ def do_upload(client, con, contract, con_info):
     return 0
 
 
-def do_download(client, con, contract, con_info):
+def do_download(client, con, contract, con_info, contract_id):
     _log.verbose("download")
 
     # Get file size.
@@ -167,15 +181,29 @@ def do_download(client, con, contract, con_info):
             else:
                 return -3
 
+    # Request bandwidth for transfer.
+    chunk_size = con_info["remaining"]
+    allocation = client.bandwidth.request(
+        "downstream",
+        contract_id,
+        chunk_size
+    )
+
     # Download.
     data = con.recv(
-        con_info["remaining"],
+        allocation,
         encoding="ascii"
     )
 
-    if len(data):
+    bytes_recv = len(data)
+    if bytes_recv:
         con_info["remaining"] -= len(data)
         client.save_data_chunk(contract["data_id"], data)
+        client.bandwidth.update(
+            "downstream",
+            bytes_recv,
+            contract_id
+        )
 
     _log.verbose("Remaining = ")
     _log.verbose(con_info["remaining"])
@@ -240,6 +268,9 @@ def get_contract_id(client, con, contract_id):
 
 def complete_transfer(client, contract_id, con):
     with client.mutex:
+        # Leave bandwidth slice table.
+        client.bandwidth.remove_transfer(contract_id)
+
         # Determine who is master.
         contract = client.contracts[contract_id]
         their_unl = client.get_their_unl(contract)
@@ -356,6 +387,7 @@ def process_transfers(client):
 
         # Execute start callbacks.
         if not con_info["file_size"]:
+            # Fire start handlers.
             _log.debug("In con, and starting new transfer =")
             old_handlers = set()
             for handler in client.handlers["start"]:
@@ -373,9 +405,21 @@ def process_transfers(client):
         # Transfer data.
         contract = client.contracts[contract_id]
         if client.get_direction(contract_id) == u"send":
-            transfer_complete = do_upload(client, con, contract, con_info)
+            transfer_complete = do_upload(
+                client,
+                con,
+                contract,
+                con_info,
+                contract_id
+            )
         else:
-            transfer_complete = do_download(client, con, contract, con_info)
+            transfer_complete = do_download(
+                client,
+                con,
+                contract,
+                con_info,
+                contract_id
+            )
 
         # Run any callbacks and schedule next transfer.
         if transfer_complete == 1:

@@ -56,10 +56,13 @@ def process_unl_requests(node, msg):
 
 
 class FileTransfer:
-
-    def __init__(self, net, wif=None, store_config=None, handlers=None):
+    def __init__(self, net, bandwidth, wif=None,
+                 store_config=None, handlers=None):
         # Accept direct connections.
         self.net = net
+
+        # Control bandwidth.
+        self.bandwidth = bandwidth
 
         # Returned by callbacks.
         self.success_value = ("127.0.0.1", 7777)

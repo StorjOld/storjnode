@@ -17,6 +17,8 @@ from storjnode.network.process_transfers import expire_handshakes
 from storjnode.network.process_transfers import do_upload
 from storjnode.network.process_transfers import do_download
 from storjnode.network.process_transfers import process_dht_messages
+from storjnode.network.bandwidth.limit import BandwidthLimit
+from storjnode.config import ConfigFile
 from pyp2p.sock import Sock
 from crochet import setup
 setup()
@@ -54,6 +56,7 @@ class TestProcessTransfers(unittest.TestCase):
                 wan_ip="8.8.8.8",
                 debug=1
             ),
+            BandwidthLimit(),
             wif=self.wif,
             store_config=self.store_config
         )
@@ -100,7 +103,7 @@ class TestProcessTransfers(unittest.TestCase):
         con = Sock()
 
         # Data id doesn't exist.
-        self.assertTrue(do_upload(self.client, con, contract, con_info) == 0)
+        self.assertTrue(do_upload(self.client, con, contract, con_info, None) == 0)
 
     def test_do_download(self):
         contract = {
@@ -122,7 +125,8 @@ class TestProcessTransfers(unittest.TestCase):
                 self.client,
                 con,
                 contract,
-                con_info
+                con_info,
+                None
             ) == -2)
         con.close()
 
@@ -141,7 +145,7 @@ class TestProcessTransfers(unittest.TestCase):
         }
         junk, self.client.downloading[data_id] = tempfile.mkstemp()
         os.close(junk)
-        print(do_download(self.client, con, contract, con_info))
+        print(do_download(self.client, con, contract, con_info, None))
         con.close()
 
     def test_process_dht(self):

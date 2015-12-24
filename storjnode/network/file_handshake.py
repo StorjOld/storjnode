@@ -144,6 +144,10 @@ def success_wrapper(client, contract_id, host_unl):
                 # Set initial upload for this con.
                 _log.debug("Success: upload")
 
+            # Reserve bandwidth slice for this transfer.
+            if contract_id not in client.bandwidth.transfers:
+                client.bandwidth.register_transfer(contract_id)
+
             # Queue first transfer.
             their_unl = client.get_their_unl(contract)
             is_master = client.net.unl.is_master(their_unl)

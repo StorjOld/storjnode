@@ -3,6 +3,8 @@ from storjnode.network import DEFAULT_BOOTSTRAP_NODES
 from storjnode.network.file_transfer import FileTransfer
 from storjnode.network.process_transfers import process_transfers
 from storjnode.util import address_to_node_id
+from storjnode.network.bandwidth.limit import BandwidthLimit
+from storjnode.config import ConfigFile
 import btctxstore
 import pyp2p
 import hashlib
@@ -55,6 +57,7 @@ class TestFileTransfer(unittest.TestCase):
                 dht_node=self.dht_node,
                 debug=1
             ),
+            BandwidthLimit(),
             wif=self.wif,
             store_config=self.store_config
         )

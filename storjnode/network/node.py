@@ -56,6 +56,7 @@ class Node(object):
                  passive_bind=None,  # FIXME use utils.get_inet_facing_ip ?
                  node_type="unknown",  # FIMME what is this ?
                  nat_type="unknown",  # FIXME what is this ?
+                 bandwidth=None
                  ):
         """Create a blocking storjnode instance.
 
@@ -79,6 +80,7 @@ class Node(object):
             node_type: TODO doc string
             nat_type: TODO doc string
         """
+        self.bandwidth = bandwidth
         self.disable_data_transfer = bool(disable_data_transfer)
         self._transfer_request_handlers = set()
         self._transfer_complete_handlers = set()
@@ -168,7 +170,7 @@ class Node(object):
         dht_node = self
 
         self._data_transfer = FileTransfer(
-            net=Net(
+            Net(
                 net_type="direct",
                 node_type=node_type,
                 nat_type=nat_type,
@@ -178,6 +180,7 @@ class Node(object):
                 passive_bind=passive_bind,
                 wan_ip=result["wan"][0] if result else None
             ),
+            self.bandwidth,
             wif=wif,
             store_config=store_config,
             handlers=handlers

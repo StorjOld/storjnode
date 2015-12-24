@@ -19,6 +19,8 @@ from twisted.internet import defer
 from btctxstore import BtcTxStore
 import unittest
 from storjnode.network.bandwidth.test import BandwidthTest
+from storjnode.network.bandwidth.limit import BandwidthLimit
+from storjnode.config import ConfigFile
 from twisted.internet.task import LoopingCall
 from crochet import setup
 setup()
@@ -48,6 +50,7 @@ class TestBandwidthTest(unittest.TestCase):
                 wan_ip="8.8.8.8",
                 dht_node=alice_dht,
             ),
+            BandwidthLimit(),
             wif=alice_wif,
             store_config={tempfile.mkdtemp(): None}
         )
@@ -73,6 +76,7 @@ class TestBandwidthTest(unittest.TestCase):
                 wan_ip="8.8.8.8",
                 dht_node=bob_dht
             ),
+            BandwidthLimit(),
             wif=bob_wif,
             store_config={tempfile.mkdtemp(): None}
         )
