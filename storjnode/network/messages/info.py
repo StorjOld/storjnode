@@ -64,7 +64,7 @@ def _validate_storage(storage):
         return False
     if len(storage) != 3:
         return False
-    if not all(isinstance(i, int) for i in storage):
+    if not all(isinstance(i, (int, long)) for i in storage):
         return False
     if not all(i >= 0 for i in storage):
         return False

@@ -185,14 +185,15 @@ def do_download(client, con, contract, con_info):
         # Check download.
         data_id = contract["data_id"]
         temp_path = client.downloading[data_id]
-        with open(temp_path, "rw") as shard:
+        invalid_hash = False
+        with open(temp_path, "r+") as shard:
             # Delete file if it doesn't hash right!
             found_hash = storage.shard.get_id(shard)
             if found_hash != data_id:
+                invalid_hash = True
                 _log.debug(found_hash)
                 _log.debug(data_id)
                 _log.debug("Error: downloaded file doesn't hash right! \a")
-                os.remove(temp_path)
                 return -4
 
             # Move shard to storage.
@@ -200,6 +201,10 @@ def do_download(client, con, contract, con_info):
                 client.store_config,
                 shard
             )
+
+        # Remove corrupt file.
+        if invalid_hash:
+            os.remove(temp_path)
 
         # Remove that we're downloading this.
         del client.downloading[data_id]

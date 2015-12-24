@@ -140,6 +140,7 @@ class TestProcessTransfers(unittest.TestCase):
             "remaining": 1
         }
         junk, self.client.downloading[data_id] = tempfile.mkstemp()
+        os.close(junk)
         print(do_download(self.client, con, contract, con_info))
         con.close()
 

@@ -128,7 +128,7 @@ def valid_ipv4(ip):
             return True
         except socket.error:
             return False
-    except socket.error:
+    except (socket.error, ValueError) as e:
         return False
 
 
@@ -136,7 +136,7 @@ def valid_ipv6(ip):
     """Returns True if the given string is a valid IPv6 address."""
     try:
         socket.inet_pton(socket.AF_INET6, ip)
-    except socket.error:  # not a valid ip
+    except (socket.error, ValueError) as e:  # not a valid ip
         return False
     return True
 

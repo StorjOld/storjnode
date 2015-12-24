@@ -81,7 +81,7 @@ class TestFileTransfer(unittest.TestCase):
 
     def test_move_file_to_storage(self):
         junk, path = tempfile.mkstemp()
-        with open(path, "rw+") as fp:
+        with open(path, "r+") as fp:
             fp.write("1")
             data_id = storjnode.storage.shard.get_id(fp)
 
