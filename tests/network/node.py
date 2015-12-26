@@ -29,7 +29,6 @@ SWARM_SIZE = 16
 KSIZE = SWARM_SIZE / 2 if SWARM_SIZE / 2 < 20 else 20
 PORT = 3000
 STORAGE_DIR = tempfile.mkdtemp()
-test_get_unl_success = 0
 LAN_IP = storjnode.util.get_inet_facing_ip()
 
 
@@ -115,20 +114,15 @@ class TestNode(unittest.TestCase):
             stats.sort_stats('cumtime')
             stats.print_stats()
 
-    @unittest.skip("broken until full duplex is fixed")
     def test_get_unl(self):
-        time.sleep(2)
-
-        def check_unl(unl):
-            global test_get_unl_success
-            test_get_unl_success = 1
-            print(unl)
-
         node_id = self.test_get_unl_peer.get_id()
-        d = self.swarm[1].get_unl_by_node_id(node_id)
-        d.addCallback(check_unl)
-        time.sleep(10)
-        self.assertTrue(test_get_unl_success)
+        got_unl = threading.Event()
+
+        def callback(unl):
+            got_unl.set()
+        self.swarm[1].get_unl_by_node_id(node_id).addCallback(callback)
+        got_unl.wait(timeout=WALK_TIMEOUT * 4)
+        self.assertTrue(got_unl.isSet())
 
     #################################
     # test util and debug functions #
@@ -202,11 +196,11 @@ class TestNode(unittest.TestCase):
         receiver.add_message_handler(handler)
 
         if not success_expected:
-            time.sleep(QUERY_TIMEOUT)  # wait until relayed
+            time.sleep(WALK_TIMEOUT)  # wait until relayed
             self.assertEqual(len(received), 0)
 
         else:  # success expected
-            received_event.wait(timeout=QUERY_TIMEOUT)
+            received_event.wait(timeout=WALK_TIMEOUT)
 
             # check one message received
             self.assertEqual(len(received), 1)
