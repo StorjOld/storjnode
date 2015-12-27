@@ -1,3 +1,4 @@
+import os
 import time
 import umsgpack
 import datetime
@@ -12,12 +13,14 @@ from kademlia.routing import TableTraverser
 from storjnode.network.protocol import Protocol
 from twisted.internet import defer
 from twisted.internet.task import LoopingCall
-from crochet import TimeoutError
 from crochet import run_in_reactor
 from storjnode.network.messages.base import MAX_MESSAGE_DATA
 
 
-QUERY_TIMEOUT = 5.0
+if os.environ.get("STORJNODE_QUERY_TIMEOUT"):
+    QUERY_TIMEOUT = float(os.environ.get("STORJNODE_QUERY_TIMEOUT"))
+else:
+    QUERY_TIMEOUT = 5.0  # default seconds
 WALK_TIMEOUT = QUERY_TIMEOUT * 24
 
 
