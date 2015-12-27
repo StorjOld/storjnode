@@ -1,4 +1,4 @@
-btctxstore >= 4.6.0
+btctxstore >= 4.6.1
 pycrypto >= 2.6.1
 psutil >= 3.2.2
 crochet >= 1.4.0
