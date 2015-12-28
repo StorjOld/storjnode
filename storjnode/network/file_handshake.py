@@ -227,7 +227,7 @@ def process_syn(client, msg, enable_accept_handlers=ENABLE_ACCEPT_HANDLERS):
 
         # Send reply to source.
         reply = json.dumps(reply, ensure_ascii=True)
-        client.net.dht_node.relay_message(
+        client.net.dht_node.repeat_relay_message(
             src_node_id,
             reply
         )

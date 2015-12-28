@@ -9,6 +9,7 @@ from collections import OrderedDict
 from crochet import wait_for, run_in_reactor
 from twisted.internet.task import LoopingCall
 from storjnode import util
+from storjnode.network.repeat_relay import RepeatRelay
 from storjnode.network.message import sign, verify_signature
 from storjnode.network.server import Server, QUERY_TIMEOUT, WALK_TIMEOUT
 from pyp2p.unl import UNL
@@ -125,6 +126,9 @@ class Node(object):
         # Process incoming messages.
         self._setup_message_dispatcher()
 
+        # Rebroadcast relay messages.
+        self.repeat_relay = RepeatRelay(self)
+
         if not self.disable_data_transfer:
             self._setup_data_transfer_client(
                 store_config, passive_port, passive_bind, node_type, nat_type
@@ -195,6 +199,7 @@ class Node(object):
         self._message_dispatcher_thread_stop = True
         self._message_dispatcher_thread.join()
         self.server.stop()
+        self.repeat_relay.stop()
         if not self.disable_data_transfer:
             self._data_transfer.net.stop()
 
@@ -359,7 +364,7 @@ class Node(object):
         self.add_message_handler(handler)
 
         # Send our get UNL request to node.
-        self.relay_message(node_id, unl_req)
+        self.repeat_relay_message(node_id, unl_req)
 
         # Return a new deferred.
         return d
@@ -577,6 +582,9 @@ class Node(object):
     #######################
     # messaging interface #
     #######################
+
+    def repeat_relay_message(self, node_id, message):
+        return self.repeat_relay.relay(node_id, message)
 
     def relay_message(self, nodeid, message):
         """Send relay message to a node.

@@ -3,6 +3,7 @@ import pyp2p.unl
 import pyp2p.net
 import pyp2p.dht_msg
 import storjnode
+import zlib
 from collections import OrderedDict
 from btctxstore import BtcTxStore
 import six
@@ -47,7 +48,7 @@ def process_unl_requests(node, msg):
         ), node.get_key())
 
         # Send response.
-        node.relay_message(their_node_id, response.items())
+        node.repeat_relay_message(their_node_id, response.items())
 
     except (ValueError, KeyError) as e:
         global _log
@@ -204,7 +205,8 @@ class FileTransfer:
         assert(type(msg) == OrderedDict)
         node_id = self.net.unl.deconstruct(unl)["node_id"]
         msg = ordered_dict_to_list(msg)
-        self.net.dht_node.relay_message(node_id, msg)
+        msg = zlib.compress(str(msg))
+        self.net.dht_node.repeat_relay_message(node_id, msg)
 
     def contract_id(self, contract):
         if sys.version_info >= (3, 0, 0):

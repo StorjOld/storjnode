@@ -29,7 +29,6 @@ _log = logging.getLogger(__name__)
 test_success = 0
 
 
-@unittest.skip("test broken due to pyp2p.dht_msg.DHT api missmatch")
 class TestBandwidthTest(unittest.TestCase):
     def test_bandwidth_test(self):
         # Alice sample node.

@@ -8,6 +8,7 @@ from . import message  # NOQA
 from . import messages  # NOQA
 from . import map  # NOQA
 from . import monitor  # NOQA
+from . import repeat_relay  # NOQA
 from . node import Node  # NOQA
 from . node import DEFAULT_BOOTSTRAP_NODES  # NOQA
 from . protocol import Protocol  # NOQA

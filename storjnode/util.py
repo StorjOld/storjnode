@@ -3,9 +3,35 @@ import psutil
 import socket
 import pyp2p
 import tempfile
+import binascii
+import sys
 from crochet import wait_for
 from pycoin.encoding import a2b_hashed_base58, b2a_hashed_base58
 from collections import OrderedDict
+
+
+# Converts unprintable strings to printable hex (if needed.)
+def safe_log_var(v):
+    try:
+        v.encode("ascii")
+        return v.decode("utf-8") + u" (ascii)"
+    except UnicodeEncodeError:
+        # To a byte string.
+        as_bytes = b""
+        if sys.version_info >= (3, 0, 0):
+            codes = []
+            for ch in v:
+                codes.append(ord(ch))
+
+            if len(codes):
+                as_bytes = bytes(codes)
+        else:
+            for ch in v:
+                as_bytes += chr(ord(ch))
+
+        return binascii.hexlify(as_bytes).decode("utf-8") + u" (hex)"
+    except UnicodeDecodeError:
+        return binascii.hexlify(v).decode("utf-8") + u" (hex)"
 
 
 def ordered_dict_to_list(o):

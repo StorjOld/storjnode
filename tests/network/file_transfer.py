@@ -144,10 +144,10 @@ class TestFileTransfer(unittest.TestCase):
             "receive"
         )
 
-    @unittest.skip("Disable because too slow: move to node test code")
+    @unittest.skip("Working again but far too slow")
     def test_multiple_transfers(self):
 
-        def make_random_file(file_size=1024 * 100,
+        def make_random_file(file_size=1024 * 1,
                              directory=self.test_storage_dir):
             content = os.urandom(file_size)
             file_name = hashlib.sha256(content[0:64]).hexdigest()
@@ -160,6 +160,7 @@ class TestFileTransfer(unittest.TestCase):
             }
 
         # print("Giving nodes some time to find peers.")
+        _log.debug("waiting for net to be stable")
         time.sleep(storjnode.network.WALK_TIMEOUT)
         self.dht_node.refresh_neighbours()
         time.sleep(storjnode.network.WALK_TIMEOUT)
@@ -189,7 +190,7 @@ class TestFileTransfer(unittest.TestCase):
             )
 
         # Process file transfers.
-        duration = 15
+        duration = 40
         timeout = time.time() + duration
         while time.time() <= timeout or self.client.is_queued():
             process_transfers(self.client)
@@ -220,7 +221,7 @@ class TestFileTransfer(unittest.TestCase):
             )
 
         # Process file transfers.
-        duration = 15
+        duration = 40
         timeout = time.time() + duration
         while time.time() <= timeout or self.client.is_queued():
             process_transfers(self.client)
@@ -233,7 +234,7 @@ class TestFileTransfer(unittest.TestCase):
             if not os.path.isfile(path):
                 assert(0)
             else:
-                with open(path, "r") as fp:
+                with open(path, "rb") as fp:
                     content = fp.read()
                     assert(content == rand_file_infos[i]["content"])
 

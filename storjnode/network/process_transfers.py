@@ -24,6 +24,7 @@ import time
 import os
 from twisted.internet import defer
 import storjnode.storage as storage
+from storjnode.util import safe_log_var
 from storjnode.network.file_handshake import protocol
 import pyp2p.unl
 import pyp2p.net
@@ -214,7 +215,7 @@ def do_download(client, con, contract, con_info, contract_id):
         data_id = contract["data_id"]
         temp_path = client.downloading[data_id]
         invalid_hash = False
-        with open(temp_path, "r+") as shard:
+        with open(temp_path, "rb+") as shard:
             # Delete file if it doesn't hash right!
             found_hash = storage.shard.get_id(shard)
             if found_hash != data_id:
@@ -310,23 +311,24 @@ def complete_transfer(client, contract_id, con):
 
 
 def process_dht_messages(client):
+    processed = []
     try:
         # Get new messages and run message handlers.
         if isinstance(client.net.dht_node, DHT):
             client.net.dht_node.get_messages()
 
-        processed = []
         for msg in client.net.dht_messages:
-            _log.debug("Processing: " + str(msg["message"]))
-            if protocol(client, msg["message"]):
-                processed.append(msg)
-
-        for msg in processed:
-            client.net.dht_messages.remove(msg)
+            processed.append(msg)
+            _log.debug("Processing dht msg: ")
+            _log.debug(str(msg["message"]))
+            protocol(client, msg["message"])
     except Exception as e:
-        _log.debug("In process DHT message")
+        _log.debug("exception in process DHT message")
         _log.debug(e)
         pass
+    finally:
+        for msg in processed:
+            client.net.dht_messages.remove(msg)
 
 
 def process_transfers(client):
@@ -346,7 +348,7 @@ def process_transfers(client):
     for con in client.cons:
         # Socket has hung ungracefully.
         duration = time.time() - con.alive
-        if duration >= 60.0:
+        if duration >= 120.0:
             _log.debug("Ungraceful socket close")
             con.close()
             continue

@@ -284,7 +284,7 @@ class BandwidthTest():
         # Send request.
         node_id = parse_node_id_from_unl(node_unl)
         req = ordered_dict_to_list(req)
-        self.api.relay_message(node_id, req)
+        self.api.repeat_relay_message(node_id, req)
 
         # Set start time.
         self.start_time = time.time()

@@ -4,6 +4,7 @@ import datetime
 import threading
 import btctxstore
 import storjnode
+from storjnode.util import safe_log_var
 from storjnode.common import THREAD_SLEEP
 from kademlia.network import Server as KademliaServer
 from kademlia.storage import ForgetfulStorage
@@ -192,6 +193,9 @@ class Server(KademliaServer):
 
         # check max message size
         packed_message = umsgpack.packb(message)
+        msg_len = str(len(packed_message))
+        _log.info("packed msg len = " + msg_len)
+        _log.info("max message data = " + str(MAX_MESSAGE_DATA))
         assert(len(packed_message) <= MAX_MESSAGE_DATA)
         message = umsgpack.unpackb(packed_message)  # sanatize abstract types
 
@@ -201,7 +205,11 @@ class Server(KademliaServer):
         else:
             txt = "Queuing relay messaging for %s: %s"
             address = storjnode.util.node_id_to_address(nodeid)
-            _log.debug(txt % (address, message))
+            if type(message) in (type(b""), type(u"")):
+                safe_msg = safe_log_var(message)
+            else:
+                safe_msg = message
+            _log.debug(txt % (address, safe_msg))
             return self.protocol.queue_relay_message({
                 "dest": nodeid, "message": message,
                 "hop_limit": self._default_hop_limit

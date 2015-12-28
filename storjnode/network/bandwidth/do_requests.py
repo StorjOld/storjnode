@@ -230,7 +230,7 @@ def handle_requests_builder(self):
 
         # Send request back to source.
         res = ordered_dict_to_list(res)
-        self.api.relay_message(src_node_id, res)
+        self.api.repeat_relay_message(src_node_id, res)
         _log.debug("req: got request")
         return res
 
