@@ -22,7 +22,7 @@ if os.environ.get("STORJNODE_QUERY_TIMEOUT"):
     QUERY_TIMEOUT = float(os.environ.get("STORJNODE_QUERY_TIMEOUT"))
 else:
     QUERY_TIMEOUT = 5.0  # default seconds
-WALK_TIMEOUT = QUERY_TIMEOUT * 24
+WALK_TIMEOUT = QUERY_TIMEOUT * 24.0
 
 
 _log = storjnode.log.getLogger(__name__)

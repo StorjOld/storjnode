@@ -6,7 +6,8 @@ python:
 #  - "3.4"
 
 env:                                                                           
-  - PYCOIN_NATIVE=openssl 
+  - PYCOIN_NATIVE=openssl
+  - STORJNODE_QUERY_TIMEOUT=1
 
 install:
   - pip install -r requirements.txt

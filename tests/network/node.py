@@ -234,37 +234,6 @@ class TestNode(unittest.TestCase):
         random_peer.relay_message(void_id, "into the void")
         time.sleep(QUERY_TIMEOUT)  # wait until relayed
 
-    @unittest.skip("test is broken")
-    def test_max_relay_messages(self):  # for coverage
-        node = storjnode.network.Node(
-            self.__class__.btctxstore.create_key(),
-            bootstrap_nodes=[("240.0.0.0", 1337)],
-            refresh_neighbours_interval=0.0,
-            max_messages=2,
-            store_config={STORAGE_DIR: None},
-            nat_type="preserving",
-            node_type="passive",
-            disable_data_transfer=True
-        )
-        try:
-            void_id = binascii.unhexlify("DEADBEEF" * 5)
-
-            # avoid queue being processed during test
-            old_sleep_time = node.thread_sleep_time = 0.5
-            node.thread_sleep_time = 0.5
-            time.sleep(0.002)
-
-            queued = node.relay_message(void_id, "into the void")
-            self.assertTrue(queued)
-            queued = node.relay_message(void_id, "into the void")
-            self.assertTrue(queued)
-            queued = node.relay_message(void_id, "into the void")
-            self.assertFalse(queued)  # relay queue full
-
-            node.thread_sleep_time = old_sleep_time  # restore value
-        finally:
-            node.stop()
-
     def test_relay_message_full_duplex(self):
         alice_node = storjnode.network.Node(
             self.__class__.btctxstore.create_key(),
