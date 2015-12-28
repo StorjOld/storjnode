@@ -53,7 +53,7 @@ if __name__ == "__main__":
 
     swarm = []
     try:
-        btctxstore = BtcTxStore(testnet=False)
+        btctxstore = BtcTxStore()
         for i in range(arguments["size"]):
             port = arguments["ports"] + i
             node_key = btctxstore.create_key()

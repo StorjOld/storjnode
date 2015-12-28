@@ -9,7 +9,6 @@ import argparse
 import time
 import storjnode
 import datetime
-import pygraphviz
 from crochet import setup
 
 
@@ -36,6 +35,10 @@ def _parse_args(args):
     # quiet
     parser.add_argument('--quiet', action='store_true',
                         help="Don't show logging information.")
+
+    # render
+    parser.add_argument('--render', action='store_true',
+                        help="Render graph (requires pygraphviz).")
 
     # path
     parser.add_argument("--path", default=None,
@@ -66,6 +69,7 @@ def render(network_map, path=None):
               Saves to '~/.storj/graphs/network map TIMESTAMP.png' by default.
     """
 
+    import pygraphviz
     now = datetime.datetime.now()
     name = "network_map_%s" % now.strftime('%Y-%m-%d_%H:%M:%S')
     path = path or os.path.join(storjnode.common.STORJ_HOME,
@@ -110,7 +114,8 @@ if __name__ == "__main__":
 
         netmap = storjnode.network.map.generate(node)
         print_stats(netmap)
-        print(render(netmap, arguments["path"]))
+        if arguments["render"]:
+            print(render(netmap, arguments["path"]))
 
     except KeyboardInterrupt:
         pass

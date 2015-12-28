@@ -39,7 +39,7 @@ class MessageRelayer(object):
         self.nearest = None
 
     @run_in_reactor
-    def load_nearest(self):
+    def start(self):
         self.nearest = self.server.protocol.router.findNeighbors(
             self.dest, exclude=self.server.node
         )
@@ -86,7 +86,7 @@ class Server(KademliaServer):
 
     def __init__(self, key, port, ksize=20, alpha=3, storage=None,
                  max_messages=1024, default_hop_limit=64,
-                 refresh_neighbours_interval=0.0):
+                 refresh_neighbours_interval=WALK_TIMEOUT):
         """
         Create a server instance.  This will start listening on the given port.
 
@@ -148,6 +148,7 @@ class Server(KademliaServer):
 
         # FIXME actually disconnect from port and stop properly
 
+    @run_in_reactor
     def refresh_neighbours(self):
         _log.debug("Refreshing neighbours ...")
         self.bootstrap(self.bootstrappableNeighbors())
@@ -197,8 +198,8 @@ class Server(KademliaServer):
         # check max message size
         packed_message = umsgpack.packb(message)
         msg_len = str(len(packed_message))
-        _log.info("packed msg len = " + msg_len)
-        _log.info("max message data = " + str(MAX_MESSAGE_DATA))
+        _log.debug("packed msg len = " + msg_len)
+        _log.debug("max message data = " + str(MAX_MESSAGE_DATA))
         assert(len(packed_message) <= MAX_MESSAGE_DATA)
         message = umsgpack.unpackb(packed_message)  # sanatize abstract types
 
@@ -233,7 +234,7 @@ class Server(KademliaServer):
             q = self.protocol.messages_relay
             for entry in storjnode.util.empty_queue(q):
                 message_relayer = MessageRelayer(self, **entry)
-                message_relayer.load_nearest()
+                message_relayer.start()
             time.sleep(THREAD_SLEEP)
 
     def get_transport_info(self):
