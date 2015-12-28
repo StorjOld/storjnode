@@ -93,8 +93,8 @@ class TestSubBandwidthRequests(unittest.TestCase):
         def bob_hook_relay_message(node_id, req):
             _log.debug(str(req))
 
-        cls.alice_test.api.relay_message = alice_hook_relay_message
-        cls.bob_test.api.relay_message = bob_hook_relay_message
+        cls.alice_test.api.repeat_relay_message = alice_hook_relay_message
+        cls.bob_test.api.repeat_relay_message = bob_hook_relay_message
         cls.alice_test.start(cls.bob_transfer.net.unl.value)
 
     @classmethod

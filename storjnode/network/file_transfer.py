@@ -13,6 +13,7 @@ from threading import Lock
 from twisted.internet import defer
 from storjnode.util import address_to_node_id
 from storjnode.util import ordered_dict_to_list
+from storjnode.util import list_to_ordered_dict
 from storjnode.network.message import verify_signature
 from storjnode.network.message import sign
 from storjnode.network.file_handshake import is_valid_syn
@@ -22,17 +23,23 @@ _log = storjnode.log.getLogger(__name__)
 
 
 def process_unl_requests(node, msg):
+    _log.debug("In process unl requests: ")
+    _log.debug(msg)
     unl = node._data_transfer.net.unl.value
+    _log.debug(unl)
     try:
-        msg = OrderedDict(msg)
+        msg = list_to_ordered_dict(msg)
 
         # Not a UNL request.
         if msg[u"type"] != u"unl_request":
+            _log.debug("unl req: invalid type")
+            _log.debug(msg[u"type"])
             return
 
         # Check signature.
         their_node_id = address_to_node_id(msg[u"requester"])
         if not verify_signature(msg, node.get_key(), their_node_id):
+            _log.debug("unl req: invalid sig")
             return
 
         # Response.
@@ -45,9 +52,11 @@ def process_unl_requests(node, msg):
         ), node.get_key())
 
         # Send response.
-        node.repeat_relay_message(their_node_id, response.items())
+        response = ordered_dict_to_list(response)
+        node.repeat_relay_message(their_node_id, response)
 
     except (ValueError, KeyError):
+        _log.debug("val err or key err")
         pass  # not a unl request
 
 

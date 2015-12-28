@@ -327,7 +327,7 @@ class Node(object):
             def handler(node, msg):
                 # Is this a response to our request?
                 try:
-                    msg = OrderedDict(msg)
+                    msg = util.list_to_ordered_dict(msg)
 
                     # Not a UNL response.
                     if msg[u"type"] != u"unl_response":
@@ -351,6 +351,7 @@ class Node(object):
                     # Remove this callback.
                     node.remove_message_handler(handler)
                 except (ValueError, KeyError):
+                    _log.debug("unl response:val or key er")
                     pass  # not a unl response
 
             return handler
@@ -363,6 +364,7 @@ class Node(object):
         self.add_message_handler(handler)
 
         # Send our get UNL request to node.
+        unl_req = util.ordered_dict_to_list(unl_req)
         self.repeat_relay_message(node_id, unl_req)
 
         # Return a new deferred.
