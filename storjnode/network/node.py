@@ -350,9 +350,8 @@ class Node(object):
 
                     # Remove this callback.
                     node.remove_message_handler(handler)
-                except (ValueError, KeyError) as e:
-                    _log.debug(str(e))
-                    _log.debug("Protocol: invalid JSON")
+                except (ValueError, KeyError):
+                    pass  # not a unl response
 
             return handler
 
@@ -380,8 +379,8 @@ class Node(object):
             raise Exception("Data transfer disabled!")
 
         def process_transfers_error(ret):
-            print("An unknown error occured in process_transfers deferred")
-            print(ret)
+            txt = "An unknown error occured in process_transfers: %s"
+            _log.error(txt % repr(ret))
 
         d = LoopingCall(
             process_transfers,

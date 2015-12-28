@@ -6,20 +6,17 @@ import storjnode
 import zlib
 from collections import OrderedDict
 from btctxstore import BtcTxStore
-import six
 import time
 import hashlib
 import sys
-import json
 from threading import Lock
 from twisted.internet import defer
-from storjnode.util import address_to_node_id, node_id_to_address
-from storjnode.util import parse_node_id_from_unl, ordered_dict_to_list
+from storjnode.util import address_to_node_id
+from storjnode.util import ordered_dict_to_list
 from storjnode.network.message import verify_signature
 from storjnode.network.message import sign
 from storjnode.network.file_handshake import is_valid_syn
 
-from storjnode.network.process_transfers import process_transfers
 
 _log = storjnode.log.getLogger(__name__)
 
@@ -50,10 +47,8 @@ def process_unl_requests(node, msg):
         # Send response.
         node.repeat_relay_message(their_node_id, response.items())
 
-    except (ValueError, KeyError) as e:
-        global _log
-        _log.debug(str(e))
-        _log.debug("Protocol: invalid JSON")
+    except (ValueError, KeyError):
+        pass  # not a unl request
 
 
 class FileTransfer:
