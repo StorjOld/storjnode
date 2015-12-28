@@ -52,8 +52,8 @@ def main(args):
             disable_data_transfer=True,
             bandwidth=bandwidth
         )
-        print("Running node on port {port} with id {id}".format(
-            id=storjnode.util.node_id_to_address(node.get_id()), port=node.port
+        print("Running node on port {port} with id {id} and key {key}".format(
+            id=storjnode.util.node_id_to_address(node.get_id()), port=node.port, key=key
         ))
 
         # print received message to terminal
