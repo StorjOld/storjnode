@@ -204,6 +204,7 @@ def create_shard(node, num, begin, end, scanned):
         for nodeid, data in scanned.items():
             node_address = node_id_to_address(nodeid)
             data["peers"] = [node_id_to_address(p) for p in data["peers"]]
+            del data["request"]
             encoded_scanned[node_address] = data
 
     # write info to shard
