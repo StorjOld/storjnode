@@ -1,4 +1,5 @@
 import os
+import json
 import cProfile
 from pstats import Stats
 import signal
@@ -59,7 +60,7 @@ class TestNode(unittest.TestCase):
                 store_config={STORAGE_DIR: None},
                 nat_type="preserving",
                 node_type="passive",
-                disable_data_transfer=True
+                disable_data_transfer=False
             )
             storjnode.network.messages.info.enable(node, {})
             storjnode.network.messages.peers.enable(node)
@@ -379,6 +380,9 @@ class TestNode(unittest.TestCase):
     ########################
 
     def test_network_monitor_service(self):
+        limit = KSIZE
+        interval = WALK_TIMEOUT * 2
+
         crawled_event = threading.Event()
         results = {}
 
@@ -390,13 +394,19 @@ class TestNode(unittest.TestCase):
         monitor = storjnode.network.monitor.Monitor(
             random_peer,
             {},  # FIXME use tmp dir
-            limit=KSIZE,
-            interval=WALK_TIMEOUT * 2,
+            limit=limit,
+            interval=interval,
             on_crawl_complete=handler
         )
 
-        crawled_event.wait(timeout=WALK_TIMEOUT * 2)
+        crawled_event.wait(timeout=(interval + 5))
         monitor.stop()
+
+        # check that `limit` nodes were scanned
+        shard = results["shard"]
+        shard.seek(0)
+        crawl_data = json.loads(shard.read())
+        self.assertEqual(len(crawl_data["scanned"]), limit)
 
 
 if __name__ == "__main__":

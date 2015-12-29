@@ -1,7 +1,8 @@
 import re
+import six
 import platform
 from collections import namedtuple
-from storjnode.util import valid_ip, valid_port
+from storjnode.util import valid_ip, valid_port, node_id_to_address
 from storjnode.network.messages import base
 from storjnode.network.messages import signal
 from storjnode.storage import manager
@@ -49,7 +50,7 @@ def _validate_network(network):
 
     if not isinstance(is_public, bool):
         return False
-    if not isinstance(unl, str):
+    if not isinstance(unl, six.string_types):
         return False
 
     # check transport
@@ -102,7 +103,7 @@ def read(btctxstore, msg):
     version, storage, network, plat = info
 
     # check version
-    if not isinstance(version, str):
+    if not isinstance(version, six.string_types):
         return None
     if not re.match("^\d+\.\d+.\d+$", version):
         return None
@@ -117,7 +118,7 @@ def read(btctxstore, msg):
         return None
     if len(plat) != 4:
         return None
-    if not all([isinstance(prop, str) for prop in plat]):
+    if not all([isinstance(prop, six.string_types) for prop in plat]):
         return None
 
     msg[3] = Info(version, Storage(*storage),
