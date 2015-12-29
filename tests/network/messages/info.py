@@ -20,7 +20,7 @@ class TestInfo(unittest.TestCase):
         capacity = {"total": 1024 ** 6, "used": 1024 ** 6, "free": 0}
         transport = ["127.0.0.1", 1337]
         created = info.create(self.btctxstore, self.wif,
-                              capacity, transport, True)
+                              capacity, transport, "unl", True)
 
         # repack to eliminate namedtuples and simulate io
         repacked = umsgpack.unpackb(umsgpack.packb(created))
@@ -148,7 +148,16 @@ class TestInfo(unittest.TestCase):
         self.assertIsNone(info.read(self.btctxstore, repacked))
 
     def test_invalid_network_is_public_type(self):
-        _info = ["0.0.0", [2, 1, 1], [None, None], None]
+        _info = ["0.0.0", [2, 1, 1], [None, "unl", None], None]
+        created = base.create(self.btctxstore, self.wif, "info", _info)
+
+        # repack to eliminate namedtuples and simulate io
+        repacked = umsgpack.unpackb(umsgpack.packb(created))
+
+        self.assertIsNone(info.read(self.btctxstore, repacked))
+
+    def test_invalid_network_unl_type(self):
+        _info = ["0.0.0", [2, 1, 1], [None, None, True], None]
         created = base.create(self.btctxstore, self.wif, "info", _info)
 
         # repack to eliminate namedtuples and simulate io
@@ -157,7 +166,7 @@ class TestInfo(unittest.TestCase):
         self.assertIsNone(info.read(self.btctxstore, repacked))
 
     def test_invalid_network_transport_type(self):
-        _info = ["0.0.0", [2, 1, 1], [None, True], None]
+        _info = ["0.0.0", [2, 1, 1], [None, "unl", True], None]
         created = base.create(self.btctxstore, self.wif, "info", _info)
 
         # repack to eliminate namedtuples and simulate io
@@ -166,7 +175,7 @@ class TestInfo(unittest.TestCase):
         self.assertIsNone(info.read(self.btctxstore, repacked))
 
     def test_invalid_network_transport_len(self):
-        _info = ["0.0.0", [2, 1, 1], [[], True], None]
+        _info = ["0.0.0", [2, 1, 1], [[], "unl", True], None]
         created = base.create(self.btctxstore, self.wif, "info", _info)
 
         # repack to eliminate namedtuples and simulate io
@@ -175,7 +184,7 @@ class TestInfo(unittest.TestCase):
         self.assertIsNone(info.read(self.btctxstore, repacked))
 
     def test_invalid_network_ip(self):
-        _info = ["0.0.0", [2, 1, 1], [["invalid", None], True], None]
+        _info = ["0.0.0", [2, 1, 1], [["invalid", None], "unl", True], None]
         created = base.create(self.btctxstore, self.wif, "info", _info)
 
         # repack to eliminate namedtuples and simulate io
@@ -184,7 +193,7 @@ class TestInfo(unittest.TestCase):
         self.assertIsNone(info.read(self.btctxstore, repacked))
 
     def test_invalid_network_port(self):
-        _info = ["0.0.0", [2, 1, 1], [["127.0.0.1", None], True], None]
+        _info = ["0.0.0", [2, 1, 1], [["127.0.0.1", None], "unl", True], None]
         created = base.create(self.btctxstore, self.wif, "info", _info)
 
         # repack to eliminate namedtuples and simulate io
@@ -193,7 +202,7 @@ class TestInfo(unittest.TestCase):
         self.assertIsNone(info.read(self.btctxstore, repacked))
 
     def test_invalid_platform_type(self):
-        _info = ["0.0.0", [2, 1, 1], [["127.0.0.1", 1337], True], None]
+        _info = ["0.0.0", [2, 1, 1], [["127.0.0.1", 1337], "unl", True], None]
         created = base.create(self.btctxstore, self.wif, "info", _info)
 
         # repack to eliminate namedtuples and simulate io
@@ -202,7 +211,7 @@ class TestInfo(unittest.TestCase):
         self.assertIsNone(info.read(self.btctxstore, repacked))
 
     def test_invalid_platform_len(self):
-        _info = ["0.0.0", [2, 1, 1], [["127.0.0.1", 1337], True], []]
+        _info = ["0.0.0", [2, 1, 1], [["127.0.0.1", 1337], "unl", True], []]
         created = base.create(self.btctxstore, self.wif, "info", _info)
 
         # repack to eliminate namedtuples and simulate io
@@ -211,7 +220,8 @@ class TestInfo(unittest.TestCase):
         self.assertIsNone(info.read(self.btctxstore, repacked))
 
     def test_invalid_platform_prop_type(self):
-        _info = ["0.0.0", [2, 1, 1], [["127.0.0.1", 1337], True], [0, 0, 0, 0]]
+        network = [["127.0.0.1", 1337], "unl", True]
+        _info = ["0.0.0", [2, 1, 1], network, [0, 0, 0, 0]]
         created = base.create(self.btctxstore, self.wif, "info", _info)
 
         # repack to eliminate namedtuples and simulate io

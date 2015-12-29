@@ -161,7 +161,7 @@ class Node(object):
     def _setup_data_transfer_client(self, store_config, passive_port,
                                     passive_bind, node_type, nat_type):
 
-        result = self.sync_get_transport_info()
+        result = self.sync_get_transport_info(add_unl=False)
 
         # Setup handlers for callbacks registered via the API.
         handlers = {
@@ -261,8 +261,8 @@ class Node(object):
         def handle(result):
             if result is None:
                 return False
-            return result["wan"] == result["lan"]
-        return self.async_get_transport_info().addCallback(handle)
+            return result["is_public"]
+        return self.async_get_transport_info(add_unl=False).addCallback(handle)
 
     @wait_for(timeout=QUERY_TIMEOUT)
     def sync_get_wan_ip(self):
@@ -285,14 +285,17 @@ class Node(object):
         """
         def handle(result):
             return result["wan"][0]
-        return self.async_get_transport_info().addCallback(handle)
+        return self.async_get_transport_info(add_unl=False).addCallback(handle)
 
-    def async_get_transport_info(self):
+    def async_get_transport_info(self, add_unl=True):
+        # FIXME remove add_unl option when data transfer always enabled
+        if add_unl:
+            return self.server.get_transport_info(unl=self.get_unl())
         return self.server.get_transport_info()
 
     @wait_for(timeout=QUERY_TIMEOUT)
-    def sync_get_transport_info(self):
-        return self.async_get_transport_info()
+    def sync_get_transport_info(self, add_unl=True):
+        return self.async_get_transport_info(add_unl=add_unl)
 
     ######################################
     # depricated data transfer interface #

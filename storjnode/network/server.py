@@ -237,7 +237,7 @@ class Server(KademliaServer):
                 message_relayer.start()
             time.sleep(THREAD_SLEEP)
 
-    def get_transport_info(self):
+    def get_transport_info(self, unl=None):
         def handle(results):
             results = filter(lambda r: r[0], results)  # filter successful
             if not results:
@@ -253,7 +253,9 @@ class Server(KademliaServer):
 
             wan = (result[0], result[1])
             lan = (storjnode.util.get_inet_facing_ip(), self.port)
-            return {"wan": wan, "lan": lan}
+            return {
+                "wan": wan, "lan": lan, "unl": unl, "is_public": wan == lan
+            }
 
         ds = []
         for neighbor in self.bootstrappableNeighbors():

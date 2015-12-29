@@ -18,6 +18,7 @@ Platform = namedtuple('Platform', ['system', 'release', 'version', 'machine'])
 
 Network = namedtuple('Network', [
     'transport',  # (ip, port)
+    'unl',        # unl string
     'is_public',  # True if node is publicly reachable otherwise False
 ])
 
@@ -30,9 +31,9 @@ Info = namedtuple('Info', [
 ])
 
 
-def create(btctxstore, node_wif, capacity, transport, is_public):
+def create(btctxstore, node_wif, capacity, transport, unl, is_public):
     storage = Storage(**capacity)
-    network = Network(transport, is_public)
+    network = Network(transport, unl, is_public)
     plat = Platform(platform.system(), platform.release(),
                     platform.version(), platform.machine())
     info = Info(__version__, storage, network, plat)
@@ -42,11 +43,16 @@ def create(btctxstore, node_wif, capacity, transport, is_public):
 def _validate_network(network):
     if not isinstance(network, list):
         return False
-    if len(network) != 2:
+    if len(network) != 3:
         return False
-    transport, is_public = network
+    transport, unl, is_public = network
+
     if not isinstance(is_public, bool):
         return False
+    if not isinstance(unl, str):
+        return False
+
+    # check transport
     if not isinstance(transport, list):
         return False
     if len(transport) != 2:
@@ -56,6 +62,7 @@ def _validate_network(network):
         return False
     if not valid_port(port):
         return False
+
     return True
 
 
@@ -130,8 +137,10 @@ def _respond(node, receiver, store_config):
             _log.warning("Couldn't get info for requested info message!")
             return
         capacity = manager.capacity(store_config)
+
         msg = create(node.server.btctxstore, node.get_key(),
-                     capacity, result["wan"], result["wan"] == result["lan"])
+                     capacity, result["wan"], result["unl"],
+                     result["is_public"])
         return node.relay_message(receiver, msg)
 
     node.async_get_transport_info().addCallback(handler)

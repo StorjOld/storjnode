@@ -15,12 +15,17 @@ from storjnode.network.messages.info import request as request_info
 _log = storjnode.log.getLogger(__name__)
 
 
+# TODO add unl to data
 DEFAULT_DATA = {
-    "peers": None,                       # [nodeid, ...]
-    "storage": None,                     # [total, used, free]
-    "network": None,                     # [[ip, port], is_public]
-    "version": None,                     # [protocol, storjnode]
-    "platform": None,                    # [system, release, version, machine]
+    "peers": None,      # [nodeid, ...]
+    "storage": None,    # {"total": int, "used": int, "free": int}
+    "network": None,    # {"transport": [ip, port], "is_public": bool}
+    "version": None,    # {"protocol: str, "storjnode": str}
+    "platform": None,   # {
+                        #   "system": str, "release": str,
+                        #   "version": str, "machine": str
+                        # }
+
     "latency": {"info": None, "peers": None},
     "request": {"tries": 0, "last": 0},
 }
@@ -75,10 +80,13 @@ class Crawler(object):  # will not scale but good for now
                 node_id_to_address(message.sender))
             )
             data["latency"]["info"] = received - data["latency"]["info"]
-            data["storage"] = message.body.storage
-            data["network"] = message.body.network
-            data["version"] = (message.version, message.body.version)
-            data["platform"] = message.body.platform
+            data["version"] = {
+                "protocol": message.version,
+                "storjnode": message.body.version
+            }
+            data["storage"] = message.body.storage._asdict()
+            data["network"] = message.body.network._asdict()
+            data["platform"] = message.body.platform._asdict()
             self._check_scan_complete(message.sender, data)
 
     def _check_scan_complete(self, nodeid, data):

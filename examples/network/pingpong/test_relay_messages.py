@@ -1,3 +1,4 @@
+import yappi
 import signal
 import random
 import time
@@ -5,6 +6,8 @@ import storjnode
 import btctxstore
 from crochet import setup
 from storjnode.network.server import WALK_TIMEOUT
+yappi.start()
+
 
 # start twisted via crochet and remove twisted handler
 setup()
@@ -79,3 +82,6 @@ finally:
     print("Stopping nodes")
     for node in swarm:
         node.stop()
+
+yappi.get_func_stats().print_all()
+yappi.get_thread_stats().print_all()
