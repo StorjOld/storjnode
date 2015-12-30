@@ -36,6 +36,21 @@ DEFAULT_BOOTSTRAP_NODES = [
 
     # F483's server 4c2acf7bdbdc57a3ae512ffba3ccf4f72a0367f9
     ("78.46.188.55", 4653),
+
+    # Rendezvous server 1:
+    ("158.69.201.105", 6770),
+
+    # IPXCORE:
+    ("162.218.239.6", 35839),
+
+    # NAT test node
+    ("192.187.97.131", 10322),
+
+    # Rendezvous 2
+    ("185.86.149.128", 20560),
+
+    # dht msg 2
+    ("185.61.148.22", 18825)
 ]
 
 
