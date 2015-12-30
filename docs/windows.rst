@@ -1,8 +1,9 @@
 Windows is a huge pain to get working properly.
 
+* Install windows SDK dev kit (get GRMSDKX_EN_DVD.iso if you're on 64 bit or GRMSDK_EN_DVD.iso on 32 bit)
 * Install 7-zip:
 	- http://www.7-zip.org/download.html
-* Install python2.7 for windows
+* Install python2.7 for windows - USE 32 BIT VERSION IF YOU CAN
 	- https://www.python.org/download/releases/2.7/ (scroll to downloads)
 * Setup environmental variables
 	- Right click my computer
@@ -15,6 +16,7 @@ Windows is a huge pain to get working properly.
 	- https://pypi.python.org/packages/source/p/pip/pip-7.1.2.tar.gz#md5=3823d2343d9f3aaab21cf9c917710196
 * Install wheel
 	- python -m "pip" install wheel
+* Install the netifaces EXE (source code version will give an error.) If you have 64 bit python build from source after vcvars bat has been run (see bellow for VC section)
 * Install pycharm for Windows
 * Install Git - select unix tools because they are awesome.
 * Open pycharm and make new projects for these Git repos: storj/pyp2p/develop and storj/storjnode/develop
@@ -30,7 +32,7 @@ Windows is a huge pain to get working properly.
 	- http://sourceforge.net/projects/pywin32/files/pywin32/Build%20219/
 * Install VC C++ 9.0 (if you get VC C++ 9.0 errors when trying to setup pyp2p or storjnode)
 	- http://microsoft-visual-c-2008.en.softonic.com/
-	(message Matthew on Slack if you don't want to use this spammy mirror)
+    ( Make sure you go to configuration options and untick the extras -- I think it tries to bundle spyware.)
 	* Open DOS:
 		- cd "C:\Program Files (x86)\Microsoft Visual Studio 9.0\VC\bin"
 		- vcvars32.bat
@@ -45,5 +47,9 @@ Windows is a huge pain to get working properly.
 * Set the line endings on Windows:
 	- http://stackoverflow.com/questions/2517190/how-do-i-force-git-to-use-lf-instead-of-crlf-under-windows
 
-	
-	
+
+Py2exe instructions:
+* Open up the site-packes dir for your python install
+* For all .egg and .egg-info files: extract them as if they were a zip and then append their original extension to the name -- this is so py2exe can find them
+* You will need to also create a blank __init__.py in Lib\site-packages\zope + add twisted to the list of packages in the setup.py file
+
