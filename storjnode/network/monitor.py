@@ -2,6 +2,7 @@ import time
 import json
 import copy
 import storjnode
+from collections import OrderedDict
 from io import BytesIO
 from threading import Thread, RLock
 from storjnode.common import THREAD_SLEEP
@@ -26,6 +27,7 @@ DEFAULT_DATA = {
                         #   "version": str, "machine": str
                         # }
 
+    "bandwidth": None,  # {"send": int, "receive": int}
     "latency": {"info": None, "peers": None},
     "request": {"tries": 0, "last": 0},
 }
@@ -34,12 +36,25 @@ DEFAULT_DATA = {
 class Crawler(object):  # will not scale but good for now
 
     def __init__(self, node, limit=20, timeout=600):
-        # pipeline: scanning -> scanned
-        self.scanning = {}  # {node_address: data}
-        self.scanned = {}  # {node_address: data}
+
+        # CRAWLER PIPELINE
+        self.pipeline_mutex = RLock()
+
+        # sent info and peer requests but not yet received a response
+        self.pipeline_scanning = {}  # {node_id: data}
+        # |
+        # | received info and peer responses and ready for bandwith test
+        # V user ordered dict to have a fifo for bandwith test
+        self.pipeline_scanned = OrderedDict()  # {node_id: data}
+        # |
+        # V only test bandwith of one node at a time to ensure best results
+        self.pipeline_bandwith_test = None  # (node_id, data)
+        # |
+        # V peers processed and ready to save
+        self.pipeline_processed = {}  # {node_id: data}
+
 
         self.stop_thread = False
-        self.mutex = RLock()
         self.node = node
         self.server = self.node.server
         self.timeout = time.time() + timeout
@@ -53,8 +68,8 @@ class Crawler(object):  # will not scale but good for now
         message = read_peers(node.server.btctxstore, message)
         if message is None:
             return  # dont care about this message
-        with self.mutex:
-            data = self.scanning.get(message.sender)
+        with self.pipeline_mutex:
+            data = self.pipeline_scanning.get(message.sender)
             if data is None:
                 return  # not being scanned
             _log.info("Received peers from {0}!".format(
@@ -62,9 +77,17 @@ class Crawler(object):  # will not scale but good for now
             )
             data["latency"]["peers"] = received - data["latency"]["peers"]
             data["peers"] = storjnode.util.chunks(message.body, 20)
+
+            # add previously unknown peers
             for peer in data["peers"]:
-                if (peer not in self.scanned and peer not in self.scanning):
-                    self.scanning[peer] = copy.deepcopy(DEFAULT_DATA)
+                scanning = peer in self.pipeline_scanning
+                scanned = peer in self.pipeline_scanned
+                processed = peer in self.pipeline_processed
+                testing_bandwith = (self.pipeline_bandwith_test is not None and
+                                    peer == self.pipeline_bandwith_test[0])
+                if not (scanning or scanned or processed or testing_bandwith):
+                    self.pipeline_scanning[peer] = copy.deepcopy(DEFAULT_DATA)
+
             self._check_scan_complete(message.sender, data)
 
     def _handle_info_message(self, node, message):
@@ -72,8 +95,8 @@ class Crawler(object):  # will not scale but good for now
         message = read_info(node.server.btctxstore, message)
         if message is None:
             return  # dont care about this message
-        with self.mutex:
-            data = self.scanning.get(message.sender)
+        with self.pipeline_mutex:
+            data = self.pipeline_scanning.get(message.sender)
             if data is None:
                 return  # not being scanned
             _log.info("Received info from {0}!".format(
@@ -90,22 +113,26 @@ class Crawler(object):  # will not scale but good for now
             self._check_scan_complete(message.sender, data)
 
     def _check_scan_complete(self, nodeid, data):
+        # expect caller to have pipeline mutex
+
         if data["peers"] is None:
             return  # peers not yet received
         if data["network"] is None:
             return  # info not yet received
 
         # move to scanned
-        del self.scanning[nodeid]
-        self.scanned[nodeid] = data
+        del self.pipeline_scanning[nodeid]
+        self.pipeline_scanned[nodeid] = data
 
-        txt = "Processed {0}, scanned {1}, scanning {2}!"
+        txt = "Scan complete for {0}, scanned:{1}, scanning:{2}, processed:{3}!"
         _log.info(txt.format(
             node_id_to_address(nodeid),
-            len(self.scanned), len(self.scanning)
+            len(self.pipeline_scanned),
+            len(self.pipeline_scanning),
+            len(self.pipeline_processed),
         ))
 
-    def _process(self, nodeid, data):
+    def _process_scanning(self, nodeid, data):
 
         # request with exponential backoff
         now = time.time()
@@ -133,21 +160,84 @@ class Crawler(object):  # will not scale but good for now
         data["request"]["last"] = now
         data["request"]["tries"] = data["request"]["tries"] + 1
 
-    def _process_scanning(self):
+    def _handle_bandwith_test_error(results):
+        with self.pipeline_mutex:
+            import pudb;pu.db
+
+            # move to the back to scanned fifo and try again later
+            nodeid, data = self.pipeline_bandwith_test
+            self.pipeline_scanned[nodeid] = data
+
+            # free up bandwith test for next peer
+            self.pipeline_bandwith_test = None
+
+    def _handle_bandwith_test_success(results):
+        with self.pipeline_mutex:
+            import pudb;pu.db
+            assert(results[0])
+            nodeid, data = self.pipeline_bandwith_test
+
+            # save test results
+            data["bandwidth"] = {
+                "send": results[1]["upload"],
+                "receive": results[1]["download"]
+            }
+
+            # move peer to processed
+            self.pipeline_processed[nodeid] = data
+            txt = "Processed:{0}, scanned:{1}, scanning:{2}, processed:{3}!"
+            _log.info(txt.format(
+                node_id_to_address(nodeid),
+                len(self.pipeline_scanned),
+                len(self.pipeline_scanning),
+                len(self.pipeline_processed),
+            ))
+
+            # free up bandwith test for next peer
+            self.pipeline_bandwith_test = None
+
+    def _process_bandwidth_test(self):
+        # expects caller to have pipeline mutex
+        if (self.pipeline_bandwith_test is None
+                and len(self.pipeline_scanned) > 0):
+
+            # pop first entry
+            nodeid = self.pipeline_scanned.keys()[0]
+            data = self.pipeline_scanned[nodeid]
+            del self.pipeline_scanned[nodeid]
+
+            _log.info("Starting bandwith test for: {0}".format(
+                node_id_to_address(nodeid))
+            )
+
+            # start bandwith test (timeout after 5min)
+            self.pipeline_bandwith_test = (nodeid, data)
+            deferred = self.node.test_bandwidth(nodeid)
+            deferred.addCallback(self._handle_bandwith_test_success)
+            deferred.addErrback(self._handle_bandwith_test_error)
+
+    def _process_pipeline(self):
         while not self.stop_thread and time.time() < self.timeout:
             time.sleep(THREAD_SLEEP)
 
-            # get next node to scan
-            with self.mutex:
+            with self.pipeline_mutex:
 
-                if len(self.scanning) == 0:
-                    return  # done! Nothing to scan and nothing being scanned
+                # exit condition pipeline empty
+                if (len(self.pipeline_scanning) == 0 and
+                        len(self.pipeline_scanned) == 0 and
+                        self.pipeline_bandwith_test is None):
+                    return
 
-                if self.limit > 0 and len(self.scanned) >= self.limit:
-                    return  # done! limit set and reached
+                # exit condition enough peers processed
+                if (self.limit > 0 and
+                        len(self.pipeline_processed) >= self.limit):
+                    return
 
-                for nodeid, data in self.scanning.copy().items():
-                    self._process(nodeid, data)
+                # send info and peer requests to found peers
+                for nodeid, data in self.pipeline_scanning.copy().items():
+                    self._process_scanning(nodeid, data)
+
+                self._process_bandwidth_test()
 
         # done! because of timeout or stop flag
 
@@ -158,16 +248,16 @@ class Crawler(object):  # will not scale but good for now
         self.node.add_message_handler(self._handle_peers_message)
 
         # start crawl at self
-        self.scanning[self.node.get_id()] = copy.deepcopy(DEFAULT_DATA)
+        self.pipeline_scanning[self.node.get_id()] = copy.deepcopy(DEFAULT_DATA)
 
-        # process scanning until done
-        self._process_scanning()
+        # process pipeline until done
+        self._process_pipeline()
 
         # remove info and peers message handlers
         self.node.remove_message_handler(self._handle_info_message)
         self.node.remove_message_handler(self._handle_peers_message)
 
-        return self.scanned
+        return self.pipeline_scanned
 
 
 def crawl(node, limit=20, timeout=600):
@@ -196,16 +286,16 @@ def find_next_free_dataset_num(node):
     return num
 
 
-def create_shard(node, num, begin, end, scanned):
+def create_shard(node, num, begin, end, processed):
 
-    # encode scanned data
-    encoded_scanned = {}
-    if scanned:
-        for nodeid, data in scanned.items():
+    # encode processed data
+    encoded_processed = {}
+    if processed:
+        for nodeid, data in processed.items():
             node_address = node_id_to_address(nodeid)
             data["peers"] = [node_id_to_address(p) for p in data["peers"]]
             del data["request"]
-            encoded_scanned[node_address] = data
+            encoded_processed[node_address] = data
 
     # write info to shard
     shard = BytesIO()
@@ -214,7 +304,7 @@ def create_shard(node, num, begin, end, scanned):
         "num": num,
         "begin": begin,
         "end": end,
-        "scanned": encoded_scanned,
+        "processed": encoded_processed,
     }, indent=2))
     return shard
 
@@ -259,13 +349,13 @@ class Monitor(object):
                 self.crawler = Crawler(
                     self.node, limit=self.limit, timeout=self.interval
                 )
-            scanned = self.crawler.crawl()
+            processed = self.crawler.crawl()
 
             end = time.time()
 
             # create shard
             shard = create_shard(self.node, self.dataset_num,
-                                 begin, end, scanned)
+                                 begin, end, processed)
 
             # save results to store
             shardid = storjnode.storage.shard.get_id(shard)

@@ -312,15 +312,9 @@ class Node(object):
     def sync_get_transport_info(self, add_unl=True):
         return self.async_get_transport_info(add_unl=add_unl)
 
-    ######################################
-    # depricated data transfer interface #
-    ######################################
-
-    def move_to_storage(self, path):
-        if self.disable_data_transfer:
-            raise Exception("Data transfer disabled!")
-        # FIXME remove and have callers use storage service instead
-        return self._data_transfer.move_file_to_storage(path)
+    ###########################
+    # data transfer interface #
+    ###########################
 
     def get_unl_by_node_id(self, node_id):
         """Get the WAN IP of this Node.
@@ -456,10 +450,6 @@ class Node(object):
 
         # Return deferred.
         return d
-
-    ###########################
-    # data transfer interface #
-    ###########################
 
     def async_request_data_transfer(self, data_id, node_id, direction):
         """Request data be transfered to or from a peer.

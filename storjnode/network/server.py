@@ -204,7 +204,7 @@ class Server(KademliaServer):
         message = umsgpack.unpackb(packed_message)  # sanatize abstract types
 
         if nodeid == self.node.id:
-            _log.info("Adding message to self to received queue!.")
+            _log.debug("Adding message to self to received queue!.")
             return self.protocol.queue_received_message(message)
         else:
             txt = "Queuing relay messaging for %s: %s"
