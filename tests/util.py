@@ -123,5 +123,20 @@ class TestEnsurePathExists(unittest.TestCase):
         pass  # TODO test
 
 
+class TestGetUnusedPort(unittest.TestCase):
+
+    def test_none_value(self):
+        port = None
+        self.assertTrue(1024 <= storjnode.util.get_unused_port(port) <= 49151)
+
+    def test_value_from_range(self):
+        port = 12345
+        self.assertTrue(1024 <= storjnode.util.get_unused_port(port) <= 49151)
+
+    def test_value_out_of_range(self):
+        port = 80
+        self.assertTrue(1024 <= storjnode.util.get_unused_port(port) <= 49151)
+
+
 if __name__ == "__main__":
     unittest.main()

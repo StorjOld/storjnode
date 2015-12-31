@@ -5,6 +5,7 @@ import pyp2p
 import tempfile
 import binascii
 import sys
+import random
 from crochet import wait_for
 from pycoin.encoding import a2b_hashed_base58, b2a_hashed_base58
 from collections import OrderedDict
@@ -247,3 +248,20 @@ def ensure_path_exists(path):
     if not os.path.exists(path):
         msg = "Creating path {0} failed!"  # pragma: no cover
         raise Exception(msg.format(path))  # pragma: no cover
+
+
+def get_unused_port(port):
+    """Checks if port is already in use."""
+    if port is None or port < 1024 or port > 49151:
+        port = random.randint(1024, 49151)
+    while True:
+        s = socket.socket(socket.AF_INET, socket.SOCK_STREAM)
+        try:
+            s.bind(('', port))  # Try to open port
+        except OSError as e:
+            if e.errno is 98:  # Errorno 98 means address already bound
+                port += 1
+                continue
+            raise e
+        s.close()
+        return port
