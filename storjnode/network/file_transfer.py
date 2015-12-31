@@ -21,7 +21,6 @@ from storjnode.network.file_handshake import is_valid_syn
 
 _log = storjnode.log.getLogger(__name__)
 
-
 def process_unl_requests(node, msg):
     _log.debug("In process unl requests: ")
     _log.debug(msg)
@@ -58,6 +57,16 @@ def process_unl_requests(node, msg):
     except (ValueError, KeyError):
         _log.debug("val err or key err")
         pass  # not a unl request
+
+
+def enable_unl_requests(node):
+    print(node)
+    print("Enable unl requests")
+    node.add_message_handler(process_unl_requests)
+
+
+def disable_unl_requests(node):
+    node.remove_message_handler(process_unl_requests)
 
 
 class FileTransfer:

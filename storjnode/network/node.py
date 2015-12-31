@@ -148,7 +148,6 @@ class Node(object):
             self._setup_data_transfer_client(
                 store_config, passive_port, passive_bind, node_type, nat_type
             )
-            self.add_message_handler(process_unl_requests)
             self.bandwidth_test = BandwidthTest(
                 self.get_key(),
                 self._data_transfer,

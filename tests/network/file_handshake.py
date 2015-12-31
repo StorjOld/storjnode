@@ -59,7 +59,7 @@ class TestFileHandshake(unittest.TestCase):
             self.bob_wallet.get_address(self.bob_wif))
         self.bob_dht_node = pyp2p.dht_msg.DHT(
             node_id=self.bob_node_id,
-            networking=1
+            networking=0
         )
         self.bob_storage = tempfile.mkdtemp()
         self.bob = FileTransfer(
