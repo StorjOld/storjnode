@@ -22,9 +22,9 @@ from storjnode.network.process_transfers import process_transfers
 from storjnode.network.bandwidth.test import BandwidthTest
 from pyp2p.net import Net
 
-
+import logging
 _log = storjnode.log.getLogger(__name__)
-
+_log.setLevel(logging.DEBUG)
 
 DEFAULT_BOOTSTRAP_NODES = [
 
@@ -145,6 +145,7 @@ class Node(object):
         self.repeat_relay = RepeatRelay(self)
 
         if not self.disable_data_transfer:
+            _log.debug("Added handler for process unl requests")
             self._setup_data_transfer_client(
                 store_config, passive_port, passive_bind, node_type, nat_type
             )
@@ -399,7 +400,7 @@ class Node(object):
         d = LoopingCall(
             process_transfers,
             self._data_transfer
-        ).start(0.002, now=True)
+        ).start(THREAD_SLEEP, now=True)
         d.addErrback(process_transfers_error)
 
     def test_bandwidth(self, node_id):
@@ -435,7 +436,9 @@ class Node(object):
         bellow is similar to the request_data_transfer function.)
         """
 
+        _log.debug("In node bandwidth test")
         if self.disable_data_transfer:
+            _log.debug("data transfer disabled")
             raise Exception("Data transfer disabled!")
 
         # Get a deferred for their UNL.
@@ -449,6 +452,7 @@ class Node(object):
         d.addCallback(callback)
 
         # Return deferred.
+        _log.debug("out node bandwidth test")
         return d
 
     def async_request_data_transfer(self, data_id, node_id, direction):

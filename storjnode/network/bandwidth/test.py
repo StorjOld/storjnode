@@ -30,7 +30,7 @@ setup()
 
 
 _log = storjnode.log.getLogger(__name__)
-
+_log.setLevel(logging.DEBUG)
 
 class BandwidthTest():
     def __init__(self, wif, transfer, api, increasing_tests=1):
@@ -227,6 +227,7 @@ class BandwidthTest():
 
         # Any tests currently in progress?
         if self.test_node_unl is not None:
+            _log.debug("test already in progress")
             d = defer.Deferred()
             d.errback(Exception("Test already in progress"))
             return d

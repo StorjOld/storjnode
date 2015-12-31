@@ -11,8 +11,9 @@ from storjnode.util import ordered_dict_to_list
 from storjnode.util import list_to_ordered_dict
 from storjnode.network.message import sign, verify_signature
 
+import logging
 _log = storjnode.log.getLogger(__name__)
-
+_log.setLevel(logging.DEBUG)
 
 def build_start_handler(self, msg):
     # Update start time for download test.
@@ -171,6 +172,7 @@ def handle_requests_builder(self):
     # Handle bandwidth requests.
     def handle_requests(node, msg):
         _log.debug("In handle requests")
+        _log.debug("in handle requests:" + str(msg))
 
         # Check message type.
         msg = list_to_ordered_dict(msg)
