@@ -21,6 +21,7 @@ from storjnode.network.file_handshake import is_valid_syn
 
 _log = storjnode.log.getLogger(__name__)
 
+
 def process_unl_requests(node, msg):
     _log.debug("In process unl requests: ")
     _log.debug(msg)
