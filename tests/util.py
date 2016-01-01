@@ -1,5 +1,6 @@
 import unittest
 import storjnode
+import socket
 try:
     from Queue import Queue  # py2
 except ImportError:
@@ -49,6 +50,13 @@ class TestValidIPv4(unittest.TestCase):
 
     def test_no_domain(self):
         ip = "test.net"
+        self.assertFalse(storjnode.util.valid_ipv4(ip))
+
+    def test_no_inet_pton(self):
+        ip = "test.net"
+        if "inet_pton" in socket.__dict__:
+            del socket.__dict__["inet_pton"]
+
         self.assertFalse(storjnode.util.valid_ipv4(ip))
 
 
@@ -123,6 +131,29 @@ class TestEnsurePathExists(unittest.TestCase):
         pass  # TODO test
 
 
+class TestUtilMisc(unittest.TestCase):
+
+    def test_none_value(self):
+        # Init.
+        slv = storjnode.util.safe_log_var
+
+        # Invalid unicode.
+        u = u"\x80abc"
+        self.assertTrue(u"hex" in slv(u))
+
+        # Valid unicode.
+        u = u"test"
+        self.assertTrue(u"ascii" in slv(u))
+
+        # Invalid bytes.
+        b = b"\xa0"
+        self.assertTrue(u"hex" in slv(b))
+
+        # Valid bytes.
+        b = b"test"
+        self.assertTrue(u"ascii" in slv(b))
+
+
 class TestGetUnusedPort(unittest.TestCase):
 
     def test_none_value(self):
@@ -136,6 +167,13 @@ class TestGetUnusedPort(unittest.TestCase):
     def test_value_out_of_range(self):
         port = 80
         self.assertTrue(1024 <= storjnode.util.get_unused_port(port) <= 49151)
+
+    def test_already_used(self):
+        s = socket.socket(socket.AF_INET, socket.SOCK_STREAM)
+        s.bind(('', 0))
+        addr, port = s.getsockname()
+        self.assertTrue(storjnode.util.get_unused_port(port) != port)
+        s.close()
 
 
 if __name__ == "__main__":

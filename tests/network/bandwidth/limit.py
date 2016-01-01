@@ -116,6 +116,25 @@ class TestLimit(unittest.TestCase):
         used = self.bandwidth.info["sec"]["upstream"]["used"]
         self.assertTrue(expected == used)
 
+    def test_gradual_decay(self):
+        # Wait for new second.
+        self.bandwidth.get_fresh_second()
+
+        # Bake cake.
+        self.bandwidth.limit(2000, "sec", "upstream")
+        self.bandwidth.register_transfer("t1")
+        a = self.bandwidth.request("upstream", "t1")
+
+        # Gradual decay.
+        time.sleep(0.2)
+        b = self.bandwidth.request("upstream", "t1")
+        self.assertTrue(a != b)
+
+        # Gradual decay.
+        time.sleep(0.2)
+        c = self.bandwidth.request("upstream", "t1")
+        self.assertTrue(b != c)
+
     def test_ceiling(self):
         self.bandwidth.limit(1025, "sec", "upstream")
         self.bandwidth.register_transfer("slice_1")
