@@ -107,12 +107,12 @@ class Node(object):
             store_config = storjnode.storage.manager.DEFAULT_STORE_CONFIG
 
         # validate port (randomish user port by default)
-        port = port or random.choice(range(1024, 49151))
+        port = util.get_unused_port(port)
         assert(util.valid_port(port))
         self.port = port
 
         # passive port (randomish user port by default)
-        passive_port = passive_port or random.choice(range(1024, 49151))
+        passive_port = util.get_unused_port(passive_port)
         assert(util.valid_port(passive_port))
 
         # FIXME chance of same port and passive_port being the same
