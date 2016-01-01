@@ -140,7 +140,8 @@ class FileTransfer:
 
     def remove_handler(self, type, handler):
         if type in list(self.handlers):
-            self.handlers[type].remove(handler)
+            if handler in self.handlers[type]:
+                self.handlers[type].remove(handler)
 
     def get_their_unl(self, contract):
         if self.net.unl == pyp2p.unl.UNL(value=contract["dest_unl"]):

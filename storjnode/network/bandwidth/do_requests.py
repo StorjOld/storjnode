@@ -107,6 +107,8 @@ def build_completion_handler(self, msg, accept_handler):
                 if self.is_bad_results():
                     self.reset_state()
                 else:
+                    # If it's already maxed: it won't accept
+                    # any new requests.
                     self.test_size = self.increase_test_size()
             else:
                 self.reset_state()
