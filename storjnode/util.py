@@ -258,7 +258,7 @@ def get_unused_port(port):
         s = socket.socket(socket.AF_INET, socket.SOCK_STREAM)
         try:
             s.bind(('', port))  # Try to open port
-        except OSError as e:
+        except socket.error as e:
             if e.errno is 98:  # Errorno 98 means address already bound
                 port += 1
                 continue

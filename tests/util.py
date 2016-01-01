@@ -55,9 +55,11 @@ class TestValidIPv4(unittest.TestCase):
     def test_no_inet_pton(self):
         ip = "test.net"
         if "inet_pton" in socket.__dict__:
+            old = socket.__dict__["inet_pton"]
             del socket.__dict__["inet_pton"]
 
         self.assertFalse(storjnode.util.valid_ipv4(ip))
+        socket.__dict__["inet_pton"] = old
 
 
 class TestValidIPv6(unittest.TestCase):
