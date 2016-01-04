@@ -25,7 +25,6 @@ from pyp2p.net import Net
 
 _log = storjnode.log.getLogger(__name__)
 
-
 DEFAULT_BOOTSTRAP_NODES = [
 
     # storj stable  7b489cbfd61e675b86ac6469b6acd0a197da7f2c
