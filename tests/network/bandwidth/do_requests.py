@@ -142,15 +142,6 @@ class TestSubBandwidthRequests(unittest.TestCase):
             req
         ) == -4)
 
-        # Sending to us
-        req = list_to_ordered_dict(copy.deepcopy(self.req))
-        req["requester"] = self.bob_transfer.net.unl.value
-        req = ordered_dict_to_list(req)
-        self.assertTrue(handle_requests(
-            self.alice_dht,
-            req
-        ) == -5)
-
         # Success.
         req = copy.deepcopy(self.req)
         self.assertTrue(type(handle_requests(

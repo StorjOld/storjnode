@@ -191,11 +191,6 @@ def handle_requests_builder(self):
             _log.debug("req: they got our node unl wrong")
             return -3
 
-        # Don't connect to ourself.
-        if our_unl == msg[u"requester"]:
-            _log.debug("req: cannot connect back to ourself")
-            return -5
-
         # Check sig.
         src_node_id = parse_node_id_from_unl(msg[u"requester"])
         if not verify_signature(msg, self.wif, src_node_id):
