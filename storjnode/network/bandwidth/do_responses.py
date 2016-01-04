@@ -13,9 +13,8 @@ from storjnode.network.message import verify_signature
 from storjnode.util import parse_node_id_from_unl
 from storjnode.util import list_to_ordered_dict
 
-import logging
 _log = storjnode.log.getLogger(__name__)
-_log.setLevel(logging.DEBUG)
+
 
 def build_accept_handler(self, req):
     # Handle accept transfer (for download requests.)
@@ -181,11 +180,8 @@ def build_completion_handler(self, req, accept_handler):
 
 def handle_responses_builder(self):
     def handle_responses(node, msg):
-        _log.debug("in handle responses:" + str(msg))
-
         # Check message type.
         msg = list_to_ordered_dict(msg)
-
         if msg[u"type"] != u"test_bandwidth_response":
             _log.debug("res: Invalid response")
             return

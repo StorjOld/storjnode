@@ -86,8 +86,7 @@ class Crawler(object):  # will not scale but good for now
                 testing_bandwith = (self.pipeline_bandwith_test is not None and
                                     peer == self.pipeline_bandwith_test[0])
                 if not (scanning or scanned or processed or testing_bandwith):
-                    if len(self.pipeline_scanning) < 3:
-                        self.pipeline_scanning[peer] = copy.deepcopy(DEFAULT_DATA)
+                    self.pipeline_scanning[peer] = copy.deepcopy(DEFAULT_DATA)
 
             self._check_scan_complete(message.sender, data)
 
@@ -162,8 +161,6 @@ class Crawler(object):  # will not scale but good for now
         data["request"]["tries"] = data["request"]["tries"] + 1
 
     def _handle_bandwith_test_error(results):
-        _log.DEBUG("bandwidth test error")
-        _log.DEBUG(results)
         with self.pipeline_mutex:
             import pudb;pu.db
 
@@ -175,8 +172,6 @@ class Crawler(object):  # will not scale but good for now
             self.pipeline_bandwith_test = None
 
     def _handle_bandwith_test_success(results):
-        _log.DEBUG("bandwidth test success")
-        _log.DEBUG(results)
         with self.pipeline_mutex:
             import pudb;pu.db
             assert(results[0])
@@ -209,13 +204,7 @@ class Crawler(object):  # will not scale but good for now
             # pop first entry
             nodeid = self.pipeline_scanned.keys()[0]
             data = self.pipeline_scanned[nodeid]
-            if nodeid != self.node.get_id():
-                del self.pipeline_scanned[nodeid]
-            else:
-                return
-
-            print("\a")
-            print(b"STARTING BW TEST" + nodeid)
+            del self.pipeline_scanned[nodeid]
 
             _log.info("Starting bandwith test for: {0}".format(
                 node_id_to_address(nodeid))

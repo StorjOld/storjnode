@@ -25,7 +25,6 @@ signal.signal(signal.SIGINT, signal.default_int_handler)
 _log = storjnode.log.getLogger(__name__)
 
 
-
 PROFILE = False
 SWARM_SIZE = 16
 KSIZE = SWARM_SIZE / 2 if SWARM_SIZE / 2 < 20 else 20
