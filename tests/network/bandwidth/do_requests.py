@@ -142,15 +142,6 @@ class TestSubBandwidthRequests(unittest.TestCase):
             req
         ) == -4)
 
-        # Sending to us
-        req = list_to_ordered_dict(copy.deepcopy(self.req))
-        req["requester"] = self.bob_transfer.net.unl.value
-        req = ordered_dict_to_list(req)
-        self.assertTrue(handle_requests(
-            self.alice_dht,
-            req
-        ) == -5)
-
         # Success.
         req = copy.deepcopy(self.req)
         self.assertTrue(type(handle_requests(
@@ -183,7 +174,7 @@ class TestSubBandwidthRequests(unittest.TestCase):
             ONE_MB
         ) == -2)
 
-        # Invalid data id.
+        # Invalid node id.
         self.assertTrue(accept_handler(
             "contract_id",
             self.bob_transfer.net.unl.value,
@@ -191,7 +182,7 @@ class TestSubBandwidthRequests(unittest.TestCase):
             ONE_MB
         ) == -3)
 
-        # Invalid data id.
+        # Invalid file size.
         self.bob_test.test_size = 0
         self.assertTrue(accept_handler(
             "contract_id",
@@ -201,7 +192,7 @@ class TestSubBandwidthRequests(unittest.TestCase):
         ) == -4)
         self.bob_test.test_size = 1
 
-        # Invalid data id.
+        # This should pass.
         self.assertTrue(accept_handler(
             "contract_id",
             self.alice_transfer.net.unl.value,

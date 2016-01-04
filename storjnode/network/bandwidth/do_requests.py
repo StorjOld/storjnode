@@ -107,6 +107,8 @@ def build_completion_handler(self, msg, accept_handler):
                 if self.is_bad_results():
                     self.reset_state()
                 else:
+                    # If it's already maxed: it won't accept
+                    # any new requests.
                     self.test_size = self.increase_test_size()
             else:
                 self.reset_state()
@@ -188,11 +190,6 @@ def handle_requests_builder(self):
         if our_unl != msg[u"test_node_unl"]:
             _log.debug("req: they got our node unl wrong")
             return -3
-
-        # Don't connect to ourself.
-        if our_unl == msg[u"requester"]:
-            _log.debug("req: cannot connect back to ourself")
-            return -5
 
         # Check sig.
         src_node_id = parse_node_id_from_unl(msg[u"requester"])

@@ -14,6 +14,7 @@ import btctxstore
 import storjnode
 from kademlia.node import Node as KademliaNode
 from storjnode.network.server import QUERY_TIMEOUT, WALK_TIMEOUT
+from storjnode.network.file_transfer import enable_unl_requests
 from crochet import setup
 
 
@@ -64,6 +65,8 @@ class TestNode(unittest.TestCase):
             )
             storjnode.network.messages.info.enable(node, {})
             storjnode.network.messages.peers.enable(node)
+            enable_unl_requests(node)
+            node.bandwidth_test.enable()
             cls.swarm.append(node)
 
             msg = "TEST: created node {0} @ 127.0.0.1:{1}"
@@ -83,6 +86,7 @@ class TestNode(unittest.TestCase):
             node_type="passive",
             disable_data_transfer=False
         )
+        enable_unl_requests(cls.test_get_unl_peer)
 
         # stabalize network overlay
         print("TEST: stabalize network overlay")

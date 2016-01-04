@@ -71,18 +71,19 @@ class BandwidthTest():
         }
 
         # Listen for bandwidth requests + responses.
-        handle_requests = handle_requests_builder(self)
-        handle_responses = handle_responses_builder(self)
-        self.api.add_message_handler(handle_requests)
-        self.api.add_message_handler(handle_responses)
+        self.handle_requests = handle_requests_builder(self)
+        self.handle_responses = handle_responses_builder(self)
 
-        # Timeout bandwidth test after 5 minutes.
+        # When was the test first started?
         self.start_time = time.time()
+
+        # Timeout bandwidth test after N seconds.
+        self.test_timeout = 300
 
         # Handle timeouts.
         def handle_timeout():
             duration = time.time() - self.start_time
-            if duration >= 300:
+            if duration >= self.test_timeout:
                 if self.active_test is not None:
                     self.active_test.errback(Exception("Timed out"))
 
@@ -102,6 +103,19 @@ class BandwidthTest():
             return schedule_looping_call()
 
         schedule_looping_call()
+
+    # Allow this node to respond to bandwidth tests.
+    def enable(self):
+        self.api.add_message_handler(self.handle_requests)
+        self.api.add_message_handler(self.handle_responses)
+
+        return self
+
+    def disable(self):
+        self.api.remove_message_handler(self.handle_requests)
+        self.api.remove_message_handler(self.handle_responses)
+
+        return self
 
     def increase_test_size(self):
         # Sanity check.
@@ -145,6 +159,7 @@ class BandwidthTest():
 
     def reset_state(self):
         # Reset init state.
+        self.test_timeout = 300
         self.test_size = 1
         self.active_test = None
         self.results = self.setup_results()
@@ -200,7 +215,7 @@ class BandwidthTest():
         return 0
 
     def is_bad_test(self):
-        threshold = 2
+        threshold = 30
         for test in list(self.results):
             start_time = self.results[test]["start_time"]
             end_time = self.results[test]["end_time"]
@@ -218,10 +233,11 @@ class BandwidthTest():
 
         return 0
 
-    def start(self, node_unl, size=1):
+    def start(self, node_unl, size=1, timeout=300):
         """
         :param node_unl: UNL of target
         :param size: MB to send in transfer
+        :param timeout: when should a test be considered a failure?
         :return: deferred with test results
         """
 
@@ -233,6 +249,9 @@ class BandwidthTest():
 
         # Reset test state
         self.test_size = size
+
+        # Set timeout.
+        self.test_timeout = timeout
 
         # Reset deferred.
         self.active_test = defer.Deferred()

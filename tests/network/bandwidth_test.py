@@ -12,6 +12,7 @@ import storjnode.storage.manager
 from storjnode.storage.shard import get_hash
 from storjnode.network.process_transfers import process_transfers
 from storjnode.network.file_transfer import FileTransfer
+from storjnode.network.file_transfer import enable_unl_requests
 from storjnode.network.message import sign, verify_signature
 from storjnode.util import address_to_node_id
 from storjnode.util import parse_node_id_from_unl, generate_random_file
@@ -94,8 +95,18 @@ class TestBandwidthTest(unittest.TestCase):
             _log.debug(results)
 
         # Test bandwidth between Alice and Bob.
-        bob_test = BandwidthTest(bob_wif, bob_transfer, bob_dht, 0)
-        alice_test = BandwidthTest(alice_wif, alice_transfer, alice_dht, 0)
+        bob_test = BandwidthTest(
+            bob_wif,
+            bob_transfer,
+            bob_dht,
+            0
+        ).enable()
+        alice_test = BandwidthTest(
+            alice_wif,
+            alice_transfer,
+            alice_dht,
+            0
+        ).enable()
         d = alice_test.start(bob_transfer.net.unl.value)
         d.addCallback(show_bandwidth)
 
