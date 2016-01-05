@@ -53,7 +53,6 @@ class Crawler(object):  # will not scale but good for now
         # V peers processed and ready to save
         self.pipeline_processed = {}  # {node_id: data}
 
-
         self.stop_thread = False
         self.node = node
         self.server = self.node.server
@@ -124,7 +123,8 @@ class Crawler(object):  # will not scale but good for now
         del self.pipeline_scanning[nodeid]
         self.pipeline_scanned[nodeid] = data
 
-        txt = "Scan complete for {0}, scanned:{1}, scanning:{2}, processed:{3}!"
+        txt = ("Scan complete for {0}, scanned:"
+               "{1}, scanning:{2}, processed:{3}!")
         _log.info(txt.format(
             node_id_to_address(nodeid),
             len(self.pipeline_scanned),
@@ -160,9 +160,8 @@ class Crawler(object):  # will not scale but good for now
         data["request"]["last"] = now
         data["request"]["tries"] = data["request"]["tries"] + 1
 
-    def _handle_bandwith_test_error(results):
+    def _handle_bandwith_test_error(self, results):
         with self.pipeline_mutex:
-            import pudb;pu.db
 
             # move to the back to scanned fifo and try again later
             nodeid, data = self.pipeline_bandwith_test
@@ -171,9 +170,8 @@ class Crawler(object):  # will not scale but good for now
             # free up bandwith test for next peer
             self.pipeline_bandwith_test = None
 
-    def _handle_bandwith_test_success(results):
+    def _handle_bandwith_test_success(self, results):
         with self.pipeline_mutex:
-            import pudb;pu.db
             assert(results[0])
             nodeid, data = self.pipeline_bandwith_test
 
@@ -198,8 +196,8 @@ class Crawler(object):  # will not scale but good for now
 
     def _process_bandwidth_test(self):
         # expects caller to have pipeline mutex
-        if (self.pipeline_bandwith_test is None
-                and len(self.pipeline_scanned) > 0):
+        not_testing_bandwith = self.pipeline_bandwith_test is None
+        if (not_testing_bandwith and len(self.pipeline_scanned) > 0):
 
             # pop first entry
             nodeid = self.pipeline_scanned.keys()[0]
@@ -248,7 +246,8 @@ class Crawler(object):  # will not scale but good for now
         self.node.add_message_handler(self._handle_peers_message)
 
         # start crawl at self
-        self.pipeline_scanning[self.node.get_id()] = copy.deepcopy(DEFAULT_DATA)
+        nodeid = self.node.get_id()
+        self.pipeline_scanning[nodeid] = copy.deepcopy(DEFAULT_DATA)
 
         # process pipeline until done
         self._process_pipeline()
