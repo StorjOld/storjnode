@@ -200,6 +200,8 @@ class Server(KademliaServer):
         msg_len = str(len(packed_message))
         _log.debug("packed msg len = " + msg_len)
         _log.debug("max message data = " + str(MAX_MESSAGE_DATA))
+        if not len(packed_message) <= MAX_MESSAGE_DATA:
+            print("MESSAGE TO LARGE:", repr(message))
         assert(len(packed_message) <= MAX_MESSAGE_DATA)
         message = umsgpack.unpackb(packed_message)  # sanatize abstract types
 
@@ -230,7 +232,6 @@ class Server(KademliaServer):
 
     def _relay_loop(self):
         while not self._relay_thread_stop:
-            # FIXME use worker pool to process queue
             q = self.protocol.messages_relay
             for entry in storjnode.util.empty_queue(q):
                 message_relayer = MessageRelayer(self, **entry)
