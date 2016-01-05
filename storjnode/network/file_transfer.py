@@ -60,6 +60,16 @@ def process_unl_requests(node, msg):
         pass  # not a unl request
 
 
+def enable_unl_requests(node):
+    print(node)
+    print("Enable unl requests")
+    node.add_message_handler(process_unl_requests)
+
+
+def disable_unl_requests(node):
+    node.remove_message_handler(process_unl_requests)
+
+
 class FileTransfer:
     def __init__(self, net, bandwidth, wif=None,
                  store_config=None, handlers=None):
@@ -130,7 +140,8 @@ class FileTransfer:
 
     def remove_handler(self, type, handler):
         if type in list(self.handlers):
-            self.handlers[type].remove(handler)
+            if handler in self.handlers[type]:
+                self.handlers[type].remove(handler)
 
     def get_their_unl(self, contract):
         if self.net.unl == pyp2p.unl.UNL(value=contract["dest_unl"]):

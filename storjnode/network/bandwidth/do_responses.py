@@ -24,19 +24,19 @@ def build_accept_handler(self, req):
             _log.debug("ALICE accept HANDLER EXPIRED")
             return -1
 
-        if src_unl != self.test_node_unl:
-            _log.debug("SRC UNL != \a")
-            return 0
-
         if data_id != req[u"data_id"]:
             _log.debug("Data id != \a")
-            return 0
+            return -2
+
+        if src_unl != self.test_node_unl:
+            _log.debug("SRC UNL != \a")
+            return -3
 
         # Invalid file_size request size for test.
         test_data_size = (self.test_size * ONE_MB)
         if req[u"file_size"] > (test_data_size + 1024):
             _log.debug("file size != \a")
-            return 0
+            return -4
 
         return 1
 
@@ -61,14 +61,14 @@ def build_start_handler(self, req):
         # Check this corrosponds to something.
         if contract[u"data_id"] != req[u"data_id"]:
             _log.debug("Alice start: invalid data id")
-            return 0
+            return -2
 
         # Determine test.
         if self.transfer.get_direction(contract_id) == u"send":
             test = "upload"
             if contract[u"dest_unl"] != self.test_node_unl:
                 _log.debug("Alice upload: invalid src unl")
-                return 0
+                return -3
         else:
             test = "download"
 
@@ -92,7 +92,7 @@ def build_completion_handler(self, req, accept_handler):
         contract = self.transfer.contracts[found_contract_id]
         if contract[u"data_id"] != req[u"data_id"]:
             _log.debug("Alice data id not equal")
-            return
+            return -2
 
         # Get direction of transfer.
         direction = self.transfer.get_direction(
@@ -106,7 +106,7 @@ def build_completion_handler(self, req, accept_handler):
             test = "upload"
             if contract[u"dest_unl"] != self.test_node_unl:
                 _log.debug("Alice dl: src unl incorrect.")
-                return
+                return -3
 
             # Delete our copy of the file.
             storjnode.storage.manager.remove(
@@ -120,7 +120,7 @@ def build_completion_handler(self, req, accept_handler):
             test = "download"
             if contract[u"src_unl"] != self.test_node_unl:
                 _log.debug("Alice dl: src unl incorrect.")
-                return
+                return -4
 
             self.transfer.remove_handler("accept", accept_handler)
 
@@ -138,18 +138,19 @@ def build_completion_handler(self, req, accept_handler):
 
             # Schedule next call if it returned too fast.
             if self.is_bad_test() and self.increasing_tests:
+                # Calculate next test size.
+                new_size = self.increase_test_size()
+                if new_size == self.test_size:
+                    # Avoid DoS.
+                    return -5
+
                 # Reset test state.
                 _log.debug("SCHEDUALING NEW TRANSFER!")
                 node_unl = copy.deepcopy(self.test_node_unl)
                 self.reset_state()
 
-                # Calculate test size.
-                new_size = self.increase_test_size()
-                if new_size == self.test_size:
-                    # Avoid DoS.
-                    return
-                else:
-                    self.test_size = new_size
+                # Set the new test size.
+                self.test_size = new_size
 
                 # Start new transfer.
                 self.start(
@@ -184,16 +185,21 @@ def handle_responses_builder(self):
         msg = list_to_ordered_dict(msg)
         if msg[u"type"] != u"test_bandwidth_response":
             _log.debug("res: Invalid response")
-            return
+            return -1
 
         # Transfer already active.
         if self.test_node_unl is not None:
             _log.debug("res: transfer already active")
-            return
+            return -2
 
         # Check we sent the request.
         req = msg[u"request"]
         _log.debug(req)
+
+        # Check node IDs match.
+        if req[u"test_node_unl"] != msg[u"requestee"]:
+            _log.debug("res: node ids don't match")
+            return -4
 
         # Check signature.
         valid_sig = verify_signature(
@@ -205,18 +211,13 @@ def handle_responses_builder(self):
         # Quit if sig is invalid.
         if not valid_sig:
             _log.debug("res: our request sig was invalid")
-            return
-
-        # Check node IDs match.
-        if req[u"test_node_unl"] != msg[u"requestee"]:
-            _log.debug("res: node ids don't match")
-            return
+            return -3
 
         # Check their sig.
         src_node_id = parse_node_id_from_unl(msg[u"requestee"])
         if not verify_signature(msg, self.wif, src_node_id):
             _log.debug("res: their sig did not match")
-            return
+            return -5
 
         # Set active node ID.
         self.test_node_unl = msg[u"requestee"]

@@ -90,6 +90,13 @@ class BandwidthLimit:
             if self.config_file is not None:
                 self.save()
 
+    def get_fresh_second(self):
+        while 1:
+            t = time.time()
+            t = (t - int(t))
+            if t < 0.001:
+                break
+
     def calculate_next_month(self):
         # Find current time.
         now = datetime.datetime.utcnow()
@@ -220,8 +227,6 @@ class BandwidthLimit:
         cake = self.cake[bw_type]
         if contract_id is not None:
             if contract_id in cake["slices"]:
-                print("Found contract id in slices")
-
                 # Free reserved resources.
                 cake_slice = cake["slices"][contract_id]
                 reserved = cake_slice["size"] - cake_slice["stale"]

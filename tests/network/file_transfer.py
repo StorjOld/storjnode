@@ -3,6 +3,7 @@ from storjnode.network import DEFAULT_BOOTSTRAP_NODES
 from storjnode.network.file_transfer import FileTransfer
 from storjnode.network.process_transfers import process_transfers
 from storjnode.util import address_to_node_id
+from storjnode.network.file_transfer import enable_unl_requests
 from storjnode.network.bandwidth.limit import BandwidthLimit
 from storjnode.config import ConfigFile
 import btctxstore
@@ -21,7 +22,9 @@ setup()
 _log = storjnode.log.getLogger(__name__)
 _log.setLevel("DEBUG")
 
-
+# This will need to be updated so the test node
+# accepts UNL requests - not done for now as test
+# is disabled for speed reasons
 TEST_NODE = {
     "unl": ("AhaVDlV5HtHJlddtqgpDHdIFWdr5cGdt8OsG79qiBu/aouc/Ru4="),
     "web": "http://162.218.239.6/"
@@ -68,6 +71,9 @@ class TestFileTransfer(unittest.TestCase):
 
         # Add accept handler.
         self.client.handlers["accept"].add(accept_handler)
+
+        # Accept UNL requests.
+        enable_unl_requests(self.dht_node)
 
     def tearDown(self):
         shutil.rmtree(self.test_storage_dir)
