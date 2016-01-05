@@ -256,7 +256,7 @@ class Crawler(object):  # will not scale but good for now
         self.node.remove_message_handler(self._handle_info_message)
         self.node.remove_message_handler(self._handle_peers_message)
 
-        return self.pipeline_scanned
+        return self.pipeline_processed
 
 
 def crawl(node, limit=20, timeout=600):
