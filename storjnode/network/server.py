@@ -102,6 +102,8 @@ class Server(KademliaServer):
         self._refresh_neighbours_interval = refresh_neighbours_interval
         self._cached_address = None
 
+        self.port_handler = None
+
         self.btctxstore = btctxstore.BtcTxStore(testnet=False)
 
         # allow hwifs
@@ -138,6 +140,9 @@ class Server(KademliaServer):
             self._refresh_thread = threading.Thread(target=self._refresh_loop)
             self._refresh_thread.start()
 
+    def set_port_handler(self, port_handler):
+        self.port_handler = port_handler
+
     def stop(self):
         if self._refresh_neighbours_interval > 0.0:
             self._refresh_thread_stop = True
@@ -146,7 +151,9 @@ class Server(KademliaServer):
         self._relay_thread_stop = True
         self._relay_thread.join()
 
-        # FIXME actually disconnect from port and stop properly
+        # disconnect from port and stop properly
+        if self.port_handler is not None:
+            self.port_handler.stopListening()
 
     @run_in_reactor
     def refresh_neighbours(self):
