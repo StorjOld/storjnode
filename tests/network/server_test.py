@@ -1,4 +1,5 @@
 import unittest
+import storjnode
 from storjnode.network.server import Server
 
 
@@ -12,7 +13,7 @@ class TestServer(unittest.TestCase):
         # create server and start listen on port 12345
         test_result = True
         key = "5KaasrJx9KQymQ4zMffEPrsHxSn1bCnM9c3tbicp4Uunf1nrzyM"
-        port = 12345
+        port = storjnode.util.get_unused_port(None)
         server1 = Server(key, port)
         port_handler = server1.listen(port)
         server1.set_port_handler(port_handler)
