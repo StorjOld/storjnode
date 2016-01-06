@@ -168,7 +168,8 @@ class Node(object):
             max_messages=max_messages,
             refresh_neighbours_interval=refresh_neighbours_interval
         )
-        self.server.listen(self.port)
+        port_handler = self.server.listen(self.port)
+        self.server.set_port_handler(port_handler)
         self.server.bootstrap(bootstrap_nodes)
 
     def _setup_data_transfer_client(self, store_config, passive_port,
