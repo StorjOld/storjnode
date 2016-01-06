@@ -140,6 +140,7 @@ class Server(KademliaServer):
             self._refresh_thread = threading.Thread(target=self._refresh_loop)
             self._refresh_thread.start()
 
+    @run_in_reactor
     def set_port_handler(self, port_handler):
         self.port_handler = port_handler
 
