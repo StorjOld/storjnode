@@ -197,12 +197,10 @@ class Server(KademliaServer):
 
         # check max message size
         packed_message = umsgpack.packb(message)
-        msg_len = str(len(packed_message))
-        _log.debug("packed msg len = " + msg_len)
-        _log.debug("max message data = " + str(MAX_MESSAGE_DATA))
-        if not len(packed_message) <= MAX_MESSAGE_DATA:
-            print("MESSAGE TO LARGE:", repr(message))
-        assert(len(packed_message) <= MAX_MESSAGE_DATA)
+        if len(packed_message) > MAX_MESSAGE_DATA:
+            raise Exception("Message to large {0} > {1}: {2}".format(
+                len(packed_message), MAX_MESSAGE_DATA, repr(message)
+            ))
         message = umsgpack.unpackb(packed_message)  # sanatize abstract types
 
         if nodeid == self.node.id:
@@ -254,9 +252,10 @@ class Server(KademliaServer):
 
             wan = (result[0], result[1])
             lan = (storjnode.util.get_inet_facing_ip(), self.port)
-            return {
+            transport_info = {
                 "wan": wan, "lan": lan, "unl": unl, "is_public": wan == lan
             }
+            return transport_info
 
         ds = []
         for neighbor in self.bootstrappableNeighbors():

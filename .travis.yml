@@ -5,6 +5,10 @@ python:
 #  - "3.3"
 #  - "3.4"
 
+os:
+  - linux
+  - osx
+
 env:                                                                           
   - PYCOIN_NATIVE=openssl STORJNODE_QUERY_TIMEOUT=3.0
 
