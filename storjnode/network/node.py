@@ -1,7 +1,6 @@
 import time
 import threading
 import traceback
-import random
 import storjnode
 from storjnode.common import THREAD_SLEEP
 from twisted.internet import defer
@@ -17,7 +16,6 @@ from pyp2p.unl import UNL
 
 # File transfer.
 from storjnode.network.file_transfer import FileTransfer
-from storjnode.network.file_transfer import process_unl_requests
 from storjnode.network.process_transfers import process_transfers
 from storjnode.network.bandwidth.test import BandwidthTest
 from pyp2p.net import Net
@@ -677,7 +675,7 @@ class Node(object):
         Returns:
             A twisted.internet.defer.Deferred that resloves when set.
         """
-        self.server.set(key, value)
+        return self.server.set(key, value)
 
     ###############################
     # blocking DHT dict interface #
@@ -691,6 +689,18 @@ class Node(object):
             crochet.TimeoutError after storjnode.network.server.WALK_TIMEOUT
         """
         return self.async_get(key, default=default)
+
+    @wait_for(timeout=WALK_TIMEOUT)
+    def put(self, key, value):
+        """Insert a key value pair into the DHT.
+
+        Returns:
+            True on success, otherwise False.
+
+        Raises:
+            crochet.TimeoutError after storjnode.network.server.WALK_TIMEOUT
+        """
+        return self.async_set(key, value)
 
     @wait_for(timeout=WALK_TIMEOUT)
     def __setitem__(self, key, value):
