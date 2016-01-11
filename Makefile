@@ -12,6 +12,7 @@ else
 endif
 export PYCOIN_NATIVE=openssl
 export STORJNODE_QUERY_TIMEOUT=0.3
+export STORJNODE_ENABLE_GLOBAL_LOGGER=1
 
 
 help:
@@ -74,7 +75,7 @@ test: setup
 	$(PEP8) storjnode
 	$(PEP8) examples
 	$(PEP8) tests
-	$(COVERAGE) run --source="storjnode" -m unittest -v tests
+	$(COVERAGE) run --source="storjnode" -m unittest --verbose tests
 	$(COVERAGE) report --fail-under=80
 
 

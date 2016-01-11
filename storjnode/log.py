@@ -1,4 +1,5 @@
-# import this first in scripts to init loggin
+# import this first in scripts to init logging
+import os
 import sys  # NOQA
 import logging as _logging
 from twisted.python import log as _log
@@ -16,7 +17,10 @@ _observer.start()  # pragma: no cover
 
 
 # silence global logger
-_logging.basicConfig(format=FORMAT, level=LEVEL_QUIET)
+if os.environ.get("STORJNODE_ENABLE_GLOBAL_LOGGER"):
+    _logging.basicConfig(format=FORMAT)
+else:
+    _logging.basicConfig(format=FORMAT, level=LEVEL_QUIET)
 _base_logger = _logging.getLogger()
 
 
