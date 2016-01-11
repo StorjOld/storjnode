@@ -155,7 +155,7 @@ def valid_ipv4(ip):
             return True
         except socket.error:
             return False
-    except (socket.error, ValueError) as e:
+    except (socket.error, ValueError):
         return False
 
 
@@ -163,7 +163,7 @@ def valid_ipv6(ip):
     """Returns True if the given string is a valid IPv6 address."""
     try:
         socket.inet_pton(socket.AF_INET6, ip)
-    except (socket.error, ValueError) as e:  # not a valid ip
+    except (socket.error, ValueError):  # not a valid ip
         return False
     return True
 
@@ -174,7 +174,7 @@ def valid_ip(ip):
 
 
 def valid_port(port):
-    return isinstance(port, int) and (0 <= port < 2 ** 16)
+    return isinstance(port, int) and (0 <= port < 65535)
 
 
 def chunks(items, size):
@@ -252,8 +252,9 @@ def ensure_path_exists(path):
 
 def get_unused_port(port):
     """Checks if port is already in use."""
-    if port is None or port < 1024 or port > 49151:
-        port = random.randint(1024, 49151)
+    if port is None:
+        port = random.randint(1024, 65535)
+    assert(1024 <= port <= 65535)
     while True:
         s = socket.socket(socket.AF_INET, socket.SOCK_STREAM)
         try:

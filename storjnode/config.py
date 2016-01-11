@@ -76,7 +76,7 @@ SCHEMA = {
                 },
                 "port": {
                     "oneOf": [
-                        {"type": "integer", "minimum": 1024, "maximum": 49151},
+                        {"type": "integer", "minimum": 1024, "maximum": 65535},
                         {"enum": ["random"]},
                     ]
                 },
