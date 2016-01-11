@@ -6,6 +6,7 @@ from storjnode.common import STORJ_HOME
 
 DEFAULT_SHARD_SIZE = 1024 * 1024 * 128  # 128M
 DEFAULT_STORE_PATH = os.path.join(STORJ_HOME, "store")
+DEFAULT_STORE_LIMIT = 10737418240  # 10G
 DEFAULT_STORE_CONFIG = {
     DEFAULT_STORE_PATH: {"limit": 0, "use_folder_tree": False}
 }

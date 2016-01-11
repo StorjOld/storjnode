@@ -5,6 +5,7 @@ import unittest
 import tempfile
 import storjnode
 import btctxstore
+from jsonschema.exceptions import ValidationError
 
 
 # initial unmigrated 2.0.0 config
@@ -41,7 +42,7 @@ class TestConfig(unittest.TestCase):
             # update config
             updated_cfg = copy.deepcopy(created_data)
             address = "1A8WqiJDh3tGVeEefbMN5BVDYxx2XSoWgG"
-            updated_cfg["payout_address"] = address
+            updated_cfg["wallet"]["cold_storage"].append(address)
             storjnode.config.save(self.btctxstore, path, updated_cfg)
 
             # confirm overwriten
@@ -54,45 +55,12 @@ class TestConfig(unittest.TestCase):
         pass  # TODO implement
 
     def test_validation(self):
-        wallet = self.btctxstore.create_wallet()
-        key = self.btctxstore.get_key(wallet)
-        address = self.btctxstore.get_address(key)
 
-        # must be a dict
-        def callback():
-            storjnode.config.validate(self.btctxstore, None)
-        self.assertRaises(storjnode.config.InvalidConfig, callback)
+        # default config must validate
+        default_cfg = storjnode.config.create(self.btctxstore)
+        storjnode.config.validate(self.btctxstore, default_cfg)
 
-        # must have the correct version
-        def callback():
-            storjnode.config.validate(self.btctxstore, {
-                "payout_address": address,
-                "wallet": wallet,
-            })
-        self.assertRaises(storjnode.config.InvalidConfig, callback)
-
-        # must have a valid payout address
-        def callback():
-            storjnode.config.validate(self.btctxstore, {
-                "version": storjnode.config.VERSION,
-                "wallet": wallet,
-            })
-        self.assertRaises(storjnode.config.InvalidConfig, callback)
-
-        # must have a valid wallet
-        def callback():
-            storjnode.config.validate(self.btctxstore, {
-                "version": storjnode.config.VERSION,
-                "payout_address": address,
-            })
-        self.assertRaises(storjnode.config.InvalidConfig, callback)
-
-        # valid config
-        self.assertTrue(storjnode.config.validate(self.btctxstore, {
-            "version": storjnode.config.VERSION,
-            "payout_address": address,
-            "wallet": wallet,
-        }))
+        # TODO tests for every property and type
 
     def test_create_always_valid(self):
         cfg = storjnode.config.create(self.btctxstore)
@@ -139,7 +107,7 @@ class TestConfig(unittest.TestCase):
         # test its invalid with current build
         def callback():
             storjnode.config.validate(self.btctxstore, UNMIGRATED_CONFIG)
-        self.assertRaises(storjnode.config.InvalidConfig, callback)
+        self.assertRaises(ValidationError, callback)
 
         # migrate
         cfg = storjnode.config.migrate(self.btctxstore, UNMIGRATED_CONFIG)
