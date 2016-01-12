@@ -17,6 +17,10 @@ def _derive_key_and_iv(password, salt, key_length, iv_length):
     return d[:key_length], d[key_length:key_length+iv_length]
 
 
+def symmetric_is_encrypted(in_file):
+    pass
+
+
 def symmetric_encrypt(in_file, out_file, password, key_length=32):
     """ OpenSSL compatible aes encryption.
 

@@ -109,9 +109,15 @@ if __name__ == "__main__":
         key = "Kyh4a6zF1TkBZW6gyzwe7XRVtJ18Y75C2bC2d9axeWZnoUdAVXYc"
         node = storjnode.network.Node(key)
 
-        log.info("Giving nodes some time to find peers.")
+        # shitty wait for network stabilization
+        log.info("Shitty wait for network stabilization.")
+        time.sleep(storjnode.network.WALK_TIMEOUT)
+        node.refresh_neighbours()
+        time.sleep(storjnode.network.WALK_TIMEOUT)
+        node.refresh_neighbours()
         time.sleep(storjnode.network.WALK_TIMEOUT)
 
+        # generate network map
         netmap = storjnode.network.map.generate(node)
         print_stats(netmap)
         if arguments["render"]:

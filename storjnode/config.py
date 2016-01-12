@@ -3,12 +3,20 @@ import copy
 import json
 import storjnode
 import jsonschema
-from btctxstore import BtcTxStore
 from jsonschema.exceptions import ValidationError
 
 
-VERSION = "3.1.0"  # config version divorced from software version!
-DEFAULT_CONFIG_PATH = os.path.join(storjnode.common.STORJ_HOME, "config.json")
+VERSION = 1
+UNMIGRATED_CONFIG = {"version": 0}  # initial unmigrated config
+
+
+def _migrate_0_to_1(cfg):
+    return create()
+
+
+_MIGRATIONS = {
+    0: _migrate_0_to_1,
+}
 
 
 # load schema
@@ -18,31 +26,25 @@ with open(schema_path) as fp:
     SCHEMA = json.load(fp)
 
 
-def read(path, password=None):
+def read(path):
     """ Read a json config and decript with the given passwork if encrypted.
 
     Args:
         path: The path to the config file.
-        password: The password to decrypt if encrypted.
 
     Returns:
         The loaded config as json serializable data.
     """
-    if password is None:  # unencrypted
-        with open(path, 'r') as config_file:
-            return json.loads(config_file.read())
-    else:
-        raise NotImplementedError("encryption not implemented")
+    with open(path, 'r') as config_file:
+        return json.loads(config_file.read())
 
 
-def save(btctxstore, path, cfg, password=None):
+def save(path, cfg):
     """Save a config as json and optionally encrypt.
 
     Args:
-        btctxstore: btctxstore.BtcTxStore instance used to validate wallet.
         path: The path to save the config file at.
         cfg: The config to be saved.
-        password: The password to encrypt with if, unencrypted if None.
 
     Returns:
         The loaded config as json serializable data.
@@ -51,38 +53,30 @@ def save(btctxstore, path, cfg, password=None):
         storjnode.config.Invalid: If config is not valid.
     """
     # always validate before saving
-    validate(btctxstore, cfg)
+    validate(cfg)
 
     # Create root path if it doesn't already exist.
     storjnode.util.ensure_path_exists(os.path.dirname(path))
 
     # Write config to file.
-    if password is None:  # unencrypted
-        with open(path, 'w') as config_file:
-            config_file.write(json.dumps(cfg, indent=2))
-            return cfg
-    else:
-        raise NotImplementedError("encryption not implemented")
+    with open(path, 'w') as config_file:
+        config_file.write(json.dumps(cfg, indent=2))
+        return cfg
 
 
-def create(btctxstore):
+def create():
     """Create a config with required values.
 
     Args:
-        btctxstore: btctxstore.BtcTxStore use to create wallet.
 
     Returns:
         The config as json serializable data.
     """
-    hwif = btctxstore.create_wallet()
     default_storage_path = storjnode.storage.manager.DEFAULT_STORE_PATH
     fs_format = storjnode.util.get_fs_type(default_storage_path)
     return {
         "version": VERSION,
-        "wallet": {
-            "hwif": hwif,
-            "cold_storage": [],
-        },
+        "cold_storage": [],
         "network": {
             "port": "random",
             "enable_monitor_responses": True,
@@ -107,11 +101,10 @@ def create(btctxstore):
     }
 
 
-def validate(btctxstore, cfg):
+def validate(cfg):
     """Validate that a config is correct.
 
     Args:
-        btctxstore: btctxstore.BtcTxStore instance used to validate wallet.
         cfg: The config to validate.
 
     Returns:
@@ -128,26 +121,14 @@ def validate(btctxstore, cfg):
         msg = "Invalid version: {0} expected, got {1}"
         raise ValidationError(msg.format(VERSION, cfg.get("version")))
 
-    # cold storage is valid
-    for address in cfg["wallet"]["cold_storage"]:
-        if not btctxstore.validate_address(address):
-            raise ValidationError("Invalid address: {0}".format(address))
-
-    # hwif is valid
-    if not btctxstore.validate_wallet(cfg["wallet"]["hwif"]):
-        msg = "Invalid hwif entry: {0}!"
-        raise ValidationError(msg.format(cfg["wallet"]["hwif"]))
-
     return True
 
 
-def get(btctxstore, path, password=None):
+def get(path):
     """Load and migarte and existing config if needed, or save a default.
 
     Args:
-        btctxstore: btctxstore.BtcTxStore used to create/validate the wallet.
         path: The path to the config file.
-        password: The password for encryption, unencrypted if None.
 
     Returns:
         The loaded config as json serializable data.
@@ -158,113 +139,45 @@ def get(btctxstore, path, password=None):
 
     # load existing config
     if os.path.exists(path):
-        cfg = read(path, password=password)
+        cfg = read(path)
 
     # create default config if none exists
     else:
-        cfg = create(btctxstore)
-        cfg = save(btctxstore, path, cfg, password=password)
+        cfg = create()
+        cfg = save(path, cfg)
 
     # migrate config if needed
-    migrated_cfg = migrate(btctxstore, copy.deepcopy(cfg))
+    migrated_cfg = migrate(copy.deepcopy(cfg))
     if migrated_cfg["version"] != cfg["version"]:
-        cfg = save(btctxstore, path, migrated_cfg, password=password)
+        cfg = save(path, migrated_cfg)
 
     return cfg
 
 
-def _set_version(btctxstore, cfg, new_version):
+def _set_version(cfg, new_version):
     cfg['version'] = new_version
     return cfg
 
 
-def _migrate_200_to_201(btctxstore, cfg):
-    _set_version(btctxstore, cfg, '2.0.1')
-
-    # master_secret -> wallet
-    master_secret = cfg['master_secret']
-    if master_secret is None:
-        raise ValidationError()
-    cfg['wallet'] = btctxstore.create_wallet(master_secret=master_secret)
-
-    return cfg
-
-
-def _migrate_300_to_310(btctxstore, cfg):
-    default_storage_path = storjnode.storage.manager.DEFAULT_STORE_PATH
-    fs_format = storjnode.util.get_fs_type(default_storage_path)
-    return {
-        "version": "3.1.0",
-        "wallet": {
-            "hwif": cfg["wallet"],
-            "cold_storage": [cfg["payout_address"]],
-        },
-        "network": {
-            "port": "random",
-            "enable_monitor_responses": True,
-            "disable_data_transfer": False,
-            "bandwidth_limits": {
-                "secondly": {
-                    "upload": 0,  # no limit
-                    "download": 0  # no limit
-                },
-                "monthly": {
-                    "upload": 10737418240,  # 10G
-                    "download": 10737418240,  # 10G
-                },
-            },
-        },
-        "storage": {
-            default_storage_path: {
-                "limit": storjnode.storage.manager.DEFAULT_STORE_LIMIT,
-                "use_folder_tree": fs_format == "vfat",
-            },
-        }
-    }
-
-
-_MIGRATIONS = {
-    "2.0.0": _migrate_200_to_201,
-    "2.0.1": lambda btctxstore, cfg: _set_version(btctxstore, cfg, "2.0.2"),
-    "2.0.2": lambda btctxstore, cfg: _set_version(btctxstore, cfg, "2.0.3"),
-    "2.0.3": lambda btctxstore, cfg: _set_version(btctxstore, cfg, "2.1.0"),
-    "2.1.0": lambda btctxstore, cfg: _set_version(btctxstore, cfg, "2.1.1"),
-    "2.1.1": lambda btctxstore, cfg: _set_version(btctxstore, cfg, "2.1.2"),
-    "2.1.2": lambda btctxstore, cfg: _set_version(btctxstore, cfg, "2.1.3"),
-    "2.1.3": lambda btctxstore, cfg: _set_version(btctxstore, cfg, "2.1.4"),
-    "2.1.4": lambda btctxstore, cfg: _set_version(btctxstore, cfg, '2.1.5'),
-    "2.1.5": lambda btctxstore, cfg: _set_version(btctxstore, cfg, '2.1.6'),
-    "2.1.6": lambda btctxstore, cfg: _set_version(btctxstore, cfg, '2.1.7'),
-    "2.1.7": lambda btctxstore, cfg: _set_version(btctxstore, cfg, '2.1.8'),
-    "2.1.8": lambda btctxstore, cfg: _set_version(btctxstore, cfg, '2.1.9'),
-    "2.1.9": lambda btctxstore, cfg: _set_version(btctxstore, cfg, '2.1.10'),
-    "2.1.10": lambda btctxstore, cfg: _set_version(btctxstore, cfg, '2.1.11'),
-    "2.1.11": lambda btctxstore, cfg: _set_version(btctxstore, cfg, "3.0.0"),
-    "3.0.0": _migrate_300_to_310,
-}
-
-
-def migrate(btctxstore, cfg):
+def migrate(cfg):
     if not isinstance(cfg, dict) or 'version' not in cfg:
         raise ValidationError()
 
     # migrate until we are at current version
     while cfg['version'] != VERSION:
-        cfg = _MIGRATIONS[cfg['version']](btctxstore, cfg)
+        cfg = _MIGRATIONS[cfg['version']](cfg)
 
     return cfg
 
 
 class ConfigFile:
 
-    def __init__(self, path=None, btctxstore=None, password=None):
-        self.path = path or DEFAULT_CONFIG_PATH
-        self.btctxstore = btctxstore or BtcTxStore()
-        self.password = password
-        self.cfg = get(self.btctxstore, self.path, self.password)
+    def __init__(self, path=None):
+        self.path = path or storjnode.common.CONFIG_PATH
+        self.cfg = get(self.path)
 
     def save(self):
-        save(self.btctxstore, self.path, self.cfg, self.password)
+        save(self.path, self.cfg)
 
     def __getitem__(self, key):
         return self.cfg[key]

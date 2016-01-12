@@ -12,17 +12,19 @@ _log = storjnode.log.getLogger(__name__)
 class StorjNode(apigen.Definition):
     """Storj protocol reference implementation."""
 
-    def __init__(self, quiet=False, debug=False, verbose=False,
-                 config=storjnode.config.DEFAULT_CONFIG_PATH):
+    def __init__(self, quiet=False, debug=False, verbose=False, password=None,
+                 config=storjnode.common.CONFIG_PATH,
+                 wallet=storjnode.common.WALLET_PATH):
+        # TODO add arg to run in bootstrap mode only
 
         # load config
         self._btctxstore = btctxstore.BtcTxStore()
-        self._cfg = storjnode.config.ConfigFile(
-            path=config, btctxstore=self._btctxstore
-        )
+        self._cfg = storjnode.config.get(path=config)
+
+        # FIXME load wallet
+        hwif = "Kyh4a6zF1TkBZW6gyzwe7XRVtJ18Y75C2bC2d9axeWZnoUdAVXYc"
 
         # get config values
-        hwif = self._cfg["wallet"]["hwif"]
         port = self._cfg["network"]["port"]
         notransfer = self._cfg["network"]["disable_data_transfer"]
         enable_monitor = self._cfg["network"]["enable_monitor_responses"]
@@ -31,16 +33,22 @@ class StorjNode(apigen.Definition):
         self._node = storjnode.network.Node(
             hwif, disable_data_transfer=notransfer,
             bandwidth=BandwidthLimit(self._cfg) if not notransfer else None,
-            port=port if port != "random" else None
+            port=port if port != "random" else None,
+            store_config=self._cfg["storage"]
         )
         self._setup_message_list()
+
+        # montoring
         if enable_monitor:
             self._enable_monitor_responses()
 
-        # wait to find peers
-        sleep_time = storjnode.network.server.WALK_TIMEOUT
-        _log.info("Waiting {0} seconds to find peers".format(sleep_time))
-        time.sleep(sleep_time)
+        # shitty wait for network stabilization
+        _log.info("Shitty wait for network stabilization.")
+        time.sleep(storjnode.network.WALK_TIMEOUT)
+        self._node.refresh_neighbours()
+        time.sleep(storjnode.network.WALK_TIMEOUT)
+        self._node.refresh_neighbours()
+        time.sleep(storjnode.network.WALK_TIMEOUT)
 
     def _setup_message_list(self):
         self._events = []

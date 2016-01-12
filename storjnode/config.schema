@@ -1,139 +1,76 @@
 {
-  "required": [
-    "version", 
-    "wallet", 
-    "network", 
-    "storage"
-  ], 
-  "additionalProperties": false, 
+  "$schema": "http://json-schema.org/schema#", 
+
   "definitions": {
-    "wallet": {
-      "additionalProperties": false, 
-      "required": [
-        "hwif", 
-        "cold_storage"
-      ], 
-      "type": "object", 
-      "properties": {
-        "cold_storage": {
-          "items": {
-            "pattern": "^[13][a-km-zA-HJ-NP-Z0-9]{26,33}$", 
-            "type": "string"
-          }, 
-          "type": "array"
-        }, 
-        "hwif": {
-          "pattern": "^[a-km-zA-HJ-NP-Z0-9]+$", 
-          "type": "string"
-        }
-      }
-    }, 
     "bandwidth_limits": {
-      "additionalProperties": false, 
-      "required": [
-        "upload", 
-        "download"
-      ], 
       "type": "object", 
       "properties": {
-        "download": {
-          "minimum": 0, 
-          "type": "integer"
-        }, 
-        "upload": {
-          "minimum": 0, 
-          "type": "integer"
-        }
-      }
+        "download": { "minimum": 0, "type": "integer" }, 
+        "upload": { "minimum": 0, "type": "integer" }
+      },
+      "additionalProperties": false, 
+      "required": [ "upload", "download" ]
     }, 
     "storage": {
       "additionalProperties": false, 
       "patternProperties": {
         "^.*$": {
-          "additionalProperties": false, 
-          "required": [
-            "limit", 
-            "use_folder_tree"
-          ], 
           "type": "object", 
           "properties": {
-            "use_folder_tree": {
-              "type": "boolean"
-            }, 
-            "limit": {
-              "minimum": 0, 
-              "type": "integer"
-            }
-          }
+            "use_folder_tree": { "type": "boolean" }, 
+            "limit": { "minimum": 0, "type": "integer" }
+          },
+          "additionalProperties": false, 
+          "required": [ "limit", "use_folder_tree" ]
         }
       }, 
       "type": "object", 
       "minProperties": 1
     }, 
     "network": {
+      "type": "object", 
+      "properties": {
+        "bandwidth_limits": {
+          "type": "object", 
+          "properties": {
+            "monthly": { "$ref": "#/definitions/bandwidth_limits" }, 
+            "secondly": { "$ref": "#/definitions/bandwidth_limits" }
+          },
+          "additionalProperties": false,
+          "required": [ "secondly", "monthly" ]
+        }, 
+        "enable_monitor_responses": { "type": "boolean" }, 
+        "port": {
+          "oneOf": [
+            { "type": "integer", "minimum": 1024, "maximum": 65535 }, 
+            { "enum": [ "random" ] }
+          ]
+        }, 
+        "disable_data_transfer": { "type": "boolean" }
+      },
       "additionalProperties": false, 
       "required": [
         "bandwidth_limits", 
         "port", 
         "enable_monitor_responses", 
         "disable_data_transfer"
-      ], 
-      "type": "object", 
-      "properties": {
-        "bandwidth_limits": {
-          "additionalProperties": false, 
-          "required": [
-            "secondly", 
-            "monthly"
-          ], 
-          "type": "object", 
-          "properties": {
-            "monthly": {
-              "$ref": "#/definitions/bandwidth_limits"
-            }, 
-            "secondly": {
-              "$ref": "#/definitions/bandwidth_limits"
-            }
-          }
-        }, 
-        "enable_monitor_responses": {
-          "type": "boolean"
-        }, 
-        "port": {
-          "oneOf": [
-            {
-              "minimum": 1024, 
-              "type": "integer", 
-              "maximum": 65535
-            }, 
-            {
-              "enum": [
-                "random"
-              ]
-            }
-          ]
-        }, 
-        "disable_data_transfer": {
-          "type": "boolean"
-        }
-      }
+      ]
     }
   }, 
-  "$schema": "http://json-schema.org/schema#", 
+
   "type": "object", 
   "properties": {
-    "wallet": {
-      "$ref": "#/definitions/wallet"
-    }, 
-    "version": {
-      "pattern": "^[0-9]+\\.[0-9]+\\.[0-9]+$", 
-      "type": "string"
-    }, 
-    "storage": {
-      "$ref": "#/definitions/storage"
-    }, 
-    "network": {
-      "$ref": "#/definitions/network"
+    "version": { "type": "integer", "minimum": 0 }, 
+    "storage": { "$ref": "#/definitions/storage" }, 
+    "network": { "$ref": "#/definitions/network" },
+    "cold_storage": {
+      "type": "array",
+      "items": {
+        "pattern": "^[13][a-km-zA-HJ-NP-Z0-9]{26,33}$", 
+        "type": "string"
+      }
     }
-  }
+  },
+  "required": [ "version", "cold_storage", "network", "storage" ], 
+  "additionalProperties": false
 }

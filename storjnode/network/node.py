@@ -64,7 +64,8 @@ class Node(object):
                  refresh_neighbours_interval=WALK_TIMEOUT,
 
                  # data transfer args
-                 disable_data_transfer=True, store_config=None,
+                 disable_data_transfer=True,
+                 store_config=None,  # FIXME use entire config instead
                  passive_port=None,
                  passive_bind=None,  # FIXME use utils.get_inet_facing_ip ?
                  node_type="unknown",  # FIMME what is this ?
