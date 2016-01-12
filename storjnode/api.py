@@ -2,6 +2,7 @@ import time
 import apigen
 import btctxstore
 import storjnode
+import crochet
 from threading import RLock
 from storjnode.network import BandwidthLimit
 
@@ -72,6 +73,10 @@ class StorjNode(apigen.Definition):
     def info(self):
         """Get node information."""
         neighbours = self._node.get_neighbours()
+        try:
+            transport = self._node.sync_get_transport_info(add_unl=False)
+        except crochet.TimeoutError:
+            transport = None
         return {
             "version": {
                 "storjnode": storjnode.__version__,
@@ -79,7 +84,7 @@ class StorjNode(apigen.Definition):
             },
             "network": {
                 "address": self._node.get_address(),
-                "transport": self._node.sync_get_transport_info(add_unl=False),
+                "transport": transport,
                 "neighbours": neighbours,
             },
         }
@@ -117,12 +122,18 @@ class StorjNode(apigen.Definition):
     @apigen.command()
     def net_put(self, key, value):
         """Insert a key/value pair into the DHT."""
-        return self._node.put(key, value)
+        try:
+            return self._node.put(key, value)
+        except crochet.TimeoutError:
+            return False
 
     @apigen.command()
     def net_get(self, key):
         """Get value from the DHT for a given key."""
-        return self._node.get(key)
+        try:
+            return self._node.get(key)
+        except crochet.TimeoutError:
+            return None
 
     ##################
     # NETWORK EVENTS #
