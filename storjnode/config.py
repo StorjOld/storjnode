@@ -11,101 +11,11 @@ VERSION = "3.1.0"  # config version divorced from software version!
 DEFAULT_CONFIG_PATH = os.path.join(storjnode.common.STORJ_HOME, "config.json")
 
 
-SCHEMA = {
-    "$schema": "http://json-schema.org/schema#",
-
-    "definitions": {
-
-        "wallet": {
-            "type": "object",
-            "properties": {
-                "hwif": {
-                    "type": "string",
-                    "pattern": "^[a-km-zA-HJ-NP-Z0-9]+$"  # base58 encoded
-                },
-                "cold_storage": {
-                    "type": "array",
-                    "items": {
-                        "type": "string",
-                        "pattern": "^[13][a-km-zA-HJ-NP-Z0-9]{26,33}$"
-                    }
-                },
-            },
-            "additionalProperties": False,
-            "required": ["hwif", "cold_storage"],
-        },
-
-        "storage": {
-            "type": "object",
-            "patternProperties": {
-                "^.*$": {
-                    "type": "object",
-                    "properties": {
-                        "limit": {"type": "integer", "minimum": 0},
-                        "use_folder_tree": {"type": "boolean"},
-                    },
-                    "additionalProperties": False,
-                    "required": ["limit", "use_folder_tree"],
-                },
-            },
-            "minProperties": 1,
-            "additionalProperties": False,
-        },
-
-        "bandwidth_limits": {
-            "type": "object",
-            "properties": {
-                "upload": {"type": "integer", "minimum": 0},
-                "download": {"type": "integer", "minimum": 0},
-            },
-            "additionalProperties": False,
-            "required": ["upload", "download"],
-        },
-
-        "network": {
-            "type": "object",
-            "properties": {
-                "bandwidth_limits": {
-                    "type": "object",
-                    "properties": {
-                        "secondly": {"$ref": "#/definitions/bandwidth_limits"},
-                        "monthly": {"$ref": "#/definitions/bandwidth_limits"},
-                    },
-                    "additionalProperties": False,
-                    "required": ["secondly", "monthly"],
-                },
-                "port": {
-                    "oneOf": [
-                        {"type": "integer", "minimum": 1024, "maximum": 65535},
-                        {"enum": ["random"]},
-                    ]
-                },
-                "enable_monitor_responses": {"type": "boolean"},
-                "disable_data_transfer": {"type": "boolean"},
-            },
-            "additionalProperties": False,
-            "required": [
-                "bandwidth_limits", "port",
-                "enable_monitor_responses",
-                "disable_data_transfer",
-            ],
-        },
-
-    },
-
-    "type": "object",
-    "properties": {
-        "version": {
-            "type": "string",
-            "pattern": "^[0-9]+\.[0-9]+\.[0-9]+$"
-        },
-        "wallet": {"$ref": "#/definitions/wallet"},
-        "network": {"$ref": "#/definitions/network"},
-        "storage": {"$ref": "#/definitions/storage"},
-    },
-    "additionalProperties": False,
-    "required": ["version", "wallet", "network", "storage"]
-}
+# load schema
+dirname = os.path.dirname(storjnode.util.full_path(__file__))
+schema_path = os.path.join(dirname,"config.schema")
+with open(schema_path) as fp:
+    SCHEMA = json.load(fp)
 
 
 def read(path, password=None):

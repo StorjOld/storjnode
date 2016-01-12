@@ -2,8 +2,6 @@
 # coding: utf-8
 
 
-import os
-import sys
 from setuptools import setup, find_packages
 
 
@@ -26,6 +24,9 @@ setup(
     install_requires=open("requirements.txt").readlines(),
     tests_require=open("test_requirements.txt").readlines(),
     packages=find_packages(exclude=['storjnode.bin']),
+    package_data={
+        'storjnode': ['config.schema'],
+    },
     classifiers=[
         # "Development Status :: 1 - Planning",
         "Development Status :: 2 - Pre-Alpha",
