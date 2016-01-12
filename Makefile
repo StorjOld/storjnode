@@ -68,8 +68,8 @@ install: setup
 
 
 test_script: install
-	#env/bin/storjnode --help # --debug info
-	$(PY) examples/network/map_network.py
+	env/bin/storjnode --debug info
+	#$(PY) examples/network/map_network.py
 
 
 shell: install

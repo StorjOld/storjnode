@@ -12,26 +12,22 @@ _log = storjnode.log.getLogger(__name__)
 class StorjNode(apigen.Definition):
     """Storj protocol reference implementation."""
 
-    def __init__(self, quiet=False, debug=False, verbose=False, password=None,
-                 config=storjnode.common.CONFIG_PATH,
-                 wallet=storjnode.common.WALLET_PATH):
-        # TODO add arg to run in bootstrap mode only
+    def __init__(self, wallet=None, quiet=False, debug=False, verbose=False,
+                 config=storjnode.common.CONFIG_PATH):
 
-        # load config
-        self._btctxstore = btctxstore.BtcTxStore()
-        self._cfg = storjnode.config.get(path=config)
-
-        # FIXME load wallet
-        hwif = "Kyh4a6zF1TkBZW6gyzwe7XRVtJ18Y75C2bC2d9axeWZnoUdAVXYc"
+        wallet = wallet or btctxstore.BtcTxStore().create_wallet()
+        assert(btctxstore.validate.mainnet_wallet(wallet) or
+               btctxstore.validate.mainnet_key(wallet))
 
         # get config values
+        self._cfg = storjnode.config.get(path=config)
         port = self._cfg["network"]["port"]
         notransfer = self._cfg["network"]["disable_data_transfer"]
         enable_monitor = self._cfg["network"]["enable_monitor_responses"]
 
         # start node
         self._node = storjnode.network.Node(
-            hwif, disable_data_transfer=notransfer,
+            wallet, disable_data_transfer=notransfer,
             bandwidth=BandwidthLimit(self._cfg) if not notransfer else None,
             port=port if port != "random" else None,
             store_config=self._cfg["storage"]
@@ -107,7 +103,7 @@ class StorjNode(apigen.Definition):
     @apigen.command()
     def cfg_default(self):
         """The default storj config."""
-        return storjnode.config.create(self._btctxstore)
+        return storjnode.config.create()
 
     @apigen.command()
     def cfg_schema(self):
