@@ -10,3 +10,4 @@ ipaddress >= 1.0.14
 requests >= 2.8.1
 pyp2p >= 0.4.5
 jsonschema >= 2.5.1
+apigen >= 1.4.1

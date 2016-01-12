@@ -1,0 +1,16 @@
+#!/usr/bin/env python
+# coding: utf-8
+
+import signal
+import apigen
+import storjnode
+from crochet import setup
+
+
+# start twisted via crochet and remove twisted handler
+setup()
+signal.signal(signal.SIGINT, signal.default_int_handler)
+
+
+if __name__ == "__main__":
+    apigen.run(storjnode.api.StorjNode)

@@ -6,3 +6,4 @@ from . import common  # NOQA
 from . import util  # NOQA
 from . import config  # NOQA
 from . import encryptedio  # NOQA
+from . import api  # NOQA

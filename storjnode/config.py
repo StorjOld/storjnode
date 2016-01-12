@@ -13,7 +13,7 @@ DEFAULT_CONFIG_PATH = os.path.join(storjnode.common.STORJ_HOME, "config.json")
 
 # load schema
 dirname = os.path.dirname(storjnode.util.full_path(__file__))
-schema_path = os.path.join(dirname,"config.schema")
+schema_path = os.path.join(dirname, "config.schema")
 with open(schema_path) as fp:
     SCHEMA = json.load(fp)
 
@@ -128,12 +128,12 @@ def validate(btctxstore, cfg):
         msg = "Invalid version: {0} expected, got {1}"
         raise ValidationError(msg.format(VERSION, cfg.get("version")))
 
-    # has valid payout address
+    # cold storage is valid
     for address in cfg["wallet"]["cold_storage"]:
         if not btctxstore.validate_address(address):
             raise ValidationError("Invalid address: {0}".format(address))
 
-    # has valid wallet
+    # hwif is valid
     if not btctxstore.validate_wallet(cfg["wallet"]["hwif"]):
         msg = "Invalid hwif entry: {0}!"
         raise ValidationError(msg.format(cfg["wallet"]["hwif"]))
