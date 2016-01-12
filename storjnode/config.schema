@@ -46,12 +46,23 @@
             { "enum": [ "random" ] }
           ]
         }, 
+        "bootstrap_nodes": {
+          "type": "array",
+          "items": {
+            "type": "array",
+            "items": [
+              {"type": "string", "format": "ipv4"},
+              {"type": "number", "minimum": 1024, "maximum": 65535}
+            ]
+          }
+        },
         "disable_data_transfer": { "type": "boolean" }
       },
       "additionalProperties": false, 
       "required": [
         "bandwidth_limits", 
         "port", 
+        "bootstrap_nodes",
         "enable_monitor_responses", 
         "disable_data_transfer"
       ]

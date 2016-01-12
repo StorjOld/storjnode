@@ -79,6 +79,7 @@ def create():
         "cold_storage": [],
         "network": {
             "port": "random",
+            "bootstrap_nodes": [],
             "enable_monitor_responses": True,
             "disable_data_transfer": False,
             "bandwidth_limits": {

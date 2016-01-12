@@ -9,6 +9,7 @@ import argparse
 import time
 import storjnode
 import datetime
+import btctxstore
 from crochet import setup
 
 
@@ -105,8 +106,7 @@ if __name__ == "__main__":
     node = None
     try:
         # setup node
-        # FIXME generate key
-        key = "Kyh4a6zF1TkBZW6gyzwe7XRVtJ18Y75C2bC2d9axeWZnoUdAVXYc"
+        key = btctxstore.BtcTxStore().create_key()
         node = storjnode.network.Node(key)
 
         # shitty wait for network stabilization

@@ -45,8 +45,13 @@ class TestConfig(unittest.TestCase):
     def test_validation(self):
 
         # default config must validate
-        default_cfg = storjnode.config.create()
-        storjnode.config.validate(default_cfg)
+        cfg = storjnode.config.create()
+        storjnode.config.validate(cfg)
+
+        # check bootstrap nodes
+        bootstrap_nodes = storjnode.network.node.DEFAULT_BOOTSTRAP_NODES
+        cfg["network"]["bootstrap_nodes"] = bootstrap_nodes
+        storjnode.config.validate(cfg)
 
         # TODO tests for every property and type
 
