@@ -82,6 +82,7 @@ class StorjNode(apigen.Definition):
         try:
             transport = self._node.sync_get_transport_info(add_unl=False)
         except crochet.TimeoutError:
+            _log.warning("Timeout getting transport info.")
             transport = None
         return {
             "version": {
@@ -131,6 +132,7 @@ class StorjNode(apigen.Definition):
         try:
             return self._node.put(key, value)
         except crochet.TimeoutError:
+            _log.warning("Timeout putting key/value in DHT.")
             return False
 
     @apigen.command()
@@ -139,6 +141,7 @@ class StorjNode(apigen.Definition):
         try:
             return self._node.get(key)
         except crochet.TimeoutError:
+            _log.warning("Timeout getting key/value in DHT.")
             return None
 
     ##################
