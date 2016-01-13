@@ -11,7 +11,6 @@ from storjnode.util import list_to_ordered_dict
 from storjnode.util import ordered_dict_to_list
 from btctxstore import BtcTxStore
 from storjnode.network.bandwidth.limit import BandwidthLimit
-from storjnode.config import ConfigFile
 import unittest
 import copy
 from crochet import setup

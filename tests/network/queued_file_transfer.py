@@ -7,7 +7,6 @@ from storjnode.network.file_transfer import FileTransfer
 from storjnode.network.process_transfers import process_transfers
 from btctxstore import BtcTxStore
 from storjnode.network.bandwidth.limit import BandwidthLimit
-from storjnode.config import ConfigFile
 import tempfile
 import time
 import os

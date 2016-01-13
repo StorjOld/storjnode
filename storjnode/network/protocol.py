@@ -40,6 +40,7 @@ class Protocol(KademliaProtocol):
         self.log = storjnode.log.getLogger("kademlia.protocol")
         if not storjnode.log.ENABLE_GLOBAL_LOGGER:
             self.log.setLevel(60)
+            print("SILENCED PROTOCOL")
         self.noisy = False
 
     def has_messages(self):

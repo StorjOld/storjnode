@@ -1,7 +1,5 @@
 # todo: finish this modle.
 import storjnode
-from collections import OrderedDict
-import logging
 import time
 import tempfile
 import pyp2p
@@ -14,7 +12,6 @@ from storjnode.util import address_to_node_id
 from storjnode.util import list_to_ordered_dict
 from storjnode.util import ordered_dict_to_list
 from storjnode.network.bandwidth.limit import BandwidthLimit
-from storjnode.config import ConfigFile
 from btctxstore import BtcTxStore
 import unittest
 import copy

@@ -2,7 +2,6 @@ import unittest
 import storjnode
 import time
 from storjnode.network.bandwidth.limit import BandwidthLimit
-from storjnode.config import ConfigFile
 
 _log = storjnode.log.getLogger(__name__)
 timed_out = 0
@@ -156,9 +155,8 @@ class TestLimit(unittest.TestCase):
         used = self.bandwidth.info["sec"]["upstream"]["used"]
         self.assertTrue(expected == used)
 
-    @unittest.skip("broken")
     def test_save_load_limits(self):
-        config_file = ConfigFile()
+        config_file = storjnode.config.create()
         bl = BandwidthLimit(config_file)
         bw_limit = bl.info["sec"]["upstream"]["limit"] + 1
         bl.limit(

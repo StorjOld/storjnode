@@ -186,23 +186,26 @@ class BandwidthLimit:
         assert(self.config_file is not None)
         for time_frame in self.valid_time_frames:
             for bw_type in self.valid_bw_types:
-                bwl = self.config_file["bandwidth"]
+                bwl = self.config_file["network"]["bandwidth_limits"]
                 bwl = bwl[time_frame][bw_type]
                 self.info[time_frame][bw_type]["limit"] = bwl
 
-        next_month = self.config_file["bandwidth"]
-        next_month = next_month["month"]["next"]
-        self.next_month = next_month
+        # FIXME month next broken
+        # next_month = self.config_file["network"]["bandwidth_limits"]
+        # next_month = next_month["month"]["next"]
+        # self.next_month = next_month
 
     def save(self):
         assert(self.config_file is not None)
+        limits = self.config_file["network"]["bandwidth_limits"]
         for time_frame in self.valid_time_frames:
             for bw_type in self.valid_bw_types:
                 bwl = self.info[time_frame][bw_type]["limit"]
-                self.config_file.cfg["bandwidth"][time_frame][bw_type] = bwl
+                limits[time_frame][bw_type] = bwl
 
-        self.config_file.cfg["bandwidth"]["month"]["next"] = self.next_month
-        self.config_file.save()
+        # FIXME month next broken
+        # limits["month"]["next"] = self.next_month
+        # self.config_file.save()
 
     def update(self, bw_type, increment, contract_id=None):
         """

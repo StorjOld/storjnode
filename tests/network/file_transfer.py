@@ -5,7 +5,6 @@ from storjnode.network.process_transfers import process_transfers
 from storjnode.util import address_to_node_id
 from storjnode.network.file_transfer import enable_unl_requests
 from storjnode.network.bandwidth.limit import BandwidthLimit
-from storjnode.config import ConfigFile
 import btctxstore
 import pyp2p
 import hashlib

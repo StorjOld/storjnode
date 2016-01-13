@@ -1,23 +1,16 @@
 
 import storjnode
-from collections import OrderedDict
-import logging
 import time
 import tempfile
 import pyp2p
 from twisted.internet import defer
-from storjnode.network.bandwidth.constants import ONE_MB
 from storjnode.network.bandwidth.test import BandwidthTest
 from storjnode.network.bandwidth.do_requests import *
 from storjnode.network.file_transfer import FileTransfer
 from storjnode.util import address_to_node_id
-from storjnode.util import list_to_ordered_dict
-from storjnode.util import ordered_dict_to_list
 from storjnode.network.bandwidth.limit import BandwidthLimit
-from storjnode.config import ConfigFile
 from btctxstore import BtcTxStore
 import unittest
-import copy
 from crochet import setup
 setup()
 

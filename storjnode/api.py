@@ -54,7 +54,7 @@ class StorjNode(apigen.Definition):
     def _enable_monitor_responses(self):
         storjnode.network.messages.info.enable(self._node, self._cfg)
         storjnode.network.messages.peers.enable(self._node)
-        # FIXME self._node.bandwidth_test.enable()
+        self._node.bandwidth_test.enable()
         storjnode.network.file_transfer.enable_unl_requests(self._node)
 
     def _on_message(self, node, msg):
@@ -104,10 +104,13 @@ class StorjNode(apigen.Definition):
 
         monitor = None
         monitor_cfg = self._cfg["network"]["monitor"]
-        if monitor_cfg["enable_responses"]:
+        notransfer = self._cfg["network"]["disable_data_transfer"]
+        if monitor_cfg["enable_responses"] and not notransfer:
+            _log.info("Enabling monitor responses.")
             self._enable_monitor_responses()
         try:
-            if monitor_cfg["enable_crawler"]:
+            if monitor_cfg["enable_crawler"] and not notransfer:
+                _log.info("Starting monitor crawler.")
                 monitor = storjnode.network.monitor.Monitor(
                     self._node,
                     self._cfg["storage"],
@@ -115,6 +118,7 @@ class StorjNode(apigen.Definition):
                     interval=monitor_cfg["crawler_interval"],
                     on_crawl_complete=self._on_crawl_complete
                 )
+            _log.info("farming ...")
             while True:
                 time.sleep(0.1)
         except KeyboardInterrupt:

@@ -5,11 +5,11 @@
     "bandwidth_limits": {
       "type": "object", 
       "properties": {
-        "download": { "minimum": 0, "type": "integer" }, 
-        "upload": { "minimum": 0, "type": "integer" }
+        "downstream": { "minimum": 0, "type": "integer" }, 
+        "upstream": { "minimum": 0, "type": "integer" }
       },
       "additionalProperties": false, 
-      "required": [ "upload", "download" ]
+      "required": [ "upstream", "downstream" ]
     }, 
     "storage": {
       "additionalProperties": false, 
@@ -33,11 +33,11 @@
         "bandwidth_limits": {
           "type": "object", 
           "properties": {
-            "monthly": { "$ref": "#/definitions/bandwidth_limits" }, 
-            "secondly": { "$ref": "#/definitions/bandwidth_limits" }
+            "month": { "$ref": "#/definitions/bandwidth_limits" }, 
+            "sec": { "$ref": "#/definitions/bandwidth_limits" }
           },
           "additionalProperties": false,
-          "required": [ "secondly", "monthly" ]
+          "required": [ "sec", "month" ]
         }, 
         "monitor": {
           "type": "object", 

@@ -4,15 +4,13 @@ from collections import OrderedDict
 import unittest
 import pyp2p.dht_msg
 import pyp2p.unl
-import json
 from twisted.internet import defer
 from storjnode.util import parse_node_id_from_unl
 from storjnode.network.file_transfer import FileTransfer
 from storjnode.network.file_handshake import (is_valid_syn, process_syn,
                                               process_syn_ack, process_ack,
-                                              process_rst, protocol)
+                                              process_rst)
 from storjnode.network.bandwidth.limit import BandwidthLimit
-from storjnode.config import ConfigFile
 import hashlib
 import tempfile
 import os

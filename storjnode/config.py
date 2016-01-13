@@ -82,13 +82,13 @@ def create():
             "bootstrap_nodes": [],
             "disable_data_transfer": False,
             "bandwidth_limits": {
-                "secondly": {
-                    "upload": 0,  # no limit
-                    "download": 0  # no limit
+                "sec": {
+                    "upstream": 0,  # no limit
+                    "downstream": 0  # no limit
                 },
-                "monthly": {
-                    "upload": 10737418240,  # 10G
-                    "download": 10737418240,  # 10G
+                "month": {
+                    "upstream": 10737418240,  # 10G
+                    "downstream": 10737418240,  # 10G
                 },
             },
             "monitor": {
@@ -174,20 +174,3 @@ def migrate(cfg):
         cfg = _MIGRATIONS[cfg['version']](cfg)
 
     return cfg
-
-
-class ConfigFile:
-
-    def __init__(self, path=None):
-        self.path = path or storjnode.common.CONFIG_PATH
-        self.cfg = get(self.path)
-
-    def save(self):
-        save(self.path, self.cfg)
-
-    def __getitem__(self, key):
-        return self.cfg[key]
-
-    def __setitem__(self, key, value):
-        self.cfg[key] = value
-        self.save()

@@ -1,5 +1,4 @@
 import storjnode
-from storjnode.network import DEFAULT_BOOTSTRAP_NODES
 from storjnode.network.file_transfer import FileTransfer
 from storjnode.util import address_to_node_id
 import btctxstore
@@ -18,7 +17,6 @@ from storjnode.network.process_transfers import do_upload
 from storjnode.network.process_transfers import do_download
 from storjnode.network.process_transfers import process_dht_messages
 from storjnode.network.bandwidth.limit import BandwidthLimit
-from storjnode.config import ConfigFile
 from pyp2p.sock import Sock
 from crochet import setup
 setup()
