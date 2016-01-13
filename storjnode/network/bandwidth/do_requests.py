@@ -11,6 +11,7 @@ from storjnode.util import ordered_dict_to_list
 from storjnode.util import list_to_ordered_dict
 from storjnode.network.message import sign, verify_signature
 import zlib
+from ast import literal_eval
 
 _log = storjnode.log.getLogger(__name__)
 
@@ -176,6 +177,7 @@ def handle_requests_builder(self):
         _log.debug("In handle requests")
 
         # Check message type.
+        msg = literal_eval(zlib.decompress(msg))
         msg = list_to_ordered_dict(msg)
         if msg[u"type"] != u"test_bandwidth_request":
             _log.debug("req: Invalid request")
