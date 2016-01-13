@@ -184,7 +184,8 @@ def build_completion_handler(self, req, accept_handler):
 def handle_responses_builder(self):
     def handle_responses(node, msg):
         # Check message type.
-        msg = literal_eval(zlib.decompress(msg))
+        if type(msg) in [type(b"")]:
+            msg = literal_eval(zlib.decompress(msg))
         msg = list_to_ordered_dict(msg)
         if msg[u"type"] != u"test_bandwidth_response":
             _log.debug("res: Invalid response")
@@ -266,7 +267,7 @@ def handle_responses_builder(self):
     def try_wrapper(node, msg):
         try:
             return handle_responses(node, msg)
-        except (ValueError, KeyError) as e:
+        except (ValueError, KeyError, TypeError) as e:
             _log.debug("Error in res")
             _log.debug(e)
             return
