@@ -177,7 +177,6 @@ def handle_requests_builder(self):
         # Check message type.
         msg = list_to_ordered_dict(msg)
         if msg[u"type"] != u"test_bandwidth_request":
-            _log.debug("req: Invalid request")
             return -1
 
         # Drop request if test already active.
