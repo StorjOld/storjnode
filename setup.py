@@ -32,7 +32,7 @@ SCRIPTS = [os.path.join('storjnode', 'bin', 'storjnode')]
 setup(
     app=['storjnode/bin/storjnode'],
     name='storjnode',
-    description="Low level storj protocol reference implementation.",
+    description="Storj protocol reference implementation.",
     long_description=open("README.rst").read(),
     keywords="storj, reference, protocol, DHT",
     url='http://storj.io',

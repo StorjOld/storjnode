@@ -20,7 +20,7 @@ storjnode
 .. _LicenseLink: https://raw.githubusercontent.com/Storj/storjnode
 
 
-Low level storj protocol reference implementation.
+Storj protocol reference implementation.
 
 
 Setup
@@ -77,80 +77,47 @@ Update client
     $ storjnode --help
 
 
-Python usage examples
-#####################
-
-Normal usage
-============
-
-Starting and using a node in python.
-
-.. code:: python
-
-    #!/usr/bin/env python
-    # from examples/usage.py
-    import time
-    import signal
-    import storjnode
-    from crochet import setup, TimeoutError
-
-    # start twisted via crochet and remove twisted handler
-    setup()
-    signal.signal(signal.SIGINT, signal.default_int_handler)
-
-    # start node (use bitcoin wif or hwif as node key)
-    node_key = "KzygUeD8qXaKBFdJWMk9c6AVib89keoZFBNdFBsj73kYZfAc4n1j"
-    node = storjnode.network.Node(node_key)
-
-    try:
-        print("Giving nodes some time to find peers.")
-        time.sleep(storjnode.network.WALK_TIMEOUT)
-
-        # The blocking node interface is very simple and behaves like a dict.
-        node["examplekey"] = "examplevalue"  # put key value pair into DHT
-        retrieved = node["examplekey"]  # retrieve value by key from DHT
-        print("{key} => {value}".format(key="examplekey", value=retrieved))
-
-    except TimeoutError:
-        print("Got timeout error")
-
-    except KeyboardInterrupt:
-        pass
-
-    finally:
-        print("Stopping node")
-        node.stop()
+Usage
+#####
 
 
-Multinode usage
-===============
+Farming
+=======
 
-Using more then one node in a python script.
+Start a farmer on the local machine.
 
-If your are using more then one node in a single script, you must assign them
-different ports.
+The wallet is used for node authentication and payment if no cold storage
+address is provided in the config.
 
-See examples/network/multinode.py
+If no wallet is given a temporary wallet will be generated, but only if
+at least one cold storage address is provided in the config.
+
+::
+
+    $ storjnode --wallet=BITCOIN_WIF_OR_HWIF farm
 
 
-Node messaging
-==============
+Preventing loss of funds
+------------------------
 
-Relay messages are sent to the node nearest the receiver in the routing table
-that accepts the relay message. This continues until it reaches the destination
-or the nearest node to the receiver is reached.
+You must provide either a wallet via the arguments or at least one
+cold storage address in the config! Not doing this will cause an error to
+prevent loosing funds.
 
-Because messages are always relayed only to reachable nodes in the current
-routing table, there is a fare chance nodes behind a NAT can be reached if
-it is connected to the network.
+Please back up your provided wallet and the cold storage keys to prevent
+any loss of funds.
 
-See examples/network/relay_message.py
 
-Network mapping
-===============
+Start json-rpc service
+######################
 
-You can crawl the network to create a map of the network. Generating a graph
-of the network is also possable (though not reccomended for networks with
-many nodes).
+The storj protocol can be made available to other applications via a
+[standard json-rpc service](http://www.jsonrpc.org/specification).
 
-See examples/network/map_network.py
+For more information see https://github.com/F483/apigen
+
+::
+
+    $ storjnode --wallet=BITCOIN_WIF_OR_HWIF startserver --port=8080
+
+

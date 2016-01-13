@@ -12,7 +12,7 @@ else
 endif
 export PYCOIN_NATIVE=openssl
 export STORJNODE_QUERY_TIMEOUT=0.3
-#export STORJNODE_ENABLE_GLOBAL_LOGGER=1
+export STORJNODE_ENABLE_GLOBAL_LOGGER=1
 
 
 help:
@@ -69,8 +69,8 @@ install: setup
 
 test_script: install
 	#env/bin/storjnode --debug farm
-	#$(PY) examples/network/map_network.py
-	$(PY) -m unittest --verbose tests.network.node.TestNode.test_network_monitor_service
+	$(PY) examples/network/map_network.py --debug
+	#$(PY) -m unittest --verbose tests.network.node.TestNode.test_network_monitor_service
 
 
 shell: install
