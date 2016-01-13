@@ -4,9 +4,11 @@ If we're getting responses it means we attempted to
 initiate the request.
 """
 
+from ast import literal_eval
 import storjnode
 import time
 import copy
+import zlib
 from storjnode.network.bandwidth.constants import ONE_MB
 import storjnode.storage.manager
 from storjnode.network.message import verify_signature
@@ -182,6 +184,7 @@ def build_completion_handler(self, req, accept_handler):
 def handle_responses_builder(self):
     def handle_responses(node, msg):
         # Check message type.
+        msg = literal_eval(zlib.decompress(msg))
         msg = list_to_ordered_dict(msg)
         if msg[u"type"] != u"test_bandwidth_response":
             _log.debug("res: Invalid response")

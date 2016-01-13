@@ -7,6 +7,7 @@ from decimal import Decimal
 from collections import OrderedDict
 import logging
 import time
+import zlib
 import tempfile
 import copy
 import pyp2p
@@ -303,6 +304,7 @@ class BandwidthTest():
         # Send request.
         node_id = parse_node_id_from_unl(node_unl)
         req = ordered_dict_to_list(req)
+        req = zlib.compress(str(req))
         self.api.repeat_relay_message(node_id, req)
 
         # Set start time.
