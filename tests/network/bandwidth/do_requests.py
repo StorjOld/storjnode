@@ -1,6 +1,8 @@
 
 import storjnode
 import tempfile
+import zlib
+from ast import literal_eval
 import pyp2p
 from storjnode.network.bandwidth.constants import ONE_MB
 from storjnode.network.bandwidth.test import BandwidthTest
@@ -88,6 +90,7 @@ class TestSubBandwidthRequests(unittest.TestCase):
         def alice_hook_relay_message(node_id, req):
             _log.debug(str(req))
             cls.req = req
+            cls.req = literal_eval(zlib.decompress(req))
 
         def bob_hook_relay_message(node_id, req):
             _log.debug(str(req))
@@ -143,10 +146,10 @@ class TestSubBandwidthRequests(unittest.TestCase):
 
         # Success.
         req = copy.deepcopy(self.req)
-        self.assertTrue(type(handle_requests(
+        self.assertTrue(isinstance(handle_requests(
             self.alice_dht,
             req
-        )) == list)
+        ), type(b"")))
 
         """
         ----------------------
