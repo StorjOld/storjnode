@@ -115,7 +115,8 @@ class Server(KademliaServer):
         self.ksize = ksize
         self.alpha = alpha
         self.log = storjnode.log.getLogger("kademlia.network")
-        self.log.setLevel(60)
+        if not storjnode.log.ENABLE_GLOBAL_LOGGER:
+            self.log.setLevel(60)
 
         self.storage = storage or ForgetfulStorage()
         self.node = KademliaNode(self.get_id())

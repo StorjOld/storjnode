@@ -39,7 +39,22 @@
           "additionalProperties": false,
           "required": [ "secondly", "monthly" ]
         }, 
-        "enable_monitor_responses": { "type": "boolean" }, 
+        "monitor": {
+          "type": "object", 
+          "properties": {
+            "enable_crawler": { "type": "boolean" },
+            "enable_responses": { "type": "boolean" },
+            "crawler_limit": { "type": "integer", "minimum": 0 },
+            "crawler_interval": { "type": "integer", "minimum": 600 }
+          },
+          "additionalProperties": false,
+          "required": [
+            "enable_crawler",
+            "enable_responses",
+            "crawler_limit",
+            "crawler_interval"
+          ]
+        },
         "port": {
           "oneOf": [
             { "type": "integer", "minimum": 1024, "maximum": 65535 }, 
@@ -63,7 +78,7 @@
         "bandwidth_limits", 
         "port", 
         "bootstrap_nodes",
-        "enable_monitor_responses", 
+        "monitor", 
         "disable_data_transfer"
       ]
     }

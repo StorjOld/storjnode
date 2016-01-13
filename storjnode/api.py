@@ -20,24 +20,23 @@ class StorjNode(apigen.Definition):
         assert(btctxstore.validate.mainnet_wallet(wallet) or
                btctxstore.validate.mainnet_key(wallet))
 
-        # get config values
-        self._cfg = storjnode.config.get(path=config)
+        # setup config
+        if isinstance(config, dict):
+            storjnode.config.validate(config)
+            self._cfg = config
+        else:
+            self._cfg = storjnode.config.get(path=config)
         port = self._cfg["network"]["port"]
         notransfer = self._cfg["network"]["disable_data_transfer"]
-        enable_monitor = self._cfg["network"]["enable_monitor_responses"]
 
         # start node
         self._node = storjnode.network.Node(
             wallet, disable_data_transfer=notransfer,
-            bandwidth=BandwidthLimit(self._cfg) if not notransfer else None,
+            bandwidth=None if notransfer else BandwidthLimit(self._cfg),
             port=port if port != "random" else None,
             store_config=self._cfg["storage"]
         )
         self._setup_message_list()
-
-        # montoring
-        if enable_monitor:
-            self._enable_monitor_responses()
 
         # shitty wait for network stabilization
         _log.info("Shitty wait for network stabilization.")
@@ -55,7 +54,7 @@ class StorjNode(apigen.Definition):
     def _enable_monitor_responses(self):
         storjnode.network.messages.info.enable(self._node, self._cfg)
         storjnode.network.messages.peers.enable(self._node)
-        self._node.bandwidth_test.enable()
+        # FIXME self._node.bandwidth_test.enable()
         storjnode.network.file_transfer.enable_unl_requests(self._node)
 
     def _on_message(self, node, msg):
@@ -96,12 +95,33 @@ class StorjNode(apigen.Definition):
             },
         }
 
+    def _on_crawl_complete(self, key, shard):
+        _log.info("Crawl complete, results saved at {0}".format(key))
+
     @apigen.command()
     def farm(self):
         """TODO doc string"""
-        while True:
-            print("shitty farm")
-            time.sleep(1)
+
+        monitor = None
+        monitor_cfg = self._cfg["network"]["monitor"]
+        if monitor_cfg["enable_responses"]:
+            self._enable_monitor_responses()
+        try:
+            if monitor_cfg["enable_crawler"]:
+                monitor = storjnode.network.monitor.Monitor(
+                    self._node,
+                    self._cfg["storage"],
+                    limit=monitor_cfg["crawler_limit"],
+                    interval=monitor_cfg["crawler_interval"],
+                    on_crawl_complete=self._on_crawl_complete
+                )
+            while True:
+                time.sleep(0.1)
+        except KeyboardInterrupt:
+            pass
+        finally:
+            if monitor is not None:
+                monitor.stop()
 
     ##########
     # CONFIG #

@@ -80,7 +80,6 @@ def create():
         "network": {
             "port": "random",
             "bootstrap_nodes": [],
-            "enable_monitor_responses": True,
             "disable_data_transfer": False,
             "bandwidth_limits": {
                 "secondly": {
@@ -92,6 +91,12 @@ def create():
                     "download": 10737418240,  # 10G
                 },
             },
+            "monitor": {
+                "enable_crawler": True,
+                "enable_responses": True,
+                "crawler_limit": 20,
+                "crawler_interval": 3600,
+            }
         },
         "storage": {
             default_storage_path: {

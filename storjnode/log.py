@@ -17,7 +17,8 @@ _observer.start()  # pragma: no cover
 
 
 # silence global logger
-if os.environ.get("STORJNODE_ENABLE_GLOBAL_LOGGER"):
+ENABLE_GLOBAL_LOGGER = os.environ.get("STORJNODE_ENABLE_GLOBAL_LOGGER")
+if ENABLE_GLOBAL_LOGGER:
     _logging.basicConfig(format=FORMAT)
 else:
     _logging.basicConfig(format=FORMAT, level=LEVEL_QUIET)
