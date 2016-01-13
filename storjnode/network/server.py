@@ -117,7 +117,6 @@ class Server(KademliaServer):
         self.log = storjnode.log.getLogger("kademlia.network")
         if not storjnode.log.ENABLE_GLOBAL_LOGGER:
             self.log.setLevel(60)
-            print("SILENCED SERVER")
 
         self.storage = storage or ForgetfulStorage()
         self.node = KademliaNode(self.get_id())

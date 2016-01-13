@@ -2,7 +2,6 @@ import storjnode
 import pyp2p.unl
 import pyp2p.net
 import pyp2p.dht_msg
-import storjnode
 import zlib
 from collections import OrderedDict
 from btctxstore import BtcTxStore
@@ -56,7 +55,6 @@ def process_unl_requests(node, msg):
         node.repeat_relay_message(their_node_id, response)
 
     except (ValueError, KeyError):
-        _log.debug("val err or key err")
         pass  # not a unl request
 
 

@@ -205,8 +205,8 @@ class Crawler(object):  # will not scale but good for now
             del self.pipeline_scanned[nodeid]
 
             # XXX skip bandwith test
-            self.pipeline_processed[nodeid] = data
-            return
+            # self.pipeline_processed[nodeid] = data
+            # return
 
             _log.info("Starting bandwith test for: {0}".format(
                 node_id_to_address(nodeid))
