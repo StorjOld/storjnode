@@ -384,7 +384,7 @@ class TestNode(unittest.TestCase):
     ########################
 
     def test_network_monitor_service(self):
-        limit = KSIZE
+        limit = KSIZE - 1  # exclude self if ksize < 20
         interval = WALK_TIMEOUT * 100
 
         crawled_event = threading.Event()
@@ -409,8 +409,8 @@ class TestNode(unittest.TestCase):
         crawled_event.wait(timeout=(interval + 5))
         monitor.stop()
 
-        # check that `limit` nodes were scanned
-        self.assertTrue(len(results) > 0)
+        # check that limit nodes were scanned
+        self.assertTrue(len(results), limit)
         shard = results["shard"]
         shard.seek(0)
         crawl_data = json.loads(shard.read())

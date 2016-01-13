@@ -26,26 +26,26 @@ class StorjNode(apigen.Definition):
     def __init__(self, wallet=None, quiet=False, debug=False, verbose=False,
                  config=storjnode.common.CONFIG_PATH):
 
-        wallet_provided = wallet is not None
-        wallet = wallet or btctxstore.BtcTxStore().create_wallet()
-        assert(btctxstore.validate.mainnet_wallet(wallet) or
-               btctxstore.validate.mainnet_key(wallet))
-
         # setup config
         if isinstance(config, dict):
             storjnode.config.validate(config)
             self._cfg = config
         else:
             self._cfg = storjnode.config.get(path=config)
-        port = self._cfg["network"]["port"]
-        notransfer = self._cfg["network"]["disable_data_transfer"]
 
         # make sure a wallet or cold storage address was provided
-        if not wallet_provided and len(self._cfg["cold_storage"]) == 0:
+        if wallet is None and len(self._cfg["cold_storage"]) == 0:
             print(_NO_WALLET_AND_COLD_STORAGE)
             exit(1)
 
+        # create wallet if needed and validate
+        wallet = wallet or btctxstore.BtcTxStore().create_wallet()
+        assert(btctxstore.validate.mainnet_wallet(wallet) or
+               btctxstore.validate.mainnet_key(wallet))
+
         # start node
+        port = self._cfg["network"]["port"]
+        notransfer = self._cfg["network"]["disable_data_transfer"]
         self._node = storjnode.network.Node(
             wallet, disable_data_transfer=notransfer,
             bandwidth=None if notransfer else BandwidthLimit(self._cfg),
