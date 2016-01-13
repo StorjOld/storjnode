@@ -72,7 +72,13 @@ class StorjNode(apigen.Definition):
     @apigen.command()
     def info(self):
         """Get node information."""
-        neighbours = self._node.get_neighbours()
+
+        def reformat_kademlia_node(knode):
+            return {
+                "address": storjnode.util.node_id_to_address(knode.id),
+                "ip": knode.ip, "port": knode.port
+            }
+        peers = list(map(reformat_kademlia_node, self._node.get_neighbours()))
         try:
             transport = self._node.sync_get_transport_info(add_unl=False)
         except crochet.TimeoutError:
@@ -85,7 +91,7 @@ class StorjNode(apigen.Definition):
             "network": {
                 "address": self._node.get_address(),
                 "transport": transport,
-                "neighbours": neighbours,
+                "peers": peers,
             },
         }
 
