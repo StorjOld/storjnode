@@ -120,6 +120,9 @@ class Crawler(object):  # will not scale but good for now
             return  # info not yet received
 
         # move to scanned
+        print("Moving {0} to scanned".format(
+            storjnode.util.node_id_to_address(nodeid))
+        )
         del self.pipeline_scanning[nodeid]
         self.pipeline_scanned[nodeid] = data
 

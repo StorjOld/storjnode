@@ -11,8 +11,8 @@ else
   WHEEL_INSTALL_ARGS := --use-wheel --no-index --find-links=$(WHEEL_DIR)
 endif
 export PYCOIN_NATIVE=openssl
-export STORJNODE_QUERY_TIMEOUT=0.3
-export STORJNODE_ENABLE_GLOBAL_LOGGER=1
+export STORJNODE_QUERY_TIMEOUT=0.5
+#export STORJNODE_ENABLE_GLOBAL_LOGGER=1
 
 
 help:
@@ -68,9 +68,10 @@ install: setup
 
 
 test_script: install
-	#env/bin/storjnode --debug farm
+	#env/bin/storjnode --help
+	env/bin/storjnode --wallet=L3NrSTxMCwAsLXnBjESvU5LnCKwcmMXKutKzNnVpPevXeSMfB1zx --debug startserver
 	#$(PY) examples/network/map_network.py --debug
-	$(PY) -m unittest --verbose tests.network.node.TestNode.test_network_monitor_service
+	#$(PY) -m unittest --quiet tests.network.node.TestNode.test_network_monitor_service
 
 
 shell: install

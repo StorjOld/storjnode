@@ -84,6 +84,40 @@ class StorjNode(apigen.Definition):
     # END USER CALLS #
     ##################
 
+    @apigen.command(rpc=False)
+    def startserver(self, hostname="localhost", port=8080, daemon=False):
+        """Start json-rpc service and farm."""
+        self.monitor = None
+        try:
+            monitor_cfg = self._cfg["network"]["monitor"]
+            notransfer = self._cfg["network"]["disable_data_transfer"]
+
+            # enable monitor responses
+            if monitor_cfg["enable_responses"] and not notransfer:
+                _log.info("Enabling monitor responses.")
+                self._enable_monitor_responses()
+
+            # start monitor crawler
+            if monitor_cfg["enable_crawler"] and not notransfer:
+                _log.info("Starting monitor crawler.")
+                self.monitor = storjnode.network.monitor.Monitor(
+                    self._node,
+                    self._cfg["storage"],
+                    limit=monitor_cfg["crawler_limit"],
+                    interval=monitor_cfg["crawler_interval"],
+                    on_crawl_complete=self._on_crawl_complete
+                )
+
+            # start rpc service
+            super(StorjNode, self).startserver(
+                hostname=hostname, port=port, daemon=daemon
+            )
+        except KeyboardInterrupt:
+            pass
+        finally:
+            if self.monitor is not None:
+                self.monitor.stop()
+
     @apigen.command()
     def info(self):
         """Get node information."""
@@ -113,35 +147,6 @@ class StorjNode(apigen.Definition):
 
     def _on_crawl_complete(self, key, shard):
         _log.info("Crawl complete, results saved at {0}".format(key))
-
-    @apigen.command()
-    def farm(self):
-        """TODO doc string"""
-
-        monitor = None
-        monitor_cfg = self._cfg["network"]["monitor"]
-        notransfer = self._cfg["network"]["disable_data_transfer"]
-        if monitor_cfg["enable_responses"] and not notransfer:
-            _log.info("Enabling monitor responses.")
-            self._enable_monitor_responses()
-        try:
-            if monitor_cfg["enable_crawler"] and not notransfer:
-                _log.info("Starting monitor crawler.")
-                monitor = storjnode.network.monitor.Monitor(
-                    self._node,
-                    self._cfg["storage"],
-                    limit=monitor_cfg["crawler_limit"],
-                    interval=monitor_cfg["crawler_interval"],
-                    on_crawl_complete=self._on_crawl_complete
-                )
-            _log.info("farming ...")
-            while True:
-                time.sleep(0.1)
-        except KeyboardInterrupt:
-            pass
-        finally:
-            if monitor is not None:
-                monitor.stop()
 
     ##########
     # CONFIG #

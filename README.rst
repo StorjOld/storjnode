@@ -94,7 +94,7 @@ at least one cold storage address is provided in the config.
 
 ::
 
-    $ storjnode --wallet=BITCOIN_WIF_OR_HWIF farm
+    $ storjnode --wallet=BITCOIN_WIF_OR_HWIF startserver
 
 
 Preventing loss of funds
@@ -108,16 +108,32 @@ Please back up your provided wallet and the cold storage keys to prevent
 any loss of funds.
 
 
-Start json-rpc service
-######################
+Using the json-rpc service
+##########################
 
-The storj protocol can be made available to other applications via a
+The storj protocol interface is be made available to other applications via a
 [standard json-rpc service](http://www.jsonrpc.org/specification).
 
-For more information see https://github.com/F483/apigen
+The rpc interface matches the cli interface exactly.
 
 ::
 
-    $ storjnode --wallet=BITCOIN_WIF_OR_HWIF startserver --port=8080
+    $ storjnode startserver --port=8080 --hostname=localhost
 
+For more information see https://github.com/F483/apigen
+
+
+Accessing the json-rpc service from python
+==========================================
+
+::
+
+    pip install python-jsonrpc
+
+
+.. code:: python
+
+    import pyjsonrpc
+    rpc = pyjsonrpc.HttpClient(url="http://localhost:8080")
+    rpc.version()
 
