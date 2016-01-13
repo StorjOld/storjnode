@@ -58,7 +58,7 @@ class TestNode(unittest.TestCase):
                 cls.btctxstore.create_wallet(), port=(PORT + i), ksize=KSIZE,
                 bootstrap_nodes=bootstrap_nodes,
                 refresh_neighbours_interval=0.0,
-                store_config={STORAGE_DIR: None},
+                store_config={"{0}/peer_{1}".format(STORAGE_DIR, i): None},
                 nat_type="preserving",
                 node_type="passive",
                 disable_data_transfer=False
@@ -81,7 +81,7 @@ class TestNode(unittest.TestCase):
             cls.btctxstore.create_wallet(),
             bootstrap_nodes=unl_peer_bootstrap_nodes,
             refresh_neighbours_interval=0.0,
-            store_config={STORAGE_DIR: None},
+            store_config={"{0}/unl_peer".format(STORAGE_DIR): None},
             nat_type="preserving",
             node_type="passive",
             disable_data_transfer=False
@@ -384,7 +384,7 @@ class TestNode(unittest.TestCase):
     ########################
 
     def test_network_monitor_service(self):
-        limit = KSIZE
+        limit = KSIZE - 1  # exclude self if ksize < 20
         interval = WALK_TIMEOUT * 100
 
         crawled_event = threading.Event()
@@ -395,19 +395,22 @@ class TestNode(unittest.TestCase):
             results.update(dict(key=key, shard=shard))
             crawled_event.set()
         random_peer = random.choice(self.swarm)
+        store_config = {
+            STORAGE_DIR: {
+                "limit": 10737418240,
+                "use_folder_tree": False,
+            },
+        }
         monitor = storjnode.network.monitor.Monitor(
-            random_peer,
-            {},  # FIXME use tmp dir
-            limit=limit,
-            interval=interval,
-            on_crawl_complete=handler
+            random_peer, store_config, limit=limit,
+            interval=interval, on_crawl_complete=handler
         )
 
         crawled_event.wait(timeout=(interval + 5))
         monitor.stop()
 
-        # check that `limit` nodes were scanned
-        self.assertTrue(len(results) > 0)
+        # check that limit nodes were scanned
+        self.assertTrue(len(results), limit)
         shard = results["shard"]
         shard.seek(0)
         crawl_data = json.loads(shard.read())

@@ -181,7 +181,6 @@ def handle_requests_builder(self):
             msg = literal_eval(zlib.decompress(msg))
         msg = list_to_ordered_dict(msg)
         if msg[u"type"] != u"test_bandwidth_request":
-            _log.debug("req: Invalid request")
             return -1
 
         # Drop request if test already active.
