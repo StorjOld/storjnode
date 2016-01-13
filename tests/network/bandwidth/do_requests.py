@@ -146,10 +146,10 @@ class TestSubBandwidthRequests(unittest.TestCase):
 
         # Success.
         req = copy.deepcopy(self.req)
-        self.assertTrue(type(handle_requests(
+        self.assertTrue(isinstance(handle_requests(
             self.alice_dht,
             req
-        )) == type(b""))
+        ), type(b"")))
 
         """
         ----------------------
