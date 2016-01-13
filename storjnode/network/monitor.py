@@ -16,7 +16,7 @@ from storjnode.network.messages.info import request as request_info
 _log = storjnode.log.getLogger(__name__)
 
 
-# TODO add unl to data
+# FIXME add unl to data
 DEFAULT_DATA = {
     "peers": None,      # [nodeid, ...]
     "storage": None,    # {"total": int, "used": int, "free": int}
@@ -204,10 +204,6 @@ class Crawler(object):  # will not scale but good for now
             data = self.pipeline_scanned[nodeid]
             del self.pipeline_scanned[nodeid]
 
-            # XXX skip bandwith test
-            # self.pipeline_processed[nodeid] = data
-            # return
-
             _log.info("Starting bandwith test for: {0}".format(
                 node_id_to_address(nodeid))
             )
@@ -249,9 +245,12 @@ class Crawler(object):  # will not scale but good for now
         self.node.add_message_handler(self._handle_info_message)
         self.node.add_message_handler(self._handle_peers_message)
 
-        # start crawl at self
-        nodeid = self.node.get_id()
-        self.pipeline_scanning[nodeid] = copy.deepcopy(DEFAULT_DATA)
+        # skip self
+        self.pipeline_processed[self.node.get_id()] = None
+
+        # add initial peers
+        for peer in self.node.get_neighbours():
+            self.pipeline_scanning[peer.id] = copy.deepcopy(DEFAULT_DATA)
 
         # process pipeline until done
         self._process_pipeline()
@@ -259,6 +258,9 @@ class Crawler(object):  # will not scale but good for now
         # remove info and peers message handlers
         self.node.remove_message_handler(self._handle_info_message)
         self.node.remove_message_handler(self._handle_peers_message)
+
+        # remove self from results
+        del self.pipeline_processed[self.node.get_id()]
 
         return self.pipeline_processed
 

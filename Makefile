@@ -69,8 +69,8 @@ install: setup
 
 test_script: install
 	#env/bin/storjnode --debug farm
-	$(PY) examples/network/map_network.py --debug
-	#$(PY) -m unittest --verbose tests.network.node.TestNode.test_network_monitor_service
+	#$(PY) examples/network/map_network.py --debug
+	$(PY) -m unittest --verbose tests.network.node.TestNode.test_network_monitor_service
 
 
 shell: install
