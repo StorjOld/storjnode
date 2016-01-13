@@ -43,12 +43,12 @@ class Crawler(object):  # will not scale but good for now
         # sent info and peer requests but not yet received a response
         self.pipeline_scanning = {}  # {node_id: data}
         # |
-        # | received info and peer responses and ready for bandwith test
-        # V user ordered dict to have a fifo for bandwith test
+        # | received info and peer responses and ready for bandwidth test
+        # V user ordered dict to have a fifo for bandwidth test
         self.pipeline_scanned = OrderedDict()  # {node_id: data}
         # |
-        # V only test bandwith of one node at a time to ensure best results
-        self.pipeline_bandwith_test = None  # (node_id, data)
+        # V only test bandwidth of one node at a time to ensure best results
+        self.pipeline_bandwidth_test = None  # (node_id, data)
         # |
         # V peers processed and ready to save
         self.pipeline_processed = {}  # {node_id: data}
@@ -82,9 +82,11 @@ class Crawler(object):  # will not scale but good for now
                 scanning = peer in self.pipeline_scanning
                 scanned = peer in self.pipeline_scanned
                 processed = peer in self.pipeline_processed
-                testing_bandwith = (self.pipeline_bandwith_test is not None and
-                                    peer == self.pipeline_bandwith_test[0])
-                if not (scanning or scanned or processed or testing_bandwith):
+                testing_bandwidth = (
+                    self.pipeline_bandwidth_test is not None and
+                    peer == self.pipeline_bandwidth_test[0]
+                )
+                if not (scanning or scanned or processed or testing_bandwidth):
                     self.pipeline_scanning[peer] = copy.deepcopy(DEFAULT_DATA)
 
             self._check_scan_complete(message.sender, data)
@@ -163,20 +165,20 @@ class Crawler(object):  # will not scale but good for now
         data["request"]["last"] = now
         data["request"]["tries"] = data["request"]["tries"] + 1
 
-    def _handle_bandwith_test_error(self, results):
+    def _handle_bandwidth_test_error(self, results):
         with self.pipeline_mutex:
 
             # move to the back to scanned fifo and try again later
-            nodeid, data = self.pipeline_bandwith_test
+            nodeid, data = self.pipeline_bandwidth_test
             self.pipeline_scanned[nodeid] = data
 
-            # free up bandwith test for next peer
-            self.pipeline_bandwith_test = None
+            # free up bandwidth test for next peer
+            self.pipeline_bandwidth_test = None
 
-    def _handle_bandwith_test_success(self, results):
+    def _handle_bandwidth_test_success(self, results):
         with self.pipeline_mutex:
             assert(results[0])
-            nodeid, data = self.pipeline_bandwith_test
+            nodeid, data = self.pipeline_bandwidth_test
 
             # save test results
             data["bandwidth"] = {
@@ -194,28 +196,28 @@ class Crawler(object):  # will not scale but good for now
                 len(self.pipeline_processed),
             ))
 
-            # free up bandwith test for next peer
-            self.pipeline_bandwith_test = None
+            # free up bandwidth test for next peer
+            self.pipeline_bandwidth_test = None
 
     def _process_bandwidth_test(self):
         # expects caller to have pipeline mutex
-        not_testing_bandwith = self.pipeline_bandwith_test is None
-        if (not_testing_bandwith and len(self.pipeline_scanned) > 0):
+        not_testing_bandwidth = self.pipeline_bandwidth_test is None
+        if (not_testing_bandwidth and len(self.pipeline_scanned) > 0):
 
             # pop first entry
             nodeid = self.pipeline_scanned.keys()[0]
             data = self.pipeline_scanned[nodeid]
             del self.pipeline_scanned[nodeid]
 
-            _log.info("Starting bandwith test for: {0}".format(
+            _log.info("Starting bandwidth test for: {0}".format(
                 node_id_to_address(nodeid))
             )
 
-            # start bandwith test (timeout after 5min)
-            self.pipeline_bandwith_test = (nodeid, data)
+            # start bandwidth test (timeout after 5min)
+            self.pipeline_bandwidth_test = (nodeid, data)
             deferred = self.node.test_bandwidth(nodeid)
-            deferred.addCallback(self._handle_bandwith_test_success)
-            deferred.addErrback(self._handle_bandwith_test_error)
+            deferred.addCallback(self._handle_bandwidth_test_success)
+            deferred.addErrback(self._handle_bandwidth_test_error)
 
     def _process_pipeline(self):
         while not self.stop_thread and time.time() < self.timeout:
@@ -226,7 +228,7 @@ class Crawler(object):  # will not scale but good for now
                 # exit condition pipeline empty
                 if (len(self.pipeline_scanning) == 0 and
                         len(self.pipeline_scanned) == 0 and
-                        self.pipeline_bandwith_test is None):
+                        self.pipeline_bandwidth_test is None):
                     return
 
                 # exit condition enough peers processed

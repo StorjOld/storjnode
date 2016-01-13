@@ -69,9 +69,9 @@ install: setup
 
 test_script: install
 	#env/bin/storjnode --help
-	env/bin/storjnode --wallet=L3NrSTxMCwAsLXnBjESvU5LnCKwcmMXKutKzNnVpPevXeSMfB1zx --debug startserver
+	#env/bin/storjnode --wallet=L3NrSTxMCwAsLXnBjESvU5LnCKwcmMXKutKzNnVpPevXeSMfB1zx --debug startserver
 	#$(PY) examples/network/map_network.py --debug
-	#$(PY) -m unittest --quiet tests.network.node.TestNode.test_network_monitor_service
+	$(PY) -m unittest --quiet tests.network.node.TestNode.test_network_monitor_service
 
 
 shell: install
