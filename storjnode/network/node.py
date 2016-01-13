@@ -18,6 +18,7 @@ from pyp2p.unl import UNL
 from storjnode.network.file_transfer import FileTransfer
 from storjnode.network.process_transfers import process_transfers
 from storjnode.network.bandwidth.test import BandwidthTest
+from storjnode.network.bandwidth.limit import BandwidthLimit
 from pyp2p.net import Net
 
 
@@ -71,7 +72,7 @@ class Node(object):
                  passive_bind=None,  # FIXME use utils.get_inet_facing_ip ?
                  node_type="unknown",  # FIMME what is this ?
                  nat_type="unknown",  # FIXME what is this ?
-                 bandwidth=None
+                 bandwidth=BandwidthLimit()
                  ):
         """Create a blocking storjnode instance.
 
