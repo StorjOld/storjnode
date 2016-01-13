@@ -17,6 +17,9 @@ Windows is a huge pain to get working properly.
 * Install wheel
 	- python -m "pip" install wheel
 * Install the netifaces EXE (source code version will give an error.) If you have 64 bit python build from source after vcvars bat has been run (see bellow for VC section)
+* Install numpy
+    * Download http://www.lfd.uci.edu/~gohlke/pythonlibs/ for your platform + python version
+    * Use python -m "pip" install wheel_file_name to install it
 * Install pycharm for Windows
 * Install Git - select unix tools because they are awesome.
 * Open pycharm and make new projects for these Git repos: storj/pyp2p/develop and storj/storjnode/develop
