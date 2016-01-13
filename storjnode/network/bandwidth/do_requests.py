@@ -239,7 +239,7 @@ def handle_requests_builder(self):
     def try_wrapper(node, msg):
         try:
             return handle_requests(node, msg)
-        except (ValueError, KeyError, TypeError) as e:
+        except (ValueError, KeyError, TypeError, zlib.error) as e:
             _log.debug(e)
             _log.debug("Error in req")
 

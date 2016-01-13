@@ -267,7 +267,7 @@ def handle_responses_builder(self):
     def try_wrapper(node, msg):
         try:
             return handle_responses(node, msg)
-        except (ValueError, KeyError, TypeError) as e:
+        except (ValueError, KeyError, TypeError, zlib.error) as e:
             _log.debug("Error in res")
             _log.debug(e)
             return
