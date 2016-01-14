@@ -209,6 +209,10 @@ class Crawler(object):  # will not scale but good for now
             data = self.pipeline_scanned[nodeid]
             del self.pipeline_scanned[nodeid]
 
+            # XXX skip bandwith test
+            self.pipeline_processed[nodeid] = data
+            return
+
             _log.info("Starting bandwidth test for: {0}".format(
                 node_id_to_address(nodeid))
             )
@@ -326,7 +330,7 @@ class Monitor(object):
         self.on_crawl_complete = on_crawl_complete
         self.store_config = store_config
         self.node = node
-        self.limit = limit
+        self.limit = limit + 1  # + 1 because of initial node
         self.interval = interval
         self.mutex = RLock()
         self.crawler = None

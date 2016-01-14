@@ -101,7 +101,7 @@ Preventing loss of funds
 ------------------------
 
 You must provide either a wallet via the arguments or at least one
-cold storage address in the config! Not doing this will cause an error to
+cold storage address in the config! Not doing this will cause an error, to
 prevent loosing funds.
 
 Please back up your provided wallet and the cold storage keys to prevent
@@ -126,14 +126,37 @@ For more information see https://github.com/F483/apigen
 Accessing the json-rpc service from python
 ==========================================
 
-::
-
-    pip install python-jsonrpc
-
-
 .. code:: python
 
+    # pip install python-jsonrpc
     import pyjsonrpc
-    rpc = pyjsonrpc.HttpClient(url="http://localhost:8080")
-    rpc.version()
+    client = pyjsonrpc.HttpClient(url="http://localhost:8080")
+    client.version()
 
+
+Accessing the json-rpc service from node.js
+===========================================
+
+.. code:: javascript
+
+    // npm install node-json-rpc
+    var rpc = require('node-json-rpc');
+    
+    var client = new rpc.Client({port: 8080, host: '127.0.0.1', path: '/'});
+    
+    client.call({
+        "jsonrpc": "2.0",
+        "method": "version",
+        "params": { },
+        "id": 0
+      },
+      function(err, res) {
+        if (err) {
+          console.log("Error add");
+          console.log(err);
+        } else {
+          console.log("Success add");
+          console.log(res); // {jsonrpc: '2.0', id: 0, result: "versionstr"}
+        }
+      }
+    );
