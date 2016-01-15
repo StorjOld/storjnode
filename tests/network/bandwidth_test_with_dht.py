@@ -40,15 +40,30 @@ print("Storage dir: " + str(STORAGE_DIR))
 LAN_IP = storjnode.util.get_inet_facing_ip()
 swarm = []
 
+
+def _test_config(storage_path):
+    config = storjnode.config.create()
+    fs_format = storjnode.util.get_fs_type(storage_path)
+    config["storage"] = {
+        storage_path: {
+            "limit": storjnode.storage.manager.DEFAULT_STORE_LIMIT,
+            "use_folder_tree": fs_format == "vfat",
+        }
+    }
+    storjnode.config.validate(config)
+    return config
+
 # isolate swarm
 btctxstore = btctxstore.BtcTxStore(testnet=False)
 for i in range(0, 2):
     bootstrap_nodes = [(LAN_IP, PORT + x) for x in range(i)][-20:]
+    storage_path = "{0}/peer_{1}".format(STORAGE_DIR, i)
+    config = _test_config(storage_path)
     node = storjnode.network.Node(
         btctxstore.create_wallet(), port=(PORT + i), ksize=KSIZE,
         bootstrap_nodes=bootstrap_nodes,
         refresh_neighbours_interval=0.0,
-        store_config={"{0}/peer_{1}".format(STORAGE_DIR, i): None},
+        config=config,
         nat_type="preserving",
         node_type="passive",
         disable_data_transfer=False
@@ -59,7 +74,7 @@ for i in range(0, 2):
     print()
 
     assert(node._data_transfer is not None)
-    node.repeat_relay.thread_running = False
+    #node.repeat_relay.thread_running = False
     storjnode.network.messages.info.enable(node, {})
     storjnode.network.messages.peers.enable(node)
     enable_unl_requests(node)

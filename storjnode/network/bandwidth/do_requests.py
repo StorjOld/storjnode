@@ -91,6 +91,8 @@ def build_completion_handler(self, msg, accept_handler):
 
             # Fire error.
             def errback(ret):
+                _log.debug("do requests errback 1")
+                _log.debug(str(ret))
                 if self.active_test is not None:
                     self.active_test.errback(ret)
 
@@ -254,8 +256,8 @@ def handle_requests_builder(self):
         try:
             _log.debug("Waiting for handle requests mutex")
             with self.mutex:
+                _log.debug("Got handle requests mutex")
                 return handle_requests(node, msg)
-            _log.debug("Got handle requests mutex")
         except (ValueError, KeyError, TypeError, zlib.error) as e:
             _log.debug(e)
             _log.debug("Error in req")

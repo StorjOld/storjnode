@@ -133,6 +133,9 @@ def do_upload(client, con, contract, con_info, contract_id):
         contract_id,
         chunk_size
     )
+    _log.debug("Bandwidth allocation for upload = " + str(allocation))
+    if not allocation:
+        return 0
 
     # Get next chunk from file.
     position = con_info["file_size"] - con_info["remaining"]
@@ -195,6 +198,9 @@ def do_download(client, con, contract, con_info, contract_id):
         contract_id,
         chunk_size
     )
+    _log.debug("Bandwidth allocation for download " + str(allocation))
+    if not allocation:
+        return -6
 
     # Download.
     data = con.recv(
