@@ -1,4 +1,6 @@
 import os
+import btctxstore
+import decimal
 import psutil
 import socket
 import pyp2p
@@ -276,3 +278,52 @@ def get_unused_port(port):
             raise e
         s.close()
         return port
+
+
+def validate_positive_integer(i):
+    if i < 0:
+        msg = "Value must be greater then 0!"
+        raise btctxstore.exceptions.InvalidInput(msg)
+    return i
+
+
+def byte_count(bc):  # ugly but much faster and safer then regex
+
+    # default value or python api used
+    if isinstance(bc, int):
+        return validate_positive_integer(bc)
+
+    bc = btctxstore.deserialize.unicode_str(bc)
+
+    def _get_byte_count(postfix, base, exponant):
+        char_num = len(postfix)
+        if bc[-char_num:] == postfix:
+            count = decimal.Decimal(bc[:-char_num])  # remove postfix
+            base = decimal.Decimal(base)
+            exponant = decimal.Decimal(exponant)
+            return validate_positive_integer(int(count * (base ** exponant)))
+        return None
+
+    # check base 1024
+    if len(bc) > 1:
+        n = None
+        n = n if n is not None else _get_byte_count('K', 1024, 1)
+        n = n if n is not None else _get_byte_count('M', 1024, 2)
+        n = n if n is not None else _get_byte_count('G', 1024, 3)
+        n = n if n is not None else _get_byte_count('T', 1024, 4)
+        n = n if n is not None else _get_byte_count('P', 1024, 5)
+        if n is not None:
+            return n
+
+    # check base 1000
+    if len(bc) > 2:
+        n = None
+        n = n if n is not None else _get_byte_count('KB', 1000, 1)
+        n = n if n is not None else _get_byte_count('MB', 1000, 2)
+        n = n if n is not None else _get_byte_count('GB', 1000, 3)
+        n = n if n is not None else _get_byte_count('TB', 1000, 4)
+        n = n if n is not None else _get_byte_count('PB', 1000, 5)
+        if n is not None:
+            return n
+
+    return validate_positive_integer(int(bc))
