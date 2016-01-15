@@ -48,7 +48,7 @@ setup(
     tests_require=open("test_requirements.txt").readlines(),
     packages=find_packages(exclude=['storjnode.bin']),
     package_data={
-        'storjnode': ['config.schema'],
+        'storjnode': ['config.schema', 'config.default.json'],
     },
     classifiers=[
         # "Development Status :: 1 - Planning",

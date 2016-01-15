@@ -1,0 +1,31 @@
+{
+    "version": "VERSION",
+    "cold_storage": [],
+    "network": {
+        "port": "random",
+        "bootstrap_nodes": [],
+        "disable_data_transfer": false,
+        "bandwidth_limits": {
+            "sec": {
+                "upstream": 0,
+                "downstream": 0
+            },
+            "month": {
+                "upstream": 10737418240,
+                "downstream": 10737418240
+            }
+        },
+        "monitor": {
+            "enable_crawler": true,
+            "enable_responses": true,
+            "crawler_limit": 20,
+            "crawler_interval": 3600
+        }
+    },
+    "storage": {
+        "~/.storj/store": {
+            "limit": 10737418240,
+            "use_folder_tree": false
+        }
+    }
+}

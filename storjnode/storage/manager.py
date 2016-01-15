@@ -4,6 +4,7 @@ import storjnode
 from storjnode.common import STORJ_HOME
 
 
+# FIXME move defaults to common
 DEFAULT_SHARD_SIZE = 1024 * 1024 * 128  # 128M
 DEFAULT_STORE_PATH = os.path.join(STORJ_HOME, "store")
 DEFAULT_STORE_LIMIT = 10737418240  # 10G
@@ -272,27 +273,3 @@ def find(store_config, shard_id):
         if os.path.isfile(shard_path):
             return shard_path
     return None
-
-
-# def import_file(store_config, source_path,
-#                 max_shard_size=DEFAULT_SHARD_SIZE):
-#     """Import a file into the store.
-#
-#     Args:
-#         source_path: The path of the file to be imported.
-#         max_shard_size: The maximum shard size.
-#
-#     Returns: A list of shard ids with the fist entry being the root shard.
-#                 All required shards to reconstruct a file can be obtained
-#                 from the root shard.
-#     """
-#     store_config = setup(store_config=store_config)  # setup if needed
-#     # FIXME add encryption
-#     # TODO implement
-#
-#
-# def export_file(store_config, root_shard_id, dest_path):
-#     assert(storjnode.storage.shard.valid_id(root_shard_id))
-#     store_config = setup(store_config=store_config)  # setup if needed
-#     # FIXME add encryption
-#     # TODO implement
