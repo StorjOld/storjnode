@@ -71,15 +71,18 @@ class MessageRelayer(object):
         # do not relay away from node
         if self.dest.distanceTo(self.node) <= self.dest.distanceTo(relay_node):
             txt = "{1}: Aborting relay attempt, {0} farther then self."
-            _log.debug(txt.format(address, self.get_address()))
+            _log.debug(txt.format(address, self.server.get_address()))
             return
+
+        def on_error(result):
+            _log.error(repr(result))
 
         # attempt to relay message
         txt = "{1}: Attempting to relay message for {0}"
         _log.debug(txt.format(address, self.server.get_address()))
         self.server.protocol.callRelayMessage(
             relay_node, self.dest.id, self.hop_limit, self.message
-        ).addCallback(self)
+        ).addCallback(self).addErrback(on_error)
 
 
 class Server(KademliaServer):
@@ -266,7 +269,10 @@ class Server(KademliaServer):
             }
             return transport_info
 
+        def on_error(result):
+            _log.error(repr(result))
+
         ds = []
         for neighbor in self.bootstrappableNeighbors():
             ds.append(self.protocol.stun(neighbor))
-        return defer.gatherResults(ds).addCallback(handle)
+        return defer.gatherResults(ds).addCallback(handle).addErrback(on_error)

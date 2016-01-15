@@ -6,6 +6,9 @@ from storjnode.network.messages import info
 from storjnode.network.messages import base
 
 
+# FIXME accound for btcaddress !!!
+
+
 class TestInfo(unittest.TestCase):
 
     def setUp(self):
@@ -20,7 +23,8 @@ class TestInfo(unittest.TestCase):
         capacity = {"total": 1024 ** 6, "used": 1024 ** 6, "free": 0}
         transport = ["127.0.0.1", 1337]
         created = info.create(self.btctxstore, self.wif,
-                              capacity, transport, "unl", True)
+                              capacity, transport, "unl", True,
+                              self.address)
 
         # repack to eliminate namedtuples and simulate io
         repacked = umsgpack.unpackb(umsgpack.packb(created))

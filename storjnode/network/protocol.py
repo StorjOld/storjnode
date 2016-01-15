@@ -100,8 +100,12 @@ class Protocol(KademliaProtocol):
         return (sender[0], sender[1]) if queued else None
 
     def callRelayMessage(self, nodeToAsk, destid, hop_limit, message):
+
+        def on_error(result):
+            _log.error(repr(result))
+
         address = (nodeToAsk.ip, nodeToAsk.port)
         self.log.debug("Sending relay message to {0}:{1}".format(*address))
-        d = self.relay_message(address, self.sourceNode.id, destid,
-                               hop_limit, message)
-        return d.addCallback(self.handleCallResponse, nodeToAsk)
+        deferred = self.relay_message(address, self.sourceNode.id, destid,
+                                      hop_limit, message)
+        return deferred.addCallback(self.handleCallResponse, nodeToAsk)

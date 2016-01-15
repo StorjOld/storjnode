@@ -11,25 +11,29 @@ from storjnode.network.messages.peers import read as read_peers
 from storjnode.network.messages.peers import request as request_peers
 from storjnode.network.messages.info import read as read_info
 from storjnode.network.messages.info import request as request_info
-from pyp2p.lib import parse_exception
 
 
 _log = storjnode.log.getLogger(__name__)
 
 
-# FIXME add unl to data
+SKIP_BANDWIDTH_TEST = True
+
+
 DEFAULT_DATA = {
     "peers": None,      # [nodeid, ...]
     "storage": None,    # {"total": int, "used": int, "free": int}
-    "network": None,    # {"transport": [ip, port], "is_public": bool}
+    "network": None,    # {
+                        #     "transport": [ip, port],
+                        #     "unl": str "is_public": bool
+                        # }
     "version": None,    # {"protocol: str, "storjnode": str}
     "platform": None,   # {
                         #   "system": str, "release": str,
                         #   "version": str, "machine": str
                         # }
-
+    "btcaddress": None,
     "bandwidth": None,  # {"send": int, "receive": int}
-    "latency": {"info": None, "peers": None},
+    "latency": {"info": None, "peers": None, "direct": None},  # TODO direct
     "request": {"tries": 0, "last": 0},
 }
 
@@ -44,12 +48,12 @@ class Crawler(object):  # will not scale but good for now
         # sent info and peer requests but not yet received a response
         self.pipeline_scanning = {}  # {node_id: data}
         # |
-        # | received info and peer responses and ready for bandwith test
-        # V user ordered dict to have a fifo for bandwith test
+        # | received info and peer responses and ready for bandwidth test
+        # V user ordered dict to have a fifo for bandwidth test
         self.pipeline_scanned = OrderedDict()  # {node_id: data}
         # |
-        # V only test bandwith of one node at a time to ensure best results
-        self.pipeline_bandwith_test = None  # (node_id, data)
+        # V only test bandwidth of one node at a time to ensure best results
+        self.pipeline_bandwidth_test = None  # (node_id, data)
         # |
         # V peers processed and ready to save
         self.pipeline_processed = {}  # {node_id: data}
@@ -83,9 +87,11 @@ class Crawler(object):  # will not scale but good for now
                 scanning = peer in self.pipeline_scanning
                 scanned = peer in self.pipeline_scanned
                 processed = peer in self.pipeline_processed
-                testing_bandwith = (self.pipeline_bandwith_test is not None and
-                                    peer == self.pipeline_bandwith_test[0])
-                if not (scanning or scanned or processed or testing_bandwith):
+                testing_bandwidth = (
+                    self.pipeline_bandwidth_test is not None and
+                    peer == self.pipeline_bandwidth_test[0]
+                )
+                if not (scanning or scanned or processed or testing_bandwidth):
                     self.pipeline_scanning[peer] = copy.deepcopy(DEFAULT_DATA)
 
             self._check_scan_complete(message.sender, data)
@@ -110,6 +116,9 @@ class Crawler(object):  # will not scale but good for now
             data["storage"] = message.body.storage._asdict()
             data["network"] = message.body.network._asdict()
             data["platform"] = message.body.platform._asdict()
+            data["btcaddress"] = storjnode.util.node_id_to_address(
+                message.body.btcaddress
+            )
             self._check_scan_complete(message.sender, data)
 
     def _check_scan_complete(self, nodeid, data):
@@ -121,6 +130,9 @@ class Crawler(object):  # will not scale but good for now
             return  # info not yet received
 
         # move to scanned
+        print("Moving {0} to scanned".format(
+            storjnode.util.node_id_to_address(nodeid))
+        )
         del self.pipeline_scanning[nodeid]
         self.pipeline_scanned[nodeid] = data
 
@@ -161,7 +173,7 @@ class Crawler(object):  # will not scale but good for now
         data["request"]["last"] = now
         data["request"]["tries"] = data["request"]["tries"] + 1
 
-    def _handle_bandwith_test_error(self, results):
+    def _handle_bandwidth_test_error(self, results):
         _log.debug(str(results))
         with self.pipeline_mutex:
             _log.debug("IN handle bandwiwdth test failure")
@@ -172,70 +184,61 @@ class Crawler(object):  # will not scale but good for now
             print("\a")
 
             # move to the back to scanned fifo and try again later
-            nodeid, data = self.pipeline_bandwith_test
+            nodeid, data = self.pipeline_bandwidth_test
             self.pipeline_scanned[nodeid] = data
 
-            # free up bandwith test for next peer
-            self.pipeline_bandwith_test = None
+            # free up bandwidth test for next peer
+            self.pipeline_bandwidth_test = None
 
-    def _handle_bandwith_test_success(self, results):
+    def _handle_bandwidth_test_success(self, results):
         with self.pipeline_mutex:
-            try:
-                _log.debug("IN handle bandwiwdth test success")
-                _log.debug("IN handle bandwiwdth test success")
-                _log.debug("IN handle bandwiwdth test success")
-                _log.debug("IN handle bandwiwdth test success")
-                _log.debug("----------------")
-                print("\a")
-                print(results)
+            assert(results[0])
+            nodeid, data = self.pipeline_bandwidth_test
 
-                nodeid, data = self.pipeline_bandwith_test
+            # save test results
+            data["bandwidth"] = {
+                "send": results[1]["upload"],
+                "receive": results[1]["download"]
+            }
 
-                # save test results
-                data["bandwidth"] = {
-                    "send": results["upload"],
-                    "receive": results["download"]
-                }
+            # move peer to processed
+            self.pipeline_processed[nodeid] = data
+            txt = "Processed:{0}, scanned:{1}, scanning:{2}, processed:{3}!"
+            _log.info(txt.format(
+                node_id_to_address(nodeid),
+                len(self.pipeline_scanned),
+                len(self.pipeline_scanning),
+                len(self.pipeline_processed),
+            ))
 
-                # move peer to processed
-                self.pipeline_processed[nodeid] = data
-                txt = "Processed:{0}, scanned:{1}, scanning:{2}, processed:{3}!"
-                _log.info(txt.format(
-                    node_id_to_address(nodeid),
-                    len(self.pipeline_scanned),
-                    len(self.pipeline_scanning),
-                    len(self.pipeline_processed),
-                ))
-
-                # free up bandwith test for next peer
-                self.pipeline_bandwith_test = None
-            except Exception as e:
-                print(parse_exception(e))
-                exit()
+            # free up bandwidth test for next peer
+            self.pipeline_bandwidth_test = None
 
     def _process_bandwidth_test(self):
         # expects caller to have pipeline mutex
-        not_testing_bandwith = self.pipeline_bandwith_test is None
-        if (not_testing_bandwith and len(self.pipeline_scanned) > 0):
+        not_testing_bandwidth = self.pipeline_bandwidth_test is None
+        if (not_testing_bandwidth and len(self.pipeline_scanned) > 0):
 
             # pop first entry
             nodeid = self.pipeline_scanned.keys()[0]
             data = self.pipeline_scanned[nodeid]
             del self.pipeline_scanned[nodeid]
 
-            _log.info("\a\a\a\a\a")
-            _log.info("\a\a\a\a\a")
-            _log.info("\a\a\a\a\a")
-            _log.info("Starting bandwith test for: {0}".format(
+            # skip bandwith test
+            if SKIP_BANDWIDTH_TEST:
+                self.pipeline_processed[nodeid] = data
+                return
+
+            _log.info("Starting bandwidth test for: {0}".format(
                 node_id_to_address(nodeid))
             )
 
-            # start bandwith test (timeout after 5min)
-            self.pipeline_bandwith_test = (nodeid, data)
-            assert(self.node.get_id() != nodeid)
+            # start bandwidth test (timeout after 5min)
+            self.pipeline_bandwidth_test = (nodeid, data)
+            on_success = self._handle_bandwidth_test_success
+            on_error = self._handle_bandwidth_test_error
             deferred = self.node.test_bandwidth(nodeid)
-            deferred.addCallback(self._handle_bandwith_test_success)
-            deferred.addErrback(self._handle_bandwith_test_error)
+            deferred.addCallback(on_success).addErrback(on_error)
 
     def _process_pipeline(self):
         while not self.stop_thread and time.time() < self.timeout:
@@ -246,7 +249,7 @@ class Crawler(object):  # will not scale but good for now
                 # exit condition pipeline empty
                 if (len(self.pipeline_scanning) == 0 and
                         len(self.pipeline_scanned) == 0 and
-                        self.pipeline_bandwith_test is None):
+                        self.pipeline_bandwidth_test is None):
                     return
 
                 # exit condition enough peers processed
@@ -339,12 +342,12 @@ def create_shard(node, num, begin, end, processed):
 
 class Monitor(object):
 
-    def __init__(self, node, store_config, limit=20,
+    def __init__(self, node, config, limit=20,
                  interval=3600, on_crawl_complete=None):
         self.on_crawl_complete = on_crawl_complete
-        self.store_config = store_config
+        self.config = config
         self.node = node
-        self.limit = limit
+        self.limit = limit + 1  # + 1 because of initial node
         self.interval = interval
         self.mutex = RLock()
         self.crawler = None
@@ -387,7 +390,7 @@ class Monitor(object):
 
             # save results to store
             shardid = storjnode.storage.shard.get_id(shard)
-            storjnode.storage.manager.add(self.store_config, shard)
+            storjnode.storage.manager.add(self.config["storage"], shard)
             _log.info("Saved dataset {0} as shard {1}".format(
                 self.dataset_num, shardid
             ))

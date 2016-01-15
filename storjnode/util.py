@@ -9,6 +9,10 @@ import random
 from crochet import wait_for
 from pycoin.encoding import a2b_hashed_base58, b2a_hashed_base58
 from collections import OrderedDict
+import storjnode
+
+
+_log = storjnode.log.getLogger(__name__)
 
 
 # Converts unprintable strings to printable hex (if needed.)
@@ -103,7 +107,13 @@ def full_path(path):
 
 def default_defered(defered, default):
     """Returns a default value if the defered failed, otherwise the result."""
-    return defered.addCallback(lambda r: r[0] and r[1] or default)
+
+    def on_error(result):
+        _log.error(repr(result))
+
+    def on_success(result):
+        return result[0] and result[1] or default
+    return defered.addCallback(on_success).addErrback(on_error)
 
 
 def wait_for_defered(defered, timeout=5.0):

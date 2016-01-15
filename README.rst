@@ -101,23 +101,116 @@ Preventing loss of funds
 ------------------------
 
 You must provide either a wallet via the arguments or at least one
-cold storage address in the config! Not doing this will cause an error to
+cold storage address in the config! Not doing this will cause an error, to
 prevent loosing funds.
 
 Please back up your provided wallet and the cold storage keys to prevent
 any loss of funds.
 
 
-Start json-rpc service
-######################
+Configuration
+#############
 
-The storj protocol can be made available to other applications via a
-[standard json-rpc service](http://www.jsonrpc.org/specification).
-
-For more information see https://github.com/F483/apigen
+All configuration taken from the config file, stored in the following
+locations by default. If it does not exist a default config file will be
+created with conservative settings.
 
 ::
 
-    $ storjnode --wallet=BITCOIN_WIF_OR_HWIF startserver --port=8080
+    # default windows config path
+    C:\Users\USERNAME\.storj\cfg.json
+
+    # default linux config pathg
+    /home/USERNAME/.storj/cfg.json
+
+    # default mac config path
+    /Users/USERNAME/.storj/cfg.json
 
 
+A custom config can be given if your are running more then one client.
+
+::
+
+    $ storjnode --config=/path/to/custom/config.json farm
+
+
+Using the json-rpc service
+##########################
+
+The storj protocol interface is be made available to other applications via a
+[standard json-rpc service](http://www.jsonrpc.org/specification).
+
+The rpc interface matches the cli interface exactly.
+
+::
+
+    $ storjnode farm --port=8080 --hostname=localhost
+
+For more information see https://github.com/F483/apigen
+
+
+Accessing the json-rpc service from python
+==========================================
+
+.. code:: python
+
+    # pip install python-jsonrpc
+    import pyjsonrpc
+    client = pyjsonrpc.HttpClient(url="http://localhost:8080")
+    client.version()
+
+
+Accessing the json-rpc service from node.js
+===========================================
+
+.. code:: javascript
+
+    // npm install node-json-rpc
+    var rpc = require('node-json-rpc');
+    
+    var client = new rpc.Client({port: 8080, host: '127.0.0.1', path: '/'});
+    
+    client.call({
+        "jsonrpc": "2.0",
+        "method": "version",
+        "params": { },
+        "id": 0
+      },
+      function(err, res) {
+        if (err) {
+          console.log("Error add");
+          console.log(err);
+        } else {
+          console.log("Success add");
+          console.log(res); // {jsonrpc: '2.0', id: 0, result: "versionstr"}
+        }
+      }
+    );
+
+
+API call list
+#############
+
++-------------------+------------+--------------------------------------------------+
+| Command           | Arguments  | Description                                      |
++===================+============+==================================================+
+| info              |            | Get node information.                            |
++-------------------+------------+--------------------------------------------------+
+| cfg_current       |            | Get the current config.                          |
++-------------------+------------+--------------------------------------------------+
+| cfg_default       |            | Get the default storj config.                    |
++-------------------+------------+--------------------------------------------------+
+| cfg_schema        |            | The jsonschema for config validation.            |
++-------------------+------------+--------------------------------------------------+
+| net_dht_put       | key, value | Insert a key/value pair into the DHT.            |
++-------------------+------------+--------------------------------------------------+
+| net_dht_get       | key        | Get value from the DHT for a given key.          |
++-------------------+------------+--------------------------------------------------+
+| net_notify        | event      | Relay an event to a specific node.               |
++-------------------+------------+--------------------------------------------------+
+| net_publish       | event      | Publish an event on the network.                 |
++-------------------+------------+--------------------------------------------------+
+| net_supscribe     | schema     | Subscribe to matching events on the network.     |
++-------------------+------------+--------------------------------------------------+
+| net_unsupscribe   | schema     | Unsubscribe from matching events on the network. |
++-------------------+------------+--------------------------------------------------+

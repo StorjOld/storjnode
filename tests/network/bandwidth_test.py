@@ -94,7 +94,10 @@ class TestBandwidthTest(unittest.TestCase):
             0
         ).enable()
         d = alice_test.start(bob_transfer.net.unl.value)
-        d.addCallback(show_bandwidth)
+
+        def on_error(result):
+            _log.error(repr(result))
+        d.addCallback(show_bandwidth).addErrback(on_error)
 
         # Main event loop.
         # and not test_success

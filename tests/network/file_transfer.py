@@ -39,14 +39,22 @@ class TestFileTransfer(unittest.TestCase):
         self.wallet = btctxstore.BtcTxStore(testnet=False, dryrun=True)
         self.wif = self.wallet.get_key(self.wallet.create_wallet())
         self.node_id = address_to_node_id(self.wallet.get_address(self.wif))
-        self.store_config = {
-            os.path.join(self.test_storage_dir, "storage"): {"limit": 0}
+
+        # setup config
+        self.config = storjnode.config.create()
+        storage_path = os.path.join(self.test_storage_dir, "storage")
+        fs_format = storjnode.util.get_fs_type(storage_path)
+        self.config["storage"] = {
+            storage_path: {
+                "limit": 0, "use_folder_tree": fs_format == "vfat",
+            }
         }
+        storjnode.config.validate(self.config)
 
         # dht_node = pyp2p.dht_msg.DHT(node_id=node_id)
         self.dht_node = storjnode.network.Node(
             self.wif, bootstrap_nodes=DEFAULT_BOOTSTRAP_NODES,
-            disable_data_transfer=True
+            disable_data_transfer=True, config=self.config
         )
 
         # Transfer client.
@@ -61,7 +69,7 @@ class TestFileTransfer(unittest.TestCase):
             ),
             BandwidthLimit(),
             wif=self.wif,
-            store_config=self.store_config
+            store_config=self.config["storage"]
         )
 
         # Accept all transfers.
@@ -234,7 +242,7 @@ class TestFileTransfer(unittest.TestCase):
 
         # Check we received this file.
         for i in range(0, 1):
-            path = storjnode.storage.manager.find(self.store_config,
+            path = storjnode.storage.manager.find(self.config["storage"],
                                                   file_infos[i]["data_id"])
             if not os.path.isfile(path):
                 assert(0)

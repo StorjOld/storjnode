@@ -2,7 +2,6 @@ import unittest
 import storjnode
 import time
 from storjnode.network.bandwidth.limit import BandwidthLimit
-from storjnode.common import CONFIG_PATH
 
 _log = storjnode.log.getLogger(__name__)
 timed_out = 0
@@ -174,7 +173,6 @@ class TestLimit(unittest.TestCase):
 
         print(bl.info["sec"]["upstream"]["limit"])
         return
-
 
         assert(bl.info["sec"]["upstream"]["limit"] == bw_limit)
 
