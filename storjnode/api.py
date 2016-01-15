@@ -9,6 +9,7 @@ from storjnode.network import BandwidthLimit
 
 _log = storjnode.log.getLogger(__name__)
 
+
 _NO_WALLET_AND_COLD_STORAGE = """
 Error: No wallet or cold storage address provided!
 
@@ -44,23 +45,28 @@ class StorjNode(apigen.Definition):
                btctxstore.validate.mainnet_key(wallet))
 
         # start node
-        port = self._cfg["network"]["port"]
-        notransfer = self._cfg["network"]["disable_data_transfer"]
-        self._node = storjnode.network.Node(
-            wallet, disable_data_transfer=notransfer,
-            bandwidth=None if notransfer else BandwidthLimit(self._cfg),
-            port=port if port != "random" else None,
-            store_config=self._cfg["storage"]
-        )
-        self._setup_message_list()
+        self._node = None
+        try:
+            port = self._cfg["network"]["port"]
+            notransfer = self._cfg["network"]["disable_data_transfer"]
+            self._node = storjnode.network.Node(
+                wallet, disable_data_transfer=notransfer,
+                bandwidth=None if notransfer else BandwidthLimit(self._cfg),
+                port=port if port != "random" else None,
+                config=self._cfg["storage"]
+            )
+            self._setup_message_list()
 
-        # shitty wait for network stabilization
-        _log.info("Shitty wait for network stabilization.")
-        time.sleep(storjnode.network.WALK_TIMEOUT)
-        self._node.refresh_neighbours()
-        time.sleep(storjnode.network.WALK_TIMEOUT)
-        self._node.refresh_neighbours()
-        time.sleep(storjnode.network.WALK_TIMEOUT)
+            # shitty wait for network stabilization
+            _log.info("Shitty wait for network stabilization.")
+            time.sleep(storjnode.network.WALK_TIMEOUT)
+            self._node.refresh_neighbours()
+            time.sleep(storjnode.network.WALK_TIMEOUT)
+            self._node.refresh_neighbours()
+            time.sleep(storjnode.network.WALK_TIMEOUT)
+        except:
+            self._node.stop()
+            self._node = None
 
     def _setup_message_list(self):
         self._events = []
@@ -78,15 +84,20 @@ class StorjNode(apigen.Definition):
             self._events.append(msg)
 
     def on_shutdown(self):
-        self._node.stop()
+        if self._node is not None:
+            self._node.stop()
 
     ##################
     # END USER CALLS #
     ##################
 
-    @apigen.command(rpc=False)
     def startserver(self, hostname="localhost", port=8080, daemon=False):
-        """Start json-rpc service and farm."""
+        # remove startserver call from api (use farm istead)
+        raise NotImplementedError()
+
+    @apigen.command(rpc=False)
+    def farm(self, hostname="localhost", port=8080):
+        """Start the farmer and the json-rpc service."""
         self.monitor = None
         try:
             monitor_cfg = self._cfg["network"]["monitor"]
@@ -102,16 +113,15 @@ class StorjNode(apigen.Definition):
                 _log.info("Starting monitor crawler.")
                 self.monitor = storjnode.network.monitor.Monitor(
                     self._node,
-                    self._cfg["storage"],
+                    self._cfg,
                     limit=monitor_cfg["crawler_limit"],
                     interval=monitor_cfg["crawler_interval"],
                     on_crawl_complete=self._on_crawl_complete
                 )
 
             # start rpc service
-            super(StorjNode, self).startserver(
-                hostname=hostname, port=port, daemon=daemon
-            )
+            super(StorjNode, self).startserver(hostname=hostname, port=port)
+
         except KeyboardInterrupt:
             pass
         finally:
@@ -172,7 +182,7 @@ class StorjNode(apigen.Definition):
     ###############
 
     @apigen.command()
-    def net_put(self, key, value):
+    def net_dht_put(self, key, value):
         """Insert a key/value pair into the DHT."""
         try:
             return self._node.put(key, value)
@@ -181,7 +191,7 @@ class StorjNode(apigen.Definition):
             return False
 
     @apigen.command()
-    def net_get(self, key):
+    def net_dht_get(self, key):
         """Get value from the DHT for a given key."""
         try:
             return self._node.get(key)
@@ -193,31 +203,31 @@ class StorjNode(apigen.Definition):
     # NETWORK EVENTS #
     ##################
 
-    @apigen.command()
-    def net_send(self, node_address, event):
-        """Relay an event to a node."""
-        nodeid = storjnode.util.address_to_node_id(node_address)
-        return self._node.relay_message(nodeid, event)
+    # @apigen.command()
+    # def net_send(self, node_address, event):
+    #     """Relay an event to a node."""
+    #     nodeid = storjnode.util.address_to_node_id(node_address)
+    #     return self._node.relay_message(nodeid, event)
 
-    @apigen.command()
-    def net_events(self, flush=True):
-        """Events received."""
-        # TODO add mapping to subscription schemas
-        with self._events_mutex:
-            messages = self._events
-            if flush:
-                self._events = []
-            return messages
+    # @apigen.command()
+    # def net_events(self, flush=True):
+    #     """Events received."""
+    #     # TODO add mapping to subscription schemas
+    #     with self._events_mutex:
+    #         messages = self._events
+    #         if flush:
+    #             self._events = []
+    #         return messages
 
-    @apigen.command()
-    def net_publish(self, event_json):
-        """Publish an event on the network."""
-        raise NotImplementedError()
+    # @apigen.command()
+    # def net_publish(self, event_json):
+    #     """Publish an event on the network."""
+    #     raise NotImplementedError()
 
-    @apigen.command()
-    def net_subscribe(self, json_schema):
-        """Subscribe to matching events on the network."""
-        raise NotImplementedError()
+    # @apigen.command()
+    # def net_subscribe(self, json_schema):
+    #     """Subscribe to matching events on the network."""
+    #     raise NotImplementedError()
 
     ####################
     # NETWORK TRANSFER #

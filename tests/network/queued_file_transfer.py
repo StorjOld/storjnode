@@ -141,9 +141,12 @@ def test_queued():
                 print("Download failed! Error:")
                 print(val)
 
+            def on_error(result):
+                _log.error(repr(result))
+
             # Hook upload from bob.
             d = alice.defers[download_contract_id]
-            d.addCallback(alice_callback)
+            d.addCallback(alice_callback).addErrback(on_error)
             d.addErrback(alice_errback)
 
         return callback
@@ -152,9 +155,6 @@ def test_queued():
     bob.handlers["complete"] = [
         callback_builder(path, alice, bob, data_id)
     ]
-
-    # d = alice.defers[upload_contract_id]
-    # d.addCallback(callback_builder(path, alice, bob, data_id))
 
     # Main event loop.
     timeout = time.time() + 40

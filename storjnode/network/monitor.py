@@ -20,13 +20,16 @@ _log = storjnode.log.getLogger(__name__)
 DEFAULT_DATA = {
     "peers": None,      # [nodeid, ...]
     "storage": None,    # {"total": int, "used": int, "free": int}
-    "network": None,    # {"transport": [ip, port], "is_public": bool}
+    "network": None,    # {
+                        #     "transport": [ip, port],
+                        #     "unl": str "is_public": bool
+                        # }
     "version": None,    # {"protocol: str, "storjnode": str}
     "platform": None,   # {
                         #   "system": str, "release": str,
                         #   "version": str, "machine": str
                         # }
-
+    "btcaddress": None,
     "bandwidth": None,  # {"send": int, "receive": int}
     "latency": {"info": None, "peers": None},
     "request": {"tries": 0, "last": 0},
@@ -111,6 +114,9 @@ class Crawler(object):  # will not scale but good for now
             data["storage"] = message.body.storage._asdict()
             data["network"] = message.body.network._asdict()
             data["platform"] = message.body.platform._asdict()
+            data["btcaddress"] = storjnode.util.node_id_to_address(
+                message.body.btcaddress
+            )
             self._check_scan_complete(message.sender, data)
 
     def _check_scan_complete(self, nodeid, data):
@@ -219,9 +225,10 @@ class Crawler(object):  # will not scale but good for now
 
             # start bandwidth test (timeout after 5min)
             self.pipeline_bandwidth_test = (nodeid, data)
+            on_success = self._handle_bandwidth_test_success
+            on_error = self._handle_bandwidth_test_error
             deferred = self.node.test_bandwidth(nodeid)
-            deferred.addCallback(self._handle_bandwidth_test_success)
-            deferred.addErrback(self._handle_bandwidth_test_error)
+            deferred.addCallback(on_success).addErrback(on_error)
 
     def _process_pipeline(self):
         while not self.stop_thread and time.time() < self.timeout:
@@ -325,10 +332,10 @@ def create_shard(node, num, begin, end, processed):
 
 class Monitor(object):
 
-    def __init__(self, node, store_config, limit=20,
+    def __init__(self, node, config, limit=20,
                  interval=3600, on_crawl_complete=None):
         self.on_crawl_complete = on_crawl_complete
-        self.store_config = store_config
+        self.config = config
         self.node = node
         self.limit = limit + 1  # + 1 because of initial node
         self.interval = interval
@@ -373,7 +380,7 @@ class Monitor(object):
 
             # save results to store
             shardid = storjnode.storage.shard.get_id(shard)
-            storjnode.storage.manager.add(self.store_config, shard)
+            storjnode.storage.manager.add(self.config["storage"], shard)
             _log.info("Saved dataset {0} as shard {1}".format(
                 self.dataset_num, shardid
             ))

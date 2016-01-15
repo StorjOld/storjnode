@@ -94,7 +94,7 @@ at least one cold storage address is provided in the config.
 
 ::
 
-    $ storjnode --wallet=BITCOIN_WIF_OR_HWIF startserver
+    $ storjnode --wallet=BITCOIN_WIF_OR_HWIF farm
 
 
 Preventing loss of funds
@@ -108,6 +108,32 @@ Please back up your provided wallet and the cold storage keys to prevent
 any loss of funds.
 
 
+Configuration
+#############
+
+All configuration taken from the config file, stored in the following
+locations by default. If it does not exist a default config file will be
+created with conservative settings.
+
+::
+
+    # default windows config path
+    C:\Users\USERNAME\.storj\cfg.json
+
+    # default linux config pathg
+    /home/USERNAME/.storj/cfg.json
+
+    # default mac config path
+    /Users/USERNAME/.storj/cfg.json
+
+
+A custom config can be given if your are running more then one client.
+
+::
+
+    $ storjnode --config=/path/to/custom/config.json farm
+
+
 Using the json-rpc service
 ##########################
 
@@ -118,7 +144,7 @@ The rpc interface matches the cli interface exactly.
 
 ::
 
-    $ storjnode startserver --port=8080 --hostname=localhost
+    $ storjnode farm --port=8080 --hostname=localhost
 
 For more information see https://github.com/F483/apigen
 
@@ -160,3 +186,30 @@ Accessing the json-rpc service from node.js
         }
       }
     );
+
+
+API call list
+#############
+
+
+net_dht_put
+===========
+
+.. ::
+
+    Args:
+      key:
+      value:
+
+    Returns: true on success, otherwise false
+
+
+net_dht_get
+===========
+
+.. ::
+
+    Args:
+      key:
+
+    Returns: Json serializable result on success, otherwise None

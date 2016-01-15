@@ -34,6 +34,19 @@ STORAGE_DIR = tempfile.mkdtemp()
 LAN_IP = storjnode.util.get_inet_facing_ip()
 
 
+def _test_config(storage_path):
+    config = storjnode.config.create()
+    fs_format = storjnode.util.get_fs_type(storage_path)
+    config["storage"] = {
+        storage_path: {
+            "limit": storjnode.storage.manager.DEFAULT_STORE_LIMIT,
+            "use_folder_tree": fs_format == "vfat",
+        }
+    }
+    storjnode.config.validate(config)
+    return config
+
+
 class TestNode(unittest.TestCase):
 
     @classmethod
@@ -54,16 +67,18 @@ class TestNode(unittest.TestCase):
             bootstrap_nodes = [(LAN_IP, PORT + x) for x in range(i)][-20:]
 
             # create node
+            storage_path = "{0}/peer_{1}".format(STORAGE_DIR, i)
+            config = _test_config(storage_path)
             node = storjnode.network.Node(
                 cls.btctxstore.create_wallet(), port=(PORT + i), ksize=KSIZE,
                 bootstrap_nodes=bootstrap_nodes,
                 refresh_neighbours_interval=0.0,
-                store_config={"{0}/peer_{1}".format(STORAGE_DIR, i): None},
+                config=config,
                 nat_type="preserving",
                 node_type="passive",
                 disable_data_transfer=False
             )
-            storjnode.network.messages.info.enable(node, {})
+            storjnode.network.messages.info.enable(node, config)
             storjnode.network.messages.peers.enable(node)
             enable_unl_requests(node)
             node.bandwidth_test.enable()
@@ -73,15 +88,18 @@ class TestNode(unittest.TestCase):
             print(msg.format(node.get_address(), node.port))
 
         # Peer used for get unl requests.
+        # FIXME remove unl_peer and node from swarm
         unl_peer_bootstrap_nodes = [
             (LAN_IP, PORT + x)
             for x in range(SWARM_SIZE)
         ][-20:]
+        storage_path = "{0}/unl_peer".format(STORAGE_DIR)
+        config = _test_config(storage_path)
         cls.test_get_unl_peer = storjnode.network.Node(
             cls.btctxstore.create_wallet(),
             bootstrap_nodes=unl_peer_bootstrap_nodes,
             refresh_neighbours_interval=0.0,
-            store_config={"{0}/unl_peer".format(STORAGE_DIR): None},
+            config=config,
             nat_type="preserving",
             node_type="passive",
             disable_data_transfer=False
@@ -123,9 +141,13 @@ class TestNode(unittest.TestCase):
         node_id = self.test_get_unl_peer.get_id()
         got_unl = threading.Event()
 
-        def callback(unl):
+        def on_error(result):
+            _log.error(repr(result))
+
+        def on_success(unl):
             got_unl.set()
-        self.swarm[1].get_unl_by_node_id(node_id).addCallback(callback)
+        deferred = self.swarm[1].get_unl_by_node_id(node_id)
+        deferred.addCallback(on_success).addErrback(on_error)
         got_unl.wait(timeout=WALK_TIMEOUT * 4)
         self.assertTrue(got_unl.isSet())
 
@@ -138,7 +160,7 @@ class TestNode(unittest.TestCase):
         alice_node = storjnode.network.Node(
             self.__class__.btctxstore.create_key(),
             bootstrap_nodes=[("240.0.0.0", 1337)],
-            store_config={STORAGE_DIR: None},
+            config=_test_config(STORAGE_DIR),
             refresh_neighbours_interval=interval,
             nat_type="preserving",
             node_type="passive",
@@ -150,7 +172,7 @@ class TestNode(unittest.TestCase):
         bob_node = storjnode.network.Node(
             self.__class__.btctxstore.create_key(),
             bootstrap_nodes=[(LAN_IP, alice_node.port)],
-            store_config={STORAGE_DIR: None},
+            config=_test_config(STORAGE_DIR),
             refresh_neighbours_interval=interval,
             nat_type="preserving",
             node_type="passive",
@@ -244,7 +266,7 @@ class TestNode(unittest.TestCase):
             self.__class__.btctxstore.create_key(),
             bootstrap_nodes=[("240.0.0.0", 1337)],
             refresh_neighbours_interval=0.0,
-            store_config={STORAGE_DIR: None},
+            config=_test_config(STORAGE_DIR),
             nat_type="preserving",
             node_type="passive",
             disable_data_transfer=True
@@ -256,7 +278,7 @@ class TestNode(unittest.TestCase):
             self.__class__.btctxstore.create_key(),
             bootstrap_nodes=[(LAN_IP, alice_node.port)],
             refresh_neighbours_interval=0.0,
-            store_config={STORAGE_DIR: None},
+            config=_test_config(STORAGE_DIR),
             nat_type="preserving",
             node_type="passive",
             disable_data_transfer=True
@@ -292,7 +314,7 @@ class TestNode(unittest.TestCase):
             bootstrap_nodes=[("240.0.0.0", 1337)],
             refresh_neighbours_interval=0.0,
             max_messages=2,
-            store_config={STORAGE_DIR: None},
+            config=_test_config(STORAGE_DIR),
             nat_type="preserving",
             node_type="passive",
             disable_data_transfer=True
@@ -302,7 +324,7 @@ class TestNode(unittest.TestCase):
             bootstrap_nodes=[(LAN_IP, alice_node.port)],
             refresh_neighbours_interval=0.0,
             max_messages=2,
-            store_config={STORAGE_DIR: None},
+            config=_test_config(STORAGE_DIR),
             nat_type="preserving",
             node_type="passive",
             disable_data_transfer=True
@@ -395,14 +417,9 @@ class TestNode(unittest.TestCase):
             results.update(dict(key=key, shard=shard))
             crawled_event.set()
         random_peer = random.choice(self.swarm)
-        store_config = {
-            STORAGE_DIR: {
-                "limit": 10737418240,
-                "use_folder_tree": False,
-            },
-        }
+        config = _test_config(STORAGE_DIR)
         monitor = storjnode.network.monitor.Monitor(
-            random_peer, store_config, limit=limit,
+            random_peer, config, limit=limit,
             interval=interval, on_crawl_complete=handler
         )
 

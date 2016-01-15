@@ -67,7 +67,7 @@ class Node(object):
 
                  # data transfer args
                  disable_data_transfer=True,
-                 store_config=None,  # FIXME use entire config instead
+                 config=None,
                  passive_port=None,
                  passive_bind=None,  # FIXME use utils.get_inet_facing_ip ?
                  node_type="unknown",  # FIMME what is this ?
@@ -86,7 +86,7 @@ class Node(object):
             refresh_neighbours_interval (float): Auto refresh neighbours.
 
             disable_data_transfer: Disable data transfer for this node.
-            store_config: Dict of storage paths to optional attributes.
+            config: Dict of storage paths to optional attributes.
                           limit: The dir size limit in bytes, 0 for no limit.
                           use_folder_tree: Files organized in a folder tree
                                            (always on for fat partitions).
@@ -102,9 +102,9 @@ class Node(object):
         self._transfer_complete_handlers = set()
         self._transfer_start_handlers = set()
 
-        # set default store config if None given
-        if store_config is None:
-            store_config = storjnode.storage.manager.DEFAULT_STORE_CONFIG
+        # config must be givin
+        if config is None:
+            raise Exception("Config required")
 
         # validate port (randomish user port by default)
         port = util.get_unused_port(port)
@@ -142,12 +142,10 @@ class Node(object):
 
         if not self.disable_data_transfer:
             self._setup_data_transfer_client(
-                store_config, passive_port, passive_bind, node_type, nat_type
+                config, passive_port, passive_bind, node_type, nat_type
             )
             self.bandwidth_test = BandwidthTest(
-                self.get_key(),
-                self._data_transfer,
-                self
+                self.get_key(), self._data_transfer, self
             )
 
     def _setup_message_dispatcher(self):
@@ -169,7 +167,7 @@ class Node(object):
         self.server.set_port_handler(port_handler)
         self.server.bootstrap(bootstrap_nodes)
 
-    def _setup_data_transfer_client(self, store_config, passive_port,
+    def _setup_data_transfer_client(self, config, passive_port,
                                     passive_bind, node_type, nat_type):
 
         result = self.sync_get_transport_info(add_unl=False)
@@ -197,7 +195,7 @@ class Node(object):
             ),
             self.bandwidth,
             wif=wif,
-            store_config=store_config,
+            store_config=config["storage"],
             handlers=handlers
         )
 
@@ -269,11 +267,17 @@ class Node(object):
             A twisted.internet.defer.Deferred that resloves to
             True if local IP is internet visible, otherwise False.
         """
-        def handle(result):
+
+        def on_success(result):
             if result is None:
                 return False
             return result["is_public"]
-        return self.async_get_transport_info(add_unl=False).addCallback(handle)
+
+        def on_error(result):
+            _log.error(repr(result))
+
+        deferred = self.async_get_transport_info(add_unl=False)
+        return deferred.addCallback(on_success).addErrback(on_error)
 
     @wait_for(timeout=QUERY_TIMEOUT)
     def sync_get_wan_ip(self):
@@ -294,9 +298,15 @@ class Node(object):
             A twisted.internet.defer.Deferred that resloves to
             The WAN IP or None.
         """
-        def handle(result):
+
+        def on_success(result):
             return result["wan"][0]
-        return self.async_get_transport_info(add_unl=False).addCallback(handle)
+
+        def on_error(result):
+            _log.error(repr(result))
+
+        deferred = self.async_get_transport_info(add_unl=False)
+        return deferred.addCallback(on_success).addErrback(on_error)
 
     def async_get_transport_info(self, add_unl=True):
         # FIXME remove add_unl option when data transfer always enabled
@@ -422,8 +432,7 @@ class Node(object):
             print(results)
 
         d = test_bandwidth ...
-        d.addCallback(show_bandwidth)
-        d.addErrback(handle_error)
+        d.addCallback(show_bandwidth).addErrback(handle_error)
 
         Todo: I am basically coding this function in a hurry so I
         don't delay your work Fabian. There should probably be a
@@ -438,11 +447,14 @@ class Node(object):
         d = self.get_unl_by_node_id(node_id)
 
         # Make data request when we have their UNL.
-        def callback(peer_unl):
+        def on_success(peer_unl):
             return self.bandwidth_test.start(peer_unl)
 
+        def on_error(result):
+            _log.error(repr(result))
+
         # Add callback to UNL deferred.
-        d.addCallback(callback)
+        d.addCallback(on_success).addErrback(on_error)
 
         # Return deferred.
         return d
@@ -480,11 +492,12 @@ class Node(object):
 
             return callback
 
-        # Add callback to UNL deferred.
-        d.addCallback(callback_builder(data_id, direction))
+        def on_error(result):
+            _log.error(repr(result))
 
-        # Return deferred.
-        return d
+        # Add callback to UNL deferred.
+        on_success = callback_builder(data_id, direction)
+        return d.addCallback(on_success).addErrback(on_error)
 
     @wait_for(timeout=QUERY_TIMEOUT)
     def sync_request_data_transfer(self, data_id, peer_unl, direction):

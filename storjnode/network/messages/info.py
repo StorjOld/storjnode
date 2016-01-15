@@ -1,8 +1,9 @@
 import re
+import random
 import six
 import platform
 from collections import namedtuple
-from storjnode.util import valid_ip, valid_port, node_id_to_address
+from storjnode import util
 from storjnode.network.messages import base
 from storjnode.network.messages import signal
 from storjnode.storage import manager
@@ -29,15 +30,18 @@ Info = namedtuple('Info', [
     'storage',
     'network',
     'platform',
+    'btcaddress',  # unencoded bytes
 ])
 
 
-def create(btctxstore, node_wif, capacity, transport, unl, is_public):
+def create(btctxstore, node_wif, capacity,
+           transport, unl, is_public, btcaddress):
     storage = Storage(**capacity)
     network = Network(transport, unl, is_public)
     plat = Platform(platform.system(), platform.release(),
                     platform.version(), platform.machine())
-    info = Info(__version__, storage, network, plat)
+    info = Info(__version__, storage, network, plat,
+                util.address_to_node_id(btcaddress))
     return base.create(btctxstore, node_wif, "info", info)
 
 
@@ -59,9 +63,9 @@ def _validate_network(network):
     if len(transport) != 2:
         return False
     ip, port = transport
-    if not valid_ip(ip):
+    if not util.valid_ip(ip):
         return False
-    if not valid_port(port):
+    if not util.valid_port(port):
         return False
 
     return True
@@ -84,6 +88,32 @@ def _validate_storage(storage):
     return True
 
 
+def _validate_platform(plat):
+    if not isinstance(plat, list):
+        return False
+    if len(plat) != 4:
+        return False
+    if not all([isinstance(prop, six.string_types) for prop in plat]):
+        return False
+    return True
+
+
+def _validate_version(version):
+    if not isinstance(version, six.string_types):
+        return False
+    if not re.match("^\d+\.\d+.\d+$", version):
+        return False
+    return True
+
+
+def _validate_btcaddress(btcaddress):
+    if not isinstance(btcaddress, six.binary_type):
+        return False
+    if len(btcaddress) != 20:  # 160 bytes
+        return False
+    return True
+
+
 def read(btctxstore, msg):
 
     # not a valid message
@@ -98,31 +128,23 @@ def read(btctxstore, msg):
     info = msg[3]
     if not isinstance(info, list):
         return None
-    if len(info) != 4:
+    if len(info) != 5:
         return None
-    version, storage, network, plat = info
+    version, storage, network, plat, btcaddress = info
 
-    # check version
-    if not isinstance(version, six.string_types):
+    if not _validate_version(version):
         return None
-    if not re.match("^\d+\.\d+.\d+$", version):
-        return None
-
     if not _validate_storage(storage):
         return None
     if not _validate_network(network):
         return None
-
-    # validate platform
-    if not isinstance(plat, list):
+    if not _validate_platform(plat):
         return None
-    if len(plat) != 4:
-        return None
-    if not all([isinstance(prop, six.string_types) for prop in plat]):
+    if not _validate_btcaddress(btcaddress):
         return None
 
     msg[3] = Info(version, Storage(*storage),
-                  Network(*network), Platform(*plat))
+                  Network(*network), Platform(*plat), btcaddress)
     return base.Message(*msg)
 
 
@@ -131,32 +153,42 @@ def request(node, receiver):
     return node.relay_message(receiver, msg)
 
 
-def _respond(node, receiver, store_config):
+def _respond(node, receiver, config):
 
-    def handler(result):
+    def on_error(result):
+        _log.error("{0} {1}".format(repr(result), config))
+
+    def on_success(result):
         if not result:
             _log.warning("Couldn't get info for requested info message!")
             return
-        capacity = manager.capacity(store_config)
+        capacity = manager.capacity(config["storage"])
+
+        # get btcaddress
+        if len(config["cold_storage"]) > 0:
+            btcaddress = random.choice(config["cold_storage"])
+        else:
+            btcaddress = node.get_address()
 
         msg = create(node.server.btctxstore, node.get_key(),
                      capacity, result["wan"], result["unl"],
-                     result["is_public"])
+                     result["is_public"], btcaddress)
         return node.relay_message(receiver, msg)
 
-    node.async_get_transport_info().addCallback(handler)
+    deferred = node.async_get_transport_info()
+    return deferred.addCallback(on_success).addErrback(on_error)
 
 
-def enable(node, store_config):
+def enable(node, config):
 
     class _Handler(object):
 
-        def __init__(self, store_config):
-            self.store_config = store_config
+        def __init__(self, config):
+            self.config = config
 
         def __call__(self, node, msg):
             request = signal.read(node.server.btctxstore, msg, "request_info")
             if request is not None:
-                _respond(node, request.sender, self.store_config)
+                _respond(node, request.sender, self.config)
 
-    return node.add_message_handler(_Handler(store_config))
+    return node.add_message_handler(_Handler(config))
