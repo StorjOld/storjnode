@@ -219,15 +219,20 @@ class StorjNode(apigen.Definition):
     #             self._events = []
     #         return messages
 
-    # @apigen.command()
-    # def net_publish(self, event_json):
-    #     """Publish an event on the network."""
-    #     raise NotImplementedError()
+    @apigen.command()
+    def net_publish(self, event_json):
+        """Publish an event on the network."""
+        raise NotImplementedError()
 
-    # @apigen.command()
-    # def net_subscribe(self, json_schema):
-    #     """Subscribe to matching events on the network."""
-    #     raise NotImplementedError()
+    @apigen.command()
+    def net_subscribe(self, json_schema):
+        """Subscribe to matching events on the network."""
+        raise NotImplementedError()
+
+    @apigen.command()
+    def net_unsubscribe(self, json_schema):
+        """Unsubscribe to matching events on the network."""
+        raise NotImplementedError()
 
     ####################
     # NETWORK TRANSFER #
