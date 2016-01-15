@@ -191,9 +191,29 @@ Accessing the json-rpc service from node.js
 API call list
 #############
 
++-------------+------------+-----------------------------------------+
+| Command     | Arguments  | Description                             |
++=============+============+=========================================+
+| info        |            | Get node information.                   |
++-------------+------------+-----------------------------------------+
+| cfg_current |            | The current config.                     |
++-------------+------------+-----------------------------------------+
+| cfg_default |            | Description The default storj config.   |
++-------------+------------+-----------------------------------------+
+| cfg_schema  |            | The jsonschema for config validation.   |
++-------------+------------+-----------------------------------------+
+| net_dht_put | key, value | Insert a key/value pair into the DHT.   |
++-------------+------------+-----------------------------------------+
+| net_dht_get | key        | Get value from the DHT for a given key. |
++-------------+------------+-----------------------------------------+
+| net_notify  | event      | Relay an event to a specific node.      |
++-------------+------------+-----------------------------------------+
+
 
 net_dht_put
 ===========
+
+Insert a key/value pair into the DHT.
 
 .. ::
 
@@ -201,11 +221,12 @@ net_dht_put
       key:
       value:
 
-    Returns: true on success, otherwise false
 
 
 net_dht_get
 ===========
+
+Get value from the DHT for a given key.
 
 .. ::
 

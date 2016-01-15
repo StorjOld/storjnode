@@ -203,11 +203,11 @@ class StorjNode(apigen.Definition):
     # NETWORK EVENTS #
     ##################
 
-    # @apigen.command()
-    # def net_send(self, node_address, event):
-    #     """Relay an event to a node."""
-    #     nodeid = storjnode.util.address_to_node_id(node_address)
-    #     return self._node.relay_message(nodeid, event)
+    @apigen.command()
+    def net_notify(self, node_address, event):
+        """Relay an event to a specific node."""
+        nodeid = storjnode.util.address_to_node_id(node_address)
+        return self._node.relay_message(nodeid, event)
 
     # @apigen.command()
     # def net_events(self, flush=True):

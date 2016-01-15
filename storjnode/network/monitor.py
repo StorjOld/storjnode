@@ -31,7 +31,7 @@ DEFAULT_DATA = {
                         # }
     "btcaddress": None,
     "bandwidth": None,  # {"send": int, "receive": int}
-    "latency": {"info": None, "peers": None},
+    "latency": {"info": None, "peers": None, "direct": None},  # TODO direct
     "request": {"tries": 0, "last": 0},
 }
 
