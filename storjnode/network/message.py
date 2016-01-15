@@ -5,7 +5,8 @@ from btctxstore import BtcTxStore
 from storjnode.util import node_id_to_address
 
 
-def sign(dict_obj, wif):  # FIXME use create instead
+def sign(dict_obj, wif):
+    # FIXME replace with storj.network.messages.base.create
     assert(isinstance(dict_obj, OrderedDict))
     if "signature" in dict_obj:
         del dict_obj["signature"]
@@ -30,7 +31,8 @@ def sign(dict_obj, wif):  # FIXME use create instead
     return dict_obj
 
 
-def verify_signature(msg, wif, node_id=None):  # FIXME use read instead
+def verify_signature(msg, wif, node_id=None):
+    # FIXME replace with storj.network.messages.base.read
     assert(isinstance(msg, OrderedDict))
 
     if u"signature" not in msg:
