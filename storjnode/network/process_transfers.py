@@ -24,6 +24,7 @@ import time
 import os
 from twisted.internet import defer
 import storjnode.storage as storage
+from pyp2p.lib import parse_exception
 from storjnode.util import safe_log_var
 from storjnode.network.file_handshake import protocol
 import pyp2p.unl
@@ -43,6 +44,8 @@ logging.verbose = lambda msg, *args, **kwargs:\
     logging.log(logging.VERBOSE, msg, *args, **kwargs)
 
 _log = storjnode.log.getLogger(__name__)
+HANDSHAKE_TIMEOUT = 360  # Tree fiddy. 'bout 6 mins.
+CON_TIMEOUT = 120
 
 
 class TransferError(Exception):
@@ -79,7 +82,7 @@ def expire_handshakes(client):
         if contract_id in client.handshake:
             handshake = client.handshake[contract_id]
             elapsed = time.time() - handshake["timestamp"]
-            if elapsed >= 350:  # Tree fiddy. 'bout 6 mins.
+            if elapsed >= HANDSHAKE_TIMEOUT:
                 if contract_id in client.defers:
                     e = Exception("Handshake timed out.")
                     client.defers[contract_id].errback(e)
@@ -268,9 +271,19 @@ def get_contract_id(client, con, contract_id):
 
 
 def complete_transfer(client, contract_id, con):
+    _log.debug("Waiting for mutex")
     with client.mutex:
+        _log.debug("Got mutex")
+
         # Leave bandwidth slice table.
-        client.bandwidth.remove_transfer(contract_id)
+        try:
+            _log.debug(str(client.bandwidth.transfers))
+            _log.debug(str(contract_id))
+            client.bandwidth.remove_transfer(contract_id)
+        except Exception as e:
+            print(parse_exception(e))
+            exit()
+        _log.debug("Removed bandwidth reservation")
 
         # Determine who is master.
         contract = client.contracts[contract_id]
@@ -283,9 +296,12 @@ def complete_transfer(client, contract_id, con):
             # Call any callbacks registered with this defer.
             client.defers[contract_id].callback(client.success_value)
             del client.defers[contract_id]
+        else:
+            _log.debug("Contract id not in client defers!")
 
         # Call the completion handlers.
         # todo: remove handler
+        _log.debug("Past that point")
         old_handlers = set()
         for handler in client.handlers["complete"]:
             ret = handler(
@@ -348,7 +364,7 @@ def process_transfers(client):
     for con in client.cons:
         # Socket has hung ungracefully.
         duration = time.time() - con.alive
-        if duration >= 120.0:
+        if duration >= CON_TIMEOUT:
             _log.debug("Ungraceful socket close")
             con.close()
             continue
@@ -425,7 +441,7 @@ def process_transfers(client):
 
         # Run any callbacks and schedule next transfer.
         if transfer_complete == 1:
-            _log.debug("Transfer completed")
+            _log.debug("Transfer completed" + str(con))
             complete_transfer(client, contract_id, con)
 
     # Only reschedule the Looping call when this is done.

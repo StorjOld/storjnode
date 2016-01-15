@@ -11,6 +11,7 @@ from storjnode.network.messages.peers import read as read_peers
 from storjnode.network.messages.peers import request as request_peers
 from storjnode.network.messages.info import read as read_info
 from storjnode.network.messages.info import request as request_info
+from pyp2p.lib import parse_exception
 
 
 _log = storjnode.log.getLogger(__name__)
@@ -172,7 +173,14 @@ class Crawler(object):  # will not scale but good for now
         data["request"]["tries"] = data["request"]["tries"] + 1
 
     def _handle_bandwidth_test_error(self, results):
+        _log.debug(str(results))
         with self.pipeline_mutex:
+            _log.debug("IN handle bandwiwdth test failure")
+            _log.debug("IN handle bandwiwdth test failure")
+            _log.debug("IN handle bandwiwdth test failure")
+            _log.debug("IN handle bandwiwdth test failure")
+            _log.debug("----------------")
+            print("\a")
 
             # move to the back to scanned fifo and try again later
             nodeid, data = self.pipeline_bandwidth_test
@@ -216,8 +224,8 @@ class Crawler(object):  # will not scale but good for now
             del self.pipeline_scanned[nodeid]
 
             # XXX skip bandwith test
-            self.pipeline_processed[nodeid] = data
-            return
+            # self.pipeline_processed[nodeid] = data
+            # return
 
             _log.info("Starting bandwidth test for: {0}".format(
                 node_id_to_address(nodeid))

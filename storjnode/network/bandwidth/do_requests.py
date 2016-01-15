@@ -4,6 +4,7 @@ Code that executes to handle bandwidth test requests
 """
 import storjnode
 import time
+import hashlib
 from collections import OrderedDict
 from storjnode.network.bandwidth.constants import ONE_MB
 from storjnode.util import parse_node_id_from_unl
@@ -95,9 +96,14 @@ def build_completion_handler(self, msg, accept_handler):
 
                 self.reset_state()
 
+            # Complete.
+            def success(ret):
+                self.reset_state()
+
             # Register error handler for transfer.
             if contract_id in self.transfer.defers:
                 self.transfer.defers[contract_id].addErrback(errback)
+                self.transfer.defers[contract_id].addCallback(success)
 
         test_data_size = (self.test_size * ONE_MB)
         self.results[test]["end_time"] = time.time()
@@ -188,6 +194,13 @@ def handle_requests_builder(self):
             _log.debug("req: test already active")
             return -2
 
+        # Check message id.
+        msg_id = hashlib.sha256(str(msg)).hexdigest()
+        if msg_id not in self.message_state:
+           self.message_state[msg_id] = "pending_transfer"
+        else:
+            return -5
+
         # Check they got our node unl right.
         our_unl = self.transfer.net.unl.value
         if our_unl != msg[u"test_node_unl"]:
@@ -233,11 +246,14 @@ def handle_requests_builder(self):
         res = zlib.compress(str(res))
         self.api.repeat_relay_message(src_node_id, res)
         _log.debug("req: got request")
+
+        # Return results.
         return res
 
     def try_wrapper(node, msg):
         try:
-            return handle_requests(node, msg)
+            with self.mutex:
+                return handle_requests(node, msg)
         except (ValueError, KeyError, TypeError, zlib.error) as e:
             _log.debug(e)
             _log.debug("Error in req")

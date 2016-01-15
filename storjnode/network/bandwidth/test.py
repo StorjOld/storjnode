@@ -2,6 +2,7 @@
 Not complete, don't add to __init__
 """
 
+import hashlib
 import storjnode
 from decimal import Decimal
 from collections import OrderedDict
@@ -27,6 +28,7 @@ from twisted.internet import defer
 from btctxstore import BtcTxStore
 from twisted.internet.task import LoopingCall
 from crochet import setup
+from threading import Lock
 setup()
 
 
@@ -35,6 +37,9 @@ _log = storjnode.log.getLogger(__name__)
 
 class BandwidthTest():
     def __init__(self, wif, transfer, api, increasing_tests=1):
+        # Mutex.
+        self.mutex = Lock()
+
         # Binary wallet import key.
         self.wif = wif
 
@@ -80,6 +85,9 @@ class BandwidthTest():
 
         # Timeout bandwidth test after N seconds.
         self.test_timeout = 300
+
+        # Protocol state.
+        self.message_state = {}
 
         # Handle timeouts.
         def handle_timeout():
@@ -160,7 +168,6 @@ class BandwidthTest():
 
     def reset_state(self):
         # Reset init state.
-        self.test_timeout = 300
         self.test_size = 1
         self.active_test = None
         self.results = self.setup_results()
@@ -301,7 +308,11 @@ class BandwidthTest():
         # Sign request.
         req = sign(req, self.wif)
 
-        # Send request.
+        # Identify request.
+        msg_id = hashlib.sha256(str(req)).hexdigest()
+        self.message_state[msg_id] = "pending_response"
+
+        # Pack request.
         node_id = parse_node_id_from_unl(node_unl)
         req = ordered_dict_to_list(req)
         req = zlib.compress(str(req))

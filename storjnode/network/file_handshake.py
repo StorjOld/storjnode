@@ -9,6 +9,7 @@ import sys
 import storjnode
 import logging
 import json
+from pyp2p.lib import parse_exception
 import storjnode.storage as storage
 from storjnode.util import parse_node_id_from_unl
 from storjnode.util import ordered_dict_to_list, list_to_ordered_dict
@@ -111,6 +112,8 @@ def success_wrapper(client, contract_id, host_unl):
     def success(con):
         with client.mutex:
             _log.debug("IN SUCCESS CALLBACK")
+            _log.debug(str(client))
+            _log.debug(str(client.bandwidth))
             _log.debug("Success() contract_id = " + str(contract_id))
             assert(host_unl is not None)
             assert(contract_id is not None)
@@ -145,7 +148,9 @@ def success_wrapper(client, contract_id, host_unl):
                 _log.debug("Success: upload")
 
             # Reserve bandwidth slice for this transfer.
+            _log.debug(str(client.bandwidth.transfers))
             if contract_id not in client.bandwidth.transfers:
+                _log.debug("Registering contract")
                 client.bandwidth.register_transfer(contract_id)
 
             # Queue first transfer.
@@ -336,6 +341,8 @@ def process_syn_ack(client, msg):
     # Are we already connected?
     is_reliable_con = 0
     con = client.net.con_by_unl(contract["dest_unl"], client.cons)
+    _log.debug("line 344")
+    _log.debug(str(con))
     if con is not None:
         # Otherwise the con could be torn down soon.
         elapsed = time.time() - con.alive
@@ -356,6 +363,7 @@ def process_syn_ack(client, msg):
 
     # Try make TCP con.
     if not is_reliable_con:
+        _log.debug("UNL connect " + contract["dest_unl"])
         client.net.unl.connect(
             contract["dest_unl"],
             {
@@ -425,20 +433,26 @@ def process_ack(client, msg):
 
     # Are we already connected?
     is_reliable_con = 0
-    con = client.net.con_by_unl(contract["src_unl"], client.cons)
-    if con is not None:
-        # Otherwise the con could be torn down soon.
-        elapsed = time.time() - con.alive
-        _log.debug("Alive duration: " + str(elapsed))
-        if elapsed <= 40:
-            is_reliable_con = 1
-            success_wrapper(
-                client,
-                contract_id,
-                contract["host_unl"]
-            )(con)
-    else:
-        _log.debug("con is not reliable")
+    _log.debug("line 434")
+    try:
+        con = client.net.con_by_unl(contract["src_unl"], client.cons)
+        _log.debug(str(con))
+        if con is not None:
+            # Otherwise the con could be torn down soon.
+            elapsed = time.time() - con.alive
+            _log.debug("Alive duration: " + str(elapsed))
+            if elapsed <= 40:
+                is_reliable_con = 1
+                success_wrapper(
+                    client,
+                    contract_id,
+                    contract["host_unl"]
+                )(con)
+        else:
+            _log.debug("con is not reliable")
+    except Exception as e:
+        print(parse_exception(e))
+        exit()
 
     # Disable queued transfers.
     if not ENABLE_QUEUED_TRANSFERS:
@@ -446,6 +460,7 @@ def process_ack(client, msg):
 
     # Try make TCP con.
     if not is_reliable_con:
+        _log.debug("UNL connect " + contract["src_unl"])
         client.net.unl.connect(
             contract["src_unl"],
             {

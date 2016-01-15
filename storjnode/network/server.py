@@ -21,7 +21,7 @@ from storjnode.network.messages.base import MAX_MESSAGE_DATA
 if os.environ.get("STORJNODE_QUERY_TIMEOUT"):
     QUERY_TIMEOUT = float(os.environ.get("STORJNODE_QUERY_TIMEOUT"))
 else:
-    QUERY_TIMEOUT = 5.0  # default seconds
+    QUERY_TIMEOUT = 0.3  # default seconds
 WALK_TIMEOUT = QUERY_TIMEOUT * 24.0
 
 

@@ -72,7 +72,7 @@ class Node(object):
                  passive_bind=None,  # FIXME use utils.get_inet_facing_ip ?
                  node_type="unknown",  # FIMME what is this ?
                  nat_type="unknown",  # FIXME what is this ?
-                 bandwidth=BandwidthLimit()
+                 bandwidth=None
                  ):
         """Create a blocking storjnode instance.
 
@@ -96,7 +96,7 @@ class Node(object):
             node_type: TODO doc string
             nat_type: TODO doc string
         """
-        self.bandwidth = bandwidth
+        self.bandwidth = bandwidth or BandwidthLimit()
         self.disable_data_transfer = bool(disable_data_transfer)
         self._transfer_request_handlers = set()
         self._transfer_complete_handlers = set()
@@ -145,7 +145,10 @@ class Node(object):
                 config, passive_port, passive_bind, node_type, nat_type
             )
             self.bandwidth_test = BandwidthTest(
-                self.get_key(), self._data_transfer, self
+                self.get_key(),
+                self._data_transfer,
+                self,
+                0
             )
 
     def _setup_message_dispatcher(self):
@@ -406,7 +409,7 @@ class Node(object):
             process_transfers,
             self._data_transfer
         ).start(0.002, now=True)
-        d.addErrback(process_transfers_error)
+        # d.addErrback(process_transfers_error)
 
     def test_bandwidth(self, node_id):
         """Tests the bandwidth between yourself and a remote peer.
@@ -448,6 +451,7 @@ class Node(object):
 
         # Make data request when we have their UNL.
         def on_success(peer_unl):
+            print(peer_unl)
             return self.bandwidth_test.start(peer_unl)
 
         def on_error(result):
