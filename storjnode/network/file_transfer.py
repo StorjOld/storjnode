@@ -169,6 +169,7 @@ class FileTransfer:
 
     def cleanup_transfers(self, con, contract_id):
         # Cleanup downloading.
+        _log.debug("In cleanup transfers")
         if contract_id in self.contracts:
             contract = self.contracts[contract_id]
             if contract["data_id"] in self.downloading:
@@ -198,8 +199,10 @@ class FileTransfer:
     def queue_next_transfer(self, con):
         _log.debug("Queing next transfer")
         for contract_id in list(self.con_info[con]):
+            _log.debug("Found contract id " + str(contract_id))
             con_info = self.con_info[con][contract_id]
             if con_info["remaining"]:
+                _log.debug("Sending contract id " + str(contract_id))
                 self.con_transfer[con] = contract_id
                 con.send(contract_id, send_all=1)
                 return

@@ -81,16 +81,27 @@ for node in swarm:
 time.sleep(WALK_TIMEOUT)
 
 # Show bandwidth.
+still_running = 1
 def show_bandwidth(results):
     print(results)
     global test_success
     print("IN SUCCESS CALLBACK!?@#!@#?!@?#")
     test_success = 1
-    _log.debug(results)
     try:
+        _log.debug(results)
+        print(swarm[0].bandwidth_test.test_size)
+        print(swarm[0].bandwidth_test.active_test)
+        print(swarm[0].bandwidth_test.results)
+        print(swarm[0].bandwidth_test.test_node_unl)
+        print(swarm[0].bandwidth_test.start_time)
+        print(swarm[0].bandwidth_test.data_id)
+        print(swarm[0].bandwidth_test.handlers)
+
         print("starting next bandwiwdth test!")
 
         def success_callback_2(results):
+            global still_running
+            still_running = 0
             print("IN FINAL SYUCCESS CALLBACK!?!")
             print(results)
 
@@ -105,5 +116,9 @@ d = swarm[0].test_bandwidth(swarm[1].get_id())
 d.addCallback(show_bandwidth)
 print("Stablised")
 
-while 1:
+while still_running:
     time.sleep(0.1)
+
+
+for node in swarm:
+    node.stop()

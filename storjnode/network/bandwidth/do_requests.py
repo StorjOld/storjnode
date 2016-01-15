@@ -252,8 +252,10 @@ def handle_requests_builder(self):
 
     def try_wrapper(node, msg):
         try:
+            _log.debug("Waiting for handle requests mutex")
             with self.mutex:
                 return handle_requests(node, msg)
+            _log.debug("Got handle requests mutex")
         except (ValueError, KeyError, TypeError, zlib.error) as e:
             _log.debug(e)
             _log.debug("Error in req")

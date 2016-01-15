@@ -94,6 +94,7 @@ class BandwidthTest():
             duration = time.time() - self.start_time
             if duration >= self.test_timeout:
                 if self.active_test is not None:
+                    _log.debug("active bandwiwdth test timeout!")
                     self.active_test.errback(Exception("Timed out"))
 
                 self.reset_state()

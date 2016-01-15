@@ -44,6 +44,7 @@ logging.verbose = lambda msg, *args, **kwargs:\
     logging.log(logging.VERBOSE, msg, *args, **kwargs)
 
 _log = storjnode.log.getLogger(__name__)
+_log.setLevel(logging.VERBOSE)
 HANDSHAKE_TIMEOUT = 360  # Tree fiddy. 'bout 6 mins.
 CON_TIMEOUT = 120
 
@@ -64,6 +65,7 @@ def cleanup_cons(client):
                     client.defers[contract_id].errback(e)
 
             # Cleanup old structures.
+            _log.debug("CON DEAD, cleaning up cons")
             client.cleanup_transfers(con, contract_id)
 
             # Record old connection.
@@ -84,6 +86,7 @@ def expire_handshakes(client):
             elapsed = time.time() - handshake["timestamp"]
             if elapsed >= HANDSHAKE_TIMEOUT:
                 if contract_id in client.defers:
+                    _log.debug("Expiring handshake")
                     e = Exception("Handshake timed out.")
                     client.defers[contract_id].errback(e)
                     del client.defers[contract_id]
@@ -272,6 +275,9 @@ def get_contract_id(client, con, contract_id):
 
 def complete_transfer(client, contract_id, con):
     _log.debug("Waiting for mutex")
+    _log.debug(str(client))
+    _log.debug(str(con))
+    _log.debug(str(contract_id))
     with client.mutex:
         _log.debug("Got mutex")
 
@@ -294,9 +300,11 @@ def complete_transfer(client, contract_id, con):
         # Return async success.
         if contract_id in client.defers:
             # Call any callbacks registered with this defer.
+            _log.debug("Complete transfer: removing defer" + str(client))
             client.defers[contract_id].callback(client.success_value)
             del client.defers[contract_id]
         else:
+            _log.debug(str(client))
             _log.debug("Contract id not in client defers!")
 
         # Call the completion handlers.
@@ -312,6 +320,8 @@ def complete_transfer(client, contract_id, con):
 
             if ret == -1:
                 old_handlers.add(handler)
+            else:
+                assert(ret)
 
         # Remove old handlers.
         for handler in old_handlers:
@@ -321,9 +331,12 @@ def complete_transfer(client, contract_id, con):
         if is_master:
             # Set next contract ID and send to client.
             client.queue_next_transfer(con)
+            _log.debug("End queuing next transfer")
         else:
             # Readying to receive a new contract ID.
             client.con_transfer[con] = u""
+
+        _log.debug("Finished complete")
 
 
 def process_dht_messages(client):
@@ -347,7 +360,18 @@ def process_dht_messages(client):
             client.net.dht_messages.remove(msg)
 
 
+future_tran = time.time() + 5
+future_queue = time.time() + 5
 def process_transfers(client):
+    # Indicate whether we're still in this.
+    global future_tran
+    global future_queue
+    if time.time() >= future_tran:
+        _log.debug("Still in process transfers")
+        _log.debug(str(client.net.outbound))
+        _log.debug(str(client.net.inbound))
+        future_tran = time.time() + 5
+
     # Process DHT messages.
     process_dht_messages(client)
 
@@ -371,6 +395,11 @@ def process_transfers(client):
 
         # Wait until there's new transfers to process.
         if not client.is_queued(con):
+            if time.time() >= future_queue:
+                _log.debug("nothing queued")
+                _log.debug(str(client.contracts))
+                future_queue = time.time() + 5
+
             continue
 
         # Get active contract ID (if we're not master.)
@@ -379,6 +408,7 @@ def process_transfers(client):
             _log.debug("Contract id =")
             _log.debug(contract_id)
             if not get_contract_id(client, con, contract_id):
+                _log.debug("Can't get contract id")
                 continue
             else:
                 # Check contract ID is associated with right con.
@@ -396,11 +426,13 @@ def process_transfers(client):
 
         # Reached end of transfer queue.
         if contract_id == u"0" * 64:
+            _log.verbose("end of transfer queue")
             continue
 
         # Anything left to do?
         con_info = client.con_info[con][contract_id]
         if not con_info["remaining"]:
+            _log.verbose("remaining is none")
             continue
 
         # Execute start callbacks.
@@ -415,6 +447,8 @@ def process_transfers(client):
                 # Handler was associated with this transfer.
                 if ret == -1:
                     old_handlers.add(handler)
+                else:
+                    assert(ret == 1)
 
             # Remove old start handlers.
             for handler in old_handlers:

@@ -10,6 +10,8 @@ import time
 import copy
 import zlib
 import hashlib
+from pyp2p.lib import parse_exception
+from twisted.internet import reactor
 from storjnode.network.bandwidth.constants import ONE_MB
 import storjnode.storage.manager
 from storjnode.network.message import verify_signature
@@ -170,15 +172,9 @@ def build_completion_handler(self, req, accept_handler):
                 speeds = self.interpret_results()
 
                 # Return results.
-                self.response_received = False
-                self.request_received = False
-                self.active_test.callback(speeds)
-
-                # Reset test state.
+                active_test = self.active_test
                 self.reset_state()
-
-                # Reset active test.
-                self.active_test = None
+                active_test.callback(speeds)
 
         return 1
 
@@ -280,8 +276,10 @@ def handle_responses_builder(self):
 
     def try_wrapper(node, msg):
         try:
+            _log.debug("Waiting for handle resposnes mutex")
             with self.mutex:
                 return handle_responses(node, msg)
+            _log.debug("Got handle resposnes mutex")
         except (ValueError, KeyError, TypeError, zlib.error) as e:
             _log.debug("Error in res")
             _log.debug(e)
