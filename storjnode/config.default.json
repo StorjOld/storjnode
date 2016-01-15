@@ -1,5 +1,5 @@
 {
-    "version": "VERSION",
+    "version": "0",
     "cold_storage": [],
     "network": {
         "port": "random",
