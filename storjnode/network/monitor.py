@@ -16,7 +16,9 @@ from storjnode.network.messages.info import request as request_info
 _log = storjnode.log.getLogger(__name__)
 
 
-# FIXME add unl to data
+SKIP_BANDWIDTH_TEST = True
+
+
 DEFAULT_DATA = {
     "peers": None,      # [nodeid, ...]
     "storage": None,    # {"total": int, "used": int, "free": int}
@@ -215,9 +217,10 @@ class Crawler(object):  # will not scale but good for now
             data = self.pipeline_scanned[nodeid]
             del self.pipeline_scanned[nodeid]
 
-            # XXX skip bandwith test
-            self.pipeline_processed[nodeid] = data
-            return
+            # skip bandwith test
+            if SKIP_BANDWIDTH_TEST:
+                self.pipeline_processed[nodeid] = data
+                return
 
             _log.info("Starting bandwidth test for: {0}".format(
                 node_id_to_address(nodeid))

@@ -115,9 +115,6 @@ class Node(object):
         passive_port = util.get_unused_port(passive_port)
         assert(util.valid_port(passive_port))
 
-        # FIXME chance of same port and passive_port being the same
-        # FIXME exclude ports already being used on the machine
-
         # passive bind
         # FIXME just use storjnode.util.get_inet_facing_ip ?
         passive_bind = passive_bind or "0.0.0.0"

@@ -19,11 +19,19 @@ _MIGRATIONS = {
 }
 
 
+_dirname = os.path.dirname(storjnode.util.full_path(__file__))
+
+
 # load schema
-dirname = os.path.dirname(storjnode.util.full_path(__file__))
-schema_path = os.path.join(dirname, "config.schema")
-with open(schema_path) as fp:
+_schema_path = os.path.join(_dirname, "config.schema")
+with open(_schema_path) as fp:
     SCHEMA = json.load(fp)
+
+
+# load default
+_default_path = os.path.join(_dirname, "config.default.json")
+with open(_default_path) as fp:
+    DEFAULT_CONFIG = json.load(fp)
 
 
 def read(path):
@@ -74,37 +82,15 @@ def create():
     """
     default_storage_path = storjnode.storage.manager.DEFAULT_STORE_PATH
     fs_format = storjnode.util.get_fs_type(default_storage_path)
-    return {
-        "version": VERSION,
-        "cold_storage": [],
-        "network": {
-            "port": "random",
-            "bootstrap_nodes": [],
-            "disable_data_transfer": False,
-            "bandwidth_limits": {
-                "sec": {
-                    "upstream": 0,  # no limit
-                    "downstream": 0  # no limit
-                },
-                "month": {
-                    "upstream": 10737418240,  # 10G
-                    "downstream": 10737418240,  # 10G
-                },
-            },
-            "monitor": {
-                "enable_crawler": True,
-                "enable_responses": True,
-                "crawler_limit": 20,
-                "crawler_interval": 3600,
-            }
+    cfg = copy.deepcopy(DEFAULT_CONFIG)
+    cfg["version"] = VERSION
+    cfg["storage"] = {
+        default_storage_path: {
+            "limit": storjnode.storage.manager.DEFAULT_STORE_LIMIT,
+            "use_folder_tree": fs_format == "vfat",
         },
-        "storage": {
-            default_storage_path: {
-                "limit": storjnode.storage.manager.DEFAULT_STORE_LIMIT,
-                "use_folder_tree": fs_format == "vfat",
-            },
-        }
     }
+    return cfg
 
 
 def validate(cfg):

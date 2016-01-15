@@ -24,6 +24,7 @@ signal.signal(signal.SIGINT, signal.default_int_handler)
 
 
 _log = storjnode.log.getLogger(__name__)
+WALK_TIMEOUT = WALK_TIMEOUT / 2  # XXX remove this
 
 
 PROFILE = False
@@ -406,7 +407,7 @@ class TestNode(unittest.TestCase):
     ########################
 
     def test_network_monitor_service(self):
-        limit = len(self.swarm) / 2 - 1
+        limit = len(self.swarm) - 1
         interval = WALK_TIMEOUT * 200
 
         crawled_event = threading.Event()
