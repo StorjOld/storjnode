@@ -11,6 +11,7 @@ from storjnode.network.messages.peers import read as read_peers
 from storjnode.network.messages.peers import request as request_peers
 from storjnode.network.messages.info import read as read_info
 from storjnode.network.messages.info import request as request_info
+from pyp2p.lib import parse_exception
 
 
 _log = storjnode.log.getLogger(__name__)
@@ -161,7 +162,14 @@ class Crawler(object):  # will not scale but good for now
         data["request"]["tries"] = data["request"]["tries"] + 1
 
     def _handle_bandwith_test_error(self, results):
+        _log.debug(str(results))
         with self.pipeline_mutex:
+            _log.debug("IN handle bandwiwdth test failure")
+            _log.debug("IN handle bandwiwdth test failure")
+            _log.debug("IN handle bandwiwdth test failure")
+            _log.debug("IN handle bandwiwdth test failure")
+            _log.debug("----------------")
+            print("\a")
 
             # move to the back to scanned fifo and try again later
             nodeid, data = self.pipeline_bandwith_test
@@ -172,27 +180,38 @@ class Crawler(object):  # will not scale but good for now
 
     def _handle_bandwith_test_success(self, results):
         with self.pipeline_mutex:
-            assert(results[0])
-            nodeid, data = self.pipeline_bandwith_test
+            try:
+                _log.debug("IN handle bandwiwdth test success")
+                _log.debug("IN handle bandwiwdth test success")
+                _log.debug("IN handle bandwiwdth test success")
+                _log.debug("IN handle bandwiwdth test success")
+                _log.debug("----------------")
+                print("\a")
+                print(results)
 
-            # save test results
-            data["bandwidth"] = {
-                "send": results[1]["upload"],
-                "receive": results[1]["download"]
-            }
+                nodeid, data = self.pipeline_bandwith_test
 
-            # move peer to processed
-            self.pipeline_processed[nodeid] = data
-            txt = "Processed:{0}, scanned:{1}, scanning:{2}, processed:{3}!"
-            _log.info(txt.format(
-                node_id_to_address(nodeid),
-                len(self.pipeline_scanned),
-                len(self.pipeline_scanning),
-                len(self.pipeline_processed),
-            ))
+                # save test results
+                data["bandwidth"] = {
+                    "send": results["upload"],
+                    "receive": results["download"]
+                }
 
-            # free up bandwith test for next peer
-            self.pipeline_bandwith_test = None
+                # move peer to processed
+                self.pipeline_processed[nodeid] = data
+                txt = "Processed:{0}, scanned:{1}, scanning:{2}, processed:{3}!"
+                _log.info(txt.format(
+                    node_id_to_address(nodeid),
+                    len(self.pipeline_scanned),
+                    len(self.pipeline_scanning),
+                    len(self.pipeline_processed),
+                ))
+
+                # free up bandwith test for next peer
+                self.pipeline_bandwith_test = None
+            except Exception as e:
+                print(parse_exception(e))
+                exit()
 
     def _process_bandwidth_test(self):
         # expects caller to have pipeline mutex
@@ -204,12 +223,16 @@ class Crawler(object):  # will not scale but good for now
             data = self.pipeline_scanned[nodeid]
             del self.pipeline_scanned[nodeid]
 
+            _log.info("\a\a\a\a\a")
+            _log.info("\a\a\a\a\a")
+            _log.info("\a\a\a\a\a")
             _log.info("Starting bandwith test for: {0}".format(
                 node_id_to_address(nodeid))
             )
 
             # start bandwith test (timeout after 5min)
             self.pipeline_bandwith_test = (nodeid, data)
+            assert(self.node.get_id() != nodeid)
             deferred = self.node.test_bandwidth(nodeid)
             deferred.addCallback(self._handle_bandwith_test_success)
             deferred.addErrback(self._handle_bandwith_test_error)

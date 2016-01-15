@@ -15,6 +15,7 @@ import storjnode
 from kademlia.node import Node as KademliaNode
 from storjnode.network.server import QUERY_TIMEOUT, WALK_TIMEOUT
 from storjnode.network.file_transfer import enable_unl_requests
+import storjnode.network.process_transfers
 from crochet import setup
 
 
@@ -27,11 +28,13 @@ _log = storjnode.log.getLogger(__name__)
 
 
 PROFILE = False
-SWARM_SIZE = 16
+SWARM_SIZE = 8
 KSIZE = SWARM_SIZE / 2 if SWARM_SIZE / 2 < 20 else 20
 PORT = 3000
 STORAGE_DIR = tempfile.mkdtemp()
 LAN_IP = storjnode.util.get_inet_facing_ip()
+storjnode.network.process_transfers.CON_TIMEOUT = 10000000000
+storjnode.network.process_transfers.HANDSHAKE_TIMEOUT = 100000000000
 
 
 class TestNode(unittest.TestCase):
@@ -67,6 +70,7 @@ class TestNode(unittest.TestCase):
             storjnode.network.messages.peers.enable(node)
             enable_unl_requests(node)
             node.bandwidth_test.enable()
+            node.bandwidth_test.test_timeout = 100000000000
             cls.swarm.append(node)
 
             msg = "TEST: created node {0} @ 127.0.0.1:{1}"
@@ -405,6 +409,7 @@ class TestNode(unittest.TestCase):
             random_peer, store_config, limit=limit,
             interval=interval, on_crawl_complete=handler
         )
+        monitor.timeout = 10000000000000
 
         crawled_event.wait(timeout=(interval + 5))
         monitor.stop()

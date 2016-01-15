@@ -9,6 +9,7 @@ import storjnode
 import time
 import copy
 import zlib
+import hashlib
 from storjnode.network.bandwidth.constants import ONE_MB
 import storjnode.storage.manager
 from storjnode.network.message import verify_signature
@@ -144,6 +145,7 @@ def build_completion_handler(self, req, accept_handler):
                 new_size = self.increase_test_size()
                 if new_size == self.test_size:
                     # Avoid DoS.
+                    _log.debug("DoS")
                     return -5
 
                 # Reset test state.
@@ -168,6 +170,8 @@ def build_completion_handler(self, req, accept_handler):
                 speeds = self.interpret_results()
 
                 # Return results.
+                self.response_received = False
+                self.request_received = False
                 self.active_test.callback(speeds)
 
                 # Reset test state.
@@ -199,6 +203,16 @@ def handle_responses_builder(self):
         # Check we sent the request.
         req = msg[u"request"]
         _log.debug(req)
+        msg_id = hashlib.sha256(str(req)).hexdigest()
+        if self.message_state[msg_id] == "pending_response":
+           self.message_state[msg_id] = "pending_transfer"
+        else:
+            return -6
+        msg_id = hashlib.sha256(str(msg)).hexdigest()
+        if msg_id not in self.message_state:
+            self.message_state[msg_id] = "pending_transfer"
+        else:
+            return -7
 
         # Check node IDs match.
         if req[u"test_node_unl"] != msg[u"requestee"]:
@@ -266,7 +280,8 @@ def handle_responses_builder(self):
 
     def try_wrapper(node, msg):
         try:
-            return handle_responses(node, msg)
+            with self.mutex:
+                return handle_responses(node, msg)
         except (ValueError, KeyError, TypeError, zlib.error) as e:
             _log.debug("Error in res")
             _log.debug(e)
