@@ -435,37 +435,13 @@ class TestNode(unittest.TestCase):
         print("CRAWLED DATA", crawl_data)
         self.assertEqual(len(crawl_data["processed"]), limit)
 
-    #####################################################
-    # test of searching unused slot for shard id in DHT #
-    #####################################################
-
     def test_find_next_free_dataset_num(self):
-        rp = random.choice(self.swarm)
-        # test 20 slots
-        x_times = 20
-        d_num = [0] * x_times
-        start_time = time.time()
-        for i in range(0, x_times):
-            print(" ")
-            watch_time = time.time()
-            num = storjnode.network.monitor.find_next_free_dataset_num(rp)
-            key = storjnode.network.monitor.predictable_key(rp, num)
-            # write num to array so we can use it for test later
-            d_num[i] = num
-            # write num also to DHT slot so we can test it later
-            rp[key] = num
-            print("Searching time: %ss" % (time.time() - watch_time))
-        print(" ")
-        print("Total searching time: %ss" % (time.time() - start_time))
-        test_result = True
-        for i in range(0, x_times):
-            num = d_num[i]
-            key = storjnode.network.monitor.predictable_key(rp, num)
-            # test if slot is used with correct value of num, else error
-            if rp[key] is None or rp[key] is not num:
-                test_result = False
-                break
-        self.assertTrue(test_result)
+        peer = random.choice(self.swarm)
+        for i in range(20):
+            key = storjnode.network.monitor.predictable_key(peer, i)
+            peer[key] = "taken"
+            num = storjnode.network.monitor.find_next_free_dataset_num(peer)
+            self.assertEqual(num, i + 1)
 
 
 if __name__ == "__main__":
