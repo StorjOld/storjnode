@@ -1,7 +1,6 @@
 import time
 import json
 import copy
-import traceback
 import storjnode
 from collections import OrderedDict
 from io import BytesIO
@@ -175,28 +174,27 @@ class Crawler(object):  # will not scale but good for now
         data["request"]["tries"] = data["request"]["tries"] + 1
 
     def _handle_bandwidth_test_error(self, results):
-        try:
-            with self.pipeline_mutex:
+        with self.pipeline_mutex:
 
-                # move to the back to scanned fifo and try again later
-                nodeid, data = self.pipeline_bandwidth_test
-                self.pipeline_scanned[nodeid] = data
+            # move to the back to scanned fifo and try again later
+            nodeid, data = self.pipeline_bandwidth_test
+            self.pipeline_scanned[nodeid] = data
 
-                # free up bandwidth test for next peer
-                self.pipeline_bandwidth_test = None
-        except Exception:
-            _log.error(traceback.format_exception())
+            # free up bandwidth test for next peer
+            self.pipeline_bandwidth_test = None
 
     def _handle_bandwidth_test_success(self, results):
         with self.pipeline_mutex:
             nodeid, data = self.pipeline_bandwidth_test
 
             # save test results
-            if results:
+            if results is not None:
                 data["bandwidth"] = {
                     "send": results["upload"],
                     "receive": results["download"]
                 }
+            else:
+                _log.error("No test results for success callback")
 
             # move peer to processed
             self.pipeline_processed[nodeid] = data
