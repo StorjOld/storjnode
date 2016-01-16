@@ -405,7 +405,7 @@ class Node(object):
         d = LoopingCall(
             process_transfers,
             self._data_transfer
-        ).start(0.002, now=True)
+        ).start(0.02, now=True)
         # d.addErrback(process_transfers_error)
 
     def test_bandwidth(self, node_id):

@@ -25,8 +25,8 @@ class RepeatRelay:
     def rebroadcast(self):
         # Rebroadcast after these thresholds.
         intervals = [
-            120, 60, 30, 25, 20,
-            15, 10, 5, 3, 1
+            1000, 500, 250, 120, 60, 30,
+            10
         ]
 
         # Process messages.
