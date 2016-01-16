@@ -176,14 +176,7 @@ class Crawler(object):  # will not scale but good for now
 
     def _handle_bandwidth_test_error(self, results):
         try:
-            _log.debug(str(results))
             with self.pipeline_mutex:
-                _log.debug("IN handle bandwiwdth test failure")
-                _log.debug("IN handle bandwiwdth test failure")
-                _log.debug("IN handle bandwiwdth test failure")
-                _log.debug("IN handle bandwiwdth test failure")
-                _log.debug("----------------")
-                print("\a")
 
                 # move to the back to scanned fifo and try again later
                 nodeid, data = self.pipeline_bandwidth_test
@@ -196,11 +189,6 @@ class Crawler(object):  # will not scale but good for now
 
     def _handle_bandwidth_test_success(self, results):
         try:
-            _log.debug("IN handle bandwiwdth test success")
-            _log.debug("IN handle bandwiwdth test success")
-            _log.debug("IN handle bandwiwdth test success")
-            _log.debug("IN handle bandwiwdth test success")
-            _log.debug("----------------")
             with self.pipeline_mutex:
                 nodeid, data = self.pipeline_bandwidth_test
 

@@ -18,33 +18,20 @@ sense of it all. The protocol is actually quite simple:
   contract_id) and the process continues.
 """
 
-import logging
 import struct
 import time
 import os
 from twisted.internet import defer
 import storjnode.storage as storage
 from pyp2p.lib import parse_exception
-from storjnode.util import safe_log_var
 from storjnode.network.file_handshake import protocol
-import pyp2p.unl
-import pyp2p.net
-import pyp2p.dht_msg
 from pyp2p.dht_msg import DHT
 import re
 import sys
 import storjnode
 
 
-logging.VERBOSE = 5
-logging.addLevelName(logging.VERBOSE, "VERBOSE")
-logging.Logger.verbose = lambda inst, msg, *args, **kwargs:\
-    inst.log(logging.VERBOSE, msg, *args, **kwargs)
-logging.verbose = lambda msg, *args, **kwargs:\
-    logging.log(logging.VERBOSE, msg, *args, **kwargs)
-
 _log = storjnode.log.getLogger(__name__)
-#_log.setLevel(logging.VERBOSE)
 HANDSHAKE_TIMEOUT = 360  # Tree fiddy. 'bout 6 mins.
 CON_TIMEOUT = 120
 
@@ -368,6 +355,8 @@ def process_dht_messages(client):
 
 future_tran = time.time() + 5
 future_queue = time.time() + 5
+
+
 def process_transfers(client):
     # Indicate whether we're still in this.
     global future_tran
