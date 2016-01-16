@@ -1,4 +1,5 @@
 import unittest
+import btctxstore
 import storjnode
 import socket
 try:
@@ -187,6 +188,106 @@ class TestGetUnusedPort(unittest.TestCase):
         addr, port = s.getsockname()
         self.assertTrue(storjnode.util.get_unused_port(port) != port)
         s.close()
+
+
+class TestByteCount(unittest.TestCase):
+
+    def test_types(self):
+
+        # accepted types
+        self.assertEqual(storjnode.util.byte_count(1), 1)
+        self.assertEqual(storjnode.util.byte_count("1"), 1)
+        self.assertEqual(storjnode.util.byte_count(b"1"), 1)
+        self.assertEqual(storjnode.util.byte_count(u"1"), 1)
+
+        def callback():
+            storjnode.util.byte_count(None)
+        self.assertRaises(btctxstore.exceptions.InvalidInput, callback)
+
+        def callback():
+            storjnode.util.byte_count(1.0)
+        self.assertRaises(btctxstore.exceptions.InvalidInput, callback)
+
+    def test_int(self):
+        self.assertEqual(storjnode.util.byte_count(1), 1)
+
+    def test_no_postfix(self):
+        self.assertEqual(storjnode.util.byte_count("1"), 1)
+        self.assertEqual(storjnode.util.byte_count("2"), 2)
+
+    def test_base_1024(self):
+        self.assertEqual(storjnode.util.byte_count("1K"), 1 * (1024 ** 1))
+        self.assertEqual(storjnode.util.byte_count("2K"), 2 * (1024 ** 1))
+
+        self.assertEqual(storjnode.util.byte_count("1M"), 1 * (1024 ** 2))
+        self.assertEqual(storjnode.util.byte_count("2M"), 2 * (1024 ** 2))
+
+        self.assertEqual(storjnode.util.byte_count("1G"), 1 * (1024 ** 3))
+        self.assertEqual(storjnode.util.byte_count("2G"), 2 * (1024 ** 3))
+
+        self.assertEqual(storjnode.util.byte_count("1T"), 1 * (1024 ** 4))
+        self.assertEqual(storjnode.util.byte_count("2T"), 2 * (1024 ** 4))
+
+        self.assertEqual(storjnode.util.byte_count("1P"), 1 * (1024 ** 5))
+        self.assertEqual(storjnode.util.byte_count("2P"), 2 * (1024 ** 5))
+
+    def test_base_1000(self):
+        self.assertEqual(storjnode.util.byte_count("1KB"), 1 * (1000 ** 1))
+        self.assertEqual(storjnode.util.byte_count("2KB"), 2 * (1000 ** 1))
+
+        self.assertEqual(storjnode.util.byte_count("1MB"), 1 * (1000 ** 2))
+        self.assertEqual(storjnode.util.byte_count("2MB"), 2 * (1000 ** 2))
+
+        self.assertEqual(storjnode.util.byte_count("1GB"), 1 * (1000 ** 3))
+        self.assertEqual(storjnode.util.byte_count("2GB"), 2 * (1000 ** 3))
+
+        self.assertEqual(storjnode.util.byte_count("1TB"), 1 * (1000 ** 4))
+        self.assertEqual(storjnode.util.byte_count("2TB"), 2 * (1000 ** 4))
+
+        self.assertEqual(storjnode.util.byte_count("1PB"), 1 * (1000 ** 5))
+        self.assertEqual(storjnode.util.byte_count("2PB"), 2 * (1000 ** 5))
+
+    def test_decimal(self):
+        # test unit boundries base 1024
+        self.assertEqual(storjnode.util.byte_count("1.0K"), 1024 ** 1)
+        self.assertEqual(storjnode.util.byte_count("1.0M"), 1024 ** 2)
+        self.assertEqual(storjnode.util.byte_count("1.0G"), 1024 ** 3)
+        self.assertEqual(storjnode.util.byte_count("1.0T"), 1024 ** 4)
+        self.assertEqual(storjnode.util.byte_count("1.0P"), 1024 ** 5)
+
+        # test unit boundries base 1000
+        self.assertEqual(storjnode.util.byte_count("1.0KB"), 1000 ** 1)
+        self.assertEqual(storjnode.util.byte_count("1.0MB"), 1000 ** 2)
+        self.assertEqual(storjnode.util.byte_count("1.0GB"), 1000 ** 3)
+        self.assertEqual(storjnode.util.byte_count("1.0TB"), 1000 ** 4)
+        self.assertEqual(storjnode.util.byte_count("1.0PB"), 1000 ** 5)
+
+        # test between unit boundries base 1024
+        self.assertEqual(storjnode.util.byte_count("0.5K"), (1024 ** 1 / 2))
+        self.assertEqual(storjnode.util.byte_count("0.5M"), (1024 ** 2 / 2))
+        self.assertEqual(storjnode.util.byte_count("0.5G"), (1024 ** 3 / 2))
+        self.assertEqual(storjnode.util.byte_count("0.5T"), (1024 ** 4 / 2))
+        self.assertEqual(storjnode.util.byte_count("0.5P"), (1024 ** 5 / 2))
+
+        # test between unit boundries base 1000
+        self.assertEqual(storjnode.util.byte_count("0.5KB"), (1000 ** 1 / 2))
+        self.assertEqual(storjnode.util.byte_count("0.5MB"), (1000 ** 2 / 2))
+        self.assertEqual(storjnode.util.byte_count("0.5GB"), (1000 ** 3 / 2))
+        self.assertEqual(storjnode.util.byte_count("0.5TB"), (1000 ** 4 / 2))
+        self.assertEqual(storjnode.util.byte_count("0.5PB"), (1000 ** 5 / 2))
+
+        # test type
+        self.assertIsInstance(storjnode.util.byte_count("1"), int)
+        self.assertIsInstance(storjnode.util.byte_count("0.49K"), int)
+        self.assertIsInstance(storjnode.util.byte_count("0.49M"), int)
+        self.assertIsInstance(storjnode.util.byte_count("0.49G"), int)
+        self.assertIsInstance(storjnode.util.byte_count("0.49T"), int)
+        self.assertIsInstance(storjnode.util.byte_count("0.49P"), int)
+        self.assertIsInstance(storjnode.util.byte_count("0.49KB"), int)
+        self.assertIsInstance(storjnode.util.byte_count("0.49MB"), int)
+        self.assertIsInstance(storjnode.util.byte_count("0.49GB"), int)
+        self.assertIsInstance(storjnode.util.byte_count("0.49TB"), int)
+        self.assertIsInstance(storjnode.util.byte_count("0.49PB"), int)
 
 
 if __name__ == "__main__":

@@ -10,7 +10,7 @@ class TestServer(unittest.TestCase):
     ##################################
 
     def test_server_port_closing(self):
-        # create server and start listen on port 12345
+        # create server and start listen on some random port
         test_result = True
         key = "5KaasrJx9KQymQ4zMffEPrsHxSn1bCnM9c3tbicp4Uunf1nrzyM"
         port = storjnode.util.get_unused_port(None)
