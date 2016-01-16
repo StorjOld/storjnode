@@ -437,25 +437,21 @@ def process_ack(client, msg):
     # Are we already connected?
     is_reliable_con = 0
     _log.debug("line 434")
-    try:
-        con = client.net.con_by_unl(contract["src_unl"], client.cons)
-        _log.debug(str(con))
-        if con is not None:
-            # Otherwise the con could be torn down soon.
-            elapsed = time.time() - con.alive
-            _log.debug("Alive duration: " + str(elapsed))
-            if elapsed <= 40:
-                is_reliable_con = 1
-                success_wrapper(
-                    client,
-                    contract_id,
-                    contract["host_unl"]
-                )(con)
-        else:
-            _log.debug("con is not reliable")
-    except Exception as e:
-        _log.debug(parse_exception(e))
-        exit()
+    con = client.net.con_by_unl(contract["src_unl"], client.cons)
+    _log.debug(str(con))
+    if con is not None:
+        # Otherwise the con could be torn down soon.
+        elapsed = time.time() - con.alive
+        _log.debug("Alive duration: " + str(elapsed))
+        if elapsed <= 40:
+            is_reliable_con = 1
+            success_wrapper(
+                client,
+                contract_id,
+                contract["host_unl"]
+            )(con)
+    else:
+        _log.debug("con is not reliable")
 
     # Disable queued transfers.
     if not ENABLE_QUEUED_TRANSFERS:

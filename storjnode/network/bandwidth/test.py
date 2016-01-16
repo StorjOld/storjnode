@@ -149,6 +149,19 @@ class BandwidthTest():
         # Now enable the handler for real.
         self.transfer.add_handler(type, handler)
 
+    def remove_handler(self, type, handler):
+        # Unknown handler.
+        if type not in self.handlers:
+            raise Exception("Unknown handler.")
+
+        # Record a copy of the handler for our records.
+        if handler in self.handlers[type]:
+            self.handlers[type].remove(handler)
+
+        # Now enable the handler for real.
+        if handler in self.transfer.handlers[type]:
+            self.transfer.remove_handler(type, handler)
+
     def setup_results(self):
         results = {
             "upload": {

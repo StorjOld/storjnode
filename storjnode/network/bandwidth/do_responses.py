@@ -43,6 +43,10 @@ def build_accept_handler(self, req):
             _log.debug("file size != \a")
             return -4
 
+        # Remove this accept handler.
+        self.api.remove_transfer_request_handler(accept_handler)
+        self.remove_handler("accept", accept_handler)
+
         return 1
 
     return accept_handler

@@ -280,13 +280,9 @@ def complete_transfer(client, contract_id, con):
         _log.debug("Got mutex")
 
         # Leave bandwidth slice table.
-        try:
-            _log.debug(str(client.bandwidth.transfers))
-            _log.debug(str(contract_id))
-            client.bandwidth.remove_transfer(contract_id)
-        except Exception as e:
-            print(parse_exception(e))
-            exit()
+        _log.debug(str(client.bandwidth.transfers))
+        _log.debug(str(contract_id))
+        client.bandwidth.remove_transfer(contract_id)
         _log.debug("Removed bandwidth reservation")
 
         # Determine who is master.
@@ -350,6 +346,7 @@ def process_dht_messages(client):
             _log.debug(str(msg["message"]))
             protocol(client, msg["message"])
     except Exception as e:
+        _log.debug(str(parse_exception(e)))
         _log.debug("exception in process DHT message")
         _log.debug(e)
         pass

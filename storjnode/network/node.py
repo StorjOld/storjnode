@@ -405,7 +405,7 @@ class Node(object):
         d = LoopingCall(
             process_transfers,
             self._data_transfer
-        ).start(0.02, now=True)
+        ).start(0.002, now=True)
         # d.addErrback(process_transfers_error)
 
     def test_bandwidth(self, node_id):
@@ -563,7 +563,7 @@ class Node(object):
         Raises:
             KeyError if handler was not previously added.
         """
-        self._transfer_complete_handlers.remove(handler)
+        self._transfer_request_handlers.remove(handler)
 
     def add_transfer_complete_handler(self, handler):
         """Add a transfer complete handler.
