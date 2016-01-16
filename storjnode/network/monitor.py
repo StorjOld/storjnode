@@ -304,16 +304,18 @@ def predictable_key(node, num):
 
 def find_next_free_dataset_num(node):
 
-    # find upper bound with exponentially increasing steps
+    # probe for free slots with exponentially increasing steps
     upper_bound, exponant = 0, 0
     while node[predictable_key(node, upper_bound)] is not None:
         upper_bound = 2 ** exponant
         exponant += 1
 
+    # wrapper to find used slots
     class CompareObject(object):
         def __gt__(bisect_self, index):
             return node[predictable_key(node, index)] is not None
 
+    # A read only list where the index is the value [0,1,2,3,4 ...]
     class ListObject(object):
         def __getitem__(self, index):
             return index
@@ -321,6 +323,7 @@ def find_next_free_dataset_num(node):
         def __len__(self):
             return upper_bound + 1
 
+    # binary search to find fist free slot
     return bisect.bisect_left(ListObject(), CompareObject())
 
 
