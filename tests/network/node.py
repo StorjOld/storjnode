@@ -412,7 +412,8 @@ class TestNode(unittest.TestCase):
 
     def test_network_monitor_service(self):
         limit = len(self.swarm) - 1
-        interval = WALK_TIMEOUT * 200
+        interval = WALK_TIMEOUT * 200000000
+
 
         crawled_event = threading.Event()
         results = {}
@@ -433,6 +434,7 @@ class TestNode(unittest.TestCase):
         monitor.stop()
 
         # check that limit nodes were scanned
+        self.assertTrue(crawled_event.is_set())
         self.assertTrue(len(results), limit)
         shard = results["shard"]
         shard.seek(0)

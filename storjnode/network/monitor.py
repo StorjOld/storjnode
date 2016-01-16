@@ -16,7 +16,7 @@ from storjnode.network.messages.info import request as request_info
 _log = storjnode.log.getLogger(__name__)
 
 
-SKIP_BANDWIDTH_TEST = True
+SKIP_BANDWIDTH_TEST = False
 
 
 DEFAULT_DATA = {
@@ -192,13 +192,12 @@ class Crawler(object):  # will not scale but good for now
 
     def _handle_bandwidth_test_success(self, results):
         with self.pipeline_mutex:
-            assert(results[0])
             nodeid, data = self.pipeline_bandwidth_test
 
             # save test results
             data["bandwidth"] = {
-                "send": results[1]["upload"],
-                "receive": results[1]["download"]
+                "send": results["upload"],
+                "receive": results["download"]
             }
 
             # move peer to processed
