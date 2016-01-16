@@ -454,7 +454,7 @@ def process_ack(client, msg):
         else:
             _log.debug("con is not reliable")
     except Exception as e:
-        print(parse_exception(e))
+        _log.debug(parse_exception(e))
         exit()
 
     # Disable queued transfers.
@@ -560,6 +560,6 @@ def protocol(client, msg):
         msg_handlers[status](client, msg)
         return 1
     else:
-        print("MSG HANDLER NOT FOUND")
+        _log.debug("MSG HANDLER NOT FOUND")
 
     return -4

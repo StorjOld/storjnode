@@ -280,7 +280,7 @@ def complete_transfer(client, contract_id, con):
             _log.debug(str(contract_id))
             client.bandwidth.remove_transfer(contract_id)
         except Exception as e:
-            print(parse_exception(e))
+            _log.error(parse_exception(e))
             exit()
         _log.debug("Removed bandwidth reservation")
 
