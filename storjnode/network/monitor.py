@@ -1,6 +1,7 @@
 import time
 import json
 import copy
+import bisect
 import storjnode
 from collections import OrderedDict
 from io import BytesIO
@@ -301,13 +302,47 @@ def predictable_key(node, num):
     return "monitor_dataset_{0}_{1}".format(node.get_address(), str(num))
 
 
+def build_seeds(node, max):
+    seeds = []
+    for i in range(0, max):
+        seed = predictable_key(node, i)
+        seeds.append(seed)
+    return seeds
+
+
+def binary_search_unused_slots(node, seeds):
+    class BiSectCompareObject(str):
+        def __gt__(bisect_self, seed):
+            if node[seed] is None:
+                return False
+            else:
+                return True
+    return bisect.bisect_left(seeds, BiSectCompareObject())
+
+
 def find_next_free_dataset_num(node):
-    # FIXME probe with exponential increase then binary search lowest unused
+    # Probe with exponential increase and binary search lowest unused.
     num = 0
-    while node[predictable_key(node, num)] is not None:
-        _log.info("Dataset {0} already exists!".format(num))
-        num += 1
-    return num
+    if node[predictable_key(node, num)] is None:
+        return num
+    # if not unused so find it with binary search between 0 and num
+    while True:
+        _log.info("Dataset {0} already exists! Move exponentialy.".format(num))
+        # some nice exponential function for exponential probing
+        # (it reduces clustering in DHT)
+        num = num * num + 1
+        if node[predictable_key(node, num)] is None:
+            _log.info("Slot {0} unused".format(num))
+            return num
+        _log.info("Dataset {0} already exists! Try binary search.".format(num))
+
+        enum_seeds = list(enumerate(build_seeds(node, num)))
+        seeds = [seed for nm, seed in enum_seeds]
+
+        num_search = binary_search_unused_slots(node, seeds)
+        if num_search is not len(seeds):
+            _log.info("Slot {0} unused".format(num_search))
+            return num_search
 
 
 def create_shard(node, num, begin, end, processed):
