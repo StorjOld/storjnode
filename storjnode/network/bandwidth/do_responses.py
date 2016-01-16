@@ -170,6 +170,9 @@ def build_completion_handler(self, req, accept_handler):
 
                 # Convert results to bytes per second.
                 speeds = self.interpret_results()
+                _log.debug("IN SUCCESS CALLBACK FOR BAND TESTS")
+                _log.debug(speeds)
+                _log.debug(self.results)
 
                 # Return results.
                 active_test = self.active_test

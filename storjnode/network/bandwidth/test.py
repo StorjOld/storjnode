@@ -242,7 +242,7 @@ class BandwidthTest():
 
         return 0
 
-    def start(self, node_unl, size=1, timeout=300):
+    def start(self, node_unl, size=1, timeout=None):
         """
         :param node_unl: UNL of target
         :param size: MB to send in transfer
@@ -260,7 +260,7 @@ class BandwidthTest():
         self.test_size = size
 
         # Set timeout.
-        self.test_timeout = timeout
+        self.test_timeout = timeout or self.test_timeout
 
         # Reset deferred.
         self.active_test = defer.Deferred()

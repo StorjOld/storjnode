@@ -26,7 +26,7 @@ class RepeatRelay:
         # Rebroadcast after these thresholds.
         intervals = [
             1000, 500, 240, 120, 60, 30, 25, 20,
-            15, 10, 5, 3, 1
+            15, 10, 5
         ]
 
         # Process messages.

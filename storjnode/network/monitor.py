@@ -192,6 +192,7 @@ class Crawler(object):  # will not scale but good for now
                 # free up bandwidth test for next peer
                 self.pipeline_bandwidth_test = None
         except Exception as e:
+            import pdb; pdb.set_trace()
             print(parse_exception(e))
 
     def _handle_bandwidth_test_success(self, results):
@@ -223,6 +224,7 @@ class Crawler(object):  # will not scale but good for now
                 # free up bandwidth test for next peer
                 self.pipeline_bandwidth_test = None
         except Exception as e:
+            import pdb; pdb.set_trace()
             print(parse_exception(e))
 
     def _process_bandwidth_test(self):
@@ -249,7 +251,8 @@ class Crawler(object):  # will not scale but good for now
             on_success = self._handle_bandwidth_test_success
             on_error = self._handle_bandwidth_test_error
             deferred = self.node.test_bandwidth(nodeid)
-            deferred.addCallback(on_success).addErrback(on_error)
+            deferred.addCallback(on_success)
+            deferred.addErrback(on_error)
 
     def _process_pipeline(self):
         while not self.stop_thread and time.time() < self.timeout:

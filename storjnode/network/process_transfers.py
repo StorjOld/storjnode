@@ -44,7 +44,7 @@ logging.verbose = lambda msg, *args, **kwargs:\
     logging.log(logging.VERBOSE, msg, *args, **kwargs)
 
 _log = storjnode.log.getLogger(__name__)
-#_log.setLevel(logging.VERBOSE)
+_log.setLevel(logging.VERBOSE)
 HANDSHAKE_TIMEOUT = 360  # Tree fiddy. 'bout 6 mins.
 CON_TIMEOUT = 120
 
