@@ -414,7 +414,6 @@ class TestNode(unittest.TestCase):
         limit = len(self.swarm) - 1
         interval = WALK_TIMEOUT * 200000000
 
-
         crawled_event = threading.Event()
         results = {}
 

@@ -27,9 +27,7 @@ from storjnode.util import generate_random_file, ordered_dict_to_list
 from twisted.internet import defer
 from btctxstore import BtcTxStore
 from twisted.internet.task import LoopingCall
-from crochet import setup
 from threading import Lock
-setup()
 
 
 _log = storjnode.log.getLogger(__name__)
@@ -103,12 +101,11 @@ class BandwidthTest():
         def schedule_looping_call():
             d = LoopingCall(handle_timeout).start(1, now=True)
             d.addErrback(handle_errors)
-            return d
 
         # Handle errors.
         def handle_errors(ret):
             self.reset_state()
-            return schedule_looping_call()
+            schedule_looping_call()
 
         schedule_looping_call()
 

@@ -5,6 +5,9 @@ import logging as _logging
 from twisted.python import log as _log
 
 
+ENABLE_GLOBAL_LOGGER = os.environ.get("STORJNODE_ENABLE_GLOBAL_LOGGER")
+
+
 FORMAT = "%(asctime)s %(levelname)s %(name)s %(lineno)d: %(message)s"
 LEVEL_DEFAULT = _logging.INFO
 LEVEL_QUIET = 60
@@ -17,7 +20,6 @@ _observer.start()  # pragma: no cover
 
 
 # silence global logger
-ENABLE_GLOBAL_LOGGER = os.environ.get("STORJNODE_ENABLE_GLOBAL_LOGGER")
 if ENABLE_GLOBAL_LOGGER:
     _logging.basicConfig(format=FORMAT)
 else:
