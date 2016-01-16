@@ -25,8 +25,8 @@ class RepeatRelay:
     def rebroadcast(self):
         # Rebroadcast after these thresholds.
         intervals = [
-            1000, 500, 240, 120, 60, 30, 25, 20,
-            15, 10, 5
+            120, 60, 30, 25, 20,
+            15, 10, 5, 3, 1
         ]
 
         # Process messages.
@@ -48,7 +48,7 @@ class RepeatRelay:
                     relay_info["interval"] = interval
 
                     # Expire.
-                    if interval == intervals[0]:
+                    if interval == 120:
                         expired.append(relay_info)
 
                     break

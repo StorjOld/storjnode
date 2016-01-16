@@ -36,15 +36,7 @@ import sys
 import storjnode
 
 
-logging.VERBOSE = 5
-logging.addLevelName(logging.VERBOSE, "VERBOSE")
-logging.Logger.verbose = lambda inst, msg, *args, **kwargs:\
-    inst.log(logging.VERBOSE, msg, *args, **kwargs)
-logging.verbose = lambda msg, *args, **kwargs:\
-    logging.log(logging.VERBOSE, msg, *args, **kwargs)
-
 _log = storjnode.log.getLogger(__name__)
-_log.setLevel(logging.VERBOSE)
 HANDSHAKE_TIMEOUT = 360  # Tree fiddy. 'bout 6 mins.
 CON_TIMEOUT = 120
 
@@ -93,7 +85,7 @@ def expire_handshakes(client):
 
 
 def do_upload(client, con, contract, con_info, contract_id):
-    _log.verbose("Upload")
+    _log.debug("Upload")
 
     # Send file size.
     if not con_info["file_size"]:
@@ -155,8 +147,8 @@ def do_upload(client, con, contract, con_info, contract_id):
             contract_id
         )
 
-    _log.verbose("Remaining = ")
-    _log.verbose(con_info["remaining"])
+    _log.debug("Remaining = ")
+    _log.debug(con_info["remaining"])
 
     # Everything uploaded.
     if not con_info["remaining"]:
@@ -166,7 +158,7 @@ def do_upload(client, con, contract, con_info, contract_id):
 
 
 def do_download(client, con, contract, con_info, contract_id):
-    _log.verbose("download")
+    _log.debug("download")
 
     # Get file size.
     if not con_info["file_size"]:
@@ -218,8 +210,8 @@ def do_download(client, con, contract, con_info, contract_id):
             contract_id
         )
 
-    _log.verbose("Remaining = ")
-    _log.verbose(con_info["remaining"])
+    _log.debug("Remaining = ")
+    _log.debug(con_info["remaining"])
 
     # When done downloading close con.
     if not con_info["remaining"]:
@@ -432,13 +424,13 @@ def process_transfers(client):
 
         # Reached end of transfer queue.
         if contract_id == u"0" * 64:
-            _log.verbose("end of transfer queue")
+            _log.debug("end of transfer queue")
             continue
 
         # Anything left to do?
         con_info = client.con_info[con][contract_id]
         if not con_info["remaining"]:
-            _log.verbose("remaining is none")
+            _log.debug("remaining is none")
             continue
 
         # Execute start callbacks.

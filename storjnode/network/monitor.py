@@ -131,7 +131,7 @@ class Crawler(object):  # will not scale but good for now
             return  # info not yet received
 
         # move to scanned
-        print("Moving {0} to scanned".format(
+        _log.info("Moving {0} to scanned".format(
             storjnode.util.node_id_to_address(nodeid))
         )
         del self.pipeline_scanning[nodeid]
@@ -175,41 +175,29 @@ class Crawler(object):  # will not scale but good for now
         data["request"]["tries"] = data["request"]["tries"] + 1
 
     def _handle_bandwidth_test_error(self, results):
-        try:
-            _log.debug(str(results))
-            with self.pipeline_mutex:
-                _log.debug("IN handle bandwiwdth test failure")
-                _log.debug("IN handle bandwiwdth test failure")
-                _log.debug("IN handle bandwiwdth test failure")
-                _log.debug("IN handle bandwiwdth test failure")
-                _log.debug("----------------")
-                print("\a")
+        import pdb; pdb.set_trace()
+        _log.debug(str(results))
+        with self.pipeline_mutex:
+            # move to the back to scanned fifo and try again later
+            nodeid, data = self.pipeline_bandwidth_test
+            self.pipeline_scanned[nodeid] = data
 
-                # move to the back to scanned fifo and try again later
-                nodeid, data = self.pipeline_bandwidth_test
-                self.pipeline_scanned[nodeid] = data
-
-                # free up bandwidth test for next peer
-                self.pipeline_bandwidth_test = None
-        except Exception as e:
-            import pdb; pdb.set_trace()
-            print(parse_exception(e))
+            # free up bandwidth test for next peer
+            self.pipeline_bandwidth_test = None
 
     def _handle_bandwidth_test_success(self, results):
         try:
-            _log.debug("IN handle bandwiwdth test success")
-            _log.debug("IN handle bandwiwdth test success")
-            _log.debug("IN handle bandwiwdth test success")
-            _log.debug("IN handle bandwiwdth test success")
-            _log.debug("----------------")
             with self.pipeline_mutex:
                 nodeid, data = self.pipeline_bandwidth_test
 
                 # save test results
-                data["bandwidth"] = {
-                    "send": results["upload"],
-                    "receive": results["download"]
-                }
+                if results is not None:
+                    data["bandwidth"] = {
+                        "send": results["upload"],
+                        "receive": results["download"]
+                    }
+                else:
+                    _log.error("No test results for success callback")
 
                 # move peer to processed
                 self.pipeline_processed[nodeid] = data

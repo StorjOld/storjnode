@@ -107,8 +107,6 @@ class BandwidthTest():
 
         # Handle errors.
         def handle_errors(ret):
-            print("An unknown error occurred in handle timeout")
-            print(ret)
             self.reset_state()
             return schedule_looping_call()
 

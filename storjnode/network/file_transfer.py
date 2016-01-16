@@ -59,8 +59,6 @@ def process_unl_requests(node, msg):
 
 
 def enable_unl_requests(node):
-    print(node)
-    print("Enable unl requests")
     node.add_message_handler(process_unl_requests)
 
 
