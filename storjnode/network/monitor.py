@@ -305,8 +305,9 @@ def predictable_key(node, num):
 def find_next_free_dataset_num(node):
 
     # probe for free slots with exponentially increasing steps
-    upper_bound, exponant = 0, 0
+    lower_bound, upper_bound, exponant = 0, 0, 0
     while node[predictable_key(node, upper_bound)] is not None:
+        lower_bound = upper_bound
         upper_bound = 2 ** exponant
         exponant += 1
 
@@ -315,16 +316,16 @@ def find_next_free_dataset_num(node):
         def __gt__(bisect_self, index):
             return node[predictable_key(node, index)] is not None
 
-    # A read only list where the index is the value [0,1,2,3,4 ...]
+    # A list where the value is the index + lower_bound: [3, 4, 5, 6 ...]
     class ListObject(object):
         def __getitem__(self, index):
-            return index
+            return index + lower_bound
 
         def __len__(self):
-            return upper_bound + 1
+            return upper_bound + 1 - lower_bound
 
-    # binary search to find fist free slot
-    return bisect.bisect_left(ListObject(), CompareObject())
+    # binary search to find fist free slot btween lower and upper bound
+    return bisect.bisect_left(ListObject(), CompareObject()) + lower_bound
 
 
 def create_shard(node, num, begin, end, processed):
