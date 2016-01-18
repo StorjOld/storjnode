@@ -4,30 +4,21 @@ import storjnode
 from storjnode.common import STORJ_HOME
 
 
-# FIXME move defaults to common
-DEFAULT_SHARD_SIZE = 1024 * 1024 * 128  # 128M
-DEFAULT_STORE_PATH = os.path.join(STORJ_HOME, "store")
-DEFAULT_STORE_LIMIT = "10G"
-DEFAULT_STORE_CONFIG = {
-    DEFAULT_STORE_PATH: {"limit": 0, "use_folder_tree": False}
-}
-
-
 _log = storjnode.log.getLogger(__name__)
 _builtin_open = open
 
 
-def _get_shard_path(store_path, shard_id, use_folder_tree,
+def _get_shard_path(store_path, shardid, use_folder_tree,
                     create_needed_folders=False):
     if use_folder_tree:
-        folders = os.path.join(*storjnode.util.chunks(shard_id, 3))
+        folders = os.path.join(*storjnode.util.chunks(shardid, 3))
         store_path = os.path.join(store_path, folders)
         if create_needed_folders:
             storjnode.util.ensure_path_exists(store_path)
-    return os.path.join(store_path, shard_id)
+    return os.path.join(store_path, shardid)
 
 
-def setup(store_config=None):
+def setup(store_config):
     """Setup store so it can be use to store shards.
 
     This will validate the store paths and create any needed directories.
@@ -52,7 +43,6 @@ def setup(store_config=None):
         normalized_paths = storjnode.storage.store.setup(store_config)
     """
     normal_paths = {}
-    store_config = store_config or DEFAULT_STORE_CONFIG
     for path, attributes in store_config.items():
         attributes = attributes or {}  # None allowed
 
@@ -86,7 +76,7 @@ def setup(store_config=None):
     return normal_paths
 
 
-def open(store_config, shard_id):
+def open(store_config, shardid):  # FIXME require config instead
     """Retreives a shard from storage.
 
     Args:
@@ -94,7 +84,7 @@ def open(store_config, shard_id):
                       limit: The dir size limit in bytes, 0 for no limit.
                       use_folder_tree: Files organized in a folder tree
                                        (always on for fat partitions).
-        shard_id: Id of the shard to retreive.
+        shardid: Id of the shard to retreive.
 
     Returns:
         A read only file object for the shard, the caller is responsable
@@ -111,14 +101,14 @@ def open(store_config, shard_id):
         with storjnode.storage.store.open(store_config, id) as shard:
             print(storjnode.storage.shard.get_id(shard)
     """
-    shard_path = find(store_config, shard_id)
+    shard_path = find(store_config, shardid)
     if shard_path is not None:
         return _builtin_open(shard_path, "rb")
     else:
-        raise KeyError("Shard {0} not found!".format(shard_id))
+        raise KeyError("Shard {0} not found!".format(shardid))
 
 
-def capacity(store_config):
+def capacity(store_config):  # FIXME require config instead
     """ Get the total, used and free capacity of the store.
 
     Args:
@@ -138,7 +128,7 @@ def capacity(store_config):
         store_config = {"path/alpha": None, "path/beta": None}
         print(storjnode.storage.manager.capacity(store_config))
     """
-    store_config = setup(store_config=store_config)  # setup if needed
+    store_config = setup(store_config)  # setup if needed
     total, used, free = 0, 0, 0
     # FIXME doesn't give correct total if multiple paths on same drive
     for store_path, attributes in store_config.items():
@@ -151,7 +141,7 @@ def capacity(store_config):
     return {"total": total, "used": used, "free": free}
 
 
-def add(store_config, shard):
+def add(store_config, shard):  # FIXME require config instead
     """ Add a shard to the storage.
 
     Args:
@@ -174,12 +164,12 @@ def add(store_config, shard):
         with open("path/to/loose/shard", "rb") as shard:
             storjnode.storage.store.add(store_config, shard)
     """
-    store_config = setup(store_config=store_config)  # setup if needed
-    shard_id = storjnode.storage.shard.get_id(shard)
+    store_config = setup(store_config)  # setup if needed
+    shardid = storjnode.storage.shard.get_id(shard)
     shard_size = storjnode.storage.shard.get_size(shard)
 
     # check if already in storage
-    shard_path = find(store_config, shard_id)
+    shard_path = find(store_config, shardid)
     if shard_path is not None:
         return shard_path
 
@@ -195,7 +185,7 @@ def add(store_config, shard):
         if limit > 0 and shard_size > free:
             msg = ("Store path limit reached for {3} cannot add {0}: "
                    "Required {1} > {2} free.")
-            _log.warning(msg.format(shard_id, shard_size,
+            _log.warning(msg.format(shardid, shard_size,
                                     free, store_path))
             continue  # try next storepath
 
@@ -204,21 +194,21 @@ def add(store_config, shard):
         if shard_size > free_space:
             msg = ("Not enough disc space in {3} to add {0}: "
                    "Required {1} > {2} free.")
-            msg = msg.format(shard_id, shard_size, free_space, store_path)
+            msg = msg.format(shardid, shard_size, free_space, store_path)
             _log.warning(msg)
             continue  # try next storepath
 
         # save shard
         use_folder_tree = attributes["use_folder_tree"]
-        shard_path = _get_shard_path(store_path, shard_id, use_folder_tree,
+        shard_path = _get_shard_path(store_path, shardid, use_folder_tree,
                                      create_needed_folders=True)
         storjnode.storage.shard.save(shard, shard_path)
         return shard_path
 
-    raise MemoryError("Not enough space to add {0}!".format(shard_id))
+    raise MemoryError("Not enough space to add {0}!".format(shardid))
 
 
-def remove(store_config, shard_id):
+def remove(store_config, shardid):  # FIXME require config instead
     """Remove a shard from the store.
 
     Args:
@@ -226,7 +216,7 @@ def remove(store_config, shard_id):
                       limit: The dir size limit in bytes, 0 for no limit.
                       use_folder_tree: Files organized in a folder tree
                                        (always on for fat partitions).
-        shard_id: Id of the shard to be removed.
+        shardid: Id of the shard to be removed.
 
     Raises:
         AssertionError: If input not valid.
@@ -237,12 +227,12 @@ def remove(store_config, shard_id):
         store_config = {"path/alpha": None, "path/beta": None}
         storjnode.storage.store.remove(store_config, id)
     """
-    shard_path = find(store_config, shard_id)
+    shard_path = find(store_config, shardid)
     if shard_path is not None:
         return os.remove(shard_path)
 
 
-def find(store_config, shard_id):
+def find(store_config, shardid):  # FIXME require config instead
     """Find the path of a shard.
 
     Args:
@@ -250,7 +240,7 @@ def find(store_config, shard_id):
                       limit: The dir size limit in bytes, 0 for no limit.
                       use_folder_tree: Files organized in a folder tree
                                        (always on for fat partitions).
-        shard_id: Id of the shard to find.
+        shardid: Id of the shard to find.
 
     Returns:
         Path to the shard or None if not found.
@@ -265,11 +255,11 @@ def find(store_config, shard_id):
         shard_path = storjnode.storage.store.remove(store_config, id)
         print("shard located at %s" % shard_path)
     """
-    assert(storjnode.storage.shard.valid_id(shard_id))
-    store_config = setup(store_config=store_config)  # setup if needed
+    assert(storjnode.storage.shard.valid_id(shardid))
+    store_config = setup(store_config)  # setup if needed
     for store_path, attributes in store_config.items():
         use_folder_tree = attributes["use_folder_tree"]
-        shard_path = _get_shard_path(store_path, shard_id, use_folder_tree)
+        shard_path = _get_shard_path(store_path, shardid, use_folder_tree)
         if os.path.isfile(shard_path):
             return shard_path
     return None

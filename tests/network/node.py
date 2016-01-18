@@ -40,8 +40,8 @@ def _test_config(storage_path):
     fs_format = storjnode.util.get_fs_type(storage_path)
     config["storage"] = {
         storage_path: {
-            "limit": storjnode.storage.manager.DEFAULT_STORE_LIMIT,
-            "use_folder_tree": fs_format == "vfat",
+            "limit": "10G",
+            "use_folder_tree": False,
         }
     }
     storjnode.config.validate(config)

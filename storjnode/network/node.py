@@ -101,7 +101,7 @@ class Node(object):
         if config is None:
             raise Exception("Config required")
 
-        self.bandwidth = bandwidth or BandwidthLimit(config)
+        self.bandwidth = None
         self.disable_data_transfer = bool(disable_data_transfer)
         self._transfer_request_handlers = set()
         self._transfer_complete_handlers = set()
@@ -139,6 +139,7 @@ class Node(object):
         self.repeat_relay = RepeatRelay(self)
 
         if not self.disable_data_transfer:
+            self.bandwidth = bandwidth or BandwidthLimit(config)
             self._setup_data_transfer_client(
                 config, passive_port, passive_bind, node_type, nat_type
             )
@@ -320,7 +321,7 @@ class Node(object):
     # data transfer interface #
     ###########################
 
-    def get_unl_by_node_id(self, node_id):
+    def get_unl_by_node_id(self, nodeid):
         """Get the WAN IP of this Node.
 
         Returns:
@@ -374,14 +375,14 @@ class Node(object):
 
         # Build message handler.
         d = defer.Deferred()
-        handler = handler_builder(self, d, node_id, self.get_key())
+        handler = handler_builder(self, d, nodeid, self.get_key())
 
         # Register new handler for this UNL request.
         self.add_message_handler(handler)
 
         # Send our get UNL request to node.
         unl_req = util.ordered_dict_to_list(unl_req)
-        self.repeat_relay_message(node_id, unl_req)
+        self.repeat_relay_message(nodeid, unl_req)
 
         # Return a new deferred.
         return d
@@ -406,14 +407,14 @@ class Node(object):
         ).start(0.002, now=True)
         d.addErrback(process_transfers_error)
 
-    def test_bandwidth(self, node_id):
+    def test_bandwidth(self, nodeid):
         """Tests the bandwidth between yourself and a remote peer.
         Only one test can be active at any given time! If a test
         is already active: the deferred will call an errback that
         resolves to an exception (the callback won't be called)
         and the request won't go through.
 
-        :param node_id: binary node_id as returned from get_id.
+        :param nodeid: binary nodeid as returned from get_id.
         :return: a deferred that returns this:
         {'download': 1048576, 'upload': 1048576} to a callback
         or raises an error to an errback on failure.
@@ -442,7 +443,7 @@ class Node(object):
             raise Exception("Data transfer disabled!")
 
         # Get a deferred for their UNL.
-        d = self.get_unl_by_node_id(node_id)
+        d = self.get_unl_by_node_id(nodeid)
 
         # Make data request when we have their UNL.
         def on_success(peer_unl):
@@ -457,12 +458,12 @@ class Node(object):
         # Return deferred.
         return d
 
-    def async_request_data_transfer(self, data_id, node_id, direction):
+    def async_request_data_transfer(self, shardid, nodeid, direction):
         """Request data be transfered to or from a peer.
 
         Args:
-            data_id: The sha256 sum of the data to be transfered.
-            node_id: Binary node id of the target to receive message.
+            shardid: The sha256 sum of the data to be transfered.
+            nodeid: Binary node id of the target to receive message.
             direction: "send" to peer or "receive" from peer
 
         Returns:
@@ -478,14 +479,14 @@ class Node(object):
             raise Exception("Data transfer disabled!")
 
         # Get a deferred for their UNL.
-        d = self.get_unl_by_node_id(node_id)
+        d = self.get_unl_by_node_id(nodeid)
 
         # Make data request when we have their UNL.
-        def callback_builder(data_id, direction):
+        def callback_builder(shardid, direction):
             def callback(peer_unl):
                 # Deferred.
                 return self._data_transfer.simple_data_request(
-                    data_id, peer_unl, direction
+                    shardid, peer_unl, direction
                 )
 
             return callback
@@ -494,11 +495,11 @@ class Node(object):
             _log.error(repr(result))
 
         # Add callback to UNL deferred.
-        on_success = callback_builder(data_id, direction)
+        on_success = callback_builder(shardid, direction)
         return d.addCallback(on_success).addErrback(on_error)
 
     @wait_for(timeout=QUERY_TIMEOUT)
-    def sync_request_data_transfer(self, data_id, peer_unl, direction):
+    def sync_request_data_transfer(self, shardid, peer_unl, direction):
         """Request data be transfered to or from a peer.
 
         This call will block until the data has been
@@ -509,7 +510,7 @@ class Node(object):
         available yet -- that's what accept determines.
 
         Args:
-            data_id: The sha256 sum of the data to be transfered.
+            shardid: The sha256 sum of the data to be transfered.
             peer_unl: The node UNL of the peer to get the data from.
             direction: "send" to peer or "receive" from peer
 
@@ -517,7 +518,7 @@ class Node(object):
             RequestDenied: If the peer denied your request to transfer data.
             TransferError: If the data not transfered for other reasons.
         """
-        self.async_request_data_transfer(data_id, peer_unl, direction)
+        self.async_request_data_transfer(shardid, peer_unl, direction)
 
     def add_transfer_start_handler(self, handler):
         self._transfer_start_handlers.add(handler)
@@ -530,28 +531,29 @@ class Node(object):
 
         If any handler returns True the transfer request will be accepted.
         The handler must be callable and accept four arguments
-        (src_unl, data_id, direction, file_size).
+        (nodeid, shardid, direction, file_size).
 
-        src_unl = The UNL of the source node ending the transfer request
-        data_id = The shard ID of the data to download or upload
+        nodeid = The id of the source node sending the transfer request
+        shardid = The shard ID of the data to download or upload
         direction = Direction from the perspective of the requester:
-         e.g. send (upload data_id to requester) or receive
-         (download data_id from requester)
+         e.g. send (upload shardid to requester) or receive
+         (download shardid from requester)
         file_size = The size of the file they wish to transfer
 
         Example:
-            def on_transfer_request(node_unl, data_id, direction, file_size):
+            def on_transfer_request(nodeid, shardid, direction, file_size):
                 # This handler  will accept everything but send nothing.
                 if direction == "receive":
-                    print("Accepting data: {0}".format(data_id))
+                    print("Accepting data: {0}".format(shardid))
                     return True
                 elif direction == "send":
-                    print("Refusing to send data {0}.".format(data_id))
+                    print("Refusing to send data {0}.".format(shardid))
                     return False
 
             node = Node()
             node.add_allow_transfer_handler(on_transfer_request)
         """
+        # FIXME change direction to more clear "push" and "pull"
         self._transfer_request_handlers.add(handler)
 
     def remove_transfer_request_handler(self, handler):
@@ -566,21 +568,21 @@ class Node(object):
         """Add a transfer complete handler.
 
         The handler must be callable and accept four arguments
-        (node_id, data_id, direction).
+        (nodeid, shardid, direction).
 
         TO DO: this has changed completely.
 
-        node_id = The node_ID we sent the transfer request to.
-        (May be our node_id if the request was sent to us.)
-        data_id = The shard to download or upload.
+        nodeid = The node_ID we sent the transfer request to.
+        (May be our nodeid if the request was sent to us.)
+        shardid = The shard to download or upload.
         direction = The direction of the transfer (e.g. send or receive.)
 
         Example:
-            def on_transfer_complete(node_id, data_id, direction):
+            def on_transfer_complete(nodeid, shardid, direction):
                 if direction == "receive":
-                    print("Received: {0}".format(data_id)
+                    print("Received: {0}".format(shardid))
                 elif direction == "send":
-                    print("Sent: {0}".format(data_id)
+                    print("Sent: {0}".format(shardid))
             node = Node()
             node.add_transfer_complete_handler(on_transfer_complete)
         """
@@ -599,8 +601,8 @@ class Node(object):
     # messaging interface #
     #######################
 
-    def repeat_relay_message(self, node_id, message):
-        return self.repeat_relay.relay(node_id, message)
+    def repeat_relay_message(self, nodeid, message):
+        return self.repeat_relay.relay(nodeid, message)
 
     def relay_message(self, nodeid, message):
         """Send relay message to a node.

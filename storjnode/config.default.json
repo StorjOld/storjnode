@@ -1,5 +1,5 @@
 {
-    "version": "0",
+    "version": 1,
     "cold_storage": [],
     "network": {
         "port": "random",
@@ -22,6 +22,7 @@
             "crawler_interval": 3600
         }
     },
+    "cache": "~/.storj/cache.db",
     "storage": {
         "~/.storj/store": {
             "limit": "10G",

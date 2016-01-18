@@ -80,17 +80,7 @@ def create():
     Returns:
         The config as json serializable data.
     """
-    default_storage_path = storjnode.storage.manager.DEFAULT_STORE_PATH
-    fs_format = storjnode.util.get_fs_type(default_storage_path)
-    cfg = copy.deepcopy(DEFAULT_CONFIG)
-    cfg["version"] = VERSION
-    cfg["storage"] = {
-        default_storage_path: {
-            "limit": storjnode.storage.manager.DEFAULT_STORE_LIMIT,
-            "use_folder_tree": fs_format == "vfat",
-        },
-    }
-    return cfg
+    return copy.deepcopy(DEFAULT_CONFIG)
 
 
 def validate(cfg):

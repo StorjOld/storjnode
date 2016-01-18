@@ -4,7 +4,6 @@ import btctxstore
 import storjnode
 import crochet
 from threading import RLock
-from storjnode.network import BandwidthLimit
 
 
 _log = storjnode.log.getLogger(__name__)
@@ -33,7 +32,6 @@ class StorjNode(apigen.Definition):
 
     def __init__(self, wallet=None, quiet=False, debug=False, verbose=False,
                  config=storjnode.common.CONFIG_PATH):
-
         self._init_conifg(config)
         self._init_wallet(wallet)
         self._init_node()
@@ -65,7 +63,6 @@ class StorjNode(apigen.Definition):
         try:
             self._node = storjnode.network.Node(
                 self.wallet, disable_data_transfer=notransfer,
-                bandwidth=None if notransfer else BandwidthLimit(self._cfg),
                 port=port if port != "random" else None,
                 config=self._cfg["storage"]
             )
@@ -90,8 +87,9 @@ class StorjNode(apigen.Definition):
     def _enable_monitor_responses(self):
         storjnode.network.messages.info.enable(self._node, self._cfg)
         storjnode.network.messages.peers.enable(self._node)
-        self._node.bandwidth_test.enable()
-        storjnode.network.file_transfer.enable_unl_requests(self._node)
+        if not self._cfg["network"]["disable_data_transfer"]:
+            self._node.bandwidth_test.enable()
+            storjnode.network.file_transfer.enable_unl_requests(self._node)
 
     def _on_event(self, node, event):
         with self._events_mutex:
@@ -146,6 +144,47 @@ class StorjNode(apigen.Definition):
                 on_crawl_complete=self._on_crawl_complete
             )
 
+        if not notransfer:
+            self._node.add_transfer_request_handler(self._on_transfer_request)
+            self._node.add_transfer_complete_handler(self._on_transfer_complete)
+
+    def _on_transfer_request(nodeid, shardid, direction, file_size):
+
+        # do not accept push requests
+        if direction == "receive":
+            txt = "Push request from node {nodeid} for shard {shardid}."
+            _log.warning(txt.format(nodeid=nodeid, shardid=shardid,
+                                    size=file_size))
+            return False
+
+        # do not accept pull request if data doesnt exist
+        if storjnode.storage.manager.find(config["storage"], shardid) is None:
+            txt = ("Pull request from node {nodeid} "
+                   "for shard {shardid} not in store.")
+            _log.warning(txt.format(nodeid=nodeid, shardid=shardid))
+            return False
+
+        # accept any pull request if the data exists
+        else:
+            txt = ("Accepting pull request from node {nodeid} "
+                   "for shard {shardid}.")
+            _log.info(txt.format(nodeid=nodeid, shardid=shardid))
+            return True
+
+    def _on_transfer_complete(nodeid, shardid, direction):
+        if direction == "receive":
+            txt = "Completed push of shard {shardid} from {nodeid}"
+            _log.critical(txt.format(shardid=shardid, nodeid=nodeid))
+            exit(1)
+        elif direction == "send":
+            txt = "Completed pull of shard {shardid} from {nodeid}"
+            _log.info(txt.format(shardid=shardid, nodeid=nodeid))
+
+    def _on_crawl_complete(self, key, shard):
+        _log.info("Crawl complete, {shardid} publshed at {key}".format(
+            key=key, shardid=storjnode.storage.shard.get_id(shard)
+        ))
+
     @apigen.command()
     def info(self):
         """Get node information."""
@@ -168,9 +207,6 @@ class StorjNode(apigen.Definition):
                 "peers": peers,
             },
         }
-
-    def _on_crawl_complete(self, key, shard):
-        _log.info("Crawl complete, results saved at {0}".format(key))
 
     ##########
     # CONFIG #
