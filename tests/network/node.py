@@ -412,8 +412,8 @@ class TestNode(unittest.TestCase):
     ########################
 
     def test_network_monitor_service(self):
-        limit = len(self.swarm) - 1
-        interval = WALK_TIMEOUT * 200000000
+        limit = (len(self.swarm) / 4) - 1
+        interval = 60 * 5
 
         crawled_event = threading.Event()
         results = {}

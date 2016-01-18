@@ -2,6 +2,7 @@ import logging
 import time
 import tempfile
 import pyp2p
+import storjnode
 from storjnode.network.process_transfers import process_transfers
 from storjnode.network.file_transfer import FileTransfer
 from storjnode.util import address_to_node_id
@@ -12,7 +13,7 @@ from storjnode.network.bandwidth.limit import BandwidthLimit
 from crochet import setup
 setup()
 
-_log = logging.getLogger(__name__)
+_log = storjnode.log.getLogger(__name__)
 test_success = 0
 
 
@@ -36,7 +37,7 @@ class TestBandwidthTest(unittest.TestCase):
                 wan_ip="8.8.8.8",
                 dht_node=alice_dht,
             ),
-            BandwidthLimit(),
+            BandwidthLimit(storjnode.config.create()),
             wif=alice_wif,
             store_config={tempfile.mkdtemp(): None}
         )
@@ -62,7 +63,7 @@ class TestBandwidthTest(unittest.TestCase):
                 wan_ip="8.8.8.8",
                 dht_node=bob_dht
             ),
-            BandwidthLimit(),
+            BandwidthLimit(storjnode.config.create()),
             wif=bob_wif,
             store_config={tempfile.mkdtemp(): None}
         )

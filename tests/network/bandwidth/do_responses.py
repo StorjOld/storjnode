@@ -45,7 +45,7 @@ class TestSubBandwidthResponses(unittest.TestCase):
                 wan_ip="8.8.8.8",
                 dht_node=cls.alice_dht,
             ),
-            BandwidthLimit(),
+            BandwidthLimit(storjnode.config.create()),
             wif=cls.alice_wif,
             store_config={tempfile.mkdtemp(): None}
         )
@@ -77,7 +77,7 @@ class TestSubBandwidthResponses(unittest.TestCase):
                 wan_ip="8.8.8.8",
                 dht_node=cls.bob_dht
             ),
-            BandwidthLimit(),
+            BandwidthLimit(storjnode.config.create()),
             wif=cls.bob_wif,
             store_config={tempfile.mkdtemp(): None}
         )

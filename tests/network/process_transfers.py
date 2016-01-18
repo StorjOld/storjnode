@@ -10,6 +10,7 @@ import shutil
 import time
 import hashlib
 from twisted.internet import defer
+import storjnode
 from storjnode.network.process_transfers import get_contract_id
 from storjnode.network.process_transfers import cleanup_cons
 from storjnode.network.process_transfers import expire_handshakes
@@ -54,7 +55,7 @@ class TestProcessTransfers(unittest.TestCase):
                 wan_ip="8.8.8.8",
                 debug=1
             ),
-            BandwidthLimit(),
+            BandwidthLimit(storjnode.config.create()),
             wif=self.wif,
             store_config=self.store_config
         )

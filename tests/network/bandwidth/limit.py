@@ -17,7 +17,7 @@ def patch_time(value):
 class TestLimit(unittest.TestCase):
     @classmethod
     def setUpClass(cls):
-        cls.bandwidth = BandwidthLimit()
+        cls.bandwidth = BandwidthLimit(storjnode.config.create())
 
     def tearDown(self):
         # Reset bandwidth limits.
@@ -157,8 +157,7 @@ class TestLimit(unittest.TestCase):
 
     @unittest.skip("broken")
     def test_save_load_limits(self):
-        config_path = storjnode.common.CONFIG_PATH
-        bl = BandwidthLimit(config_path)
+        bl = BandwidthLimit(storjnode.config.create())
         assert(bl.info["sec"]["upstream"]["limit"] == 1337)
         bw_limit = bl.info["sec"]["upstream"]["limit"] + 1
         bl.limit(
