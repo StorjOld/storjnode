@@ -41,12 +41,14 @@ in the future.
 import time
 import datetime
 import calendar
+from storjnode.util import byte_count
 
 
 class BandwidthLimit:
-    def __init__(self, config_file=None):
-        # Config file object for saving / loading limits.
-        self.config_file = config_file
+    def __init__(self, config):
+
+        # Config file object for loading limits.
+        self.config = config
 
         # Record bandwidth stats for active transfers.
         # Used to limit bandwidth usage for farmers.
@@ -81,14 +83,10 @@ class BandwidthLimit:
         self.cake_scale = 0.95
 
         # Load bandwidth limits.
-        if self.config_file is not None:
-            self.load()
+        self.load()
 
         # Calculate future time for next month.
-        if not self.next_month:
-            self.next_month = self.calculate_next_month()
-            if self.config_file is not None:
-                self.save()
+        self.next_month = self.calculate_next_month()
 
     def get_fresh_second(self):
         while 1:
@@ -184,29 +182,12 @@ class BandwidthLimit:
             self.transfers.remove(contract_id)
 
     def load(self):
-        assert(self.config_file is not None)
+        assert(self.config is not None)
         for time_frame in self.valid_time_frames:
             for bw_type in self.valid_bw_types:
-                bwl = self.config_file["network"]["bandwidth_limits"]
-                bwl = bwl[time_frame][bw_type]
+                bwl = self.config["network"]["bandwidth_limits"]
+                bwl = byte_count(bwl[time_frame][bw_type])
                 self.info[time_frame][bw_type]["limit"] = bwl
-
-        # FIXME month next broken
-        # next_month = self.config_file["network"]["bandwidth_limits"]
-        # next_month = next_month["month"]["next"]
-        # self.next_month = next_month
-
-    def save(self):
-        assert(self.config_file is not None)
-        limits = self.config_file["network"]["bandwidth_limits"]
-        for time_frame in self.valid_time_frames:
-            for bw_type in self.valid_bw_types:
-                bwl = self.info[time_frame][bw_type]["limit"]
-                limits[time_frame][bw_type] = bwl
-
-        # FIXME month next broken
-        # limits["month"]["next"] = self.next_month
-        # self.config_file.save()
 
     def update(self, bw_type, increment, contract_id=None):
         """
@@ -272,10 +253,6 @@ class BandwidthLimit:
         # Limit bandwidth amount.
         self.info[time_frame][bw_type]["limit"] = amount
 
-        # Save changes.
-        if self.config_file is not None:
-            self.save()
-
     def request(self, bw_type, contract_id=None, ceiling=None):
         """
         Requests to use some of the bandwidth resources. Returns up to
@@ -297,8 +274,6 @@ class BandwidthLimit:
             if time.time() >= self.next_month:
                 self.next_month = self.calculate_next_month()
                 month["used"] = 0
-                if self.config_file is not None:
-                    self.save()
 
         # Check monthly limit.
         if month["limit"]:
@@ -401,6 +376,7 @@ class BandwidthLimit:
 
         # Return bandwidth.
         return allowance
+
 
 if __name__ == "__main__":
     pass

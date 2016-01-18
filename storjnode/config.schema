@@ -2,11 +2,20 @@
   "$schema": "http://json-schema.org/schema#", 
 
   "definitions": {
+    "byte_count": {
+      "oneOf": [
+        {
+          "type": "string",
+          "pattern": "^[0-9]+[\\.]{0,1}[0-9]*(([KMGTP])|([KMGTP]B)){0,1}$"
+        },
+        { "type": "integer", "minimum": 0 }
+      ]
+    },
     "bandwidth_limits": {
       "type": "object", 
       "properties": {
-        "downstream": { "minimum": 0, "type": "integer" }, 
-        "upstream": { "minimum": 0, "type": "integer" }
+        "downstream": { "$ref": "#/definitions/byte_count" }, 
+        "upstream": { "$ref": "#/definitions/byte_count" }
       },
       "additionalProperties": false, 
       "required": [ "upstream", "downstream" ]
@@ -18,7 +27,7 @@
           "type": "object", 
           "properties": {
             "use_folder_tree": { "type": "boolean" }, 
-            "limit": { "minimum": 0, "type": "integer" }
+            "limit": { "$ref": "#/definitions/byte_count" }
           },
           "additionalProperties": false, 
           "required": [ "limit", "use_folder_tree" ]

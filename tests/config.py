@@ -109,5 +109,83 @@ class TestConfig(unittest.TestCase):
         self.assertTrue(storjnode.config.validate(cfg))
 
 
+class TestConfigByteCountValidation(unittest.TestCase):
+
+    def test_valid_integer(self):
+        cfg = storjnode.config.create()
+        self.assertTrue(storjnode.config.validate(cfg))
+
+    def test_valid_base_1024(self):
+        cfg = storjnode.config.create()
+
+        cfg["network"]["bandwidth_limits"]["month"]["upstream"] = "1K"
+        self.assertTrue(storjnode.config.validate(cfg))
+
+        cfg["network"]["bandwidth_limits"]["month"]["upstream"] = "1M"
+        self.assertTrue(storjnode.config.validate(cfg))
+
+        cfg["network"]["bandwidth_limits"]["month"]["upstream"] = "1G"
+        self.assertTrue(storjnode.config.validate(cfg))
+
+        cfg["network"]["bandwidth_limits"]["month"]["upstream"] = "1T"
+        self.assertTrue(storjnode.config.validate(cfg))
+
+        cfg["network"]["bandwidth_limits"]["month"]["upstream"] = "1P"
+        self.assertTrue(storjnode.config.validate(cfg))
+
+    def test_valid_base_1024_decimal(self):
+        cfg = storjnode.config.create()
+
+        cfg["network"]["bandwidth_limits"]["month"]["upstream"] = "1.5K"
+        self.assertTrue(storjnode.config.validate(cfg))
+
+        cfg["network"]["bandwidth_limits"]["month"]["upstream"] = "1.5M"
+        self.assertTrue(storjnode.config.validate(cfg))
+
+        cfg["network"]["bandwidth_limits"]["month"]["upstream"] = "1.5G"
+        self.assertTrue(storjnode.config.validate(cfg))
+
+        cfg["network"]["bandwidth_limits"]["month"]["upstream"] = "1.5T"
+        self.assertTrue(storjnode.config.validate(cfg))
+
+        cfg["network"]["bandwidth_limits"]["month"]["upstream"] = "1.5P"
+        self.assertTrue(storjnode.config.validate(cfg))
+
+    def test_valid_base_1000(self):
+        cfg = storjnode.config.create()
+
+        cfg["network"]["bandwidth_limits"]["month"]["upstream"] = "1KB"
+        self.assertTrue(storjnode.config.validate(cfg))
+
+        cfg["network"]["bandwidth_limits"]["month"]["upstream"] = "1MB"
+        self.assertTrue(storjnode.config.validate(cfg))
+
+        cfg["network"]["bandwidth_limits"]["month"]["upstream"] = "1GB"
+        self.assertTrue(storjnode.config.validate(cfg))
+
+        cfg["network"]["bandwidth_limits"]["month"]["upstream"] = "1TB"
+        self.assertTrue(storjnode.config.validate(cfg))
+
+        cfg["network"]["bandwidth_limits"]["month"]["upstream"] = "1PB"
+        self.assertTrue(storjnode.config.validate(cfg))
+
+    def test_valid_base_1000_decimal(self):
+        cfg = storjnode.config.create()
+
+        cfg["network"]["bandwidth_limits"]["month"]["upstream"] = "1.5KB"
+        self.assertTrue(storjnode.config.validate(cfg))
+
+        cfg["network"]["bandwidth_limits"]["month"]["upstream"] = "1.5MB"
+        self.assertTrue(storjnode.config.validate(cfg))
+
+        cfg["network"]["bandwidth_limits"]["month"]["upstream"] = "1.5GB"
+        self.assertTrue(storjnode.config.validate(cfg))
+
+        cfg["network"]["bandwidth_limits"]["month"]["upstream"] = "1.5TB"
+        self.assertTrue(storjnode.config.validate(cfg))
+
+        cfg["network"]["bandwidth_limits"]["month"]["upstream"] = "1.5PB"
+        self.assertTrue(storjnode.config.validate(cfg))
+
 if __name__ == '__main__':
     unittest.main()

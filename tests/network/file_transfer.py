@@ -67,7 +67,7 @@ class TestFileTransfer(unittest.TestCase):
                 dht_node=self.dht_node,
                 debug=1
             ),
-            BandwidthLimit(),
+            BandwidthLimit(storjnode.config.create()),
             wif=self.wif,
             store_config=self.config["storage"]
         )

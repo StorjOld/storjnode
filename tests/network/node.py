@@ -411,10 +411,8 @@ class TestNode(unittest.TestCase):
     ########################
 
     def test_network_monitor_service(self):
-        limit = len(self.swarm) - 1
-        interval = 2000000000000000000
-
-
+        limit = (len(self.swarm) / 4) - 1
+        interval = 60 * 5
         crawled_event = threading.Event()
         results = {}
 
@@ -440,6 +438,14 @@ class TestNode(unittest.TestCase):
         crawl_data = json.loads(shard.read())
         print("CRAWLED DATA", crawl_data)
         self.assertEqual(len(crawl_data["processed"]), limit)
+
+    def test_find_next_free_dataset_num(self):
+        peer = random.choice(self.swarm)
+        for i in range(20):
+            key = storjnode.network.monitor.predictable_key(peer, i)
+            peer[key] = "taken"
+            num = storjnode.network.monitor.find_next_free_dataset_num(peer)
+            self.assertEqual(num, i + 1)
 
 
 if __name__ == "__main__":

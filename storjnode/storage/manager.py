@@ -7,7 +7,7 @@ from storjnode.common import STORJ_HOME
 # FIXME move defaults to common
 DEFAULT_SHARD_SIZE = 1024 * 1024 * 128  # 128M
 DEFAULT_STORE_PATH = os.path.join(STORJ_HOME, "store")
-DEFAULT_STORE_LIMIT = 10737418240  # 10G
+DEFAULT_STORE_LIMIT = "10G"
 DEFAULT_STORE_CONFIG = {
     DEFAULT_STORE_PATH: {"limit": 0, "use_folder_tree": False}
 }
@@ -61,7 +61,7 @@ def setup(store_config=None):
         storjnode.util.ensure_path_exists(path)
 
         # check limit
-        limit = attributes.get("limit", 0)
+        limit = storjnode.util.byte_count(attributes.get("limit", 0))
         assert(isinstance(limit, int) or isinstance(limit, long))
         assert(limit >= 0)
         free = storjnode.util.get_free_space(path)
@@ -189,7 +189,7 @@ def add(store_config, shard):
     for store_path, attributes in items:
 
         # check if store path limit reached
-        limit = attributes["limit"]
+        limit = storjnode.util.byte_count(attributes["limit"])
         used = storjnode.util.get_folder_size(store_path)
         free = limit - used
         if limit > 0 and shard_size > free:

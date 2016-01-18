@@ -1,4 +1,5 @@
 import time
+import bisect
 import json
 import copy
 import storjnode
@@ -326,12 +327,29 @@ def predictable_key(node, num):
 
 
 def find_next_free_dataset_num(node):
-    # FIXME probe with exponential increase then binary search lowest unused
-    num = 0
-    while node[predictable_key(node, num)] is not None:
-        _log.info("Dataset {0} already exists!".format(num))
-        num += 1
-    return num
+
+    # probe for free slots with exponentially increasing steps
+    lower_bound, upper_bound, exponant = 0, 0, 0
+    while node[predictable_key(node, upper_bound)] is not None:
+        lower_bound = upper_bound
+        upper_bound = 2 ** exponant
+        exponant += 1
+
+    # wrapper to find used slots
+    class CompareObject(object):
+        def __gt__(bisect_self, index):
+            return node[predictable_key(node, index)] is not None
+
+    # A list where the value is the index + lower_bound: [3, 4, 5, 6 ...]
+    class ListObject(object):
+        def __getitem__(self, index):
+            return index + lower_bound
+
+        def __len__(self):
+            return upper_bound + 1 - lower_bound
+
+    # binary search to find fist free slot btween lower and upper bound
+    return bisect.bisect_left(ListObject(), CompareObject()) + lower_bound
 
 
 def create_shard(node, num, begin, end, processed):

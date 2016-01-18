@@ -6,7 +6,6 @@ def create(btctxstore, wif, name):
 
 
 def read(btctxstore, msg, name):
-    # FIXME raise exception if > max package size
 
     # not a valid message
     msg = base.read(btctxstore, msg)

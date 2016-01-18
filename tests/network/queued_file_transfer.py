@@ -41,7 +41,7 @@ def test_queued():
             wan_ip="8.8.8.8",
             debug=1
         ),
-        BandwidthLimit(),
+        BandwidthLimit(storjnode.config.create()),
         wif=alice_wif,
         store_config={tempfile.mkdtemp(): None},
     )
@@ -64,7 +64,7 @@ def test_queued():
             wan_ip="8.8.8.8",
             debug=1
         ),
-        BandwidthLimit(),
+        BandwidthLimit(storjnode.config.create()),
         wif=bob_wif,
         store_config={tempfile.mkdtemp(): None}
     )

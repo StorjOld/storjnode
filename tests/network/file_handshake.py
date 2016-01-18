@@ -11,6 +11,7 @@ from storjnode.network.file_handshake import (is_valid_syn, process_syn,
                                               process_syn_ack, process_ack,
                                               process_rst)
 from storjnode.network.bandwidth.limit import BandwidthLimit
+import storjnode
 import hashlib
 import tempfile
 import os
@@ -45,7 +46,7 @@ class TestFileHandshake(unittest.TestCase):
                 wan_ip="8.8.8.8",
                 debug=1
             ),
-            BandwidthLimit(),
+            BandwidthLimit(storjnode.config.create()),
             wif=self.alice_wif,
             store_config={self.alice_storage: None}
         )
@@ -70,7 +71,7 @@ class TestFileHandshake(unittest.TestCase):
                 wan_ip="8.8.8.8",
                 debug=1
             ),
-            BandwidthLimit(),
+            BandwidthLimit(storjnode.config.create()),
             wif=self.bob_wif,
             store_config={self.bob_storage: None}
         )
