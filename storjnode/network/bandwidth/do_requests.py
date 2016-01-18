@@ -97,6 +97,7 @@ def build_completion_handler(self, msg, accept_handler):
                     self.active_test.errback(ret)
 
                 self.reset_state()
+                return ret
 
             # Complete.
             def success(ret):
@@ -105,14 +106,13 @@ def build_completion_handler(self, msg, accept_handler):
             # Register error handler for transfer.
             if contract_id in self.transfer.defers:
                 self.transfer.defers[contract_id].addErrback(errback)
-                self.transfer.defers[contract_id].addCallback(success)
+                #self.transfer.defers[contract_id].addCallback(success)
 
         test_data_size = (self.test_size * ONE_MB)
         self.results[test]["end_time"] = time.time()
         self.results[test]["transferred"] = test_data_size
 
         if test == "upload":
-            self.test_node_unl = None
             if self.is_bad_test():
                 if self.is_bad_results():
                     self.reset_state()
@@ -197,8 +197,9 @@ def handle_requests_builder(self):
 
         # Drop request if test already active.
         if self.test_node_unl is not None:
-            _log.debug("req: test already active")
-            return -2
+            if self.test_node_unl != msg[u"requester"]:
+                _log.debug("req: test already active")
+                return -2
 
         # Check message id.
         msg_id = hashlib.sha256(str(msg)).hexdigest()

@@ -145,7 +145,7 @@ class Node(object):
                 self.get_key(),
                 self._data_transfer,
                 self,
-                0
+                1
             )
 
     def _setup_message_dispatcher(self):
@@ -402,11 +402,13 @@ class Node(object):
             txt = "An unknown error occured in process_transfers: %s"
             _log.error(txt % repr(ret))
 
+            return ret
+
         d = LoopingCall(
             process_transfers,
             self._data_transfer
         ).start(0.002, now=True)
-        # d.addErrback(process_transfers_error)
+        d.addErrback(process_transfers_error)
 
     def test_bandwidth(self, node_id):
         """Tests the bandwidth between yourself and a remote peer.

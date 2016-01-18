@@ -30,10 +30,8 @@ _log = storjnode.log.getLogger(__name__)
 PROFILE = False
 SWARM_SIZE = 4
 KSIZE = SWARM_SIZE / 2 if SWARM_SIZE / 2 < 20 else 20
-PORT = 3000
+PORT = 4000
 STORAGE_DIR = tempfile.mkdtemp()
-storjnode.network.process_transfers.CON_TIMEOUT = 10000000000
-storjnode.network.process_transfers.HANDSHAKE_TIMEOUT = 100000000000
 
 print("Storage dir: " + str(STORAGE_DIR))
 
@@ -66,11 +64,19 @@ for i in range(0, 2):
         config=config,
         nat_type="preserving",
         node_type="passive",
-        disable_data_transfer=False
+        disable_data_transfer=False,
+        max_messages=1024
     )
     print(node._data_transfer.net.passive_port)
     print(node._data_transfer.net.unl.value)
-    node.bandwidth_test.test_timeout = 100000000000
+    node.bandwidth_test.test_timeout = 1000000
+    node.bandwidth_test.increasing_tests = 1
+    node.bandwidth_test.increases = {
+        1: 4,
+        4: 10,
+        10: 20,
+        20: 40
+    }
     print()
 
     assert(node._data_transfer is not None)
@@ -100,8 +106,11 @@ still_running = 1
 def show_bandwidth(results):
     print(results)
     global test_success
+    global still_running
     print("IN SUCCESS CALLBACK!?@#!@#?!@?#")
     test_success = 1
+    still_running = 0
+    return
     try:
         _log.debug(results)
         print(swarm[0].bandwidth_test.test_size)

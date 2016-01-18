@@ -175,8 +175,12 @@ class Crawler(object):  # will not scale but good for now
         data["request"]["tries"] = data["request"]["tries"] + 1
 
     def _handle_bandwidth_test_error(self, results):
-        import pdb; pdb.set_trace()
-        _log.debug(str(results))
+        _log.debug("----------------------------")
+        _log.debug("bandwidth test error")
+        _log.debug("bandwidth test error")
+        _log.debug("bandwidth test error")
+        _log.debug("bandwidth test error")
+        _log.debug("----------------------------")
         with self.pipeline_mutex:
             # move to the back to scanned fifo and try again later
             nodeid, data = self.pipeline_bandwidth_test
@@ -185,7 +189,16 @@ class Crawler(object):  # will not scale but good for now
             # free up bandwidth test for next peer
             self.pipeline_bandwidth_test = None
 
+        # Return exception so the success handler doesn't fire.
+        return results
+
     def _handle_bandwidth_test_success(self, results):
+        _log.debug("----------------------------")
+        _log.debug("bandwidth test success")
+        _log.debug("bandwidth test success")
+        _log.debug("bandwidth test success")
+        _log.debug("bandwidth test success")
+        _log.debug("----------------------------")
         try:
             with self.pipeline_mutex:
                 nodeid, data = self.pipeline_bandwidth_test
@@ -198,6 +211,8 @@ class Crawler(object):  # will not scale but good for now
                     }
                 else:
                     _log.error("No test results for success callback")
+                    import pdb; pdb.set_trace()
+                    raise Exception("Bandwidth test none results")
 
                 # move peer to processed
                 self.pipeline_processed[nodeid] = data

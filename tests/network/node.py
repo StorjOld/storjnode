@@ -34,8 +34,6 @@ KSIZE = SWARM_SIZE / 2 if SWARM_SIZE / 2 < 20 else 20
 PORT = 3000
 STORAGE_DIR = tempfile.mkdtemp()
 LAN_IP = storjnode.util.get_inet_facing_ip()
-storjnode.network.process_transfers.CON_TIMEOUT = 10000000000
-storjnode.network.process_transfers.HANDSHAKE_TIMEOUT = 100000000000
 
 
 def _test_config(storage_path):
@@ -87,7 +85,8 @@ class TestNode(unittest.TestCase):
             storjnode.network.messages.peers.enable(node)
             enable_unl_requests(node)
             node.bandwidth_test.enable()
-            node.bandwidth_test.test_timeout = 100000000000
+            node.bandwidth_test.test_timeout = 400
+            node.bandwidth_test.increasing_tests = 0
             cls.swarm.append(node)
 
             msg = "TEST: created node {0} @ 127.0.0.1:{1}"
@@ -413,7 +412,7 @@ class TestNode(unittest.TestCase):
 
     def test_network_monitor_service(self):
         limit = len(self.swarm) - 1
-        interval = WALK_TIMEOUT * 200000000
+        interval = 2000000000000000000
 
 
         crawled_event = threading.Event()
@@ -429,7 +428,6 @@ class TestNode(unittest.TestCase):
             random_peer, config, limit=limit,
             interval=interval, on_crawl_complete=handler
         )
-        monitor.timeout = 10000000000000
 
         crawled_event.wait(timeout=(interval + 5))
         monitor.stop()

@@ -38,7 +38,8 @@ import storjnode
 
 _log = storjnode.log.getLogger(__name__)
 HANDSHAKE_TIMEOUT = 360  # Tree fiddy. 'bout 6 mins.
-CON_TIMEOUT = 120
+CON_TIMEOUT = 300
+BLOCKING_TIMEOUT = 10
 
 
 class TransferError(Exception):
@@ -137,10 +138,16 @@ def do_upload(client, con, contract, con_info, contract_id):
         allocation
     )
 
+    # Check data chunk.
+    if data_chunk is None:
+        interrupt_transfer(client, contract_id, con)
+        return 0
+
     # Upload chunk binary to socket.
     bytes_sent = con.send(data_chunk)
     if bytes_sent:
         con_info["remaining"] -= bytes_sent
+        con_info["last_update"] = time.time()
         client.bandwidth.update(
             "upstream",
             bytes_sent,
@@ -184,7 +191,7 @@ def do_download(client, con, contract, con_info, contract_id):
                 return -3
 
     # Request bandwidth for transfer.
-    chunk_size = con_info["remaining"]
+    chunk_size = 8192
     allocation = client.bandwidth.request(
         "downstream",
         contract_id,
@@ -203,6 +210,7 @@ def do_download(client, con, contract, con_info, contract_id):
     bytes_recv = len(data)
     if bytes_recv:
         con_info["remaining"] -= len(data)
+        con_info["last_update"] = time.time()
         client.save_data_chunk(contract["data_id"], data)
         client.bandwidth.update(
             "downstream",
@@ -270,6 +278,28 @@ def get_contract_id(client, con, contract_id):
     else:
         return 0
 
+def interrupt_transfer(client, contract_id, con):
+    # Return async failure.
+    _log.debug("Interrupt transfer")
+    if contract_id in client.defers:
+        client.defers[contract_id].errback(Exception("Transfer interupted"))
+
+    # Cleanup transfer details.
+    client.cleanup_transfers(None, contract_id)
+
+    # Find who is master.
+    contract = client.contracts[contract_id]
+    their_unl = client.get_their_unl(contract)
+    is_master = client.net.unl.is_master(their_unl)
+
+    # Queue next transfer.
+    if is_master:
+        # Set next contract ID and send to client.
+        client.queue_next_transfer(con)
+        _log.debug("End queuing next transfer")
+    else:
+        # Readying to receive a new contract ID.
+        client.con_transfer[con] = u""
 
 def complete_transfer(client, contract_id, con):
     _log.debug("Waiting for mutex")
@@ -314,12 +344,11 @@ def complete_transfer(client, contract_id, con):
 
             if ret == -1:
                 old_handlers.add(handler)
-            else:
-                assert(ret)
 
         # Remove old handlers.
         for handler in old_handlers:
-            client.handlers["complete"].remove(handler)
+            if handler in client.handlers["complete"]:
+                client.handlers["complete"].remove(handler)
 
         # Queue next transfer.
         if is_master:
@@ -342,14 +371,11 @@ def process_dht_messages(client):
 
         for msg in client.net.dht_messages:
             processed.append(msg)
-            _log.debug("Processing dht msg: ")
-            _log.debug(str(msg["message"]))
             protocol(client, msg["message"])
     except Exception as e:
         _log.debug(str(parse_exception(e)))
         _log.debug("exception in process DHT message")
         _log.debug(e)
-        pass
     finally:
         for msg in processed:
             client.net.dht_messages.remove(msg)
@@ -431,7 +457,7 @@ def process_transfers(client):
             continue
 
         # Execute start callbacks.
-        if not con_info["file_size"]:
+        if con_info["last_update"] is None:
             # Fire start handlers.
             _log.debug("In con, and starting new transfer =")
             old_handlers = set()
@@ -442,12 +468,21 @@ def process_transfers(client):
                 # Handler was associated with this transfer.
                 if ret == -1:
                     old_handlers.add(handler)
-                else:
-                    assert(ret == 1)
 
             # Remove old start handlers.
             for handler in old_handlers:
-                client.handlers["start"].remove(handler)
+                if handler in client.handlers["start"]:
+                    client.handlers["start"].remove(handler)
+
+            # Initialise update time.
+            con_info["last_update"] = time.time()
+
+        # Has the other side run into some error?
+        elapsed = time.time() - con_info["last_update"]
+        if elapsed >= BLOCKING_TIMEOUT:
+            _log.debug("Detected infinite blocking in transfer loop")
+            interrupt_transfer(client, contract_id, con)
+            continue
 
         # Transfer data.
         contract = client.contracts[contract_id]

@@ -23,7 +23,6 @@ _log = storjnode.log.getLogger(__name__)
 
 def process_unl_requests(node, msg):
     _log.debug("In process unl requests: ")
-    _log.debug(msg)
     unl = node._data_transfer.net.unl.value
     _log.debug(unl)
     try:
@@ -349,6 +348,9 @@ class FileTransfer:
 
     def get_data_chunk(self, data_id, position, chunk_size=1048576):
         path = storjnode.storage.manager.find(self.store_config, data_id)
+        if path is None:
+            return None
+
         buf = b""
         with open(path, "rb") as fp:
             fp.seek(position, 0)

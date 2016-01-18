@@ -84,10 +84,42 @@ class BandwidthTest():
         self.start_time = time.time()
 
         # Timeout bandwidth test after N seconds.
-        self.test_timeout = 300
+        self.test_timeout = 500
 
         # Protocol state.
         self.message_state = {}
+
+        # Increase table for MB transfer size.
+        self.increases = {
+            1: 4,
+            4: 6,
+            6: 10,
+            10: 15,
+            15: 20,
+            20: 25,
+            25: 30,
+            30: 35,
+            35: 40,
+            40: 45,
+            45: 50,
+            50: 60,
+            60: 70,
+            70: 80,
+            80: 90,
+            90: 100,
+            100: 120,
+            120: 140,
+            140: 200,
+            200: 250,
+            250: 300,
+            300: 400,
+            400: 500,
+            500: 600,
+            600: 700,
+            700: 800,
+            800: 900,
+            900: 1000
+        }
 
         # Handle timeouts.
         def handle_timeout():
@@ -107,8 +139,8 @@ class BandwidthTest():
 
         # Handle errors.
         def handle_errors(ret):
+            _log.debug(str(ret))
             self.reset_state()
-            return schedule_looping_call()
 
         schedule_looping_call()
 
@@ -127,16 +159,10 @@ class BandwidthTest():
 
     def increase_test_size(self):
         # Sanity check.
-        if self.test_size == 1000:  # 1000 MB
+        if self.test_size not in self.increases:
             return self.test_size
 
-        # Calculate test size.
-        if self.test_size == 1:
-            new_size = 5
-        else:
-            new_size = self.test_size * 10
-
-        return new_size
+        return self.increases[self.test_size]
 
     def add_handler(self, type, handler):
         # Unknown handler.

@@ -135,7 +135,8 @@ def success_wrapper(client, contract_id, host_unl):
                     "contract_id": contract_id,
                     "remaining": 350,  # Tree fiddy.
                     "file_size": 0,  # Sent as part of protocol.
-                    "file_size_buf": b""
+                    "file_size_buf": b"",
+                    "last_update": None
                 }
 
             # Record download state.
@@ -245,7 +246,8 @@ def process_syn(client, msg, enable_accept_handlers=ENABLE_ACCEPT_HANDLERS):
 
     # Remove expired accept handler.
     for handler in expired_handlers:
-        client.handlers[u"accept"].remove(handler)
+        if handler in client.handlers[u"accept"]:
+            client.handlers[u"accept"].remove(handler)
 
     # Check handshake state.
     if contract_id in client.handshake:

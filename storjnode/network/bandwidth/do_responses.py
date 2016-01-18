@@ -84,6 +84,7 @@ def build_start_handler(self, req):
         # Set start time.
         self.results[test]["start_time"] = time.time()
         _log.debug(self.results)
+
         return 1
 
     return start_handler
@@ -157,6 +158,7 @@ def build_completion_handler(self, req, accept_handler):
                 # Reset test state.
                 _log.debug("SCHEDUALING NEW TRANSFER!")
                 node_unl = copy.deepcopy(self.test_node_unl)
+                active_test = self.active_test
                 self.reset_state()
 
                 # Set the new test size.
@@ -167,6 +169,7 @@ def build_completion_handler(self, req, accept_handler):
                     node_unl,
                     size=new_size
                 )
+                self.active_test = active_test
             else:
                 # Cleanup.
                 _log.debug("TRANSFER ALL DONE!")
@@ -267,6 +270,7 @@ def handle_responses_builder(self):
                 self.active_test.errback(ret)
 
             self.reset_state()
+            return ret
 
         # Register error handler for transfer.
         self.transfer.defers[contract_id].addErrback(errback)
