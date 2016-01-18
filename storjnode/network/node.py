@@ -72,7 +72,7 @@ class Node(object):
                  passive_bind=None,  # FIXME use utils.get_inet_facing_ip ?
                  node_type="unknown",  # FIMME what is this ?
                  nat_type="unknown",  # FIXME what is this ?
-                 bandwidth=BandwidthLimit()
+                 bandwidth=None
                  ):
         """Create a blocking storjnode instance.
 
@@ -96,15 +96,16 @@ class Node(object):
             node_type: TODO doc string
             nat_type: TODO doc string
         """
-        self.bandwidth = bandwidth
-        self.disable_data_transfer = bool(disable_data_transfer)
-        self._transfer_request_handlers = set()
-        self._transfer_complete_handlers = set()
-        self._transfer_start_handlers = set()
 
         # config must be givin
         if config is None:
             raise Exception("Config required")
+
+        self.bandwidth = bandwidth or BandwidthLimit(config)
+        self.disable_data_transfer = bool(disable_data_transfer)
+        self._transfer_request_handlers = set()
+        self._transfer_complete_handlers = set()
+        self._transfer_start_handlers = set()
 
         # validate port (randomish user port by default)
         port = util.get_unused_port(port)

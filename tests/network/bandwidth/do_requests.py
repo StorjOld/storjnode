@@ -13,6 +13,7 @@ from storjnode.util import list_to_ordered_dict
 from storjnode.util import ordered_dict_to_list
 from btctxstore import BtcTxStore
 from storjnode.network.bandwidth.limit import BandwidthLimit
+import storjnode
 import unittest
 import copy
 from crochet import setup
@@ -43,7 +44,7 @@ class TestSubBandwidthRequests(unittest.TestCase):
                 wan_ip="8.8.8.8",
                 dht_node=cls.alice_dht,
             ),
-            BandwidthLimit(),
+            BandwidthLimit(storjnode.config.create()),
             wif=cls.alice_wif,
             store_config={tempfile.mkdtemp(): None}
         )
@@ -75,7 +76,7 @@ class TestSubBandwidthRequests(unittest.TestCase):
                 wan_ip="8.8.8.8",
                 dht_node=cls.bob_dht
             ),
-            BandwidthLimit(),
+            BandwidthLimit(storjnode.config.create()),
             wif=cls.bob_wif,
             store_config={tempfile.mkdtemp(): None}
         )
