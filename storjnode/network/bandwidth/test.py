@@ -146,6 +146,19 @@ class BandwidthTest():
         # Now enable the handler for real.
         self.transfer.add_handler(type, handler)
 
+    def remove_handler(self, type, handler):
+        # Unknown handler.
+        if type not in self.handlers:
+            raise Exception("Unknown handler.")
+
+        # Record a copy of the handler for our records.
+        if handler in self.handlers[type]:
+            self.handlers[type].remove(handler)
+
+        # Now enable the handler for real.
+        if handler in self.transfer.handlers[type]:
+            self.transfer.remove_handler(type, handler)
+
     def setup_results(self):
         results = {
             "upload": {
@@ -237,7 +250,7 @@ class BandwidthTest():
 
         return 0
 
-    def start(self, node_unl, size=1, timeout=300):
+    def start(self, node_unl, size=1, timeout=None):
         """
         :param node_unl: UNL of target
         :param size: MB to send in transfer
@@ -255,7 +268,7 @@ class BandwidthTest():
         self.test_size = size
 
         # Set timeout.
-        self.test_timeout = timeout
+        self.test_timeout = timeout or self.test_timeout
 
         # Reset deferred.
         self.active_test = defer.Deferred()

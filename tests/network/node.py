@@ -80,7 +80,8 @@ class TestNode(unittest.TestCase):
                 config=config,
                 nat_type="preserving",
                 node_type="passive",
-                disable_data_transfer=False
+                disable_data_transfer=False,
+                max_messages=10000000000000
             )
             storjnode.network.messages.info.enable(node, config)
             storjnode.network.messages.peers.enable(node)

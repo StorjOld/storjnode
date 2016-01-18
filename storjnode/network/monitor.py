@@ -3,6 +3,7 @@ import json
 import copy
 import bisect
 import storjnode
+from pyp2p.lib import parse_exception
 from collections import OrderedDict
 from io import BytesIO
 from threading import Thread, RLock
@@ -175,8 +176,9 @@ class Crawler(object):  # will not scale but good for now
         data["request"]["tries"] = data["request"]["tries"] + 1
 
     def _handle_bandwidth_test_error(self, results):
+        import pdb; pdb.set_trace()
+        _log.debug(str(results))
         with self.pipeline_mutex:
-
             # move to the back to scanned fifo and try again later
             nodeid, data = self.pipeline_bandwidth_test
             self.pipeline_scanned[nodeid] = data
@@ -185,30 +187,34 @@ class Crawler(object):  # will not scale but good for now
             self.pipeline_bandwidth_test = None
 
     def _handle_bandwidth_test_success(self, results):
-        with self.pipeline_mutex:
-            nodeid, data = self.pipeline_bandwidth_test
+        try:
+            with self.pipeline_mutex:
+                nodeid, data = self.pipeline_bandwidth_test
 
-            # save test results
-            if results is not None:
-                data["bandwidth"] = {
-                    "send": results["upload"],
-                    "receive": results["download"]
-                }
-            else:
-                _log.error("No test results for success callback")
+                # save test results
+                if results is not None:
+                    data["bandwidth"] = {
+                        "send": results["upload"],
+                        "receive": results["download"]
+                    }
+                else:
+                    _log.error("No test results for success callback")
 
-            # move peer to processed
-            self.pipeline_processed[nodeid] = data
-            txt = "Processed:{0}, scanned:{1}, scanning:{2}, processed:{3}!"
-            _log.info(txt.format(
-                node_id_to_address(nodeid),
-                len(self.pipeline_scanned),
-                len(self.pipeline_scanning),
-                len(self.pipeline_processed),
-            ))
+                # move peer to processed
+                self.pipeline_processed[nodeid] = data
+                txt = "Processed:{0}, scanned:{1}, scanning:{2}, processed:{3}!"
+                _log.info(txt.format(
+                    node_id_to_address(nodeid),
+                    len(self.pipeline_scanned),
+                    len(self.pipeline_scanning),
+                    len(self.pipeline_processed),
+                ))
 
-            # free up bandwidth test for next peer
-            self.pipeline_bandwidth_test = None
+                # free up bandwidth test for next peer
+                self.pipeline_bandwidth_test = None
+        except Exception as e:
+            import pdb; pdb.set_trace()
+            print(parse_exception(e))
 
     def _process_bandwidth_test(self):
         # expects caller to have pipeline mutex
@@ -234,7 +240,8 @@ class Crawler(object):  # will not scale but good for now
             on_success = self._handle_bandwidth_test_success
             on_error = self._handle_bandwidth_test_error
             deferred = self.node.test_bandwidth(nodeid)
-            deferred.addCallback(on_success).addErrback(on_error)
+            deferred.addCallback(on_success)
+            deferred.addErrback(on_error)
 
     def _process_pipeline(self):
         while not self.stop_thread and time.time() < self.timeout:

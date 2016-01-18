@@ -174,6 +174,10 @@ def build_accept_handler(self, msg):
         # Register complete handler.
         self.add_handler("complete", completion_handler)
 
+        # Remove this accept handler.
+        self.api.remove_transfer_request_handler(accept_handler)
+        self.remove_handler("accept", accept_handler)
+
         return 1
 
     return accept_handler

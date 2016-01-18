@@ -18,13 +18,18 @@ sense of it all. The protocol is actually quite simple:
   contract_id) and the process continues.
 """
 
+import logging
 import struct
 import time
 import os
 from twisted.internet import defer
 import storjnode.storage as storage
 from pyp2p.lib import parse_exception
+from storjnode.util import safe_log_var
 from storjnode.network.file_handshake import protocol
+import pyp2p.unl
+import pyp2p.net
+import pyp2p.dht_msg
 from pyp2p.dht_msg import DHT
 import re
 import sys
@@ -80,7 +85,7 @@ def expire_handshakes(client):
 
 
 def do_upload(client, con, contract, con_info, contract_id):
-    _log.verbose("Upload")
+    _log.debug("Upload")
 
     # Send file size.
     if not con_info["file_size"]:
@@ -142,8 +147,8 @@ def do_upload(client, con, contract, con_info, contract_id):
             contract_id
         )
 
-    _log.verbose("Remaining = ")
-    _log.verbose(con_info["remaining"])
+    _log.debug("Remaining = ")
+    _log.debug(con_info["remaining"])
 
     # Everything uploaded.
     if not con_info["remaining"]:
@@ -153,7 +158,7 @@ def do_upload(client, con, contract, con_info, contract_id):
 
 
 def do_download(client, con, contract, con_info, contract_id):
-    _log.verbose("download")
+    _log.debug("download")
 
     # Get file size.
     if not con_info["file_size"]:
@@ -205,8 +210,8 @@ def do_download(client, con, contract, con_info, contract_id):
             contract_id
         )
 
-    _log.verbose("Remaining = ")
-    _log.verbose(con_info["remaining"])
+    _log.debug("Remaining = ")
+    _log.debug(con_info["remaining"])
 
     # When done downloading close con.
     if not con_info["remaining"]:
@@ -275,13 +280,9 @@ def complete_transfer(client, contract_id, con):
         _log.debug("Got mutex")
 
         # Leave bandwidth slice table.
-        try:
-            _log.debug(str(client.bandwidth.transfers))
-            _log.debug(str(contract_id))
-            client.bandwidth.remove_transfer(contract_id)
-        except Exception as e:
-            _log.error(parse_exception(e))
-            exit()
+        _log.debug(str(client.bandwidth.transfers))
+        _log.debug(str(contract_id))
+        client.bandwidth.remove_transfer(contract_id)
         _log.debug("Removed bandwidth reservation")
 
         # Determine who is master.
@@ -345,6 +346,7 @@ def process_dht_messages(client):
             _log.debug(str(msg["message"]))
             protocol(client, msg["message"])
     except Exception as e:
+        _log.debug(str(parse_exception(e)))
         _log.debug("exception in process DHT message")
         _log.debug(e)
         pass
@@ -355,8 +357,6 @@ def process_dht_messages(client):
 
 future_tran = time.time() + 5
 future_queue = time.time() + 5
-
-
 def process_transfers(client):
     # Indicate whether we're still in this.
     global future_tran
@@ -421,13 +421,13 @@ def process_transfers(client):
 
         # Reached end of transfer queue.
         if contract_id == u"0" * 64:
-            _log.verbose("end of transfer queue")
+            _log.debug("end of transfer queue")
             continue
 
         # Anything left to do?
         con_info = client.con_info[con][contract_id]
         if not con_info["remaining"]:
-            _log.verbose("remaining is none")
+            _log.debug("remaining is none")
             continue
 
         # Execute start callbacks.

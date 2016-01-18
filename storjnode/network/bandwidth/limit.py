@@ -180,7 +180,8 @@ class BandwidthLimit:
         :param contract_id:
         :return: Nothing.
         """
-        self.transfers.remove(contract_id)
+        if contract_id in self.transfers:
+            self.transfers.remove(contract_id)
 
     def load(self):
         assert(self.config_file is not None)
