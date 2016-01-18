@@ -24,7 +24,7 @@
     },
     "storage": {
         "~/.storj/store": {
-            "limit": 10737418240,
+            "limit": "10G",
             "use_folder_tree": false
         }
     }

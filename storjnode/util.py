@@ -1,4 +1,5 @@
 import os
+import six
 import btctxstore
 import decimal
 import psutil
@@ -290,7 +291,7 @@ def validate_positive_integer(i):
 def byte_count(bc):  # ugly but much faster and safer then regex
 
     # default value or python api used
-    if isinstance(bc, int):
+    if isinstance(bc, six.integer_types):
         return validate_positive_integer(bc)
 
     bc = btctxstore.deserialize.unicode_str(bc)
