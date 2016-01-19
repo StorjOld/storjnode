@@ -73,8 +73,6 @@ class StorjNode(apigen.Definition):
             time.sleep(storjnode.network.WALK_TIMEOUT)
             self._node.refresh_neighbours()
             time.sleep(storjnode.network.WALK_TIMEOUT)
-            self._node.refresh_neighbours()
-            time.sleep(storjnode.network.WALK_TIMEOUT)
         except:
             self._node.stop()
             self._node = None
@@ -250,9 +248,9 @@ class StorjNode(apigen.Definition):
             _log.warning("Timeout getting key/value in DHT.")
             return None
 
-    ##################
-    # NETWORK EVENTS #
-    ##################
+    ############
+    # MESSAGES #
+    ############
 
     @apigen.command()
     def msg_send(self, node_address, msg_json):
@@ -279,9 +277,9 @@ class StorjNode(apigen.Definition):
         """Unsubscribe to matching messages on the network."""
         raise NotImplementedError()
 
-    ####################
-    # NETWORK TRANSFER #
-    ####################
+    #################
+    # DATA TRANSFER #
+    #################
 
     # TODO define api calls
 

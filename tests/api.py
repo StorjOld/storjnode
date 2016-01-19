@@ -8,7 +8,7 @@ from btctxstore import BtcTxStore
 from crochet import setup
 
 
-SWARM_SIZE = 8
+SWARM_SIZE = 4
 STORAGE_DIR = tempfile.mkdtemp()
 PORT = 4000
 
@@ -27,7 +27,7 @@ def _test_config(storage_path, port):
     config["network"]["monitor"]["enable_crawler"] = False
     config["network"]["monitor"]["enable_responses"] = False
     config["storage"] = {
-        storage_path: { "limit": "5G", "use_folder_tree": False }
+        storage_path: {"limit": "5G", "use_folder_tree": False}
     }
     storjnode.config.validate(config)
     return config
