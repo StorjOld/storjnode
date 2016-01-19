@@ -17,12 +17,18 @@ from pyp2p.unl import UNL
 # File transfer.
 from storjnode.network.file_transfer import FileTransfer
 from storjnode.network.process_transfers import process_transfers
+from storjnode.network.process_transfers import HANDSHAKE_TIMEOUT
+from storjnode.network.process_transfers import CON_TIMEOUT
 from storjnode.network.bandwidth.test import BandwidthTest
 from storjnode.network.bandwidth.limit import BandwidthLimit
+import storjnode.network
 from pyp2p.net import Net
 
 
 _log = storjnode.log.getLogger(__name__)
+
+HANDSHAKE_TIMEOUT = 100000000000
+CON_TIMEOUT = 100000000000
 
 
 DEFAULT_BOOTSTRAP_NODES = [
