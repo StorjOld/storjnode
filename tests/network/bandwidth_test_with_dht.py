@@ -41,12 +41,8 @@ swarm = []
 
 def _test_config(storage_path):
     config = storjnode.config.create()
-    fs_format = storjnode.util.get_fs_type(storage_path)
     config["storage"] = {
-        storage_path: {
-            "limit": storjnode.storage.manager.DEFAULT_STORE_LIMIT,
-            "use_folder_tree": fs_format == "vfat",
-        }
+        storage_path: {"limit": "5G", "use_folder_tree": False}
     }
     storjnode.config.validate(config)
     return config

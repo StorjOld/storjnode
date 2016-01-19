@@ -278,7 +278,7 @@ class BandwidthTest():
             else:
                 # Avoid edge of threshold error where one of them
                 # won't schedule.
-                if duration < threshold + 2:
+                if duration < threshold + 1:
                     return 1
 
         return 0

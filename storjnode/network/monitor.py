@@ -199,8 +199,8 @@ class Crawler(object):  # will not scale but good for now
             # save test results
             if results is not None:
                 data["bandwidth"] = {
-                    "send": results[1]["upload"],
-                    "receive": results[1]["download"]
+                    "send": results["upload"],
+                    "receive": results["download"]
                 }
 
                 # move peer to processed
