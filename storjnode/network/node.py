@@ -24,6 +24,9 @@ from pyp2p.net import Net
 
 _log = storjnode.log.getLogger(__name__)
 
+storjnode.network.process_transfers.HANDSHAKE_TIMEOUT = 100000000000
+storjnode.network.process_transfers.CON_TIMEOUT = 100000000000
+
 
 DEFAULT_BOOTSTRAP_NODES = [
 
