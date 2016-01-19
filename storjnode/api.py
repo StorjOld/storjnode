@@ -256,13 +256,12 @@ class StorjNode(apigen.Definition):
 
     @apigen.command()
     def msg_send(self, node_address, msg_json):
-        """Relay an message to a specific node."""
-        nodeid = storjnode.util.address_to_node_id(node_address)
-        return self._node.relay_message(nodeid, msg_json)
+        """Relay a message to a specific node."""
+        raise NotImplementedError()
 
     @apigen.command()
-    def msg_list(self, flush=True):
-        """Message received."""
+    def msg_list(self, json_schema=None, flush=True):
+        """Messages received for the given subscription schema."""
         raise NotImplementedError()
 
     @apigen.command()

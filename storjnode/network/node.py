@@ -28,28 +28,10 @@ _log = storjnode.log.getLogger(__name__)
 DEFAULT_BOOTSTRAP_NODES = [
 
     # storj stable  7b489cbfd61e675b86ac6469b6acd0a197da7f2c
-    ["104.236.1.59", 4653],
+    ["104.236.1.59", 1337],
 
     # storj develop 3f9f80fdfce32a08048193e3ba31393c0777ab21
-    ["159.203.64.230", 4653],
-
-    # F483's server 4c2acf7bdbdc57a3ae512ffba3ccf4f72a0367f9
-    ["78.46.188.55", 4653],
-
-    # Rendezvous server 1:
-    ["158.69.201.105", 6770],
-
-    # IPXCORE:
-    ["162.218.239.6", 35839],
-
-    # NAT test node
-    ["192.187.97.131", 10322],
-
-    # Rendezvous 2
-    ["185.86.149.128", 20560],
-
-    # dht msg 2
-    ["185.61.148.22", 18825]
+    ["159.203.64.230", 1337],
 ]
 
 
