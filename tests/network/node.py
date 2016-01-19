@@ -142,8 +142,9 @@ class TestNode(unittest.TestCase):
         node_id = self.test_get_unl_peer.get_id()
         got_unl = threading.Event()
 
-        def on_error(result):
-            _log.error(repr(result))
+        def on_error(err):
+            _log.error(repr(err))
+            return err
 
         def on_success(unl):
             got_unl.set()

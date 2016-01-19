@@ -272,8 +272,9 @@ class Node(object):
                 return False
             return result["is_public"]
 
-        def on_error(result):
-            _log.error(repr(result))
+        def on_error(err):
+            _log.error(repr(err))
+            return err
 
         deferred = self.async_get_transport_info(add_unl=False)
         return deferred.addCallback(on_success).addErrback(on_error)
@@ -301,8 +302,9 @@ class Node(object):
         def on_success(result):
             return result["wan"][0]
 
-        def on_error(result):
-            _log.error(repr(result))
+        def on_error(err):
+            _log.error(repr(err))
+            return err
 
         deferred = self.async_get_transport_info(add_unl=False)
         return deferred.addCallback(on_success).addErrback(on_error)
@@ -397,9 +399,10 @@ class Node(object):
         if self.disable_data_transfer:
             raise Exception("Data transfer disabled!")
 
-        def process_transfers_error(ret):
+        def process_transfers_error(err):
             txt = "An unknown error occured in process_transfers: %s"
-            _log.error(txt % repr(ret))
+            _log.error(txt % repr(err))
+            return err
 
         d = LoopingCall(
             process_transfers,
@@ -427,8 +430,9 @@ class Node(object):
         def show_bandwidth(results):
             print(results)
 
-        def handle_error(results):
-            print(results)
+        def handle_error(err):
+            print(err)
+            return err
 
         d = test_bandwidth ...
         d.addCallback(show_bandwidth).addErrback(handle_error)
@@ -449,8 +453,9 @@ class Node(object):
         def on_success(peer_unl):
             return self.bandwidth_test.start(peer_unl)
 
-        def on_error(result):
-            _log.error(repr(result))
+        def on_error(err):
+            _log.error(repr(err))
+            return err
 
         # Add callback to UNL deferred.
         d.addCallback(on_success).addErrback(on_error)
@@ -491,8 +496,9 @@ class Node(object):
 
             return callback
 
-        def on_error(result):
-            _log.error(repr(result))
+        def on_error(err):
+            _log.error(repr(err))
+            return err
 
         # Add callback to UNL deferred.
         on_success = callback_builder(shardid, direction)

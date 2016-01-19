@@ -515,7 +515,7 @@ class TestFileHandshake(unittest.TestCase):
         self.assertTrue(process_rst(self.alice, rst_2) == 1)
 
         # Setup callback.
-        def callback(ret):
+        def callback(err):
             global callbacks_work
             callbacks_work = 1
 

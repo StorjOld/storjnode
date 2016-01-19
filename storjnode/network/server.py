@@ -74,8 +74,9 @@ class MessageRelayer(object):
             _log.debug(txt.format(address, self.server.get_address()))
             return
 
-        def on_error(result):
-            _log.error(repr(result))
+        def on_error(err):
+            _log.error(repr(err))
+            return err
 
         # attempt to relay message
         txt = "{1}: Attempting to relay message for {0}"
@@ -269,8 +270,9 @@ class Server(KademliaServer):
             }
             return transport_info
 
-        def on_error(result):
-            _log.error(repr(result))
+        def on_error(err):
+            _log.error(repr(err))
+            return err
 
         ds = []
         for neighbor in self.bootstrappableNeighbors():

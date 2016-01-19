@@ -100,8 +100,8 @@ def test_queued():
     # Delete source file.
     def callback_builder(path, alice, bob, data_id):
         def callback(client, contract_id, con):
-            print("Upload succeeded")
-            print("Removing content and downloading back")
+            _log.debug("Upload succeeded")
+            _log.debug("Removing content and downloading back")
             os.remove(path)
 
             # Fix transfers.
@@ -111,14 +111,13 @@ def test_queued():
             time.sleep(1)
             clients = {"alice": alice, "bob": bob}
             for client in list({"alice": alice, "bob": bob}):
-                print()
-                print(client)
+                _log.debug(client)
                 clients[client].net.synchronize()
                 nodes_out = clients[client].net.outbound
                 nodes_in = clients[client].net.inbound
                 for node in nodes_out + nodes_in:
-                    print(node["con"].unl)
-                print(clients[client].cons)
+                    _log.debug(node["con"].unl)
+                _log.debug(clients[client].cons)
 
             # Queued transfer:
             download_contract_id = alice.data_request(
@@ -128,25 +127,22 @@ def test_queued():
                 bob.net.unl.value
             )
 
-            print("Download contract ID =")
-            print(download_contract_id)
+            _log.debug("Download contract ID =")
+            _log.debug(download_contract_id)
 
             # Indicate Bob's download succeeded.
             def alice_callback(val):
-                print("Download succeeded")
+                _log.debug("Download succeeded")
                 global queue_succeeded
                 queue_succeeded = 1
 
-            def alice_errback(val):
-                print("Download failed! Error:")
-                print(val)
+            def alice_errback(err):
+                _log.debug("Download failed! {0}".format(repr(err)))
+                return err
 
-            def on_error(result):
-                _log.error(repr(result))
-
-            # Hook upload from bob.
+            # nook upload from bob.
             d = alice.defers[download_contract_id]
-            d.addCallback(alice_callback).addErrback(on_error)
+            d.addCallback(alice_callback)
             d.addErrback(alice_errback)
 
         return callback
@@ -169,7 +165,7 @@ def test_queued():
         time.sleep(1)
 
     if not queue_succeeded:
-        print("\a")
+        _log.debug("\a")
 
     for client in [alice, bob]:
         client.net.stop()

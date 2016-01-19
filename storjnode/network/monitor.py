@@ -174,8 +174,9 @@ class Crawler(object):  # will not scale but good for now
         data["request"]["last"] = now
         data["request"]["tries"] = data["request"]["tries"] + 1
 
-    def _handle_bandwidth_test_error(self, results):
+    def _handle_bandwidth_test_error(self, err):
         with self.pipeline_mutex:
+            _log.error(repr(err))
 
             # move to the back to scanned fifo and try again later
             nodeid, data = self.pipeline_bandwidth_test

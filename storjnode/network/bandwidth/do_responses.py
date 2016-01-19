@@ -243,11 +243,12 @@ def handle_responses_builder(self):
         )
 
         # Fire error.
-        def errback(ret):
+        def errback(err):
             if self.active_test is not None:
-                self.active_test.errback(ret)
+                self.active_test.errback(err)
 
             self.reset_state()
+            return err
 
         # Register error handler for transfer.
         self.transfer.defers[contract_id].addErrback(errback)

@@ -89,11 +89,12 @@ def build_completion_handler(self, msg, accept_handler):
             )
 
             # Fire error.
-            def errback(ret):
+            def errback(err):
                 if self.active_test is not None:
-                    self.active_test.errback(ret)
+                    self.active_test.errback(err)
 
                 self.reset_state()
+                return err
 
             # Register error handler for transfer.
             if contract_id in self.transfer.defers:
