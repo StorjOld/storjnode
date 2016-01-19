@@ -73,6 +73,8 @@ class StorjNode(apigen.Definition):
             time.sleep(storjnode.network.WALK_TIMEOUT)
             self._node.refresh_neighbours()
             time.sleep(storjnode.network.WALK_TIMEOUT)
+            self._node.refresh_neighbours()
+            time.sleep(storjnode.network.WALK_TIMEOUT)
         except:
             self._node.stop()
             self._node = None
