@@ -105,6 +105,6 @@ class Protocol(KademliaProtocol):
 
         address = (nodeToAsk.ip, nodeToAsk.port)
         self.log.debug("Sending relay message to {0}:{1}".format(*address))
-        deferred = self.relay_message(address, self.sourceNode.id, destid,
-                                      hop_limit, message)
+        deferred = self.msg(address, self.sourceNode.id, destid,
+                            hop_limit, message)
         return deferred.addCallback(self.handleCallResponse, nodeToAsk)
