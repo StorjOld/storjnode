@@ -107,7 +107,7 @@ def build_completion_handler(bandwidth_test, msg, accept_handler):
             # Register error handler for transfer.
             if contract_id in bandwidth_test.transfer.defers:
                 bandwidth_test.transfer.defers[contract_id].addErrback(errback)
-                #bandwidth_test.transfer.defers[contract_id].addCallback(success)
+                # bandwidth_test.transfer.defers[contract_id].addCallback(success)
 
         test_data_size = (bandwidth_test.test_size * ONE_MB)
         bandwidth_test.results[test]["end_time"] = time.time()
@@ -121,7 +121,8 @@ def build_completion_handler(bandwidth_test, msg, accept_handler):
                 else:
                     # If it's already maxed: it won't accept
                     # any new requests.
-                    bandwidth_test.test_size = bandwidth_test.increase_test_size()
+                    n = bandwidth_test.increase_test_size()
+                    bandwidth_test.test_size = n
             else:
                 bandwidth_test.reset_state()
 
@@ -208,7 +209,7 @@ def handle_requests_builder(bandwidth_test):
         # Check message id.
         msg_id = hashlib.sha256(str(msg)).hexdigest()
         if msg_id not in bandwidth_test.message_state:
-           bandwidth_test.message_state[msg_id] = "pending_transfer"
+            bandwidth_test.message_state[msg_id] = "pending_transfer"
         else:
             return -5
 
