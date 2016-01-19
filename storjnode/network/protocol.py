@@ -66,8 +66,7 @@ class Protocol(KademliaProtocol):
             self.log.warning("Received message queue full, dropping message.")
             return False
 
-    def rpc_relay_message(self, sender, sender_id, dest_id,
-                          hop_limit, message):
+    def rpc_msg(self, sender, sender_id, dest_id, hop_limit, message):
         # FIXME self.welcomeIfNewNode(Node(sender_id, sender[0], sender[1]))
 
         logargs = (sender, storjnode.util.node_id_to_address(sender_id),
@@ -99,7 +98,7 @@ class Protocol(KademliaProtocol):
         })
         return (sender[0], sender[1]) if queued else None
 
-    def callRelayMessage(self, nodeToAsk, destid, hop_limit, message):
+    def callMsg(self, nodeToAsk, destid, hop_limit, message):
 
         def on_error(result):
             _log.error(repr(result))

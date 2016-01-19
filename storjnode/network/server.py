@@ -81,7 +81,7 @@ class MessageRelayer(object):
         # attempt to relay message
         txt = "{1}: Attempting to relay message for {0}"
         _log.debug(txt.format(address, self.server.get_address()))
-        self.server.protocol.callRelayMessage(
+        self.server.protocol.callMsg(
             relay_node, self.dest.id, self.hop_limit, self.message
         ).addCallback(self).addErrback(on_error)
 
