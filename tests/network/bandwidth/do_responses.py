@@ -4,6 +4,7 @@ import time
 import tempfile
 import pyp2p
 import zlib
+import hashlib
 from ast import literal_eval
 from storjnode.network.bandwidth.constants import ONE_MB
 from storjnode.network.bandwidth.test import BandwidthTest
@@ -145,6 +146,8 @@ class TestSubBandwidthResponses(unittest.TestCase):
         # Check our sig is valid.
         req = list_to_ordered_dict(copy.deepcopy(self.req))
         req[u"request"][u"something"] = u"invalidate our sig"
+        msg_id = hashlib.sha256(str(req[u"request"])).hexdigest()
+        self.alice_test.message_state[msg_id] = u"pending_response"
         req = ordered_dict_to_list(req)
         res = handle_responses(
             self.bob_dht,
@@ -155,6 +158,8 @@ class TestSubBandwidthResponses(unittest.TestCase):
         # Test node ides match.
         req = list_to_ordered_dict(copy.deepcopy(self.req))
         req[u"request"][u"test_node_unl"] = u"nope"
+        msg_id = hashlib.sha256(str(req[u"request"])).hexdigest()
+        self.alice_test.message_state[msg_id] = u"pending_response"
         req = ordered_dict_to_list(req)
         res = handle_responses(
             self.bob_dht,
@@ -165,6 +170,8 @@ class TestSubBandwidthResponses(unittest.TestCase):
         # Their sig does not match.
         req = list_to_ordered_dict(copy.deepcopy(self.req))
         req[u"something"] = u"invalid"
+        msg_id = hashlib.sha256(str(req[u"request"])).hexdigest()
+        self.alice_test.message_state[msg_id] = u"pending_response"
         req = ordered_dict_to_list(req)
         res = handle_responses(
             self.bob_dht,
@@ -174,6 +181,8 @@ class TestSubBandwidthResponses(unittest.TestCase):
 
         # This should pass.
         req = list_to_ordered_dict(copy.deepcopy(self.req))
+        msg_id = hashlib.sha256(str(req[u"request"])).hexdigest()
+        self.alice_test.message_state[msg_id] = u"pending_response"
         req = ordered_dict_to_list(req)
         res = handle_responses(
             self.bob_dht,

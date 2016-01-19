@@ -85,7 +85,7 @@ class TestNode(unittest.TestCase):
             storjnode.network.messages.peers.enable(node)
             enable_unl_requests(node)
             node.bandwidth_test.enable()
-            node.bandwidth_test.test_timeout = 400
+            node.bandwidth_test.test_timeout = 20000
             node.bandwidth_test.increasing_tests = 0
             cls.swarm.append(node)
 
@@ -412,7 +412,7 @@ class TestNode(unittest.TestCase):
 
     def test_network_monitor_service(self):
         limit = (len(self.swarm) / 4) - 1
-        interval = 60 * 5
+        interval = 60 * 30
         crawled_event = threading.Event()
         results = {}
 

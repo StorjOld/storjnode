@@ -210,6 +210,8 @@ def handle_responses_builder(self):
         req = msg[u"request"]
         _log.debug(req)
         msg_id = hashlib.sha256(str(req)).hexdigest()
+        if msg_id not in self.message_state:
+            return -10
         if self.message_state[msg_id] == "pending_response":
            self.message_state[msg_id] = "pending_transfer"
         else:

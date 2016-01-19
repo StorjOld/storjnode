@@ -161,6 +161,8 @@ def build_accept_handler(self, msg):
         # Invalid file_size request size for test.
         test_data_size = (self.test_size * ONE_MB)
         if msg[u"file_size"] > (test_data_size + 1024):
+            _log.debug(str(msg[u"file_size"]))
+            _log.debug(str(test_data_size))
             _log.debug("file size not = in bob accept\a")
             return -4
 

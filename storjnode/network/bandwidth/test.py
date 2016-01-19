@@ -82,47 +82,48 @@ class BandwidthTest():
         self.start_time = time.time()
 
         # Timeout bandwidth test after N seconds.
-        self.test_timeout = 500
+        self.test_timeout = 1000
 
         # Protocol state.
         self.message_state = {}
 
         # Increase table for MB transfer size.
-        self.increases = {
-            1: 4,
-            4: 6,
-            6: 10,
-            10: 15,
-            15: 20,
-            20: 25,
-            25: 30,
-            30: 35,
-            35: 40,
-            40: 45,
-            45: 50,
-            50: 60,
-            60: 70,
-            70: 80,
-            80: 90,
-            90: 100,
-            100: 120,
-            120: 140,
-            140: 200,
-            200: 250,
-            250: 300,
-            300: 400,
-            400: 500,
-            500: 600,
-            600: 700,
-            700: 800,
-            800: 900,
-            900: 1000
-        }
+        self.increases = OrderedDict([
+            [1, 4],
+            [4, 6],
+            [6, 10],
+            [10, 15],
+            [15, 20],
+            [20, 25],
+            [25, 30],
+            [30, 35],
+            [35, 40],
+            [40, 45],
+            [45, 50],
+            [50, 60],
+            [60, 70],
+            [70, 80],
+            [80, 90],
+            [90, 100],
+            [100, 120],
+            [120, 140],
+            [140, 200],
+            [200, 250],
+            [250, 300],
+            [300, 400],
+            [400, 500],
+            [500, 600],
+            [600, 700],
+            [700, 800],
+            [800, 900],
+            [900, 1000]
+        ])
 
         # Handle timeouts.
         def handle_timeout():
             duration = time.time() - self.start_time
             if duration >= self.test_timeout:
+                _log.debug("ERROR: bandwidth test timed out!")
                 if self.active_test is not None:
                     _log.debug("active bandwiwdth test timeout!")
                     self.active_test.errback(Exception("Timed out"))
@@ -136,6 +137,7 @@ class BandwidthTest():
 
         # Handle errors.
         def handle_errors(ret):
+            _log.debug("In handle errors for test.py")
             _log.debug(str(ret))
             self.reset_state()
 
@@ -258,7 +260,7 @@ class BandwidthTest():
         return 0
 
     def is_bad_test(self):
-        threshold = 30
+        threshold = 5
         for test in list(self.results):
             start_time = self.results[test]["start_time"]
             end_time = self.results[test]["end_time"]
