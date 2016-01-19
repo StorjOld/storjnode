@@ -259,8 +259,7 @@ class BandwidthTest():
 
         return 0
 
-    def is_bad_test(self):
-        threshold = 5
+    def is_bad_test(self, threshold=5):
         for test in list(self.results):
             start_time = self.results[test]["start_time"]
             end_time = self.results[test]["end_time"]
@@ -275,11 +274,6 @@ class BandwidthTest():
             duration = end_time - start_time
             if duration < threshold:
                 return 1
-            else:
-                # Avoid edge of threshold error where one of them
-                # won't schedule.
-                if duration < threshold + 1:
-                    return 1
 
         return 0
 
