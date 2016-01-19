@@ -296,7 +296,6 @@ def handle_responses_builder(self):
                 _log.debug("Got handle resposnes mutex")
                 return handle_responses(node, msg)
         except (ValueError, KeyError, TypeError, zlib.error) as e:
-            _log.error("Error in res: {0}".format(repr(e)))
-            return
+            pass  # expected failure if unmatching message
 
     return try_wrapper

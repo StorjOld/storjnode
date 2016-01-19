@@ -268,6 +268,6 @@ def handle_requests_builder(bandwidth_test):
                 _log.debug("Got handle requests mutex")
                 return handle_requests(node, msg)
         except (ValueError, KeyError, TypeError, zlib.error) as e:
-            _log.error("Error in req: {0}".format(repr(e)))
+            pass  # expected failure if unmatching message
 
     return try_wrapper
