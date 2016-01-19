@@ -111,8 +111,9 @@ def full_path(path):
 def default_defered(defered, default):
     """Returns a default value if the defered failed, otherwise the result."""
 
-    def on_error(result):
-        _log.error(repr(result))
+    def on_error(err):
+        _log.error(repr(err))
+        return err
 
     def on_success(result):
         return result[0] and result[1] or default

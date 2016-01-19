@@ -90,18 +90,19 @@ def build_completion_handler(self, msg, accept_handler):
             )
 
             # Fire error.
-            def errback(ret):
+            def errback(err):
                 _log.debug("do requests errback 1")
-                _log.debug(str(ret))
+                _log.debug(repr(err))
                 if self.active_test is not None:
-                    self.active_test.errback(ret)
+                    self.active_test.errback(err)
 
                 self.reset_state()
-                return ret
+                return err
 
             # Complete.
             def success(ret):
                 self.reset_state()
+                return ret
 
             # Register error handler for transfer.
             if contract_id in self.transfer.defers:

@@ -155,8 +155,9 @@ def request(node, receiver):
 
 def _respond(node, receiver, config):
 
-    def on_error(result):
-        _log.error("{0} {1}".format(repr(result), config))
+    def on_error(err):
+        _log.error(repr(err))
+        return err
 
     def on_success(result):
         if not result:

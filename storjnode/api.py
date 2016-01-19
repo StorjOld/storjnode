@@ -4,7 +4,6 @@ import btctxstore
 import storjnode
 import crochet
 from threading import RLock
-from storjnode.network import BandwidthLimit
 
 
 _log = storjnode.log.getLogger(__name__)
@@ -16,8 +15,8 @@ Error: No wallet or cold storage address provided!
     You must provide either a wallet via the arguments
     or at least one cold storage address in the config!
 
-    This is to prevent loss of funds. Please back up your provided
-    wallet and the cold storage keys to prevent any loss of funds.
+    This is to prmessage loss of funds. Please back up your provided
+    wallet and the cold storage keys to prmessage any loss of funds.
 """
 
 
@@ -33,11 +32,10 @@ class StorjNode(apigen.Definition):
 
     def __init__(self, wallet=None, quiet=False, debug=False, verbose=False,
                  config=storjnode.common.CONFIG_PATH):
-
         self._init_conifg(config)
         self._init_wallet(wallet)
         self._init_node()
-        self._init_events()
+        self._init_messages()
 
     def _init_wallet(self, wallet):
 
@@ -61,19 +59,17 @@ class StorjNode(apigen.Definition):
     def _init_node(self):
         port = self._cfg["network"]["port"]
         notransfer = self._cfg["network"]["disable_data_transfer"]
+        bootstrap_nodes = self._cfg["network"]["bootstrap_nodes"]
         self._node = None
         try:
             self._node = storjnode.network.Node(
                 self.wallet, disable_data_transfer=notransfer,
-                bandwidth=None if notransfer else BandwidthLimit(self._cfg),
                 port=port if port != "random" else None,
-                config=self._cfg["storage"]
+                config=self._cfg["storage"], bootstrap_nodes=bootstrap_nodes,
             )
 
             # shitty wait for network stabilization
-            _log.info("Shitty wait for network stabilization.")
-            time.sleep(storjnode.network.WALK_TIMEOUT)
-            self._node.refresh_neighbours()
+            _log.info("Wait for network stabilization.")
             time.sleep(storjnode.network.WALK_TIMEOUT)
             self._node.refresh_neighbours()
             time.sleep(storjnode.network.WALK_TIMEOUT)
@@ -82,49 +78,29 @@ class StorjNode(apigen.Definition):
             self._node = None
             raise
 
-    def _init_events(self):
-        self._events = []
-        self._events_mutex = RLock()
-        self._node.add_message_handler(self._on_event)
+    def _init_messages(self):
+        self._messages = []
+        self._messages_mutex = RLock()
+        self._node.add_message_handler(self._on_message)
 
     def _enable_monitor_responses(self):
         storjnode.network.messages.info.enable(self._node, self._cfg)
         storjnode.network.messages.peers.enable(self._node)
-        self._node.bandwidth_test.enable()
-        storjnode.network.file_transfer.enable_unl_requests(self._node)
+        if not self._cfg["network"]["disable_data_transfer"]:
+            self._node.bandwidth_test.enable()
+            storjnode.network.file_transfer.enable_unl_requests(self._node)
 
-    def _on_event(self, node, event):
-        with self._events_mutex:
-            self._events.append(event)
+    def _on_message(self, node, message):
+        with self._messages_mutex:
+            self._messages.append(message)
 
     def on_shutdown(self):
         if self._node is not None:
             self._node.stop()
 
-    ##################
-    # END USER CALLS #
-    ##################
-
     def startserver(self, hostname="localhost", port=8080, daemon=False):
         # remove startserver call from api (use farm istead)
-        raise NotImplementedError()
-
-    @apigen.command(rpc=False)
-    def farm(self, hostname="localhost", port=8080):
-        """Start the farmer and the json-rpc service."""
-        self.monitor = None
-        try:
-            # start monitor handlers and crawler if needed
-            self._init_monitor()
-
-            # start rpc service
-            super(StorjNode, self).startserver(hostname=hostname, port=port)
-
-        except KeyboardInterrupt:
-            pass
-        finally:
-            if self.monitor is not None:
-                self.monitor.stop()
+        raise NotImplementedError("Not implemented by design.")
 
     def _init_monitor(self):
         notransfer = self._cfg["network"]["disable_data_transfer"]
@@ -145,6 +121,51 @@ class StorjNode(apigen.Definition):
                 self._node, self._cfg, limit=limit, interval=interval,
                 on_crawl_complete=self._on_crawl_complete
             )
+
+        if not notransfer:
+            self._node.add_transfer_request_handler(self._on_transfer_request)
+            self._node.add_transfer_complete_handler(self._on_transfer_complete)
+
+    def _on_transfer_request(nodeid, shardid, direction, file_size):
+
+        # do not accept push requests
+        if direction == "receive":
+            txt = "Push request from node {nodeid} for shard {shardid}."
+            _log.warning(txt.format(nodeid=nodeid, shardid=shardid,
+                                    size=file_size))
+            return False
+
+        # do not accept pull request if data doesnt exist
+        if storjnode.storage.manager.find(config["storage"], shardid) is None:
+            txt = ("Pull request from node {nodeid} "
+                   "for shard {shardid} not in store.")
+            _log.warning(txt.format(nodeid=nodeid, shardid=shardid))
+            return False
+
+        # accept any pull request if the data exists
+        else:
+            txt = ("Accepting pull request from node {nodeid} "
+                   "for shard {shardid}.")
+            _log.info(txt.format(nodeid=nodeid, shardid=shardid))
+            return True
+
+    def _on_transfer_complete(nodeid, shardid, direction):
+        if direction == "receive":
+            txt = "Completed push of shard {shardid} from {nodeid}"
+            _log.critical(txt.format(shardid=shardid, nodeid=nodeid))
+            exit(1)
+        elif direction == "send":
+            txt = "Completed pull of shard {shardid} from {nodeid}"
+            _log.info(txt.format(shardid=shardid, nodeid=nodeid))
+
+    def _on_crawl_complete(self, key, shard):
+        _log.info("Crawl complete, {shardid} publshed at {key}".format(
+            key=key, shardid=storjnode.storage.shard.get_id(shard)
+        ))
+
+    #########
+    # BASIC #
+    #########
 
     @apigen.command()
     def info(self):
@@ -169,8 +190,22 @@ class StorjNode(apigen.Definition):
             },
         }
 
-    def _on_crawl_complete(self, key, shard):
-        _log.info("Crawl complete, results saved at {0}".format(key))
+    @apigen.command(rpc=False)
+    def farm(self, hostname="localhost", port=8080):
+        """Start the farmer and the json-rpc service."""
+        self.monitor = None
+        try:
+            # start monitor handlers and crawler if needed
+            self._init_monitor()
+
+            # start rpc service
+            super(StorjNode, self).startserver(hostname=hostname, port=port)
+
+        except KeyboardInterrupt:
+            pass
+        finally:
+            if self.monitor is not None:
+                self.monitor.stop()
 
     ##########
     # CONFIG #
@@ -191,12 +226,12 @@ class StorjNode(apigen.Definition):
         """The jsonschema for config validation."""
         return storjnode.config.SCHEMA
 
-    ###############
-    # NETWORK DHT #
-    ###############
+    #######
+    # DHT #
+    #######
 
     @apigen.command()
-    def net_dht_put(self, key, value):
+    def dht_put(self, key, value):
         """Insert a key/value pair into the DHT."""
         try:
             return self._node.put(key, value)
@@ -205,7 +240,7 @@ class StorjNode(apigen.Definition):
             return False
 
     @apigen.command()
-    def net_dht_get(self, key):
+    def dht_get(self, key):
         """Get value from the DHT for a given key."""
         try:
             return self._node.get(key)
@@ -213,44 +248,38 @@ class StorjNode(apigen.Definition):
             _log.warning("Timeout getting key/value in DHT.")
             return None
 
-    ##################
-    # NETWORK EVENTS #
-    ##################
+    ############
+    # MESSAGES #
+    ############
 
     @apigen.command()
-    def net_notify(self, node_address, event):
-        """Relay an event to a specific node."""
-        nodeid = storjnode.util.address_to_node_id(node_address)
-        return self._node.relay_message(nodeid, event)
-
-    # @apigen.command()
-    # def net_events(self, flush=True):
-    #     """Events received."""
-    #     # TODO add mapping to subscription schemas
-    #     with self._events_mutex:
-    #         messages = self._events
-    #         if flush:
-    #             self._events = []
-    #         return messages
-
-    @apigen.command()
-    def net_publish(self, event_json):
-        """Publish an event on the network."""
+    def msg_send(self, node_address, msg_json):
+        """Relay a message to a specific node."""
         raise NotImplementedError()
 
     @apigen.command()
-    def net_subscribe(self, json_schema):
-        """Subscribe to matching events on the network."""
+    def msg_list(self, json_schema=None, flush=True):
+        """Messages received for the given subscription schema."""
         raise NotImplementedError()
 
     @apigen.command()
-    def net_unsubscribe(self, json_schema):
-        """Unsubscribe to matching events on the network."""
+    def msg_publish(self, msg_json):
+        """Publish an message on the network."""
         raise NotImplementedError()
 
-    ####################
-    # NETWORK TRANSFER #
-    ####################
+    @apigen.command()
+    def msg_subscribe(self, json_schema):
+        """Subscribe to matching messages on the network."""
+        raise NotImplementedError()
+
+    @apigen.command()
+    def msg_unsubscribe(self, json_schema):
+        """Unsubscribe to matching messages on the network."""
+        raise NotImplementedError()
+
+    #################
+    # DATA TRANSFER #
+    #################
 
     # TODO define api calls
 

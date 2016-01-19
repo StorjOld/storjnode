@@ -38,12 +38,8 @@ LAN_IP = storjnode.util.get_inet_facing_ip()
 
 def _test_config(storage_path):
     config = storjnode.config.create()
-    fs_format = storjnode.util.get_fs_type(storage_path)
     config["storage"] = {
-        storage_path: {
-            "limit": storjnode.storage.manager.DEFAULT_STORE_LIMIT,
-            "use_folder_tree": fs_format == "vfat",
-        }
+        storage_path: {"limit": "5G", "use_folder_tree": False}
     }
     storjnode.config.validate(config)
     return config
@@ -60,7 +56,7 @@ class TestNode(unittest.TestCase):
             cls.profile.enable()
 
         # create swarm
-        print("TEST: creating swarm")
+        _log.info("TEST: creating swarm")
         cls.btctxstore = btctxstore.BtcTxStore(testnet=False)
         cls.swarm = []
         for i in range(SWARM_SIZE):
@@ -90,7 +86,7 @@ class TestNode(unittest.TestCase):
             cls.swarm.append(node)
 
             msg = "TEST: created node {0} @ 127.0.0.1:{1}"
-            print(msg.format(node.get_address(), node.port))
+            _log.info(msg.format(node.get_address(), node.port))
 
         # Peer used for get unl requests.
         # FIXME remove unl_peer and node from swarm
@@ -112,7 +108,7 @@ class TestNode(unittest.TestCase):
         enable_unl_requests(cls.test_get_unl_peer)
 
         # stabalize network overlay
-        print("TEST: stabalize network overlay")
+        _log.info("TEST: stabalize network overlay")
         time.sleep(WALK_TIMEOUT)
         for node in cls.swarm:
             node.refresh_neighbours()
@@ -123,13 +119,13 @@ class TestNode(unittest.TestCase):
         cls.test_get_unl_peer.refresh_neighbours()
         time.sleep(WALK_TIMEOUT)
 
-        print("TEST: created swarm")
+        _log.info("TEST: created swarm")
 
     @classmethod
     def tearDownClass(cls):
 
         # stop swarm
-        print("TEST: stopping swarm")
+        _log.info("TEST: stopping swarm")
         for node in cls.swarm:
             node.stop()
         cls.test_get_unl_peer.stop()
@@ -146,8 +142,9 @@ class TestNode(unittest.TestCase):
         node_id = self.test_get_unl_peer.get_id()
         got_unl = threading.Event()
 
-        def on_error(result):
-            _log.error(repr(result))
+        def on_error(err):
+            _log.error(repr(err))
+            return err
 
         def on_success(unl):
             got_unl.set()
@@ -411,8 +408,8 @@ class TestNode(unittest.TestCase):
     ########################
 
     def test_network_monitor_service(self):
-        limit = (len(self.swarm) / 4) - 1
-        interval = 60 * 30
+        limit = (len(self.swarm) / 2) - 1
+        interval = 60 * 15
         crawled_event = threading.Event()
         results = {}
 
@@ -436,7 +433,7 @@ class TestNode(unittest.TestCase):
         shard = results["shard"]
         shard.seek(0)
         crawl_data = json.loads(shard.read())
-        print("CRAWLED DATA", crawl_data)
+        _log.info("CRAWLED DATA", crawl_data)
         self.assertEqual(len(crawl_data["processed"]), limit)
 
     def test_find_next_free_dataset_num(self):
