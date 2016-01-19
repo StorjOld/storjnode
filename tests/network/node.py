@@ -37,12 +37,8 @@ LAN_IP = storjnode.util.get_inet_facing_ip()
 
 def _test_config(storage_path):
     config = storjnode.config.create()
-    fs_format = storjnode.util.get_fs_type(storage_path)
     config["storage"] = {
-        storage_path: {
-            "limit": "10G",
-            "use_folder_tree": False,
-        }
+        storage_path: { "limit": "10G", "use_folder_tree": False, }
     }
     storjnode.config.validate(config)
     return config

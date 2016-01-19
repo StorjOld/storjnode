@@ -98,7 +98,6 @@
     "version": { "type": "integer", "minimum": 0 }, 
     "storage": { "$ref": "#/definitions/storage" }, 
     "network": { "$ref": "#/definitions/network" },
-    "cache": { "type": "string" },
     "cold_storage": {
       "type": "array",
       "items": {
@@ -107,6 +106,6 @@
       }
     }
   },
-  "required": [ "version", "cold_storage", "network", "storage", "cache" ], 
+  "required": [ "version", "cold_storage", "network", "storage" ], 
   "additionalProperties": false
 }

@@ -22,7 +22,6 @@
             "crawler_interval": 3600
         }
     },
-    "cache": "~/.storj/cache.db",
     "storage": {
         "~/.storj/store": {
             "limit": "10G",
