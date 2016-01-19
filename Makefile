@@ -71,13 +71,7 @@ test_script: install
 	#env/bin/storjnode --help
 	#env/bin/storjnode --wallet=L3NrSTxMCwAsLXnBjESvU5LnCKwcmMXKutKzNnVpPevXeSMfB1zx --debug startserver
 	#$(PY) examples/network/map_network.py --debug
-<<<<<<< HEAD
 	$(PY) -m unittest --verbose tests.network.node.TestNode.test_network_monitor_service
-=======
-	#$(PY) -m unittest --verbose tests.network.node.TestNode.test_network_monitor_service
-	#$(PY) -m unittest --verbose tests.network.node.TestNode.test_find_next_free_dataset_num
-	$(PY) -m unittest --verbose tests.api
->>>>>>> 63f78de90cd58bb9ebbe031164219c41ce3de0f6
 
 
 shell: install
