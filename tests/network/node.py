@@ -433,7 +433,7 @@ class TestNode(unittest.TestCase):
         shard = results["shard"]
         shard.seek(0)
         crawl_data = json.loads(shard.read())
-        _log.info("CRAWLED DATA", crawl_data)
+        _log.info("CRAWLED DATA: {0}".format(repr(crawl_data)))
         self.assertEqual(len(crawl_data["processed"]), limit)
 
     def test_find_next_free_dataset_num(self):
