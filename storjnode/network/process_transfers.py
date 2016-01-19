@@ -278,6 +278,7 @@ def get_contract_id(client, con, contract_id):
     else:
         return 0
 
+
 def interrupt_transfer(client, contract_id, con):
     # Return async failure.
     _log.debug("Interrupt transfer")
@@ -300,6 +301,7 @@ def interrupt_transfer(client, contract_id, con):
     else:
         # Readying to receive a new contract ID.
         client.con_transfer[con] = u""
+
 
 def complete_transfer(client, contract_id, con):
     _log.debug("Waiting for mutex")
@@ -383,6 +385,8 @@ def process_dht_messages(client):
 
 future_tran = time.time() + 5
 future_queue = time.time() + 5
+
+
 def process_transfers(client):
     # Indicate whether we're still in this.
     global future_tran

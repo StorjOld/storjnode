@@ -107,7 +107,7 @@ def build_completion_handler(self, msg, accept_handler):
             # Register error handler for transfer.
             if contract_id in self.transfer.defers:
                 self.transfer.defers[contract_id].addErrback(errback)
-                #self.transfer.defers[contract_id].addCallback(success)
+                # self.transfer.defers[contract_id].addCallback(success)
 
         test_data_size = (self.test_size * ONE_MB)
         self.results[test]["end_time"] = time.time()
@@ -208,7 +208,7 @@ def handle_requests_builder(self):
         # Check message id.
         msg_id = hashlib.sha256(str(msg)).hexdigest()
         if msg_id not in self.message_state:
-           self.message_state[msg_id] = "pending_transfer"
+            self.message_state[msg_id] = "pending_transfer"
         else:
             return -5
 

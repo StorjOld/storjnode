@@ -213,7 +213,7 @@ def handle_responses_builder(self):
         if msg_id not in self.message_state:
             return -10
         if self.message_state[msg_id] == "pending_response":
-           self.message_state[msg_id] = "pending_transfer"
+            self.message_state[msg_id] = "pending_transfer"
         else:
             return -6
         msg_id = hashlib.sha256(str(msg)).hexdigest()

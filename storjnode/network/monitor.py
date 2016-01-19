@@ -205,7 +205,8 @@ class Crawler(object):  # will not scale but good for now
 
                 # move peer to processed
                 self.pipeline_processed[nodeid] = data
-                txt = "Processed:{0}, scanned:{1}, scanning:{2}, processed:{3}!"
+                txt = "Processed:{0}, scanned:{1},"
+                txt += "scanning:{2}, processed:{3}!"
                 _log.info(txt.format(
                     node_id_to_address(nodeid),
                     len(self.pipeline_scanned_fifo),
