@@ -80,7 +80,7 @@ for i in range(0, 2):
     print()
 
     assert(node._data_transfer is not None)
-    #node.repeat_relay.thread_running = False
+    # node.repeat_relay.thread_running = False
     storjnode.network.messages.info.enable(node, {})
     storjnode.network.messages.peers.enable(node)
     enable_unl_requests(node)
@@ -103,6 +103,8 @@ time.sleep(WALK_TIMEOUT)
 
 # Show bandwidth.
 still_running = 1
+
+
 def show_bandwidth(results):
     print(results)
     global test_success

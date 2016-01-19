@@ -275,6 +275,11 @@ class BandwidthTest():
             duration = end_time - start_time
             if duration < threshold:
                 return 1
+            else:
+                # Avoid edge of threshold error where one of them
+                # won't schedule.
+                if duration < threshold + 2:
+                    return 1
 
         return 0
 

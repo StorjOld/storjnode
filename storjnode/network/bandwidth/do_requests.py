@@ -113,6 +113,7 @@ def build_completion_handler(self, msg, accept_handler):
         self.results[test]["transferred"] = test_data_size
 
         if test == "upload":
+            # Is there a need to schedule a new test?
             if self.is_bad_test():
                 if self.is_bad_results():
                     self.reset_state()

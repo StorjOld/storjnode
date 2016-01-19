@@ -121,14 +121,20 @@ class TestSubBandwidthTest(unittest.TestCase):
 
     def test_increase_test_size(self):
         # Too big.
-        self.alice_test.test_size = self.alice_test.increases[list(self.alice_test.increases)[-1]]
+        self.alice_test.test_size = self.alice_test.increases[
+            list(self.alice_test.increases)[-1]
+        ]
         _log.debug(self.alice_test.test_size)
-        self.assertTrue(self.alice_test.increase_test_size() == self.alice_test.test_size)
+        b = self.alice_test.increase_test_size() == \
+            self.alice_test.test_size
+        self.assertTrue(b)
         _log.debug(self.alice_test.test_size)
 
         # Increase by 4 MB.
         self.alice_test.test_size = 1
-        self.assertTrue(self.alice_test.increase_test_size() == self.alice_test.increases[self.alice_test.test_size])
+        b = self.alice_test.increase_test_size() == \
+            self.alice_test.increases[self.alice_test.test_size]
+        self.assertTrue(b)
 
 if __name__ == "__main__":
     unittest.main()
