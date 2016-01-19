@@ -69,12 +69,13 @@ class StorjNode(apigen.Definition):
             )
 
             # shitty wait for network stabilization
-            _log.info("Wait for network stabilization.")
-            time.sleep(storjnode.network.WALK_TIMEOUT)
-            self._node.refresh_neighbours()
-            time.sleep(storjnode.network.WALK_TIMEOUT)
-            self._node.refresh_neighbours()
-            time.sleep(storjnode.network.WALK_TIMEOUT)
+            # FIXME temp fix for travis
+            # _log.info("Wait for network stabilization.")
+            # time.sleep(storjnode.network.WALK_TIMEOUT)
+            # self._node.refresh_neighbours()
+            # time.sleep(storjnode.network.WALK_TIMEOUT)
+            # self._node.refresh_neighbours()
+            # time.sleep(storjnode.network.WALK_TIMEOUT)
         except:
             self._node.stop()
             self._node = None

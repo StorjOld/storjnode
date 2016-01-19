@@ -8,7 +8,7 @@ from btctxstore import BtcTxStore
 from crochet import setup
 
 
-SWARM_SIZE = 4
+SWARM_SIZE = 2
 STORAGE_DIR = tempfile.mkdtemp()
 PORT = 4000
 

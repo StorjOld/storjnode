@@ -395,8 +395,6 @@ class Node(object):
             _log.error(txt % repr(err))
             return err
 
-            return ret
-
         d = LoopingCall(
             process_transfers,
             self._data_transfer
