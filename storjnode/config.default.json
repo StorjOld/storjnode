@@ -1,5 +1,5 @@
 {
-    "version": "0",
+    "version": 1,
     "cold_storage": [],
     "network": {
         "port": "random",
@@ -11,8 +11,8 @@
                 "downstream": 0
             },
             "month": {
-                "upstream": "10G",
-                "downstream": "10G"
+                "upstream": "5G",
+                "downstream": "5G"
             }
         },
         "monitor": {
@@ -24,7 +24,7 @@
     },
     "storage": {
         "~/.storj/store": {
-            "limit": "10G",
+            "limit": "5G",
             "use_folder_tree": false
         }
     }

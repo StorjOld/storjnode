@@ -108,7 +108,7 @@ class TestSubBandwidthTest(unittest.TestCase):
 
         # Test timeout.
         def show_error(ret):
-            print(ret)
+            _log.error(repr(ret))
             global timed_out
             timed_out = 1
 

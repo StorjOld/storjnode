@@ -52,7 +52,7 @@ class Crawler(object):  # will not scale but good for now
         # |
         # | received info and peer responses and ready for bandwidth test
         # V user ordered dict to have a fifo for bandwidth test
-        self.pipeline_scanned = OrderedDict()  # {node_id: data}
+        self.pipeline_scanned_fifo = OrderedDict()  # {node_id: data}
         # |
         # V only test bandwidth of one node at a time to ensure best results
         self.pipeline_bandwidth_test = None  # (node_id, data)
@@ -87,7 +87,7 @@ class Crawler(object):  # will not scale but good for now
             # add previously unknown peers
             for peer in data["peers"]:
                 scanning = peer in self.pipeline_scanning
-                scanned = peer in self.pipeline_scanned
+                scanned = peer in self.pipeline_scanned_fifo
                 processed = peer in self.pipeline_processed
                 testing_bandwidth = (
                     self.pipeline_bandwidth_test is not None and
@@ -136,13 +136,13 @@ class Crawler(object):  # will not scale but good for now
             storjnode.util.node_id_to_address(nodeid))
         )
         del self.pipeline_scanning[nodeid]
-        self.pipeline_scanned[nodeid] = data
+        self.pipeline_scanned_fifo[nodeid] = data
 
         txt = ("Scan complete for {0}, "
                "scanned:{1}, scanning:{2}, processed:{3}!")
         _log.info(txt.format(
             node_id_to_address(nodeid),
-            len(self.pipeline_scanned),
+            len(self.pipeline_scanned_fifo),
             len(self.pipeline_scanning),
             len(self.pipeline_processed),
         ))
@@ -175,71 +175,59 @@ class Crawler(object):  # will not scale but good for now
         data["request"]["last"] = now
         data["request"]["tries"] = data["request"]["tries"] + 1
 
-    def _handle_bandwidth_test_error(self, results):
-        _log.debug("----------------------------")
-        _log.debug("bandwidth test error")
-        _log.debug("bandwidth test error")
-        _log.debug("bandwidth test error")
-        _log.debug("bandwidth test error")
-        _log.debug("----------------------------")
+    def _handle_bandwidth_test_error(self, err):
         with self.pipeline_mutex:
+            _log.error(repr(err))
+
             # move to the back to scanned fifo and try again later
             nodeid, data = self.pipeline_bandwidth_test
-            self.pipeline_scanned[nodeid] = data
+            self.pipeline_scanned_fifo[nodeid] = data
 
             # free up bandwidth test for next peer
             self.pipeline_bandwidth_test = None
 
         # Return exception so the success handler doesn't fire.
-        return results
+        return err
 
     def _handle_bandwidth_test_success(self, results):
-        _log.debug("----------------------------")
-        _log.debug("bandwidth test success")
-        _log.debug("bandwidth test success")
-        _log.debug("bandwidth test success")
-        _log.debug("bandwidth test success")
-        _log.debug("----------------------------")
-        try:
-            with self.pipeline_mutex:
-                nodeid, data = self.pipeline_bandwidth_test
+        with self.pipeline_mutex:
+            nodeid, data = self.pipeline_bandwidth_test
 
-                # save test results
-                if results is not None:
-                    data["bandwidth"] = {
-                        "send": results["upload"],
-                        "receive": results["download"]
-                    }
-                else:
-                    _log.error("No test results for success callback")
-                    import pdb; pdb.set_trace()
-                    raise Exception("Bandwidth test none results")
+            # free up bandwidth test for next peer
+            self.pipeline_bandwidth_test = None
+
+            # save test results
+            if results is not None:
+                data["bandwidth"] = {
+                    "send": results[1]["upload"],
+                    "receive": results[1]["download"]
+                }
 
                 # move peer to processed
                 self.pipeline_processed[nodeid] = data
                 txt = "Processed:{0}, scanned:{1}, scanning:{2}, processed:{3}!"
                 _log.info(txt.format(
                     node_id_to_address(nodeid),
-                    len(self.pipeline_scanned),
+                    len(self.pipeline_scanned_fifo),
                     len(self.pipeline_scanning),
                     len(self.pipeline_processed),
                 ))
+            else:
+                # move to the back to scanned fifo and try again later
+                self.pipeline_scanned_fifo[nodeid] = data
 
-                # free up bandwidth test for next peer
-                self.pipeline_bandwidth_test = None
-        except Exception as e:
-            import pdb; pdb.set_trace()
-            print(parse_exception(e))
+                _log.error("No test results for success callback")
+                raise Exception("Bandwidth test none results")
 
     def _process_bandwidth_test(self):
         # expects caller to have pipeline mutex
         not_testing_bandwidth = self.pipeline_bandwidth_test is None
-        if (not_testing_bandwidth and len(self.pipeline_scanned) > 0):
+        if (not_testing_bandwidth and len(self.pipeline_scanned_fifo) > 0):
 
             # pop first entry
-            nodeid = self.pipeline_scanned.keys()[0]
-            data = self.pipeline_scanned[nodeid]
-            del self.pipeline_scanned[nodeid]
+            nodeid = self.pipeline_scanned_fifo.keys()[0]
+            data = self.pipeline_scanned_fifo[nodeid]
+            del self.pipeline_scanned_fifo[nodeid]
 
             # skip bandwith test
             if SKIP_BANDWIDTH_TEST:
@@ -266,7 +254,7 @@ class Crawler(object):  # will not scale but good for now
 
                 # exit condition pipeline empty
                 if (len(self.pipeline_scanning) == 0 and
-                        len(self.pipeline_scanned) == 0 and
+                        len(self.pipeline_scanned_fifo) == 0 and
                         self.pipeline_bandwidth_test is None):
                     return
 

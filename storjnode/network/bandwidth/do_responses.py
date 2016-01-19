@@ -265,14 +265,14 @@ def handle_responses_builder(self):
         )
 
         # Fire error.
-        def errback(ret):
+        def errback(err):
             _log.debug("do responses errback 1")
-            _log.debug(str(ret))
+            _log.debug(repr(err))
             if self.active_test is not None:
-                self.active_test.errback(ret)
+                self.active_test.errback(err)
 
             self.reset_state()
-            return ret
+            return err
 
         # Register error handler for transfer.
         self.transfer.defers[contract_id].addErrback(errback)
