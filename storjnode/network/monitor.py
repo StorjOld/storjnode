@@ -225,14 +225,14 @@ class Crawler(object):  # will not scale but good for now
     def _process_bandwidth_test(self):
         # expects caller to have pipeline mutex
         not_testing_bandwidth = self.pipeline_bandwidth_test is None
-        if (not_testing_bandwidth and len(self.pipeline_scanned_fifo) > 0):
+        if not_testing_bandwidth and len(self.pipeline_scanned_fifo) > 0:
 
             # pop first entry
             nodeid = self.pipeline_scanned_fifo.keys()[0]
             data = self.pipeline_scanned_fifo[nodeid]
             del self.pipeline_scanned_fifo[nodeid]
 
-            # skip bandwith test
+            # skip bandwidth test
             if SKIP_BANDWIDTH_TEST:
                 self.pipeline_processed[nodeid] = data
                 return
