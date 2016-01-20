@@ -6,7 +6,6 @@ import storjnode
 import time
 import hashlib
 from collections import OrderedDict
-from storjnode.network.bandwidth.constants import ONE_MB
 from storjnode.util import parse_node_id_from_unl
 from storjnode.util import ordered_dict_to_list
 from storjnode.util import list_to_ordered_dict
