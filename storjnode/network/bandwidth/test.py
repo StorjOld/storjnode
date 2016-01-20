@@ -62,7 +62,7 @@ class BandwidthTest():
 
         # Size in MB of current test - will increase if increasing_tests
         # is enabled.
-        self.test_size = 1  # MB
+        self.test_size = ONE_MB  # MB
 
         # Stored in BYTES per second.
         self.results = self.setup_results()
@@ -84,39 +84,43 @@ class BandwidthTest():
         # Timeout bandwidth test after N seconds.
         self.test_timeout = 1000
 
+        # Based on passed tests.
+        self.max_increase = ONE_MB
+
         # Protocol state.
         self.message_state = {}
 
         # Increase table for MB transfer size.
         self.increases = OrderedDict([
-            [1, 4],
-            [4, 6],
-            [6, 10],
-            [10, 15],
-            [15, 20],
-            [20, 25],
-            [25, 30],
-            [30, 35],
-            [35, 40],
-            [40, 45],
-            [45, 50],
-            [50, 60],
-            [60, 70],
-            [70, 80],
-            [80, 90],
-            [90, 100],
-            [100, 120],
-            [120, 140],
-            [140, 200],
-            [200, 250],
-            [250, 300],
-            [300, 400],
-            [400, 500],
-            [500, 600],
-            [600, 700],
-            [700, 800],
-            [800, 900],
-            [900, 1000]
+            [1 * ONE_MB, 4 * ONE_MB],
+            [4 * ONE_MB, 6 * ONE_MB],
+            [6 * ONE_MB, 10 * ONE_MB],
+            [10 * ONE_MB, 15 * ONE_MB],
+            [15 * ONE_MB, 20 * ONE_MB],
+            [20 * ONE_MB, 25 * ONE_MB],
+            [25 * ONE_MB, 30 * ONE_MB],
+            [30 * ONE_MB, 35 * ONE_MB],
+            [35 * ONE_MB, 40 * ONE_MB],
+            [40 * ONE_MB, 45 * ONE_MB],
+            [45 * ONE_MB, 50 * ONE_MB],
+            [50 * ONE_MB, 60 * ONE_MB],
+            [60 * ONE_MB, 70 * ONE_MB],
+            [70 * ONE_MB, 80 * ONE_MB],
+            [80 * ONE_MB, 90 * ONE_MB],
+            [90 * ONE_MB, 100 * ONE_MB],
+            [100 * ONE_MB, 120 * ONE_MB],
+            [120 * ONE_MB, 140 * ONE_MB],
+            [140 * ONE_MB, 200 * ONE_MB],
+            [200 * ONE_MB, 250 * ONE_MB],
+            [250 * ONE_MB, 300 * ONE_MB],
+            [300 * ONE_MB, 400 * ONE_MB],
+            [400 * ONE_MB, 500 * ONE_MB],
+            [500 * ONE_MB, 600 * ONE_MB],
+            [600 * ONE_MB, 700 * ONE_MB],
+            [700 * ONE_MB, 800 * ONE_MB],
+            [800 * ONE_MB, 900 * ONE_MB],
+            [900 * ONE_MB, 1000 * ONE_MB],
+            [1000 * ONE_MB, 1000 * ONE_MB]
         ])
 
         # Handle timeouts.
@@ -205,7 +209,7 @@ class BandwidthTest():
 
     def reset_state(self):
         # Reset init state.
-        self.test_size = 1
+        self.test_size = ONE_MB
         self.active_test = None
         self.results = self.setup_results()
         self.test_node_unl = None
@@ -277,10 +281,10 @@ class BandwidthTest():
 
         return 0
 
-    def start(self, node_unl, size=1, timeout=None):
+    def start(self, node_unl, test_size=ONE_MB, timeout=None):
         """
         :param node_unl: UNL of target
-        :param size: MB to send in transfer
+        :param test_size: MB to send in transfer
         :param timeout: when should a test be considered a failure?
         :return: deferred with test results
         """
@@ -292,7 +296,7 @@ class BandwidthTest():
             return d
 
         # Reset test state
-        self.test_size = size
+        self.test_size = test_size
 
         # Set timeout.
         self.test_timeout = timeout or self.test_timeout
@@ -301,8 +305,7 @@ class BandwidthTest():
         self.active_test = defer.Deferred()
 
         # Generate random file to upload.
-        file_size = size * ONE_MB
-        shard = generate_random_file(file_size)
+        shard = generate_random_file(test_size)
 
         # Hash partial content.
         self.data_id = get_hash(shard).decode("utf-8")
@@ -311,7 +314,7 @@ class BandwidthTest():
 
         # File meta data.
         meta = OrderedDict([
-            (u"file_size", file_size),
+            (u"file_size", test_size),
             (u"algorithm", u"sha256"),
             (u"hash", self.data_id.decode("utf-8"))
         ])
@@ -338,7 +341,7 @@ class BandwidthTest():
             (u"requester", self.transfer.net.unl.value),
             (u"test_node_unl", node_unl),
             (u"data_id", self.data_id),
-            (u"file_size", file_size)
+            (u"file_size", test_size)
         ])
 
         # Sign request.

@@ -16,6 +16,8 @@ from pyp2p.lib import parse_exception
 from kademlia.node import Node as KademliaNode
 from storjnode.network.server import QUERY_TIMEOUT, WALK_TIMEOUT
 from storjnode.network.file_transfer import enable_unl_requests
+from collections import OrderedDict
+from storjnode.network.bandwidth.constants import ONE_MB
 from crochet import setup
 
 
@@ -67,12 +69,12 @@ for i in range(0, 2):
     print(node._data_transfer.net.unl.value)
     node.bandwidth_test.test_timeout = 1000000
     node.bandwidth_test.increasing_tests = 1
-    node.bandwidth_test.increases = {
-        1: 4,
-        4: 10,
-        10: 20,
-        20: 40
-    }
+    node.bandwidth_test.increases = OrderedDict([
+        [1 * ONE_MB, 4 * ONE_MB],
+        [4 * ONE_MB, 10 * ONE_MB],
+        [10 * ONE_MB, 20 * ONE_MB],
+        [20 * ONE_MB, 40 * ONE_MB]
+    ])
     print()
 
     assert(node._data_transfer is not None)
@@ -106,6 +108,7 @@ def show_bandwidth(results):
     global test_success
     global still_running
     print("IN SUCCESS CALLBACK!?@#!@#?!@?#")
+    print(swarm[0].bandwidth_test.max_increase)
     test_success = 1
     still_running = 0
     return
