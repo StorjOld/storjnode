@@ -10,6 +10,7 @@ os.environ["PYCOIN_NATIVE"] = "openssl"
 import argparse  # NOQA
 import signal  # NOQA
 import storjnode  # NOQA
+import btctxstore  # NOQA
 from crochet import setup  # NOQA
 
 
@@ -21,7 +22,6 @@ signal.signal(signal.SIGINT, signal.default_int_handler)
 def parse_args():
     description = "Start a storjnode bootstrap node."
     parser = argparse.ArgumentParser(description=description)
-    parser.add_argument("--wallet", help="Bitcoin WIF or HWIF wallet.")
     parser.add_argument("--port", type=int, help="UDP port to listen on.")
     parser.add_argument('--debug', action='store_true')
     parser.add_argument('--verbose', action='store_true')
@@ -42,7 +42,8 @@ def make_config(port):
 def main():
     args = parse_args()
     config = make_config(args["port"])
-    node = storjnode.api.StorjNode(wallet=args["wallet"], config=config)
+    wallet = btctxstore.BtcTxStore().create_wallet()
+    node = storjnode.api.StorjNode(wallet=wallet, config=config)
     node.farm()
 
 
