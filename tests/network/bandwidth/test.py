@@ -131,7 +131,7 @@ class TestSubBandwidthTest(unittest.TestCase):
         _log.debug(self.alice_test.test_size)
 
         # Increase by 4 MB.
-        self.alice_test.test_size = 1
+        self.alice_test.test_size = 1048576
         b = self.alice_test.increase_test_size() == \
             self.alice_test.increases[self.alice_test.test_size]
         self.assertTrue(b)

@@ -21,11 +21,11 @@ from storjnode.util import list_to_ordered_dict
 _log = storjnode.log.getLogger(__name__)
 
 
-def build_accept_handler(self, req):
+def build_accept_handler(bt, req):
     # Handle accept transfer (for download requests.)
     def accept_handler(contract_id, src_unl, data_id, file_size):
         # Handler has expired.
-        if accept_handler not in self.handlers["accept"]:
+        if accept_handler not in bt.handlers["accept"]:
             _log.debug("ALICE accept HANDLER EXPIRED")
             return -1
 
@@ -33,37 +33,37 @@ def build_accept_handler(self, req):
             _log.debug("Data id != \a")
             return -2
 
-        if src_unl != self.test_node_unl:
+        if src_unl != bt.test_node_unl:
             _log.debug("SRC UNL != \a")
             return -3
 
         # Invalid file_size request size for test.
-        test_data_size = (self.test_size * ONE_MB)
-        if req[u"file_size"] > (test_data_size + 1024):
+        max_test_size = bt.increases[bt.max_increase]
+        if req[u"file_size"] > max_test_size or not req[u"file_size"]:
             _log.debug("file size != \a")
             return -4
 
         # Remove this accept handler.
-        self.api.remove_transfer_request_handler(accept_handler)
-        self.remove_handler("accept", accept_handler)
+        bt.api.remove_transfer_request_handler(accept_handler)
+        bt.remove_handler("accept", accept_handler)
 
         return 1
 
     return accept_handler
 
 
-def build_start_handler(self, req):
+def build_start_handler(bt, req):
     # Handle start transfer.
     def start_handler(client, con, contract_id):
         # Handler has expired.
-        if start_handler not in self.handlers["start"]:
+        if start_handler not in bt.handlers["start"]:
             _log.debug("ALICE start HANDLER EXPIRED")
             return -1
 
         _log.debug("In upload start handler!")
         _log.debug("IN ALICE start handler")
 
-        contract = self.transfer.contracts[contract_id]
+        contract = bt.transfer.contracts[contract_id]
         _log.debug(contract)
         _log.debug(req[u"data_id"])
 
@@ -73,39 +73,39 @@ def build_start_handler(self, req):
             return -2
 
         # Determine test.
-        if self.transfer.get_direction(contract_id) == u"send":
+        if bt.transfer.get_direction(contract_id) == u"send":
             test = "upload"
-            if contract[u"dest_unl"] != self.test_node_unl:
+            if contract[u"dest_unl"] != bt.test_node_unl:
                 _log.debug("Alice upload: invalid src unl")
                 return -3
         else:
             test = "download"
 
         # Set start time.
-        self.results[test]["start_time"] = time.time()
-        _log.debug(self.results)
+        bt.results[test]["start_time"] = time.time()
+        _log.debug(bt.results)
 
         return 1
 
     return start_handler
 
 
-def build_completion_handler(self, req, accept_handler):
+def build_completion_handler(bt, req, accept_handler):
     def completion_handler(client, found_contract_id, con):
         # Handler has expired.
-        if completion_handler not in self.handlers["complete"]:
+        if completion_handler not in bt.handlers["complete"]:
             _log.debug("ALICE completion HANDLER EXPIRED")
             return -1
 
         # What test is this for?
         _log.debug("IN ALICE completion handler")
-        contract = self.transfer.contracts[found_contract_id]
+        contract = bt.transfer.contracts[found_contract_id]
         if contract[u"data_id"] != req[u"data_id"]:
             _log.debug("Alice data id not equal")
             return -2
 
         # Get direction of transfer.
-        direction = self.transfer.get_direction(
+        direction = bt.transfer.get_direction(
             found_contract_id
         )
 
@@ -114,76 +114,77 @@ def build_completion_handler(self, req, accept_handler):
             _log.debug("\a")
             _log.debug("Upload transfer complete!")
             test = "upload"
-            if contract[u"dest_unl"] != self.test_node_unl:
+            if contract[u"dest_unl"] != bt.test_node_unl:
                 _log.debug("Alice dl: src unl incorrect.")
                 return -3
 
             # Delete our copy of the file.
             storjnode.storage.manager.remove(
-                self.transfer.store_config,
+                bt.transfer.store_config,
                 req[u"data_id"]
             )
         else:
             # Check the source of the request.
             _log.debug(contract[u"src_unl"])
-            _log.debug(self.test_node_unl)
+            _log.debug(bt.test_node_unl)
             test = "download"
-            if contract[u"src_unl"] != self.test_node_unl:
+            if contract[u"src_unl"] != bt.test_node_unl:
                 _log.debug("Alice dl: src unl incorrect.")
                 return -4
 
-            self.transfer.remove_handler("accept", accept_handler)
+            bt.transfer.remove_handler("accept", accept_handler)
 
             _log.debug("Alice download")
 
-        self.results[test]["end_time"] = time.time()
-        self.results[test]["transferred"] = req[u"file_size"]
-        _log.debug(self.results)
+        bt.results[test]["end_time"] = time.time()
+        bt.results[test]["transferred"] = req[u"file_size"]
+        _log.debug(bt.results)
 
         if test == "download":
             # Check results.
-            if self.is_bad_results():
+            if bt.is_bad_results():
                 _log.debug("Alice bad results.")
                 return -1
 
             # Schedule next call if it returned too fast.
-            if self.is_bad_test() and self.increasing_tests:
+            if bt.is_bad_test() and bt.increasing_tests:
                 # Calculate next test size.
-                new_size = self.increase_test_size()
-                if new_size == self.test_size:
-                    # Avoid DoS.
+                new_size = bt.increase_test_size()
+                if new_size == bt.test_size:
+                    # Avoid DoS / endless loop.
                     _log.debug("DoS")
                     return -5
 
+                # Increase max test size.
+                if new_size > bt.max_increase:
+                    bt.max_increase = new_size
+
                 # Reset test state.
                 _log.debug("SCHEDUALING NEW TRANSFER!")
-                node_unl = copy.deepcopy(self.test_node_unl)
-                active_test = self.active_test
-                self.reset_state()
-
-                # Set the new test size.
-                self.test_size = new_size
+                node_unl = copy.deepcopy(bt.test_node_unl)
+                active_test = bt.active_test
+                bt.reset_state()
 
                 # Start new transfer.
-                self.start(
+                bt.start(
                     node_unl,
-                    size=new_size
+                    test_size=new_size
                 )
-                self.active_test = active_test
+                bt.active_test = active_test
             else:
                 # Cleanup.
                 _log.debug("TRANSFER ALL DONE!")
-                _log.debug(self.results)
+                _log.debug(bt.results)
 
                 # Convert results to bytes per second.
-                speeds = self.interpret_results()
+                speeds = bt.interpret_results()
                 _log.debug("IN SUCCESS CALLBACK FOR BAND TESTS")
                 _log.debug(speeds)
-                _log.debug(self.results)
+                _log.debug(bt.results)
 
                 # Return results.
-                active_test = self.active_test
-                self.reset_state()
+                active_test = bt.active_test
+                bt.reset_state()
                 active_test.callback(speeds)
 
         return 1
@@ -191,7 +192,7 @@ def build_completion_handler(self, req, accept_handler):
     return completion_handler
 
 
-def handle_responses_builder(self):
+def handle_responses_builder(bt):
     def handle_responses(node, msg):
         # Check message type.
         if type(msg) in [type(b"")]:
@@ -202,7 +203,7 @@ def handle_responses_builder(self):
             return -1
 
         # Transfer already active.
-        if self.test_node_unl is not None:
+        if bt.test_node_unl is not None:
             _log.debug("res: transfer already active")
             return -2
 
@@ -210,15 +211,15 @@ def handle_responses_builder(self):
         req = msg[u"request"]
         _log.debug(req)
         msg_id = hashlib.sha256(str(req)).hexdigest()
-        if msg_id not in self.message_state:
+        if msg_id not in bt.message_state:
             return -10
-        if self.message_state[msg_id] == "pending_response":
-            self.message_state[msg_id] = "pending_transfer"
+        if bt.message_state[msg_id] == "pending_response":
+            bt.message_state[msg_id] = "pending_transfer"
         else:
             return -6
         msg_id = hashlib.sha256(str(msg)).hexdigest()
-        if msg_id not in self.message_state:
-            self.message_state[msg_id] = "pending_transfer"
+        if msg_id not in bt.message_state:
+            bt.message_state[msg_id] = "pending_transfer"
         else:
             return -7
 
@@ -230,8 +231,8 @@ def handle_responses_builder(self):
         # Check signature.
         valid_sig = verify_signature(
             msg[u"request"],
-            self.wif,
-            self.api.get_id()
+            bt.wif,
+            bt.api.get_id()
         )
 
         # Quit if sig is invalid.
@@ -241,23 +242,23 @@ def handle_responses_builder(self):
 
         # Check their sig.
         src_node_id = parse_node_id_from_unl(msg[u"requestee"])
-        if not verify_signature(msg, self.wif, src_node_id):
+        if not verify_signature(msg, bt.wif, src_node_id):
             _log.debug("res: their sig did not match")
             return -5
 
         # Set active node ID.
-        self.test_node_unl = msg[u"requestee"]
+        bt.test_node_unl = msg[u"requestee"]
 
         # Register accept handler.
-        accept_handler = build_accept_handler(self, req)
-        self.add_handler("accept", accept_handler)
+        accept_handler = build_accept_handler(bt, req)
+        bt.add_handler("accept", accept_handler)
 
         # Register start handler.
-        start_handler = build_start_handler(self, req)
-        self.add_handler("start", start_handler)
+        start_handler = build_start_handler(bt, req)
+        bt.add_handler("start", start_handler)
 
         # Send upload request to remote host!
-        contract_id = self.transfer.data_request(
+        contract_id = bt.transfer.data_request(
             "download",
             req[u"data_id"],
             req[u"file_size"],
@@ -268,31 +269,31 @@ def handle_responses_builder(self):
         def errback(err):
             _log.debug("do responses errback 1")
             _log.debug(repr(err))
-            if self.active_test is not None:
-                self.active_test.errback(err)
+            if bt.active_test is not None:
+                bt.active_test.errback(err)
 
-            self.reset_state()
+            bt.reset_state()
             return err
 
         # Register error handler for transfer.
-        self.transfer.defers[contract_id].addErrback(errback)
+        bt.transfer.defers[contract_id].addErrback(errback)
 
         # Build completion handler.
         completion_handler = build_completion_handler(
-            self,
+            bt,
             req,
             accept_handler
         )
 
         # Register completion handler.
-        self.add_handler("complete", completion_handler)
+        bt.add_handler("complete", completion_handler)
 
         _log.debug("res: got response")
 
     def try_wrapper(node, msg):
         try:
             _log.debug("Waiting for handle resposnes mutex")
-            with self.mutex:
+            with bt.mutex:
                 _log.debug("Got handle resposnes mutex")
                 return handle_responses(node, msg)
         except (ValueError, KeyError, TypeError, zlib.error) as e:
