@@ -2,15 +2,21 @@
 
 # This example requires pygraphviz >= 1.3.1
 
+# always use faster native code
 import os
-import sys
-import signal
-import argparse
-import time
-import storjnode
-import datetime
-import btctxstore
-from crochet import setup
+os.environ["PYCOIN_NATIVE"] = "openssl"
+
+
+import json  # NOQA
+import sys  # NOQA
+import signal  # NOQA
+import argparse  # NOQA
+import time  # NOQA
+import storjnode  # NOQA
+import datetime  # NOQA
+import btctxstore  # NOQA
+from crochet import setup  # NOQA
+from storjnode.common import TESTGROUPB_BOOTSTRAP_NODES  # NOQA
 
 
 log = storjnode.log.getLogger(__name__)
@@ -22,40 +28,42 @@ signal.signal(signal.SIGINT, signal.default_int_handler)
 
 
 def _parse_args(args):
-    txt = """Crawl the network and generate a graph of all nodes.
+    txt = """Crawl the network and optionally generate a graph of all nodes.
 
-    This is a simple crawlr that can only reach nodes with a public ip,
+    This is a simple crawler that can only reach nodes with a public ip,
     so nodes behind a NAT can only be infered from public node routing tables.
     """
     parser = argparse.ArgumentParser(description=txt)
-
-    # debug
-    parser.add_argument('--debug', action='store_true',
-                        help="Show debug information.")
-
-    # quiet
-    parser.add_argument('--quiet', action='store_true',
-                        help="Don't show logging information.")
-
-    # render
+    parser.add_argument('--debug', action='store_true')
+    parser.add_argument('--quiet', action='store_true')
+    parser.add_argument('--verbose', action='store_true')
+    parser.add_argument('--testgroupb', action='store_true',
+                        help="Map the testgroupb network")
     parser.add_argument('--render', action='store_true',
                         help="Render graph (requires pygraphviz).")
-
-    # path
     parser.add_argument("--path", default=None,
-                        help="Path to save the generate graph.")
-
+                        help="Path to save the generated graph.")
     return vars(parser.parse_args(args=args))
 
 
 def print_stats(netmap):
     private_nodes = 0
     public_nodes = 0
+    data = {}
+
     for nodeid, results in netmap.items():
-        if len(results["peers"]) > 0:
+        node_address = storjnode.util.node_id_to_address(nodeid)
+        ip, port = results["addr"]
+        has_peers = len(results["peers"]) > 0
+        if has_peers:
             public_nodes += 1
         else:
             private_nodes += 1
+        data[node_address] = {
+            "transport": [ip, port], "is_public": has_peers
+        }
+
+    print(json.dumps(data, indent=2))
     print("Private nodes:", private_nodes)
     print("Public nodes:", public_nodes)
     print("Total nodes:", private_nodes + public_nodes)
@@ -100,6 +108,17 @@ def render(network_map, path=None):
     return path
 
 
+def make_config(testgroupb):
+    config = storjnode.config.create()
+    if testgroupb:
+        config["network"]["bootstrap_nodes"] = TESTGROUPB_BOOTSTRAP_NODES
+    config["network"]["disable_data_transfer"] = True
+    config["network"]["monitor"]["enable_crawler"] = False
+    config["network"]["monitor"]["enable_responses"] = False
+    storjnode.config.validate(config)
+    return config
+
+
 if __name__ == "__main__":
     arguments = _parse_args(sys.argv[1:])
 
@@ -107,7 +126,8 @@ if __name__ == "__main__":
     try:
         # setup node
         key = btctxstore.BtcTxStore().create_key()
-        node = storjnode.network.Node(key)
+        config = make_config(arguments["testgroupb"])
+        node = storjnode.network.Node(key, config=config)
 
         # shitty wait for network stabilization
         log.info("Shitty wait for network stabilization.")

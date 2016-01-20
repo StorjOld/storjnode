@@ -33,7 +33,7 @@ from threading import Lock
 _log = storjnode.log.getLogger(__name__)
 
 
-class BandwidthTest():
+class BandwidthTest:
     def __init__(self, wif, transfer, api, increasing_tests=1):
         # Mutex.
         self.mutex = Lock()
@@ -167,29 +167,29 @@ class BandwidthTest():
 
         return self.increases[self.test_size]
 
-    def add_handler(self, type, handler):
+    def add_handler(self, obj_type, handler):
         # Unknown handler.
-        if type not in self.handlers:
+        if obj_type not in self.handlers:
             raise Exception("Unknown handler.")
 
         # Record a copy of the handler for our records.
-        self.handlers[type].add(handler)
+        self.handlers[obj_type].add(handler)
 
         # Now enable the handler for real.
-        self.transfer.add_handler(type, handler)
+        self.transfer.add_handler(obj_type, handler)
 
-    def remove_handler(self, type, handler):
+    def remove_handler(self, obj_type, handler):
         # Unknown handler.
-        if type not in self.handlers:
+        if obj_type not in self.handlers:
             raise Exception("Unknown handler.")
 
         # Record a copy of the handler for our records.
-        if handler in self.handlers[type]:
-            self.handlers[type].remove(handler)
+        if handler in self.handlers[obj_type]:
+            self.handlers[obj_type].remove(handler)
 
         # Now enable the handler for real.
-        if handler in self.transfer.handlers[type]:
-            self.transfer.remove_handler(type, handler)
+        if handler in self.transfer.handlers[obj_type]:
+            self.transfer.remove_handler(obj_type, handler)
 
     def setup_results(self):
         results = {

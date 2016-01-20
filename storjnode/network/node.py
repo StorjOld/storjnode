@@ -21,6 +21,7 @@ from storjnode.network.process_transfers import HANDSHAKE_TIMEOUT
 from storjnode.network.process_transfers import CON_TIMEOUT
 from storjnode.network.bandwidth.test import BandwidthTest
 from storjnode.network.bandwidth.limit import BandwidthLimit
+from storjnode.common import DEFAULT_BOOTSTRAP_NODES
 import storjnode.network
 from pyp2p.net import Net
 
@@ -29,12 +30,6 @@ _log = storjnode.log.getLogger(__name__)
 
 HANDSHAKE_TIMEOUT = 100000000000
 CON_TIMEOUT = 100000000000
-
-
-DEFAULT_BOOTSTRAP_NODES = [
-    ["159.203.64.230", 1337],  # storj develop
-    ["104.236.1.59", 1337],  # storj stable
-]
 
 
 class Node(object):
@@ -131,7 +126,9 @@ class Node(object):
                 self.get_key(), self._data_transfer, self, 1
             )
 
-        _log.info("Started storjnode on port {0}".format(self.port))
+        _log.info("Started storjnode on port {0} with address {1}".format(
+            self.port, self.get_address())
+        )
 
     def _setup_message_dispatcher(self):
         self._message_handlers = set()

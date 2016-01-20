@@ -26,10 +26,7 @@ if os.name == 'postix' and 'py2app' in sys.argv:
 
 
 exec(open('storjnode/version.py').read())  # load __version__
-SCRIPTS = [
-    os.path.join('storjnode', 'bin', 'storjnode'),
-    os.path.join('storjnode', 'bin', 'storjnode_bootstrap_only'),
-]
+SCRIPTS = [os.path.join('storjnode', 'bin', 'storjnode')]
 
 
 setup(
