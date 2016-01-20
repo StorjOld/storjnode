@@ -71,7 +71,7 @@ test_script: install
 	#$(PY) examples/network/map_network.py --debug
 	#$(PY) -m unittest --verbose tests.network.node.TestNode.test_network_monitor_service
 	#env/bin/storjnode --wallet=L3NrSTxMCwAsLXnBjESvU5LnCKwcmMXKutKzNnVpPevXeSMfB1zx farm
-	env/bin/storjnode_bootstrap --wallet=L3NrSTxMCwAsLXnBjESvU5LnCKwcmMXKutKzNnVpPevXeSMfB1zx --port=1337
+	env/bin/storjnode_bootstrap_only --wallet=L3NrSTxMCwAsLXnBjESvU5LnCKwcmMXKutKzNnVpPevXeSMfB1zx --port=1337
 
 
 shell: install
@@ -87,8 +87,7 @@ test: setup
 
 
 publish: test
-	#$(PY) setup.py register bdist_wheel upload
-	$(PY) setup.py bdist_wheel
+	$(PY) setup.py register bdist_wheel upload
 
 
 # Break in case of bug!

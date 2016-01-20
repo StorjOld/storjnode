@@ -132,11 +132,10 @@ class Node(object):
                 config, passive_port, passive_bind, node_type, nat_type
             )
             self.bandwidth_test = BandwidthTest(
-                self.get_key(),
-                self._data_transfer,
-                self,
-                1
+                self.get_key(), self._data_transfer, self, 1
             )
+
+        _log.info("Started storjnode on port {0}".format(self.port))
 
     def _setup_message_dispatcher(self):
         self._message_handlers = set()

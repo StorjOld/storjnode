@@ -1,4 +1,3 @@
-import time
 import traceback
 import apigen
 import btctxstore
@@ -69,15 +68,6 @@ class StorjNode(apigen.Definition):
                 port=port if port != "random" else None,
                 config=self._cfg, bootstrap_nodes=bootstrap_nodes,
             )
-
-            # shitty wait for network stabilization
-            # FIXME temp fix for travis
-            # _log.info("Wait for network stabilization.")
-            # time.sleep(storjnode.network.WALK_TIMEOUT)
-            # self._node.refresh_neighbours()
-            # time.sleep(storjnode.network.WALK_TIMEOUT)
-            # self._node.refresh_neighbours()
-            # time.sleep(storjnode.network.WALK_TIMEOUT)
         except Exception as e:
             _log.error(repr(e))
             traceback.print_exc()
@@ -139,7 +129,7 @@ class StorjNode(apigen.Definition):
                 self._on_transfer_complete
             )
 
-    def _on_transfer_request(nodeid, shardid, direction, file_size):
+    def _on_transfer_request(self, nodeid, shardid, direction, file_size):
 
         # do not accept push requests
         if direction == "receive":
@@ -149,7 +139,8 @@ class StorjNode(apigen.Definition):
             return False
 
         # do not accept pull request if data doesnt exist
-        if storjnode.storage.manager.find(config["storage"], shardid) is None:
+        store_config = self._cfg["storage"]
+        if storjnode.storage.manager.find(store_config, shardid) is None:
             txt = ("Pull request from node {nodeid} "
                    "for shard {shardid} not in store.")
             _log.warning(txt.format(nodeid=nodeid, shardid=shardid))
@@ -162,7 +153,7 @@ class StorjNode(apigen.Definition):
             _log.info(txt.format(nodeid=nodeid, shardid=shardid))
             return True
 
-    def _on_transfer_complete(nodeid, shardid, direction):
+    def _on_transfer_complete(self, nodeid, shardid, direction):
         if direction == "receive":
             txt = "Completed push of shard {shardid} from {nodeid}"
             _log.critical(txt.format(shardid=shardid, nodeid=nodeid))
