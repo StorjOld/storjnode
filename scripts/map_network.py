@@ -16,14 +16,7 @@ import storjnode  # NOQA
 import datetime  # NOQA
 import btctxstore  # NOQA
 from crochet import setup  # NOQA
-
-
-TESTGROUPB_BOOTSTRAP_NODES = [
-    ["104.236.1.59", 4653], ["159.203.64.230", 4653],
-    ["78.46.188.55", 4653], ["158.69.201.105", 6770],
-    ["162.218.239.6", 35839], ["192.187.97.131", 10322],
-    ["185.86.149.128", 20560], ["185.61.148.22", 18825]
-]
+from storjnode.common import TESTGROUPB_BOOTSTRAP_NODES  # NOQA
 
 
 log = storjnode.log.getLogger(__name__)
