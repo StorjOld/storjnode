@@ -139,7 +139,7 @@ class TestFileTransfer(unittest.TestCase):
                 100,
                 "another hosts unl"
             )
-            assert(0)
+            assert 0
         except:
             return
 
@@ -215,7 +215,7 @@ class TestFileTransfer(unittest.TestCase):
             r = requests.get(url, timeout=3)
             if r.status_code != 200:
                 _log.debug(r.status_code)
-                assert(0)
+                assert 0
             else:
                 assert(r.content == rand_file_infos[i]["content"])
         _log.debug("File upload succeeded.")
@@ -245,7 +245,7 @@ class TestFileTransfer(unittest.TestCase):
             path = storjnode.storage.manager.find(self.config["storage"],
                                                   file_infos[i]["data_id"])
             if not os.path.isfile(path):
-                assert(0)
+                assert 0
             else:
                 with open(path, "rb") as fp:
                     content = fp.read()

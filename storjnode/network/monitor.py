@@ -262,8 +262,7 @@ class Crawler(object):  # will not scale but good for now
                     return
 
                 # exit condition enough peers processed
-                if (self.limit > 0 and
-                        len(self.pipeline_processed) >= self.limit):
+                if (0 < self.limit <= len(self.pipeline_processed)):
                     return
 
                 # send info and peer requests to found peers
