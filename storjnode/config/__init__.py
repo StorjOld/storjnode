@@ -23,13 +23,13 @@ _dirname = os.path.dirname(storjnode.util.full_path(__file__))
 
 
 # load schema
-_schema_path = os.path.join(_dirname, "config.schema")
+_schema_path = os.path.join(_dirname, "validation.schema")
 with open(_schema_path) as fp:
     SCHEMA = json.load(fp)
 
 
 # load default
-_default_path = os.path.join(_dirname, "config.default.json")
+_default_path = os.path.join(_dirname, "default.json")
 with open(_default_path) as fp:
     DEFAULT_CONFIG = json.load(fp)
 
