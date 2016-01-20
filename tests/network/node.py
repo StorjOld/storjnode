@@ -34,6 +34,9 @@ KSIZE = SWARM_SIZE / 2 if SWARM_SIZE / 2 < 20 else 20
 PORT = 3000
 STORAGE_DIR = tempfile.mkdtemp()
 LAN_IP = storjnode.util.get_inet_facing_ip()
+storjnode.network.process_transfers.CON_TIMEOUT = 10000000000
+storjnode.network.process_transfers.HANDSHAKE_TIMEOUT = 10000000000
+storjnode.network.process_transfers.BLOCKING_TIMEOUT = 10000000000
 
 
 def _test_config(storage_path):
