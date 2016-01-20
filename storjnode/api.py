@@ -1,4 +1,5 @@
 import time
+import traceback
 import apigen
 import btctxstore
 import storjnode
@@ -6,6 +7,7 @@ import crochet
 from threading import RLock
 
 
+__version__ = storjnode.__version__  # for auto generated version command
 _log = storjnode.log.getLogger(__name__)
 
 
@@ -65,7 +67,7 @@ class StorjNode(apigen.Definition):
             self._node = storjnode.network.Node(
                 self.wallet, disable_data_transfer=notransfer,
                 port=port if port != "random" else None,
-                config=self._cfg["storage"], bootstrap_nodes=bootstrap_nodes,
+                config=self._cfg, bootstrap_nodes=bootstrap_nodes,
             )
 
             # shitty wait for network stabilization
@@ -76,9 +78,12 @@ class StorjNode(apigen.Definition):
             # time.sleep(storjnode.network.WALK_TIMEOUT)
             # self._node.refresh_neighbours()
             # time.sleep(storjnode.network.WALK_TIMEOUT)
-        except:
-            self._node.stop()
-            self._node = None
+        except Exception as e:
+            _log.error(repr(e))
+            traceback.print_exc()
+            if self._node is not None:
+                self._node.stop()
+                self._node = None
             raise
 
     def _init_messages(self):

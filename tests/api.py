@@ -35,8 +35,11 @@ def _test_config(storage_path, port):
 
 class TestApi(unittest.TestCase):
 
+    # FIXME test wallet or coldstorage required
+
     @classmethod
     def setUpClass(cls):
+        # FIXME one with wallet other with coldstorage
         btctxstore = BtcTxStore()
         cls.swarm = []
         for i in range(SWARM_SIZE):
