@@ -13,7 +13,6 @@ import tempfile
 import copy
 import pyp2p
 import storjnode.storage.manager
-from storjnode.network.bandwidth.constants import ONE_MB
 from storjnode.network.bandwidth.do_requests \
     import handle_requests_builder
 from storjnode.network.bandwidth.do_responses \
@@ -34,7 +33,7 @@ _log = storjnode.log.getLogger(__name__)
 
 
 class BandwidthTest:
-    def __init__(self, wif, transfer, api, increasing_tests=1):
+    def __init__(self, wif, transfer, api, increasing_tests=1, ONE_MB=1048576):
         # Mutex.
         self.mutex = Lock()
 
@@ -60,9 +59,12 @@ class BandwidthTest:
         # The data_id / hash of the current random file being transferred.
         self.data_id = None
 
+        # Size of a MB.
+        self.ONE_MB = ONE_MB
+
         # Size in MB of current test - will increase if increasing_tests
         # is enabled.
-        self.test_size = ONE_MB  # MB
+        self.test_size = self.ONE_MB  # MB
 
         # Stored in BYTES per second.
         self.results = self.setup_results()
@@ -85,42 +87,42 @@ class BandwidthTest:
         self.test_timeout = 1000
 
         # Based on passed tests.
-        self.max_increase = ONE_MB
+        self.max_increase = self.ONE_MB
 
         # Protocol state.
         self.message_state = {}
 
         # Increase table for MB transfer size.
         self.increases = OrderedDict([
-            [1 * ONE_MB, 4 * ONE_MB],
-            [4 * ONE_MB, 6 * ONE_MB],
-            [6 * ONE_MB, 10 * ONE_MB],
-            [10 * ONE_MB, 15 * ONE_MB],
-            [15 * ONE_MB, 20 * ONE_MB],
-            [20 * ONE_MB, 25 * ONE_MB],
-            [25 * ONE_MB, 30 * ONE_MB],
-            [30 * ONE_MB, 35 * ONE_MB],
-            [35 * ONE_MB, 40 * ONE_MB],
-            [40 * ONE_MB, 45 * ONE_MB],
-            [45 * ONE_MB, 50 * ONE_MB],
-            [50 * ONE_MB, 60 * ONE_MB],
-            [60 * ONE_MB, 70 * ONE_MB],
-            [70 * ONE_MB, 80 * ONE_MB],
-            [80 * ONE_MB, 90 * ONE_MB],
-            [90 * ONE_MB, 100 * ONE_MB],
-            [100 * ONE_MB, 120 * ONE_MB],
-            [120 * ONE_MB, 140 * ONE_MB],
-            [140 * ONE_MB, 200 * ONE_MB],
-            [200 * ONE_MB, 250 * ONE_MB],
-            [250 * ONE_MB, 300 * ONE_MB],
-            [300 * ONE_MB, 400 * ONE_MB],
-            [400 * ONE_MB, 500 * ONE_MB],
-            [500 * ONE_MB, 600 * ONE_MB],
-            [600 * ONE_MB, 700 * ONE_MB],
-            [700 * ONE_MB, 800 * ONE_MB],
-            [800 * ONE_MB, 900 * ONE_MB],
-            [900 * ONE_MB, 1000 * ONE_MB],
-            [1000 * ONE_MB, 1000 * ONE_MB]
+            [1 * self.ONE_MB, 4 * self.ONE_MB],
+            [4 * self.ONE_MB, 6 * self.ONE_MB],
+            [6 * self.ONE_MB, 10 * self.ONE_MB],
+            [10 * self.ONE_MB, 15 * self.ONE_MB],
+            [15 * self.ONE_MB, 20 * self.ONE_MB],
+            [20 * self.ONE_MB, 25 * self.ONE_MB],
+            [25 * self.ONE_MB, 30 * self.ONE_MB],
+            [30 * self.ONE_MB, 35 * self.ONE_MB],
+            [35 * self.ONE_MB, 40 * self.ONE_MB],
+            [40 * self.ONE_MB, 45 * self.ONE_MB],
+            [45 * self.ONE_MB, 50 * self.ONE_MB],
+            [50 * self.ONE_MB, 60 * self.ONE_MB],
+            [60 * self.ONE_MB, 70 * self.ONE_MB],
+            [70 * self.ONE_MB, 80 * self.ONE_MB],
+            [80 * self.ONE_MB, 90 * self.ONE_MB],
+            [90 * self.ONE_MB, 100 * self.ONE_MB],
+            [100 * self.ONE_MB, 120 * self.ONE_MB],
+            [120 * self.ONE_MB, 140 * self.ONE_MB],
+            [140 * self.ONE_MB, 200 * self.ONE_MB],
+            [200 * self.ONE_MB, 250 * self.ONE_MB],
+            [250 * self.ONE_MB, 300 * self.ONE_MB],
+            [300 * self.ONE_MB, 400 * self.ONE_MB],
+            [400 * self.ONE_MB, 500 * self.ONE_MB],
+            [500 * self.ONE_MB, 600 * self.ONE_MB],
+            [600 * self.ONE_MB, 700 * self.ONE_MB],
+            [700 * self.ONE_MB, 800 * self.ONE_MB],
+            [800 * self.ONE_MB, 900 * self.ONE_MB],
+            [900 * self.ONE_MB, 1000 * self.ONE_MB],
+            [1000 * self.ONE_MB, 1000 * self.ONE_MB]
         ])
 
         # Handle timeouts.
@@ -209,7 +211,7 @@ class BandwidthTest:
 
     def reset_state(self):
         # Reset init state.
-        self.test_size = ONE_MB
+        self.test_size = self.ONE_MB
         self.active_test = None
         self.results = self.setup_results()
         self.test_node_unl = None
@@ -281,7 +283,7 @@ class BandwidthTest:
 
         return 0
 
-    def start(self, node_unl, test_size=ONE_MB, timeout=None):
+    def start(self, node_unl, test_size=None, timeout=None):
         """
         :param node_unl: UNL of target
         :param test_size: MB to send in transfer
@@ -296,7 +298,7 @@ class BandwidthTest:
             return d
 
         # Reset test state
-        self.test_size = test_size
+        self.test_size = test_size or self.ONE_MB
 
         # Set timeout.
         self.test_timeout = timeout or self.test_timeout
@@ -305,7 +307,7 @@ class BandwidthTest:
         self.active_test = defer.Deferred()
 
         # Generate random file to upload.
-        shard = generate_random_file(test_size)
+        shard = generate_random_file(self.test_size)
 
         # Hash partial content.
         self.data_id = get_hash(shard).decode("utf-8")
@@ -314,7 +316,7 @@ class BandwidthTest:
 
         # File meta data.
         meta = OrderedDict([
-            (u"file_size", test_size),
+            (u"file_size", self.test_size),
             (u"algorithm", u"sha256"),
             (u"hash", self.data_id.decode("utf-8"))
         ])
@@ -341,7 +343,7 @@ class BandwidthTest:
             (u"requester", self.transfer.net.unl.value),
             (u"test_node_unl", node_unl),
             (u"data_id", self.data_id),
-            (u"file_size", test_size)
+            (u"file_size", self.test_size)
         ])
 
         # Sign request.

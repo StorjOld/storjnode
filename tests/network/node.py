@@ -83,6 +83,13 @@ class TestNode(unittest.TestCase):
             storjnode.network.messages.info.enable(node, config)
             storjnode.network.messages.peers.enable(node)
             enable_unl_requests(node)
+            node.bandwidth_test.__init__(
+                node.get_key(),
+                node._data_transfer,
+                node,
+                0,
+                1
+            )
             node.bandwidth_test.enable()
             node.bandwidth_test.test_timeout = 20000
             node.bandwidth_test.increasing_tests = 0

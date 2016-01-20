@@ -28,9 +28,6 @@ from pyp2p.net import Net
 
 _log = storjnode.log.getLogger(__name__)
 
-HANDSHAKE_TIMEOUT = 100000000000
-CON_TIMEOUT = 100000000000
-
 
 class Node(object):
     """Storj network layer implementation.

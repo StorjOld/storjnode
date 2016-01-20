@@ -140,6 +140,22 @@ def build_completion_handler(bt, req, accept_handler):
         bt.results[test]["transferred"] = req[u"file_size"]
         _log.debug(bt.results)
 
+        def finish_test():
+            # Cleanup.
+            _log.debug("TRANSFER ALL DONE!")
+            _log.debug(bt.results)
+
+            # Convert results to bytes per second.
+            speeds = bt.interpret_results()
+            _log.debug("IN SUCCESS CALLBACK FOR BAND TESTS")
+            _log.debug(speeds)
+            _log.debug(bt.results)
+
+            # Return results.
+            active_test = bt.active_test
+            bt.reset_state()
+            active_test.callback(speeds)
+
         if test == "download":
             # Check results.
             if bt.is_bad_results():
@@ -153,6 +169,7 @@ def build_completion_handler(bt, req, accept_handler):
                 if new_size == bt.test_size:
                     # Avoid DoS / endless loop.
                     _log.debug("DoS")
+                    finish_test()
                     return -5
 
                 # Increase max test size.
@@ -172,20 +189,7 @@ def build_completion_handler(bt, req, accept_handler):
                 )
                 bt.active_test = active_test
             else:
-                # Cleanup.
-                _log.debug("TRANSFER ALL DONE!")
-                _log.debug(bt.results)
-
-                # Convert results to bytes per second.
-                speeds = bt.interpret_results()
-                _log.debug("IN SUCCESS CALLBACK FOR BAND TESTS")
-                _log.debug(speeds)
-                _log.debug(bt.results)
-
-                # Return results.
-                active_test = bt.active_test
-                bt.reset_state()
-                active_test.callback(speeds)
+                finish_test()
 
         return 1
 
