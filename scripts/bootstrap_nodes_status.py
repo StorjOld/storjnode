@@ -25,9 +25,6 @@ setup()
 signal.signal(signal.SIGINT, signal.default_int_handler)
 
 
-_log = storjnode.log.getLogger(__name__)
-
-
 def parse_args():
     description = "Start a storjnode bootstrap only node."
     parser = argparse.ArgumentParser(description=description)
@@ -53,14 +50,14 @@ def make_config(bootstrap_nodes):
 def get_bootstrap_nodes_status(node, bootstrap_nodes):
 
     def on_success(results):
-        _log.info("RESULTS: {0}".format(repr(results)))
         assert(len(results) == len(bootstrap_nodes))
-        status = []
         for index in range(len(results)):
             success, ourid = results[index]
             ip, port = bootstrap_nodes[index]
-            status.append([[ip, port], "online" if success else "offline"])
-        return status
+            status = "ONLINE" if success else "DOWN"
+            print("{ip}:{port} {status}".format(
+                ip=ip, port=port, status=status
+            ))
 
     ds = []
     for ip, port in bootstrap_nodes:
@@ -80,8 +77,7 @@ def main():
     node = None
     try:
         node = storjnode.network.Node(wallet, config=config)
-        status = get_bootstrap_nodes_status(node, bootstrap_nodes)
-        print(json.dumps(status, indent=2))
+        get_bootstrap_nodes_status(node, bootstrap_nodes)
     except KeyboardInterrupt:
         pass
     finally:
