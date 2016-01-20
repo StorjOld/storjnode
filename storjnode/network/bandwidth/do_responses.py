@@ -39,7 +39,7 @@ def build_accept_handler(bt, req):
 
         # Invalid file_size request size for test.
         max_test_size = bt.increases[bt.max_increase]
-        if req[u"file_size"] > max_test_size:
+        if req[u"file_size"] > max_test_size or not req[u"file_size"]:
             _log.debug("file size != \a")
             return -4
 

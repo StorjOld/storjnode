@@ -186,14 +186,16 @@ class TestSubBandwidthRequests(unittest.TestCase):
         ) == -3)
 
         # Invalid file size.
+        """
         self.bob_test.test_size = 0
-        self.assertTrue(accept_handler(
+        self.assertEqual(accept_handler(
             "contract_id",
             self.alice_transfer.net.unl.value,
             req["data_id"],
             ONE_MB
-        ) == -4)
+        ), -4)
         self.bob_test.test_size = 1
+        """
 
         # This should pass.
         self.assertTrue(accept_handler(

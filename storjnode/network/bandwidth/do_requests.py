@@ -163,7 +163,7 @@ def build_accept_handler(bt, msg):
         _log.debug("Max increases = " + str(bt.max_increase))
         _log.debug("Increases = " + str(bt.increases))
         max_test_size = bt.increases[bt.max_increase]
-        if msg[u"file_size"] > max_test_size:
+        if msg[u"file_size"] > max_test_size or not msg[u"file_size"]:
             _log.debug(str(msg[u"file_size"]))
             _log.debug(str(max_test_size))
             _log.debug("file size not = in bob accept\a")
