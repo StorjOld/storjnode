@@ -4,7 +4,7 @@
 
 # always use faster native code
 import os
-os.environ["PYCOIN_NATIVE"] = "openssl"  # TODO test if it works
+os.environ["PYCOIN_NATIVE"] = "openssl"
 
 
 import argparse  # NOQA

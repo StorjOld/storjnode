@@ -33,11 +33,11 @@ CON_TIMEOUT = 100000000000
 
 DEFAULT_BOOTSTRAP_NODES = [
 
-    # storj stable  7b489cbfd61e675b86ac6469b6acd0a197da7f2c
-    ["104.236.1.59", 1337],
-
-    # storj develop 3f9f80fdfce32a08048193e3ba31393c0777ab21
+    # storj develop 1MBneQyvM5Sqzgye3oHW4mftCctyQVJ5uE
     ["159.203.64.230", 1337],
+
+    # storj stable 1CwrTUJ1YHCy7Eriso1jQKQf3fcUiegx2K
+    ["104.236.1.59", 1337],
 ]
 
 
