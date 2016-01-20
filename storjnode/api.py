@@ -1,4 +1,5 @@
 import traceback
+import time
 import apigen
 import btctxstore
 import storjnode
@@ -195,7 +196,7 @@ class StorjNode(apigen.Definition):
         }
 
     @apigen.command(rpc=False)
-    def farm(self, hostname="localhost", port=8080):
+    def farm(self, hostname="localhost", port=8080, norpc=False):
         """Start the farmer and the json-rpc service."""
         self.monitor = None
         try:
@@ -203,10 +204,11 @@ class StorjNode(apigen.Definition):
             self._init_monitor()
 
             # start rpc service
-            super(StorjNode, self).startserver(hostname=hostname, port=port)
-
-        except KeyboardInterrupt:
-            pass
+            if not norpc:
+                super(StorjNode, self).startserver(hostname=hostname, port=port)
+            else:
+                while True:
+                    time.sleep(storjnode.common.THREAD_SLEEP)
         finally:
             if self.monitor is not None:
                 self.monitor.stop()

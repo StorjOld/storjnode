@@ -51,7 +51,7 @@ def main():
     node = None
     try:
         node = storjnode.api.StorjNode(wallet=wallet, config=config)
-        node.farm()
+        node.farm(norpc=True)
     except KeyboardInterrupt:
         pass
     finally:
