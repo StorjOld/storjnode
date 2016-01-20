@@ -438,7 +438,7 @@ class TestNode(unittest.TestCase):
 
     def test_find_next_free_dataset_num(self):
         peer = random.choice(self.swarm)
-        for i in range(20):
+        for i in range(10):
             key = storjnode.network.monitor.predictable_key(peer, i)
             peer[key] = "taken"
             num = storjnode.network.monitor.find_next_free_dataset_num(peer)

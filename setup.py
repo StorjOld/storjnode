@@ -26,7 +26,10 @@ if os.name == 'postix' and 'py2app' in sys.argv:
 
 
 exec(open('storjnode/version.py').read())  # load __version__
-SCRIPTS = [os.path.join('storjnode', 'bin', 'storjnode')]
+SCRIPTS = [
+    os.path.join('storjnode', 'bin', 'storjnode'),
+    os.path.join('storjnode', 'bin', 'storjnode_bootstrap'),
+]
 
 
 setup(
@@ -48,7 +51,7 @@ setup(
     tests_require=open("test_requirements.txt").readlines(),
     packages=find_packages(exclude=['storjnode.bin']),
     package_data={
-        'storjnode': ['config.schema', 'config.default.json'],
+        'storjnode.config': ['validation.schema', 'default.json'],
     },
     classifiers=[
         # "Development Status :: 1 - Planning",
@@ -62,9 +65,9 @@ setup(
         "Programming Language :: Python",
         "Programming Language :: Python :: 2",
         "Programming Language :: Python :: 2.7",
-        "Programming Language :: Python :: 3",
-        "Programming Language :: Python :: 3.3",
-        "Programming Language :: Python :: 3.4",
+        # "Programming Language :: Python :: 3",
+        # "Programming Language :: Python :: 3.3",
+        # "Programming Language :: Python :: 3.4",
         "Topic :: Software Development :: Libraries :: Python Modules",
     ],
     options=options

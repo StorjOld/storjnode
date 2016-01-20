@@ -10,7 +10,7 @@ ifeq ($(USE_WHEELS), 0)
 else
   WHEEL_INSTALL_ARGS := --use-wheel --no-index --find-links=$(WHEEL_DIR)
 endif
-export PYCOIN_NATIVE=openssl
+#export PYCOIN_NATIVE=openssl
 #export STORJNODE_QUERY_TIMEOUT=0.3
 #export STORJNODE_ENABLE_GLOBAL_LOGGER=1
 
@@ -70,7 +70,8 @@ install: setup
 test_script: install
 	#$(PY) examples/network/map_network.py --debug
 	#$(PY) -m unittest --verbose tests.network.node.TestNode.test_network_monitor_service
-	env/bin/storjnode --wallet=L3NrSTxMCwAsLXnBjESvU5LnCKwcmMXKutKzNnVpPevXeSMfB1zx farm
+	#env/bin/storjnode --wallet=L3NrSTxMCwAsLXnBjESvU5LnCKwcmMXKutKzNnVpPevXeSMfB1zx farm
+	env/bin/storjnode_bootstrap --wallet=L3NrSTxMCwAsLXnBjESvU5LnCKwcmMXKutKzNnVpPevXeSMfB1zx --port=1337
 
 
 shell: install
@@ -86,7 +87,8 @@ test: setup
 
 
 publish: test
-	$(PY) setup.py register bdist_wheel upload
+	#$(PY) setup.py register bdist_wheel upload
+	$(PY) setup.py bdist_wheel
 
 
 # Break in case of bug!

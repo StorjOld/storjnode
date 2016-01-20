@@ -1,10 +1,16 @@
 #!/usr/bin/env python
 # coding: utf-8
 
-import signal
-import apigen
-import storjnode
-from crochet import setup
+
+# always use faster native code
+import os
+os.environ["PYCOIN_NATIVE"] = "openssl"  # TODO test if it works
+
+
+import signal  # NOQA
+import apigen  # NOQA
+import storjnode  # NOQA
+from crochet import setup  # NOQA
 
 
 # start twisted via crochet and remove twisted handler
