@@ -52,7 +52,7 @@ def _test_config(storage_path):
 
 
 class TestBandwidthTestWithDHT(unittest.TestCase):
-    # @unittest.skip("Too slow / unneeded")
+    @unittest.skip("Too slow / unneeded")
     def test_bandwidth_test_with_dht(self):
         # isolate swarm
         import btctxstore
