@@ -16,7 +16,6 @@ import storjnode  # NOQA
 import datetime  # NOQA
 import btctxstore  # NOQA
 from crochet import setup  # NOQA
-from storjnode.common import TESTGROUPB_BOOTSTRAP_NODES  # NOQA
 
 
 log = storjnode.log.getLogger(__name__)
@@ -37,8 +36,6 @@ def _parse_args(args):
     parser.add_argument('--debug', action='store_true')
     parser.add_argument('--quiet', action='store_true')
     parser.add_argument('--verbose', action='store_true')
-    parser.add_argument('--testgroupb', action='store_true',
-                        help="Map the testgroupb network")
     parser.add_argument('--render', action='store_true',
                         help="Render graph (requires pygraphviz).")
     parser.add_argument("--path", default=None,
@@ -108,10 +105,8 @@ def render(network_map, path=None):
     return path
 
 
-def make_config(testgroupb):
+def make_config():
     config = storjnode.config.create()
-    if testgroupb:
-        config["network"]["bootstrap_nodes"] = TESTGROUPB_BOOTSTRAP_NODES
     config["network"]["disable_data_transfer"] = True
     config["network"]["monitor"]["enable_crawler"] = False
     config["network"]["monitor"]["enable_responses"] = False
@@ -126,8 +121,9 @@ if __name__ == "__main__":
     try:
         # setup node
         key = btctxstore.BtcTxStore().create_key()
-        config = make_config(arguments["testgroupb"])
-        node = storjnode.network.Node(key, config=config)
+        config = make_config()
+        node = storjnode.network.Node(key, config=config,
+                                      refresh_neighbours_interval=0)
 
         # shitty wait for network stabilization
         log.info("Shitty wait for network stabilization.")
