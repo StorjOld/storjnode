@@ -8,7 +8,7 @@ from btctxstore import BtcTxStore
 import time
 import hashlib
 import sys
-from threading import Lock
+import Queue
 from twisted.internet import defer
 from storjnode.util import address_to_node_id
 from storjnode.util import ordered_dict_to_list
@@ -67,12 +67,15 @@ def disable_unl_requests(node):
 
 class FileTransfer:
     def __init__(self, net, bandwidth, wif=None,
-                 store_config=None, handlers=None):
+                 store_config=None, handlers=None, api=None):
         # Accept direct connections.
         self.net = net
 
         # Control bandwidth.
         self.bandwidth = bandwidth
+
+        # Reference to Node / API object.
+        self.api = api
 
         # Returned by callbacks.
         self.success_value = ("127.0.0.1", 7777)
@@ -124,8 +127,8 @@ class FileTransfer:
         # (Never try to download multiple copies of the same thing at once.)
         self.downloading = {}
 
-        # Lock threads.
-        self.mutex = Lock()
+        # Success callbacks
+        self.con_callback_queue = Queue.Queue()
 
     def add_handler(self, type, handler):
         # todo: change handler for when new data is transferred

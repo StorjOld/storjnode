@@ -205,7 +205,9 @@ class StorjNode(apigen.Definition):
 
             # start rpc service
             if not norpc:
-                super(StorjNode, self).startserver(hostname=hostname, port=port)
+                super(StorjNode, self).startserver(
+                    hostname=hostname, port=port
+                )
             else:
                 while True:
                     time.sleep(storjnode.common.THREAD_SLEEP)

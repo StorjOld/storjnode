@@ -110,73 +110,78 @@ def is_valid_syn(client, msg):
 # Associate TCP con with contract.
 def success_wrapper(client, contract_id, host_unl):
     def success(con):
-        with client.mutex:
-            _log.debug("IN SUCCESS CALLBACK")
-            _log.debug(str(client))
-            _log.debug(str(client.bandwidth))
-            _log.debug("Success() contract_id = " + str(contract_id))
-            assert(host_unl is not None)
-            assert(contract_id is not None)
-            assert(client is not None)
+        _log.debug("IN SUCCESS CALLBACK")
+        _log.debug(str(client))
+        _log.debug(str(client.bandwidth))
+        _log.debug("Success() contract_id = " + str(contract_id))
+        assert(host_unl is not None)
+        assert(contract_id is not None)
+        assert(client is not None)
 
-            # Modify socket and change it get
+        # Modify socket and change it get
 
-            # Associate TCP con with contract.
-            contract = client.contracts[contract_id]
-            file_size = contract["file_size"]
+        # Associate TCP con with contract.
+        contract = client.contracts[contract_id]
+        file_size = contract["file_size"]
 
-            # Store con association.
-            if con not in client.con_info:
-                client.con_info[con] = {}
+        # Store con association.
+        if con not in client.con_info:
+            client.con_info[con] = {}
 
-            # Associate contract with con.
-            if contract_id not in client.con_info[con]:
-                client.con_info[con][contract_id] = {
-                    "contract_id": contract_id,
-                    "remaining": 350,  # Tree fiddy.
-                    "file_size": 0,  # Sent as part of protocol.
-                    "file_size_buf": b"",
-                    "last_update": None
-                }
+        # Associate contract with con.
+        if contract_id not in client.con_info[con]:
+            client.con_info[con][contract_id] = {
+                "contract_id": contract_id,
+                "remaining": 350,  # Tree fiddy.
+                "file_size": 0,  # Sent as part of protocol.
+                "file_size_buf": b"",
+                "last_update": None
+            }
 
-            # Record download state.
-            data_id = contract["data_id"]
-            if client.net.unl != pyp2p.unl.UNL(value=host_unl):
-                _log.debug("Success: download")
-                fp, client.downloading[data_id] = tempfile.mkstemp()
+        # Record download state.
+        data_id = contract["data_id"]
+        if client.net.unl != pyp2p.unl.UNL(value=host_unl):
+            _log.debug("Success: download")
+            fp, client.downloading[data_id] = tempfile.mkstemp()
+        else:
+            # Set initial upload for this con.
+            _log.debug("Success: upload")
+
+        # Reserve bandwidth slice for this transfer.
+        _log.debug(str(client.bandwidth.transfers))
+        if contract_id not in client.bandwidth.transfers:
+            _log.debug("Registering contract")
+            client.bandwidth.register_transfer(contract_id)
+
+        # Queue first transfer.
+        their_unl = client.get_their_unl(contract)
+        is_master = client.net.unl.is_master(their_unl)
+        _log.debug("Is master = " + str(is_master))
+        if con not in client.con_transfer:
+            if is_master:
+                # A transfer to queue processing.
+                client.queue_next_transfer(con)
             else:
-                # Set initial upload for this con.
-                _log.debug("Success: upload")
-
-            # Reserve bandwidth slice for this transfer.
-            _log.debug(str(client.bandwidth.transfers))
-            if contract_id not in client.bandwidth.transfers:
-                _log.debug("Registering contract")
-                client.bandwidth.register_transfer(contract_id)
-
-            # Queue first transfer.
-            their_unl = client.get_their_unl(contract)
-            is_master = client.net.unl.is_master(their_unl)
-            _log.debug("Is master = " + str(is_master))
-            if con not in client.con_transfer:
+                # A transfer to receive (unknown.)
+                client.con_transfer[con] = u""
+        else:
+            if client.con_transfer[con] == u"0" * 64:
                 if is_master:
-                    # A transfer to queue processing.
                     client.queue_next_transfer(con)
                 else:
-                    # A transfer to receive (unknown.)
                     client.con_transfer[con] = u""
-            else:
-                if client.con_transfer[con] == u"0" * 64:
-                    if is_master:
-                        client.queue_next_transfer(con)
-                    else:
-                        client.con_transfer[con] = u""
 
-            # Return new connection.
-            if con not in client.cons:
-                client.cons.append(con)
+        # Return new connection.
+        if con not in client.cons:
+            client.cons.append(con)
 
-    return success
+    def queue_success(con):
+        def call_success():
+            success(con)
+
+        client.con_callback_queue.put(call_success)
+
+    return queue_success
 
 
 def process_syn(client, msg, enable_accept_handlers=ENABLE_ACCEPT_HANDLERS):

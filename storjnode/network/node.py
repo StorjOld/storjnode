@@ -175,7 +175,8 @@ class Node(object):
             self.bandwidth,
             wif=wif,
             store_config=config["storage"],
-            handlers=handlers
+            handlers=handlers,
+            api=self
         )
 
         # Setup success callback values.

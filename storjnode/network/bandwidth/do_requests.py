@@ -267,9 +267,8 @@ def handle_requests_builder(bt):
     def try_wrapper(node, msg):
         try:
             _log.debug("Waiting for handle requests mutex")
-            with bt.mutex:
-                _log.debug("Got handle requests mutex")
-                return handle_requests(node, msg)
+            _log.debug("Got handle requests mutex")
+            return handle_requests(node, msg)
         except (ValueError, KeyError, TypeError, zlib.error) as e:
             pass  # expected failure if unmatching message
 

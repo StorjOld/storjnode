@@ -26,7 +26,6 @@ from storjnode.util import generate_random_file, ordered_dict_to_list
 from twisted.internet import defer
 from btctxstore import BtcTxStore
 from twisted.internet.task import LoopingCall
-from threading import Lock
 
 
 _log = storjnode.log.getLogger(__name__)
@@ -34,9 +33,6 @@ _log = storjnode.log.getLogger(__name__)
 
 class BandwidthTest:
     def __init__(self, wif, transfer, api, increasing_tests=1, ONE_MB=1048576):
-        # Mutex.
-        self.mutex = Lock()
-
         # Binary wallet import key.
         self.wif = wif
 
@@ -125,29 +121,16 @@ class BandwidthTest:
             [1000 * self.ONE_MB, 1000 * self.ONE_MB]
         ])
 
-        # Handle timeouts.
-        def handle_timeout():
-            duration = time.time() - self.start_time
-            if duration >= self.test_timeout:
-                _log.debug("ERROR: bandwidth test timed out!")
-                if self.active_test is not None:
-                    _log.debug("active bandwiwdth test timeout!")
-                    self.active_test.errback(Exception("Timed out"))
+    # Handle timeouts.
+    def handle_timeout(self):
+        duration = time.time() - self.start_time
+        if duration >= self.test_timeout:
+            _log.debug("ERROR: bandwidth test timed out!")
+            if self.active_test is not None:
+                _log.debug("active bandwiwdth test timeout!")
+                self.active_test.errback(Exception("Timed out"))
 
-                self.reset_state()
-
-        # Schedule timeout.
-        def schedule_looping_call():
-            d = LoopingCall(handle_timeout).start(1, now=True)
-            d.addErrback(handle_errors)
-
-        # Handle errors.
-        def handle_errors(ret):
-            _log.debug("In handle errors for test.py")
-            _log.debug(str(ret))
             self.reset_state()
-
-        schedule_looping_call()
 
     # Allow this node to respond to bandwidth tests.
     def enable(self):
