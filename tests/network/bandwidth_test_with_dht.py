@@ -73,19 +73,20 @@ class TestBandwidthTestWithDHT(unittest.TestCase):
             )
             print(node._data_transfer.net.passive_port)
             print(node._data_transfer.net.unl.value)
-            ONE_MB = node.bandwidth_test.ONE_MB = 1
+            ONE_MB = node.bandwidth_test.ONE_MB = 1024 * 1024
             node.bandwidth_test.__init__(
                 node.get_key(),
                 node._data_transfer,
                 node,
                 1,
-                1
+                ONE_MB
             )
             node.bandwidth_test.test_timeout = 1000000
             node.bandwidth_test.increasing_tests = 1
             node.bandwidth_test.increases = OrderedDict([
                 [1 * ONE_MB, 4 * ONE_MB],
-                [4 * ONE_MB, 4 * ONE_MB]
+                [4 * ONE_MB, 6 * ONE_MB],
+                [6 * ONE_MB, 6 * ONE_MB]
             ])
             print()
 

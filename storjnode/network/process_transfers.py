@@ -65,9 +65,8 @@ def cleanup_cons(client):
             old_cons.append(con)
 
     # Remove old connections.
-    with client.mutex:
-        for con in old_cons:
-            client.cons.remove(con)
+    for con in old_cons:
+        client.cons.remove(con)
 
 
 def expire_handshakes(client):
@@ -281,7 +280,7 @@ def get_contract_id(client, con, contract_id):
 
 def interrupt_transfer(client, contract_id, con):
     # Return async failure.
-    _log.debug("Interrupt transfer")
+    _log.debug("got interrupt transfer")
     if contract_id in client.defers:
         client.defers[contract_id].errback(Exception("Transfer interupted"))
 
@@ -304,64 +303,62 @@ def interrupt_transfer(client, contract_id, con):
 
 
 def complete_transfer(client, contract_id, con):
-    _log.debug("Waiting for mutex")
+    _log.debug("in complete transfer")
     _log.debug(str(client))
     _log.debug(str(con))
     _log.debug(str(contract_id))
-    with client.mutex:
-        _log.debug("Got mutex")
 
-        # Leave bandwidth slice table.
-        _log.debug(str(client.bandwidth.transfers))
-        _log.debug(str(contract_id))
-        client.bandwidth.remove_transfer(contract_id)
-        _log.debug("Removed bandwidth reservation")
+    # Leave bandwidth slice table.
+    _log.debug(str(client.bandwidth.transfers))
+    _log.debug(str(contract_id))
+    client.bandwidth.remove_transfer(contract_id)
+    _log.debug("Removed bandwidth reservation")
 
-        # Determine who is master.
-        contract = client.contracts[contract_id]
-        their_unl = client.get_their_unl(contract)
-        is_master = client.net.unl.is_master(their_unl)
-        _log.debug("Is master = " + str(is_master))
+    # Determine who is master.
+    contract = client.contracts[contract_id]
+    their_unl = client.get_their_unl(contract)
+    is_master = client.net.unl.is_master(their_unl)
+    _log.debug("Is master = " + str(is_master))
 
-        # Return async success.
-        if contract_id in client.defers:
-            # Call any callbacks registered with this defer.
-            _log.debug("Complete transfer: removing defer" + str(client))
-            client.defers[contract_id].callback(client.success_value)
-            del client.defers[contract_id]
-        else:
-            _log.debug(str(client))
-            _log.debug("Contract id not in client defers!")
+    # Return async success.
+    if contract_id in client.defers:
+        # Call any callbacks registered with this defer.
+        _log.debug("Complete transfer: removing defer" + str(client))
+        client.defers[contract_id].callback(client.success_value)
+        del client.defers[contract_id]
+    else:
+        _log.debug(str(client))
+        _log.debug("Contract id not in client defers!")
 
-        # Call the completion handlers.
-        # todo: remove handler
-        _log.debug("Past that point")
-        old_handlers = set()
-        for handler in client.handlers["complete"]:
-            ret = handler(
-                client,
-                contract_id,
-                con
-            )
+    # Call the completion handlers.
+    # todo: remove handler
+    _log.debug("Past that point")
+    old_handlers = set()
+    for handler in client.handlers["complete"]:
+        ret = handler(
+            client,
+            contract_id,
+            con
+        )
 
-            if ret == -1:
-                old_handlers.add(handler)
+        if ret == -1:
+            old_handlers.add(handler)
 
-        # Remove old handlers.
-        for handler in old_handlers:
-            if handler in client.handlers["complete"]:
-                client.handlers["complete"].remove(handler)
+    # Remove old handlers.
+    for handler in old_handlers:
+        if handler in client.handlers["complete"]:
+            client.handlers["complete"].remove(handler)
 
-        # Queue next transfer.
-        if is_master:
-            # Set next contract ID and send to client.
-            client.queue_next_transfer(con)
-            _log.debug("End queuing next transfer")
-        else:
-            # Readying to receive a new contract ID.
-            client.con_transfer[con] = u""
+    # Queue next transfer.
+    if is_master:
+        # Set next contract ID and send to client.
+        client.queue_next_transfer(con)
+        _log.debug("End queuing next transfer")
+    else:
+        # Readying to receive a new contract ID.
+        client.con_transfer[con] = u""
 
-        _log.debug("Finished complete")
+    _log.debug("Finished complete")
 
 
 def process_dht_messages(client):
@@ -408,6 +405,12 @@ def process_transfers(client):
 
     # Expired handshakes and call any errbacks for errors.
     expire_handshakes(client)
+
+    # Handle bandwidth test timeouts.
+    if client.api is not None:
+        # May not be initialised yet.
+        if hasattr(client.api, "bandwidth_test"):
+            client.api.bandwidth_test.handle_timeout()
 
     # Process connections.
     for con in client.cons:
@@ -511,6 +514,10 @@ def process_transfers(client):
         if transfer_complete == 1:
             _log.debug("Transfer completed" + str(con))
             complete_transfer(client, contract_id, con)
+
+    # Process con success callbacks from UNL.connect.
+    while not client.con_callback_queue.empty():
+        client.con_callback_queue.get()()
 
     # Only reschedule the Looping call when this is done.
     d = defer.Deferred()
