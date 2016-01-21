@@ -3,7 +3,6 @@ import bisect
 import json
 import copy
 import storjnode
-from pyp2p.lib import parse_exception
 from collections import OrderedDict
 from io import BytesIO
 from threading import Thread, RLock
@@ -18,7 +17,7 @@ from storjnode.network.messages.info import request as request_info
 _log = storjnode.log.getLogger(__name__)
 
 
-SKIP_BANDWIDTH_TEST = True
+SKIP_BANDWIDTH_TEST = False
 
 
 DEFAULT_DATA = {
@@ -328,6 +327,7 @@ def find_next_free_dataset_num(node):
     # wrapper to find used slots
     class CompareObject(object):
         def __gt__(bisect_self, index):
+            # FIXME handle timeout error
             return node[predictable_key(node, index)] is not None
 
     # A list where the value is the index + lower_bound: [3, 4, 5, 6 ...]
@@ -422,7 +422,7 @@ class Monitor(object):
 
             # add store predictable id to dht
             key = predictable_key(self.node, self.dataset_num)
-            self.node[key] = shardid
+            self.node[key] = shardid  # FIXME handle timeout
             _log.info("Added DHT entry {0} => {1}".format(key, shardid))
 
             # call handler if given

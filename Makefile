@@ -10,9 +10,9 @@ ifeq ($(USE_WHEELS), 0)
 else
   WHEEL_INSTALL_ARGS := --use-wheel --no-index --find-links=$(WHEEL_DIR)
 endif
-#export PYCOIN_NATIVE=openssl
-#export STORJNODE_QUERY_TIMEOUT=0.3
-#export STORJNODE_ENABLE_GLOBAL_LOGGER=1
+export PYCOIN_NATIVE=openssl
+export STORJNODE_QUERY_TIMEOUT=0.3
+export STORJNODE_ENABLE_GLOBAL_LOGGER=1
 
 
 help:
