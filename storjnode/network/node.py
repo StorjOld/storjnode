@@ -82,6 +82,7 @@ class Node(object):
         self._transfer_request_handlers = set()
         self._transfer_complete_handlers = set()
         self._transfer_start_handlers = set()
+        self._data_transfer = None
 
         # validate port (randomish user port by default)
         port = util.get_unused_port(port)
@@ -385,12 +386,6 @@ class Node(object):
             _log.error(txt % repr(err))
             return err
 
-        d = LoopingCall(
-            process_transfers,
-            self._data_transfer
-        ).start(0.002, now=True)
-        d.addErrback(process_transfers_error)
-
     def test_bandwidth(self, nodeid):
         """Tests the bandwidth between yourself and a remote peer.
         Only one test can be active at any given time! If a test
@@ -626,6 +621,11 @@ class Node(object):
             for message in self.server.get_messages():
                 for handler in self._message_handlers.copy():
                     self._dispatch_message(message, handler)
+
+            # (Message-handler thread-safe
+            # Process any file transfers.
+            if self._data_transfer is not None:
+                process_transfers(self._data_transfer)
 
             time.sleep(THREAD_SLEEP)
 

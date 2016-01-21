@@ -408,7 +408,9 @@ def process_transfers(client):
 
     # Handle bandwidth test timeouts.
     if client.api is not None:
-        client.api.bandwidth_test.handle_timeout()
+        # May not be initialised yet.
+        if hasattr(client.api, "bandwidth_test"):
+            client.api.bandwidth_test.handle_timeout()
 
     # Process connections.
     for con in client.cons:
