@@ -268,15 +268,15 @@ def get_unused_port(port):
     """Checks if port is already in use."""
     if port is None:
         port = random.randint(1024, 65535)
+        print("tset"+str(port))
     assert(1024 <= port <= 65535)
     while True:
         s = socket.socket(socket.AF_INET, socket.SOCK_STREAM)
         try:
             s.bind(('', port))  # Try to open port
         except socket.error as e:
-            if e.errno is 98:  # Errorno 98 means address already bound
-                port += 1
-                continue
+            if e.errno in (98, 10048):  # 98, 10048 means address already bound
+                return get_unused_port(None)
             raise e
         s.close()
         return port
