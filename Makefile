@@ -11,7 +11,7 @@ else
   WHEEL_INSTALL_ARGS := --use-wheel --no-index --find-links=$(WHEEL_DIR)
 endif
 export PYCOIN_NATIVE=openssl
-export STORJNODE_QUERY_TIMEOUT=0.3
+export STORJNODE_QUERY_TIMEOUT=3.0
 #export STORJNODE_ENABLE_GLOBAL_LOGGER=1
 
 
@@ -79,11 +79,11 @@ shell: install
 
 
 test: setup
-	#$(PEP8) storjnode
-	#$(PEP8) examples
-	#$(PEP8) tests
+	$(PEP8) storjnode
+	$(PEP8) examples
+	$(PEP8) tests
 	$(COVERAGE) run --source="storjnode" -m unittest --quiet tests
-	#$(COVERAGE) report --fail-under=85
+	$(COVERAGE) report --fail-under=85
 
 
 publish: test
