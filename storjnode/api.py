@@ -32,7 +32,8 @@ def _reformat_kademlia_node(knode):
 class StorjNode(apigen.Definition):
     """Storj protocol reference implementation."""
 
-    def __init__(self, wallet=None, quiet=False, debug=False, verbose=False,
+    def __init__(self, wallet=None,
+                 quiet=False, debug=False, verbose=False, noisy=False,
                  config=storjnode.common.CONFIG_PATH):
         self._init_conifg(config)
         self._init_wallet(wallet)

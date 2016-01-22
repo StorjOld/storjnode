@@ -5,7 +5,7 @@ import logging as _logging
 from twisted.python import log as _log
 
 
-ENABLE_GLOBAL_LOGGER = os.environ.get("STORJNODE_ENABLE_GLOBAL_LOGGER")
+NOISY = os.environ.get("STORJNODE_LOGGING_NOISY") or "--noisy" in sys.argv
 
 
 FORMAT = "%(asctime)s %(levelname)s %(name)s %(lineno)d: %(message)s"
@@ -15,12 +15,12 @@ LEVEL_VERBOSE = _logging.DEBUG
 
 
 # make twisted use standard library logging module
-_observer = _log.PythonLoggingObserver()  # pragma: no cover
-_observer.start()  # pragma: no cover
+_observer = _log.PythonLoggingObserver()
+_observer.start()
 
 
 # silence global logger
-if ENABLE_GLOBAL_LOGGER:
+if NOISY:
     _logging.basicConfig(format=FORMAT)
 else:
     _logging.basicConfig(format=FORMAT, level=LEVEL_QUIET)
