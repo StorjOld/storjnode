@@ -6,7 +6,6 @@ from storjnode.common import THREAD_SLEEP
 from twisted.internet import defer
 from collections import OrderedDict
 from crochet import wait_for, run_in_reactor
-from twisted.internet.task import LoopingCall
 from storjnode import util
 from storjnode.network.repeat_relay import RepeatRelay
 from storjnode.network.message import sign, verify_signature
@@ -17,8 +16,6 @@ from pyp2p.unl import UNL
 # File transfer.
 from storjnode.network.file_transfer import FileTransfer
 from storjnode.network.process_transfers import process_transfers
-from storjnode.network.process_transfers import HANDSHAKE_TIMEOUT
-from storjnode.network.process_transfers import CON_TIMEOUT
 from storjnode.network.bandwidth.test import BandwidthTest
 from storjnode.network.bandwidth.limit import BandwidthLimit
 from storjnode.common import DEFAULT_BOOTSTRAP_NODES

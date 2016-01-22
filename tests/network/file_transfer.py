@@ -1,5 +1,4 @@
 import storjnode
-from storjnode.network import DEFAULT_BOOTSTRAP_NODES
 from storjnode.network.file_transfer import FileTransfer
 from storjnode.network.process_transfers import process_transfers
 from storjnode.util import address_to_node_id
@@ -53,7 +52,7 @@ class TestFileTransfer(unittest.TestCase):
 
         # dht_node = pyp2p.dht_msg.DHT(node_id=node_id)
         self.dht_node = storjnode.network.Node(
-            self.wif, bootstrap_nodes=DEFAULT_BOOTSTRAP_NODES,
+            self.wif, bootstrap_nodes=[["240.0.0.0", 1234]],
             disable_data_transfer=True, config=self.config
         )
 
