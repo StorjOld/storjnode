@@ -41,6 +41,9 @@ HANDSHAKE_TIMEOUT = 600
 CON_TIMEOUT = 600
 BLOCKING_TIMEOUT = 60
 
+HANDSHAKE_TIMEOUT = 100000000000
+CON_TIMEOUT = 100000000000
+
 
 class TransferError(Exception):
     pass
@@ -302,9 +305,6 @@ def interrupt_transfer(client, contract_id, con):
     if contract_id in client.defers:
         client.defers[contract_id].errback(Exception("Transfer interupted"))
 
-    # Cleanup transfer details.
-    client.cleanup_transfers(None, contract_id)
-
     # Find who is master.
     contract = client.contracts[contract_id]
     their_unl = client.get_their_unl(contract)
@@ -318,6 +318,9 @@ def interrupt_transfer(client, contract_id, con):
     else:
         # Readying to receive a new contract ID.
         client.con_transfer[con] = u""
+
+    # Cleanup transfer details.
+    client.cleanup_transfers(None, contract_id)
 
 
 def complete_transfer(client, contract_id, con):

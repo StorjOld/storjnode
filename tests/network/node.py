@@ -32,7 +32,7 @@ WALK_TIMEOUT = WALK_TIMEOUT / 2  # XXX remove this
 PROFILE = False
 SWARM_SIZE = 8
 KSIZE = SWARM_SIZE / 2 if SWARM_SIZE / 2 < 20 else 20
-PORT = 3000
+PORT = random.randrange(4000, 50000)
 STORAGE_DIR = tempfile.mkdtemp()
 LAN_IP = storjnode.util.get_inet_facing_ip()
 
@@ -98,29 +98,7 @@ class TestNode(unittest.TestCase):
             _log.info(msg.format(node.get_address(), node.port))
 
         # Make a list of all routing entries.
-        cls.kademlia_nodes = []
-        for i in range(SWARM_SIZE):
-            # Create kademlia node.
-            kademlia_node = KademliaNode(
-                id=cls.swarm[i].get_id(),
-                ip=get_lan_ip(),
-                port=node.port
-            )
-
-            # Add to list.
-            cls.kademlia_nodes.append(kademlia_node)
-
-        # Manually populate the routing entries for all nodes.
-        for i in range(SWARM_SIZE):
-            for j in range(SWARM_SIZE):
-                # Don't add ourself to own routing table.
-                if cls.swarm[i].get_id() == cls.kademlia_nodes[j].id:
-                    continue
-
-                # Add node to routing table.
-                cls.swarm[i].server.protocol.router.addContact(
-                    cls.kademlia_nodes[j]
-                )
+        cls.kademlia_nodes = None
 
         # Peer used for get unl requests.
         # FIXME remove unl_peer and node from swarm
