@@ -71,6 +71,18 @@ class Crawler(object):  # will not scale but good for now
     def stop(self):
         self.stop_thread = True
 
+    def _add_peer_to_pipeline(self, peer):
+        with self.pipeline_mutex:
+            scanning = peer in self.pipeline_scanning
+            scanned = peer in self.pipeline_scanned_fifo
+            processed = peer in self.pipeline_processed
+            testing_bandwidth = (
+                self.pipeline_bandwidth_test is not None and
+                peer == self.pipeline_bandwidth_test[0]
+            )
+            if not (scanning or scanned or processed or testing_bandwidth):
+                self.pipeline_scanning[peer] = copy.deepcopy(DEFAULT_DATA)
+
     def _handle_peers_message(self, node, message):
         received = time.time()
         message = read_peers(node.server.btctxstore, message)
@@ -88,15 +100,7 @@ class Crawler(object):  # will not scale but good for now
 
             # add previously unknown peers
             for peer in data["peers"]:
-                scanning = peer in self.pipeline_scanning
-                scanned = peer in self.pipeline_scanned_fifo
-                processed = peer in self.pipeline_processed
-                testing_bandwidth = (
-                    self.pipeline_bandwidth_test is not None and
-                    peer == self.pipeline_bandwidth_test[0]
-                )
-                if not (scanning or scanned or processed or testing_bandwidth):
-                    self.pipeline_scanning[peer] = copy.deepcopy(DEFAULT_DATA)
+                self._add_peer_to_pipeline(peer)
 
             self._check_scan_complete(message.sender, data)
 
@@ -288,8 +292,7 @@ class Crawler(object):  # will not scale but good for now
         # add initial peers
         peers = self.node.get_neighbours()
         for peer in peers:
-            if peer.id not in self.pipeline_scanning:
-                self.pipeline_scanning[peer.id] = copy.deepcopy(DEFAULT_DATA)
+            self._add_peer_to_pipeline(peer.id)
 
         # process pipeline until done
         self._process_pipeline()
