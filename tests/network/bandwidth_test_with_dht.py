@@ -112,6 +112,9 @@ class TestBandwidthTestWithDHT(unittest.TestCase):
 
         time.sleep(WALK_TIMEOUT)
 
+        import pdb
+        pdb.set_trace()
+
         def show_bandwidth(results):
             print(results)
             global test_success

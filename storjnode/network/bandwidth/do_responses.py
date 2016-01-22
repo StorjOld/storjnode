@@ -44,7 +44,6 @@ def build_accept_handler(bt, req):
             return -4
 
         # Remove this accept handler.
-        bt.api.remove_transfer_request_handler(accept_handler)
         bt.remove_handler("accept", accept_handler)
 
         return 1
@@ -300,6 +299,8 @@ def handle_responses_builder(bt):
             _log.debug("Got handle resposnes mutex")
             return handle_responses(node, msg)
         except (ValueError, KeyError, TypeError, zlib.error) as e:
+            # _log.debug(e)
+            # _log.debug(parse_exception(e))
             pass  # expected failure if unmatching message
 
     return try_wrapper

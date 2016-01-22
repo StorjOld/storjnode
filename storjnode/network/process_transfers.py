@@ -37,9 +37,9 @@ import storjnode
 
 
 _log = storjnode.log.getLogger(__name__)
-HANDSHAKE_TIMEOUT = 360  # Tree fiddy. 'bout 6 mins.
-CON_TIMEOUT = 300
-BLOCKING_TIMEOUT = 30
+HANDSHAKE_TIMEOUT = 600
+CON_TIMEOUT = 600
+BLOCKING_TIMEOUT = 60
 
 
 class TransferError(Exception):
@@ -118,8 +118,17 @@ def do_upload(client, con, contract, con_info, contract_id):
         # Send file size.
         con.send(net_file_size, send_all=1)
 
+    # Transfer done.
+    if not con_info["remaining"]:
+        return 1
+    _log.debug("Remaining = " + str(con_info["remaining"]))
+
+    # Calculate chunk size.
+    chunk_size = 8192
+    if con_info["remaining"] < chunk_size:
+        chunk_size = con_info["remaining"]
+
     # Request bandwidth for transfer.
-    chunk_size = 1048576
     allocation = client.bandwidth.request(
         "upstream",
         contract_id,
@@ -189,8 +198,17 @@ def do_download(client, con, contract, con_info, contract_id):
             else:
                 return -3
 
-    # Request bandwidth for transfer.
+    # Transfer done.
+    if not con_info["remaining"]:
+        return 1
+    _log.debug("Remaining = " + str(con_info["remaining"]))
+
+    # Calculate chunk size.
     chunk_size = 8192
+    if con_info["remaining"] < chunk_size:
+        chunk_size = con_info["remaining"]
+
+    # Request bandwidth for transfer.
     allocation = client.bandwidth.request(
         "downstream",
         contract_id,
@@ -388,11 +406,6 @@ def process_transfers(client):
     # Indicate whether we're still in this.
     global future_tran
     global future_queue
-    if time.time() >= future_tran:
-        _log.debug("Still in process transfers")
-        _log.debug(str(client.net.outbound))
-        _log.debug(str(client.net.inbound))
-        future_tran = time.time() + 5
 
     # Process DHT messages.
     process_dht_messages(client)

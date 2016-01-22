@@ -5,6 +5,7 @@ Code that executes to handle bandwidth test requests
 import storjnode
 import time
 import hashlib
+from pyp2p.lib import parse_exception
 from collections import OrderedDict
 from storjnode.util import parse_node_id_from_unl
 from storjnode.util import ordered_dict_to_list
@@ -179,7 +180,6 @@ def build_accept_handler(bt, msg):
         bt.add_handler("complete", completion_handler)
 
         # Remove this accept handler.
-        bt.api.remove_transfer_request_handler(accept_handler)
         bt.remove_handler("accept", accept_handler)
 
         return 1
@@ -270,6 +270,8 @@ def handle_requests_builder(bt):
             _log.debug("Got handle requests mutex")
             return handle_requests(node, msg)
         except (ValueError, KeyError, TypeError, zlib.error) as e:
+            # _log.debug(e)
+            # _log.debug(parse_exception(e))
             pass  # expected failure if unmatching message
 
     return try_wrapper

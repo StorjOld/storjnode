@@ -130,6 +130,9 @@ class FileTransfer:
         # Success callbacks
         self.con_callback_queue = Queue.Queue()
 
+        # Processed SYNs.
+        self.processed_syns = {}
+
     def add_handler(self, type, handler):
         # todo: change handler for when new data is transferred
         # might be helpful to have for updating UI progress
