@@ -233,6 +233,7 @@ class Crawler(object):  # will not scale but good for now
             nodeid = self.pipeline_scanned_fifo.keys()[0]
             data = self.pipeline_scanned_fifo[nodeid]
             del self.pipeline_scanned_fifo[nodeid]
+            assert(nodeid != self.node.get_id())
 
             # skip bandwidth test
             if SKIP_BANDWIDTH_TEST:
@@ -244,13 +245,12 @@ class Crawler(object):  # will not scale but good for now
             )
 
             # start bandwidth test (timeout after 5min)
-            if nodeid != self.node.get_id():
-                self.pipeline_bandwidth_test = (nodeid, data)
-                on_success = self._handle_bandwidth_test_success
-                on_error = self._handle_bandwidth_test_error
-                deferred = self.node.test_bandwidth(nodeid)
-                deferred.addCallback(on_success)
-                deferred.addErrback(on_error)
+            self.pipeline_bandwidth_test = (nodeid, data)
+            on_success = self._handle_bandwidth_test_success
+            on_error = self._handle_bandwidth_test_error
+            deferred = self.node.test_bandwidth(nodeid)
+            deferred.addCallback(on_success)
+            deferred.addErrback(on_error)
 
     def _process_pipeline(self):
         while not self.stop_thread and time.time() < self.timeout:
@@ -286,7 +286,7 @@ class Crawler(object):  # will not scale but good for now
         self.pipeline_processed[self.node.get_id()] = None
 
         # add initial peers
-        peers = self.static_nodes or self.node.get_neighbours()
+        peers = self.node.get_neighbours()
         for peer in peers:
             if peer.id not in self.pipeline_scanning:
                 self.pipeline_scanning[peer.id] = copy.deepcopy(DEFAULT_DATA)
