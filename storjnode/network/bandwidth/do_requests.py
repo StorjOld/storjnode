@@ -224,6 +224,11 @@ def handle_requests_builder(bt):
             _log.debug("req: Invalid sig")
             return -4
 
+        # Check this isn't a test from ourself.
+        if msg[u"requester"] == our_unl:
+            _log.debug("Cannot do bandwidth test with ourself.")
+            return -5
+
         # Build response.
         res = OrderedDict([
             (u"type", u"test_bandwidth_response"),

@@ -95,6 +95,9 @@ class TestNode(unittest.TestCase):
             msg = "TEST: created node {0} @ 127.0.0.1:{1}"
             _log.info(msg.format(node.get_address(), node.port))
 
+        # Make a list of all routing entries.
+        cls.kademlia_nodes = None
+
         # Peer used for get unl requests.
         # FIXME remove unl_peer and node from swarm
         storage_path = "{0}/unl_peer".format(STORAGE_DIR)

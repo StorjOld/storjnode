@@ -299,6 +299,7 @@ class TestFileHandshake(unittest.TestCase):
         del self.bob.handshake[contract_id]
 
         # This should pass.
+        self.bob.processed_syns = {}
         self.assertIsInstance(process_syn(
             self.bob, syn, enable_accept_handlers=0
         ), OrderedDict)
