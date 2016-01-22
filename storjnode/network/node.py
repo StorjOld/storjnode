@@ -425,7 +425,6 @@ class Node(object):
 
         # Make data request when we have their UNL.
         def on_success(peer_unl):
-            print(peer_unl)
             return self.bandwidth_test.start(peer_unl)
 
         def on_error(err):

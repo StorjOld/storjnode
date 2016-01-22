@@ -245,7 +245,7 @@ class TestNode(unittest.TestCase):
         random.shuffle(receivers)
         for sender, receiver in zip(senders, receivers):
             msg = "TEST: sending relay message from {0} to {1}"
-            print(msg.format(sender.get_address(), receiver.get_address()))
+            _log.info(msg.format(sender.get_address(), receiver.get_address()))
             self._test_relay_message(sender, receiver, True)
 
     def test_relay_message_to_void(self):  # for coverage
