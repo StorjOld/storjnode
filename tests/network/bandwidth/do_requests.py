@@ -13,7 +13,6 @@ from storjnode.util import list_to_ordered_dict
 from storjnode.util import ordered_dict_to_list
 from btctxstore import BtcTxStore
 from storjnode.network.bandwidth.limit import BandwidthLimit
-import storjnode
 import unittest
 import copy
 from crochet import setup
@@ -89,12 +88,11 @@ class TestSubBandwidthRequests(unittest.TestCase):
         )
 
         def alice_hook_relay_message(node_id, req):
-            _log.debug(str(req))
             cls.req = req
             cls.req = literal_eval(zlib.decompress(req))
 
         def bob_hook_relay_message(node_id, req):
-            _log.debug(str(req))
+            pass
 
         cls.alice_test.api.repeat_relay_message = alice_hook_relay_message
         cls.bob_test.api.repeat_relay_message = bob_hook_relay_message

@@ -69,9 +69,11 @@ class MessageRelayer(object):
         address = storjnode.util.node_id_to_address(relay_node.id)
 
         # do not relay away from node
-        if self.dest.distanceTo(self.node) <= self.dest.distanceTo(relay_node):
+        dist_to_self = self.dest.distanceTo(self.node)
+        dist_to_relay = self.dest.distanceTo(relay_node)
+        if dist_to_self <= dist_to_relay:
             txt = "{1}: Aborting relay attempt, {0} farther then self."
-            _log.debug(txt.format(address, self.server.get_address()))
+            _log.warning(txt.format(address, self.server.get_address()))
             return
 
         def on_error(err):

@@ -26,12 +26,10 @@ signal.signal(signal.SIGINT, signal.default_int_handler)
 
 
 _log = storjnode.log.getLogger(__name__)
-WALK_TIMEOUT = WALK_TIMEOUT / 2  # XXX remove this
 
 
 PROFILE = False
 SWARM_SIZE = 8
-KSIZE = SWARM_SIZE / 2 if SWARM_SIZE / 2 < 20 else 20
 PORT = storjnode.util.get_unused_port()
 STORAGE_DIR = tempfile.mkdtemp()
 
@@ -68,7 +66,7 @@ class TestNode(unittest.TestCase):
             storage_path = "{0}/peer_{1}".format(STORAGE_DIR, i)
             config = _test_config(storage_path)
             node = storjnode.network.Node(
-                cls.btctxstore.create_wallet(), port=(PORT + i), ksize=KSIZE,
+                cls.btctxstore.create_wallet(), port=(PORT + i),
                 bootstrap_nodes=bootstrap_nodes,
                 refresh_neighbours_interval=0.0,
                 config=config,

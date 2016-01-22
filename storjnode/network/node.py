@@ -147,8 +147,6 @@ class Node(object):
     def _setup_data_transfer_client(self, config, passive_port,
                                     passive_bind, node_type, nat_type):
 
-        result = self.sync_get_transport_info(add_unl=False)
-
         # Setup handlers for callbacks registered via the API.
         handlers = {
             "complete": self._transfer_complete_handlers,
@@ -168,7 +166,6 @@ class Node(object):
                 debug=1,
                 passive_port=passive_port,
                 passive_bind=passive_bind,
-                wan_ip=result["wan"][0] if result else None
             ),
             self.bandwidth,
             wif=wif,
@@ -178,7 +175,7 @@ class Node(object):
         )
 
         # Setup success callback values.
-        self._data_transfer.success_value = result
+        self._data_transfer.success_value = True
         self.process_data_transfers()
 
     def stop(self):
