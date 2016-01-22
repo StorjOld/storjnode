@@ -17,7 +17,7 @@ from storjnode.network.messages.info import request as request_info
 _log = storjnode.log.getLogger(__name__)
 
 
-SKIP_BANDWIDTH_TEST = False
+SKIP_BANDWIDTH_TEST = True
 
 
 DEFAULT_DATA = {

@@ -1,3 +1,4 @@
+import unittest
 from . api import *  # NOQA
 from . util import *  # NOQA
 from . storage import *  # NOQA

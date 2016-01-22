@@ -264,7 +264,7 @@ def ensure_path_exists(path):
         raise Exception(msg.format(path))  # pragma: no cover
 
 
-def get_unused_port(port):
+def get_unused_port(port=None):
     """Checks if port is already in use."""
     if port is None:
         port = random.randint(1024, 65535)

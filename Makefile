@@ -69,9 +69,9 @@ install: setup
 
 test_script: install
 	#$(PY) examples/network/map_network.py --debug
-	#$(PY) -m unittest --verbose tests.network.node.TestNode.test_network_monitor_service
+	$(PY) -m unittest --verbose tests.network.node.TestNode
 	#env/bin/storjnode --wallet=L3NrSTxMCwAsLXnBjESvU5LnCKwcmMXKutKzNnVpPevXeSMfB1zx farm
-	env/bin/storjnode_bootstrap_only --wallet=L3NrSTxMCwAsLXnBjESvU5LnCKwcmMXKutKzNnVpPevXeSMfB1zx --port=1337
+	#env/bin/storjnode_bootstrap_only --wallet=L3NrSTxMCwAsLXnBjESvU5LnCKwcmMXKutKzNnVpPevXeSMfB1zx --port=1337
 
 
 shell: install
@@ -79,10 +79,10 @@ shell: install
 
 
 test: setup
-	#$(PEP8) storjnode
-	#$(PEP8) examples
-	#$(PEP8) tests
-	$(COVERAGE) run --source="storjnode" -m unittest --quiet tests
+	$(PEP8) storjnode
+	$(PEP8) examples
+	$(PEP8) tests
+	$(COVERAGE) run --source="storjnode" -m unittest --verbose tests
 	$(COVERAGE) report --fail-under=85
 
 
