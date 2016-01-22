@@ -15,6 +15,7 @@ import storjnode
 from kademlia.node import Node as KademliaNode
 from storjnode.network.server import QUERY_TIMEOUT, WALK_TIMEOUT
 from storjnode.network.file_transfer import enable_unl_requests
+from pyp2p.lib import get_lan_ip
 import storjnode.network.process_transfers
 from crochet import setup
 
@@ -34,9 +35,6 @@ KSIZE = SWARM_SIZE / 2 if SWARM_SIZE / 2 < 20 else 20
 PORT = 3000
 STORAGE_DIR = tempfile.mkdtemp()
 LAN_IP = storjnode.util.get_inet_facing_ip()
-storjnode.network.process_transfers.CON_TIMEOUT = 10000000000
-storjnode.network.process_transfers.HANDSHAKE_TIMEOUT = 10000000000
-storjnode.network.process_transfers.BLOCKING_TIMEOUT = 10000000000
 
 
 def _test_config(storage_path):
@@ -66,6 +64,7 @@ class TestNode(unittest.TestCase):
 
             # isolate swarm
             bootstrap_nodes = [(LAN_IP, PORT + x) for x in range(i)][-20:]
+            assert(bootstrap_nodes is not None)
 
             # create node
             storage_path = "{0}/peer_{1}".format(STORAGE_DIR, i)
@@ -98,12 +97,38 @@ class TestNode(unittest.TestCase):
             msg = "TEST: created node {0} @ 127.0.0.1:{1}"
             _log.info(msg.format(node.get_address(), node.port))
 
+        # Make a list of all routing entries.
+        cls.kademlia_nodes = []
+        for i in range(SWARM_SIZE):
+            # Create kademlia node.
+            kademlia_node = KademliaNode(
+                id=cls.swarm[i].get_id(),
+                ip=get_lan_ip(),
+                port=node.port
+            )
+
+            # Add to list.
+            cls.kademlia_nodes.append(kademlia_node)
+
+        # Manually populate the routing entries for all nodes.
+        for i in range(SWARM_SIZE):
+            for j in range(SWARM_SIZE):
+                # Don't add ourself to own routing table.
+                if cls.swarm[i].get_id() == cls.kademlia_nodes[j].id:
+                    continue
+
+                # Add node to routing table.
+                cls.swarm[i].server.protocol.router.addContact(
+                    cls.kademlia_nodes[j]
+                )
+
         # Peer used for get unl requests.
         # FIXME remove unl_peer and node from swarm
         unl_peer_bootstrap_nodes = [
             (LAN_IP, PORT + x)
             for x in range(SWARM_SIZE)
         ][-20:]
+        assert(unl_peer_bootstrap_nodes is not None)
         storage_path = "{0}/unl_peer".format(STORAGE_DIR)
         config = _test_config(storage_path)
         cls.test_get_unl_peer = storjnode.network.Node(
@@ -118,6 +143,7 @@ class TestNode(unittest.TestCase):
         enable_unl_requests(cls.test_get_unl_peer)
 
         # stabalize network overlay
+        """
         _log.info("TEST: stabalize network overlay")
         time.sleep(WALK_TIMEOUT)
         for node in cls.swarm:
@@ -128,6 +154,7 @@ class TestNode(unittest.TestCase):
             node.refresh_neighbours()
         cls.test_get_unl_peer.refresh_neighbours()
         time.sleep(WALK_TIMEOUT)
+        """
 
         _log.info("TEST: created swarm")
 
@@ -431,7 +458,7 @@ class TestNode(unittest.TestCase):
         config = _test_config(STORAGE_DIR)
         monitor = storjnode.network.monitor.Monitor(
             random_peer, config, limit=limit,
-            interval=interval, on_crawl_complete=handler
+            interval=interval, on_crawl_complete=handler, static_nodes=self.kademlia_nodes
         )
 
         crawled_event.wait(timeout=(interval + 5))

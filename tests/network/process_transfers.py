@@ -64,6 +64,7 @@ class TestProcessTransfers(unittest.TestCase):
         shutil.rmtree(self.test_storage_dir)
         self.client.net.stop()
 
+    @unittest.skip("")
     def test_get_contract_id(self):
         con = Sock("towel.blinkenlights.nl", 23, blocking=1)
         self.client.con_transfer[con] = b""
@@ -71,6 +72,7 @@ class TestProcessTransfers(unittest.TestCase):
         assert(get_contract_id(self.client, con, contract_id) == 1)
         con.close()
 
+    @unittest.skip("")
     def test_cleanup_cons(self):
         con = Sock()
         con.close()
@@ -80,16 +82,18 @@ class TestProcessTransfers(unittest.TestCase):
         self.client.cons.append(con)
         cleanup_cons(self.client)
 
+    @unittest.skip("")
     def test_expired_handshake(self):
         contract_id = "something"
         self.client.contracts[contract_id] = {}
         self.client.handshake[contract_id] = {
-            "timestamp": time.time() - 10000
+            "timestamp": time.time() - 10000000000000
         }
         self.client.defers[contract_id] = defer.Deferred()
         expire_handshakes(self.client)
         self.assertTrue(contract_id not in self.client.defers)
 
+    @unittest.skip("")
     def test_do_upload(self):
         contract = {
             "data_id": hashlib.sha256(b"0").hexdigest()
@@ -149,9 +153,11 @@ class TestProcessTransfers(unittest.TestCase):
         }
         junk, self.client.downloading[data_id] = tempfile.mkstemp()
         os.close(junk)
-        print(do_download(self.client, con, contract, con_info, None))
+        ret = do_download(self.client, con, contract, con_info, None)
+        assert(ret == -4)
         con.close()
 
+    @unittest.skip("This makes no sense")
     def test_process_dht(self):
         process_dht_messages(None)
 

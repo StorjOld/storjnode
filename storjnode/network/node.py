@@ -327,6 +327,7 @@ class Node(object):
         def handler_builder(self, d, their_node_id, wif):
             def handler(node, msg):
                 # Is this a response to our request?
+                remove_handler = 0
                 try:
                     msg = util.list_to_ordered_dict(msg)
 
@@ -346,14 +347,17 @@ class Node(object):
                         _log.debug("unl response: their sig")
                         return
 
+                    remove_handler = 1
+
                     # Everything passed: fire callback.
                     d.callback(msg[u"unl"])
-
-                    # Remove this callback.
-                    node.remove_message_handler(handler)
                 except (ValueError, KeyError):
                     _log.debug("unl response:val or key er")
                     pass  # not a unl response
+                finally:
+                    if remove_handler:
+                        # Remove this callback.
+                        node.remove_message_handler(handler)
 
             return handler
 

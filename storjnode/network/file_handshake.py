@@ -1,6 +1,7 @@
 import storjnode
 from collections import OrderedDict
 import time
+import hashlib
 import pyp2p.unl
 import pyp2p.net
 import pyp2p.dht_msg
@@ -203,6 +204,11 @@ def process_syn(client, msg, enable_accept_handlers=ENABLE_ACCEPT_HANDLERS):
         _log.debug("Their signature was incorrect.")
         return -4
 
+    # We sent this.
+    if msg[u"src_unl"] == client.net.unl.value:
+        _log.debug("SYN cant be sent to self!")
+        return -6
+
     # Should we accept this?
     expired_handlers = set()
     accept_this = 0
@@ -257,6 +263,13 @@ def process_syn(client, msg, enable_accept_handlers=ENABLE_ACCEPT_HANDLERS):
     # Check handshake state.
     if contract_id in client.handshake:
         return -5
+
+    # Already seen?
+    msg_id = hashlib.sha256(str(msg)).hexdigest()
+    if msg_id in client.processed_syns:
+        return -7
+    else:
+        client.processed_syns[msg_id] = 1
 
     # Save contract.
     client.save_contract(msg)

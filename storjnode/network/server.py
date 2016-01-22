@@ -143,7 +143,7 @@ class Server(KademliaServer):
         if self._refresh_neighbours_interval > 0.0:
             self._refresh_thread_stop = False
             self._refresh_thread = threading.Thread(target=self._refresh_loop)
-            self._refresh_thread.start()
+            # self._refresh_thread.start()
 
     @run_in_reactor
     def set_port_handler(self, port_handler):

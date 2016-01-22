@@ -4,6 +4,7 @@ import logging
 import storjnode
 
 _log = storjnode.log.getLogger(__name__)
+ENABLE_REPEAT = True
 
 
 class RepeatRelay:
@@ -32,6 +33,11 @@ class RepeatRelay:
         # Process messages.
         expired = []
         for relay_info in self.relaying:
+            # Not rebroadcasting.
+            if not relay_info["rebroadcast"]:
+                continue
+
+            # Is it time to rebroadcast this?
             elapsed = time.time() - relay_info["timestamp"]
             for interval in intervals:
                 if elapsed >= interval:
@@ -56,15 +62,14 @@ class RepeatRelay:
         for relay_info in expired:
             self.relaying.remove(relay_info)
 
-    def relay(self, node_id, msg):
+    def relay(self, node_id, msg, rebroadcast=True):
         relay_info = {
             "msg": msg,
             "node_id": node_id,
             "timestamp": time.time(),
-            "interval": 0
+            "interval": 0,
+            "rebroadcast": ENABLE_REPEAT
         }
-
-        # _log.debug(str(relay_info))
 
         self.relaying.append(relay_info)
         self.node.relay_message(node_id, msg)

@@ -42,7 +42,10 @@ DEFAULT_DATA = {
 
 class Crawler(object):  # will not scale but good for now
 
-    def __init__(self, node, limit=20, timeout=600):
+    def __init__(self, node, limit=20, timeout=600, static_nodes=None):
+
+        # Static neighbours.
+        self.static_nodes = static_nodes
 
         # CRAWLER PIPELINE
         self.pipeline_mutex = RLock()
@@ -242,12 +245,13 @@ class Crawler(object):  # will not scale but good for now
             )
 
             # start bandwidth test (timeout after 5min)
-            self.pipeline_bandwidth_test = (nodeid, data)
-            on_success = self._handle_bandwidth_test_success
-            on_error = self._handle_bandwidth_test_error
-            deferred = self.node.test_bandwidth(nodeid)
-            deferred.addCallback(on_success)
-            deferred.addErrback(on_error)
+            if nodeid != self.node.get_id():
+                self.pipeline_bandwidth_test = (nodeid, data)
+                on_success = self._handle_bandwidth_test_success
+                on_error = self._handle_bandwidth_test_error
+                deferred = self.node.test_bandwidth(nodeid)
+                deferred.addCallback(on_success)
+                deferred.addErrback(on_error)
 
     def _process_pipeline(self):
         while not self.stop_thread and time.time() < self.timeout:
@@ -283,8 +287,10 @@ class Crawler(object):  # will not scale but good for now
         self.pipeline_processed[self.node.get_id()] = None
 
         # add initial peers
-        for peer in self.node.get_neighbours():
-            self.pipeline_scanning[peer.id] = copy.deepcopy(DEFAULT_DATA)
+        peers = self.static_nodes or self.node.get_neighbours()
+        for peer in peers:
+            if peer.id not in self.pipeline_scanning:
+                self.pipeline_scanning[peer.id] = copy.deepcopy(DEFAULT_DATA)
 
         # process pipeline until done
         self._process_pipeline()
@@ -368,9 +374,10 @@ def create_shard(node, num, begin, end, processed):
 class Monitor(object):
 
     def __init__(self, node, config, limit=20,
-                 interval=3600, on_crawl_complete=None):
+                 interval=3600, on_crawl_complete=None, static_nodes=None):
         self.on_crawl_complete = on_crawl_complete
         self.config = config
+        self.static_nodes = static_nodes
         self.node = node
         self.limit = limit + 1  # + 1 because of initial node
         self.interval = interval
@@ -395,6 +402,7 @@ class Monitor(object):
         while not self.stop_thread:
             time.sleep(THREAD_SLEEP)
 
+            # When the interval has elapsed -- stop processing.
             if not ((self.last_crawl + self.interval) < time.time()):
                 continue
 
@@ -403,7 +411,8 @@ class Monitor(object):
             begin = time.time()
             with self.mutex:
                 self.crawler = Crawler(
-                    self.node, limit=self.limit, timeout=self.interval
+                    self.node, limit=self.limit, timeout=self.interval,
+                    static_nodes=self.static_nodes
                 )
             processed = self.crawler.crawl()
 
