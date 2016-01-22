@@ -13,7 +13,7 @@ class TestServer(unittest.TestCase):
         # create server and start listen on some random port
         test_result = True
         key = "5KaasrJx9KQymQ4zMffEPrsHxSn1bCnM9c3tbicp4Uunf1nrzyM"
-        port = storjnode.util.get_unused_port(None)
+        port = storjnode.util.get_unused_port()
         server1 = Server(key, port)
         port_handler = server1.listen(port)
         server1.set_port_handler(port_handler)
