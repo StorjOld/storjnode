@@ -80,7 +80,8 @@
             ]
           }
         },
-        "disable_data_transfer": { "type": "boolean" }
+        "disable_data_transfer": { "type": "boolean" },
+        "refresh_neighbours_interval": { "type": "integer", "minimum": 0}
       },
       "additionalProperties": false, 
       "required": [
@@ -88,7 +89,8 @@
         "port", 
         "bootstrap_nodes",
         "monitor", 
-        "disable_data_transfer"
+        "disable_data_transfer",
+        "refresh_neighbours_interval"
       ]
     }
   }, 

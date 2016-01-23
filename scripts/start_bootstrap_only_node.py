@@ -33,6 +33,7 @@ def parse_args():
 def make_config(port):
     config = storjnode.config.create()
     config["network"]["port"] = port
+    config["netcork"]["refresh_neighbours_interval"] = 0
     config["network"]["disable_data_transfer"] = True
     config["network"]["monitor"]["enable_crawler"] = False
     config["network"]["monitor"]["enable_responses"] = False
@@ -52,7 +53,7 @@ def main():
         pass
     finally:
         if node is not None:
-            node.on_shutdown()
+            node.stop()
 
 
 if __name__ == "__main__":

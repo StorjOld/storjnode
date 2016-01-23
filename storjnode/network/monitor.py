@@ -376,10 +376,9 @@ def create_shard(node, num, begin, end, processed):
 
 class Monitor(object):
 
-    def __init__(self, node, config, limit=20,
+    def __init__(self, node, limit=20,
                  interval=3600, on_crawl_complete=None, static_nodes=None):
         self.on_crawl_complete = on_crawl_complete
-        self.config = config
         self.static_nodes = static_nodes
         self.node = node
         self.limit = limit + 1  # + 1 because of initial node
@@ -427,7 +426,7 @@ class Monitor(object):
 
             # save results to store
             shardid = storjnode.storage.shard.get_id(shard)
-            storjnode.storage.manager.add(self.config["storage"], shard)
+            storjnode.storage.manager.add(self.node.config["storage"], shard)
             _log.info("Saved dataset {0} as shard {1}".format(
                 self.dataset_num, shardid
             ))
