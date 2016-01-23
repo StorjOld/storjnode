@@ -12,7 +12,6 @@ import signal  # NOQA
 import storjnode  # NOQA
 import btctxstore  # NOQA
 from crochet import setup  # NOQA
-from storjnode.common import TESTGROUPB_BOOTSTRAP_NODES  # NOQA
 
 
 # start twisted via crochet and remove twisted handler
@@ -28,15 +27,11 @@ def parse_args():
     parser.add_argument('--quiet', action='store_true')
     parser.add_argument('--noisy', action='store_true')
     parser.add_argument("--port", type=int, help="UDP port to listen on.")
-    parser.add_argument('--testgroupb', action='store_true',
-                        help="Node for testgroupb.")
     return vars(parser.parse_args())
 
 
 def make_config(port, testgroupb):
     config = storjnode.config.create()
-    if testgroupb:
-        config["network"]["bootstrap_nodes"] = TESTGROUPB_BOOTSTRAP_NODES
     config["network"]["port"] = port
     config["network"]["disable_data_transfer"] = True
     config["network"]["monitor"]["enable_crawler"] = False
