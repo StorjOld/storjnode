@@ -110,7 +110,7 @@ def is_valid_syn(client, msg):
 
 # Associate TCP con with contract.
 def success_wrapper(client, contract_id, host_unl):
-    def success(con):
+    def success(con, start_transfers=1):
         _log.debug("IN SUCCESS CALLBACK")
         _log.debug(str(client))
         _log.debug(str(client.bandwidth))
@@ -155,30 +155,25 @@ def success_wrapper(client, contract_id, host_unl):
             client.bandwidth.register_transfer(contract_id)
 
         # Queue first transfer.
-        their_unl = client.get_their_unl(contract)
-        is_master = client.net.unl.is_master(their_unl)
-        _log.debug("Is master = " + str(is_master))
-        if con not in client.con_transfer:
-            if is_master:
-                # A transfer to queue processing.
-                client.queue_next_transfer(con)
-            else:
-                # A transfer to receive (unknown.)
-                client.con_transfer[con] = u""
-        else:
-            if client.con_transfer[con] == u"0" * 64:
-                if is_master:
-                    client.queue_next_transfer(con)
-                else:
-                    client.con_transfer[con] = u""
+        if start_transfers:
+            _log.debug("Log: in success - start transfers enabled.")
+            client.schedule_transfers(contract, con)
 
         # Return new connection.
         if con not in client.cons:
             client.cons.append(con)
+            if client.latency_tests.enabled:
+                their_unl = client.get_their_unl(contract)
+                is_master = client.net.unl.is_master(their_unl)
+                client.latency_tests.register(con, is_master, contract)
+        else:
+            _log.debug("Log: in success - reusing con")
+            if client.latency_tests.enabled:
+                client.schedule_transfers(contract, con)
 
     def queue_success(con):
-        def call_success():
-            success(con)
+        def call_success(start_transfers):
+            success(con, start_transfers)
 
         client.con_callback_queue.put(call_success)
 

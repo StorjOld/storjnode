@@ -31,6 +31,8 @@ import pyp2p.unl
 import pyp2p.net
 import pyp2p.dht_msg
 from pyp2p.dht_msg import DHT
+from pyp2p.lib import request_priority_execution
+from pyp2p.lib import release_priority_execution
 import re
 import sys
 import storjnode
@@ -405,10 +407,46 @@ future_tran = time.time() + 5
 future_queue = time.time() + 5
 
 
+def process_con_callbacks(client):
+    # Process con success callbacks from UNL.connect.
+    while not client.con_callback_queue.empty():
+        start_transfers = 1
+        if client.latency_tests.enabled:
+            start_transfers = 0
+
+        client.con_callback_queue.get()(start_transfers)
+
+
 def process_transfers(client):
     # Indicate whether we're still in this.
     global future_tran
     global future_queue
+
+    # Process latency tests.
+    if client.latency_tests.enabled:
+        p = request_priority_execution()
+        did_latency_tests = False
+        future = time.time() + 10
+        while client.latency_tests.are_running() and time.time() < future:
+            did_latency_tests = True
+            for con in client.cons:
+                latency_test = client.latency_tests.by_con(con)
+                is_finished = 0
+                while not is_finished:
+                    process_con_callbacks(client)
+                    client.net.synchronize()
+                    if latency_test.is_active:
+                        for msg in con:
+                            _log.debug(str(msg))
+                            latency_test.process_msg(msg)
+                    else:
+                        if not latency_test.contracts.empty():
+                            _log.debug("Latency test finished")
+                            contract = latency_test.contracts.get()
+                            client.schedule_transfers(contract, con)
+                            is_finished = 1
+
+        release_priority_execution(p)
 
     # Process DHT messages.
     process_dht_messages(client)
@@ -433,6 +471,7 @@ def process_transfers(client):
         # Socket has hung ungracefully.
         duration = time.time() - con.alive
         if duration >= CON_TIMEOUT:
+            _log.debug(duration)
             _log.debug("Ungraceful socket close")
             con.close()
             continue
@@ -531,9 +570,8 @@ def process_transfers(client):
             _log.debug("Transfer completed" + str(con))
             complete_transfer(client, contract_id, con)
 
-    # Process con success callbacks from UNL.connect.
-    while not client.con_callback_queue.empty():
-        client.con_callback_queue.get()()
+    # Process connection callbacks.
+    process_con_callbacks(client)
 
     # Only reschedule the Looping call when this is done.
     d = defer.Deferred()
