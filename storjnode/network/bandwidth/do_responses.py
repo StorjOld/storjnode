@@ -145,15 +145,24 @@ def build_completion_handler(bt, req, accept_handler):
             _log.debug(bt.results)
 
             # Convert results to bytes per second.
-            speeds = bt.interpret_results()
+            results = bt.interpret_results()
             _log.debug("IN SUCCESS CALLBACK FOR BAND TESTS")
-            _log.debug(speeds)
+            _log.debug(results)
             _log.debug(bt.results)
+
+            # Find latency (if available.)
+            con = bt.transfer.net.con_by_unl(bt.test_node_unl)
+            latency = 0
+            if con is not None:
+                latency_test = bt.transfer.latency_tests.by_con(con)
+                if latency_test is not None:
+                    latency = latency_test.latency
 
             # Return results.
             active_test = bt.active_test
             bt.reset_state()
-            active_test.callback(speeds)
+            results["latency"] = latency
+            active_test.callback(results)
 
         if test == "download":
             # Check results.

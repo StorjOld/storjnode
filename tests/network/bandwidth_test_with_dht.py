@@ -30,7 +30,7 @@ _log = storjnode.log.getLogger(__name__)
 PROFILE = False
 SWARM_SIZE = 4
 KSIZE = SWARM_SIZE / 2 if SWARM_SIZE / 2 < 20 else 20
-PORT = 4000
+PORT = storjnode.util.get_unused_port()
 STORAGE_DIR = tempfile.mkdtemp()
 
 print("Storage dir: " + str(STORAGE_DIR))
@@ -52,7 +52,7 @@ def _test_config(storage_path):
 
 
 class TestBandwidthTestWithDHT(unittest.TestCase):
-    @unittest.skip("Too slow / unneeded")
+    # @unittest.skip("Too slow / unneeded")
     def test_bandwidth_test_with_dht(self):
         # isolate swarm
         import btctxstore
@@ -63,8 +63,6 @@ class TestBandwidthTestWithDHT(unittest.TestCase):
             config = _test_config(storage_path)
             node = storjnode.network.Node(
                 btctxstore.create_wallet(), port=(PORT + i), ksize=KSIZE,
-                bootstrap_nodes=bootstrap_nodes,
-                refresh_neighbours_interval=0.0,
                 config=config,
                 nat_type="preserving",
                 node_type="passive",
@@ -96,6 +94,7 @@ class TestBandwidthTestWithDHT(unittest.TestCase):
             storjnode.network.messages.peers.enable(node)
             enable_unl_requests(node)
             node.bandwidth_test.enable()
+            node.latency_tests.enable()
             swarm.append(node)
 
         # stabalize network overlay
@@ -112,8 +111,6 @@ class TestBandwidthTestWithDHT(unittest.TestCase):
 
         time.sleep(WALK_TIMEOUT)
 
-        import pdb
-        pdb.set_trace()
 
         def show_bandwidth(results):
             print(results)
@@ -122,10 +119,11 @@ class TestBandwidthTestWithDHT(unittest.TestCase):
             print("IN SUCCESS CALLBACK!?@#!@#?!@?#")
             print(swarm[0].bandwidth_test.max_increase)
             test_success = 1
-            still_running = 0
-            return
+            # still_running = 0
+            # return
             try:
                 _log.debug(results)
+                """
                 print(swarm[0].bandwidth_test.test_size)
                 print(swarm[0].bandwidth_test.active_test)
                 print(swarm[0].bandwidth_test.results)
@@ -133,6 +131,7 @@ class TestBandwidthTestWithDHT(unittest.TestCase):
                 print(swarm[0].bandwidth_test.start_time)
                 print(swarm[0].bandwidth_test.data_id)
                 print(swarm[0].bandwidth_test.handlers)
+                """
 
                 print("starting next bandwiwdth test!")
 
