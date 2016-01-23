@@ -148,9 +148,11 @@ class TestNode(unittest.TestCase):
 
     def test_refresh_neighbours_thread(self):
         interval = QUERY_TIMEOUT * 2
+        config = _test_config(STORAGE_DIR, [["240.0.0.0", 1337]])
+        config["network"]["refresh_neighbours_interval"] = interval
         alice_node = storjnode.network.Node(
             self.__class__.btctxstore.create_key(),
-            config=_test_config(STORAGE_DIR, [["240.0.0.0", 1337]]),
+            config=config,
             nat_type="preserving",
             node_type="passive",
             disable_data_transfer=True
@@ -158,9 +160,11 @@ class TestNode(unittest.TestCase):
         alice_received = threading.Event()
         alice_node.add_message_handler(lambda n, m: alice_received.set())
 
+        config = _test_config(STORAGE_DIR, [["127.0.0.1", alice_node.port]])
+        config["network"]["refresh_neighbours_interval"] = interval
         bob_node = storjnode.network.Node(
             self.__class__.btctxstore.create_key(),
-            config=_test_config(STORAGE_DIR, [["127.0.0.1", alice_node.port]]),
+            config=config,
             nat_type="preserving",
             node_type="passive",
             disable_data_transfer=True
