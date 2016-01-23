@@ -1,3 +1,7 @@
+import json
+
+
+DEFAULT = json.loads(r"""
 {
     "version": 1,
     "cold_storage": [],
@@ -30,3 +34,4 @@
         }
     }
 }
+""")
