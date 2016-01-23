@@ -26,6 +26,7 @@ def parse_args():
     parser.add_argument('--debug', action='store_true')
     parser.add_argument('--verbose', action='store_true')
     parser.add_argument('--quiet', action='store_true')
+    parser.add_argument('--noisy', action='store_true')
     parser.add_argument("--port", type=int, help="UDP port to listen on.")
     parser.add_argument('--testgroupb', action='store_true',
                         help="Node for testgroupb.")
