@@ -428,7 +428,7 @@ def process_transfers(client):
         future = time.time() + 10
         while client.latency_tests.are_running() and time.time() < future:
             did_latency_tests = True
-            for con in client.cons:
+            for con in list(client.latency_tests.tests):
                 latency_test = client.latency_tests.by_con(con)
                 is_finished = 0
                 while not is_finished:
@@ -502,7 +502,6 @@ def process_transfers(client):
         if contract_id not in client.contracts:
             import pdb; pdb.set_trace()
             _log.debug("Contract ID not found")
-            con.close()
             continue
 
         # Reached end of transfer queue.

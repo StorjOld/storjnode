@@ -28,8 +28,7 @@ signal.signal(signal.SIGINT, signal.default_int_handler)
 _log = storjnode.log.getLogger(__name__)
 
 PROFILE = False
-SWARM_SIZE = 4
-KSIZE = SWARM_SIZE / 2 if SWARM_SIZE / 2 < 20 else 20
+SWARM_SIZE = 2
 PORT = storjnode.util.get_unused_port()
 STORAGE_DIR = tempfile.mkdtemp()
 
@@ -62,7 +61,7 @@ class TestBandwidthTestWithDHT(unittest.TestCase):
             storage_path = "{0}/peer_{1}".format(STORAGE_DIR, i)
             config = _test_config(storage_path)
             node = storjnode.network.Node(
-                btctxstore.create_wallet(), port=(PORT + i), ksize=KSIZE,
+                btctxstore.create_wallet(), port=(PORT + i),
                 config=config,
                 nat_type="preserving",
                 node_type="passive",
@@ -94,7 +93,7 @@ class TestBandwidthTestWithDHT(unittest.TestCase):
             storjnode.network.messages.peers.enable(node)
             enable_unl_requests(node)
             node.bandwidth_test.enable()
-            node.latency_tests.enable()
+            # node.latency_tests.enable()
             swarm.append(node)
 
         # stabalize network overlay
