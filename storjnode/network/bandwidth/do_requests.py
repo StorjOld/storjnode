@@ -124,7 +124,6 @@ def build_completion_handler(bt, msg, accept_handler):
 
             bt.reset_state()
 
-        _log.debug("\a")
         _log.debug("Bob transfer complete!")
         _log.debug(bt.results)
 

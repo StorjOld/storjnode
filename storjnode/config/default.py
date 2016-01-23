@@ -1,3 +1,7 @@
+import json
+
+
+DEFAULT = json.loads(r"""
 {
     "version": 1,
     "cold_storage": [],
@@ -5,6 +9,7 @@
         "port": "random",
         "bootstrap_nodes": [],
         "disable_data_transfer": false,
+        "refresh_neighbours_interval": 120,
         "bandwidth_limits": {
             "sec": {
                 "upstream": 0,
@@ -29,3 +34,4 @@
         }
     }
 }
+""")

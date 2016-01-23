@@ -12,7 +12,6 @@ import signal  # NOQA
 import storjnode  # NOQA
 import btctxstore  # NOQA
 from crochet import setup  # NOQA
-from storjnode.common import TESTGROUPB_BOOTSTRAP_NODES  # NOQA
 
 
 # start twisted via crochet and remove twisted handler
@@ -26,17 +25,15 @@ def parse_args():
     parser.add_argument('--debug', action='store_true')
     parser.add_argument('--verbose', action='store_true')
     parser.add_argument('--quiet', action='store_true')
+    parser.add_argument('--noisy', action='store_true')
     parser.add_argument("--port", type=int, help="UDP port to listen on.")
-    parser.add_argument('--testgroupb', action='store_true',
-                        help="Node for testgroupb.")
     return vars(parser.parse_args())
 
 
-def make_config(port, testgroupb):
+def make_config(port):
     config = storjnode.config.create()
-    if testgroupb:
-        config["network"]["bootstrap_nodes"] = TESTGROUPB_BOOTSTRAP_NODES
     config["network"]["port"] = port
+    config["network"]["refresh_neighbours_interval"] = 0
     config["network"]["disable_data_transfer"] = True
     config["network"]["monitor"]["enable_crawler"] = False
     config["network"]["monitor"]["enable_responses"] = False
@@ -46,7 +43,7 @@ def make_config(port, testgroupb):
 
 def main():
     args = parse_args()
-    config = make_config(args["port"], args["testgroupb"])
+    config = make_config(args["port"])
     wallet = btctxstore.BtcTxStore().create_wallet()
     node = None
     try:
@@ -56,7 +53,7 @@ def main():
         pass
     finally:
         if node is not None:
-            node.on_shutdown()
+            node.stop()
 
 
 if __name__ == "__main__":

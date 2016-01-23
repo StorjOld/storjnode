@@ -4,6 +4,8 @@ import json
 import storjnode
 import jsonschema
 from jsonschema.exceptions import ValidationError
+from storjnode.config.default import DEFAULT
+from storjnode.config.schema import SCHEMA
 
 
 VERSION = 1
@@ -17,21 +19,6 @@ def _migrate_0_to_1(cfg):
 _MIGRATIONS = {
     0: _migrate_0_to_1,
 }
-
-
-_dirname = os.path.dirname(storjnode.util.full_path(__file__))
-
-
-# load schema
-_schema_path = os.path.join(_dirname, "validation.schema")
-with open(_schema_path) as fp:
-    SCHEMA = json.load(fp)
-
-
-# load default
-_default_path = os.path.join(_dirname, "default.json")
-with open(_default_path) as fp:
-    DEFAULT_CONFIG = json.load(fp)
 
 
 def read(path):
@@ -80,7 +67,7 @@ def create():
     Returns:
         The config as json serializable data.
     """
-    return copy.deepcopy(DEFAULT_CONFIG)
+    return copy.deepcopy(DEFAULT)
 
 
 def validate(cfg):

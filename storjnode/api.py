@@ -32,7 +32,8 @@ def _reformat_kademlia_node(knode):
 class StorjNode(apigen.Definition):
     """Storj protocol reference implementation."""
 
-    def __init__(self, wallet=None, quiet=False, debug=False, verbose=False,
+    def __init__(self, wallet=None,
+                 quiet=False, debug=False, verbose=False, noisy=False,
                  config=storjnode.common.CONFIG_PATH):
         self._init_conifg(config)
         self._init_wallet(wallet)
@@ -61,13 +62,12 @@ class StorjNode(apigen.Definition):
     def _init_node(self):
         port = self._cfg["network"]["port"]
         notransfer = self._cfg["network"]["disable_data_transfer"]
-        bootstrap_nodes = self._cfg["network"]["bootstrap_nodes"]
         self._node = None
         try:
             self._node = storjnode.network.Node(
                 self.wallet, disable_data_transfer=notransfer,
                 port=port if port != "random" else None,
-                config=self._cfg, bootstrap_nodes=bootstrap_nodes,
+                config=self._cfg,
             )
         except Exception as e:
             _log.error(repr(e))
@@ -94,6 +94,9 @@ class StorjNode(apigen.Definition):
             self._messages.append(message)
 
     def on_shutdown(self):
+        self.stop()
+
+    def stop(self):
         if self._node is not None:
             self._node.stop()
 

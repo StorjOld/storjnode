@@ -91,7 +91,6 @@ class TestSubBandwidthResponses(unittest.TestCase):
         )
 
         def alice_hook_relay_message(node_id, req):
-            _log.debug(str(req))
             cls.req = req
             cls.req = literal_eval(zlib.decompress(req))
 

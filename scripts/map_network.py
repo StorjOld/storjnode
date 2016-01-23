@@ -36,6 +36,7 @@ def _parse_args(args):
     parser.add_argument('--debug', action='store_true')
     parser.add_argument('--quiet', action='store_true')
     parser.add_argument('--verbose', action='store_true')
+    parser.add_argument('--noisy', action='store_true')
     parser.add_argument('--render', action='store_true',
                         help="Render graph (requires pygraphviz).")
     parser.add_argument("--path", default=None,

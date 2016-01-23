@@ -43,6 +43,7 @@ class TestFileTransfer(unittest.TestCase):
         self.config = storjnode.config.create()
         storage_path = os.path.join(self.test_storage_dir, "storage")
         fs_format = storjnode.util.get_fs_type(storage_path)
+        self.config["network"]["bootstrap_nodes"] = [["240.0.0.0", 1234]]
         self.config["storage"] = {
             storage_path: {
                 "limit": 0, "use_folder_tree": fs_format == "vfat",
@@ -52,8 +53,7 @@ class TestFileTransfer(unittest.TestCase):
 
         # dht_node = pyp2p.dht_msg.DHT(node_id=node_id)
         self.dht_node = storjnode.network.Node(
-            self.wif, bootstrap_nodes=[["240.0.0.0", 1234]],
-            disable_data_transfer=True, config=self.config
+            self.wif, disable_data_transfer=True, config=self.config
         )
 
         # Transfer client.

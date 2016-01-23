@@ -34,9 +34,8 @@ class Node(object):
 
     def __init__(self,
                  # kademlia DHT args
-                 key, ksize=20, port=None, bootstrap_nodes=None,
+                 key, ksize=20, port=None,
                  dht_storage=None, max_messages=1024,
-                 refresh_neighbours_interval=WALK_TIMEOUT,
 
                  # data transfer args
                  disable_data_transfer=True,
@@ -53,10 +52,8 @@ class Node(object):
             key (str): Bitcoin wif/hwif for auth, encryption and node id.
             ksize (int): The k parameter from the kademlia paper.
             port (port): Port to for incoming packages, randomly by default.
-            bootstrap_nodes [(ip, port), ...]: Known network node addresses as.
             dht_storage: implements :interface:`~kademlia.storage.IStorage`
             max_messages (int): Max unprecessed messages, additional dropped.
-            refresh_neighbours_interval (float): Auto refresh neighbours.
 
             disable_data_transfer: Disable data transfer for this node.
             config: Dict of storage paths to optional attributes.
@@ -73,6 +70,7 @@ class Node(object):
         # config must be givin
         if config is None:
             raise Exception("Config required")
+        self.config = config
 
         self.bandwidth = None
         self.disable_data_transfer = bool(disable_data_transfer)
@@ -96,16 +94,8 @@ class Node(object):
         passive_bind = passive_bind or "0.0.0.0"
         assert(util.valid_ip(passive_bind))
 
-        # validate bootstrap_nodes
-        if not bootstrap_nodes:
-            bootstrap_nodes = DEFAULT_BOOTSTRAP_NODES  # pragma: no cover
-
-        # make sure transport address is a tuple
-        bootstrap_nodes = [(addr[0], addr[1]) for addr in bootstrap_nodes]
-
         # start services
-        self._setup_server(key, ksize, dht_storage, max_messages,
-                           refresh_neighbours_interval, bootstrap_nodes)
+        self._setup_server(key, ksize, dht_storage, max_messages)
 
         # Process incoming messages.
         self._setup_message_dispatcher()
@@ -114,9 +104,9 @@ class Node(object):
         self.repeat_relay = RepeatRelay(self)
 
         if not self.disable_data_transfer:
-            self.bandwidth = bandwidth or BandwidthLimit(config)
+            self.bandwidth = bandwidth or BandwidthLimit(self.config)
             self._setup_data_transfer_client(
-                config, passive_port, passive_bind, node_type, nat_type
+                passive_port, passive_bind, node_type, nat_type
             )
             self.latency_tests = self._data_transfer.latency_tests
             self.bandwidth_test = BandwidthTest(
@@ -135,21 +125,27 @@ class Node(object):
         )
         self._message_dispatcher_thread.start()
 
-    def _setup_server(self, key, ksize, storage, max_messages,
-                      refresh_neighbours_interval, bootstrap_nodes):
+    def _setup_server(self, key, ksize, storage, max_messages):
+        interval = self.config["network"]["refresh_neighbours_interval"]
+
+        bootstrap_nodes = self.config["network"]["bootstrap_nodes"]
+        if not bootstrap_nodes:
+            bootstrap_nodes = DEFAULT_BOOTSTRAP_NODES  # pragma: no cover
+
+        # make sure transport address is a tuple
+        bootstrap_nodes = [(addr[0], addr[1]) for addr in bootstrap_nodes]
+
         self.server = Server(
             key, self.port, ksize=ksize, storage=storage,
             max_messages=max_messages,
-            refresh_neighbours_interval=refresh_neighbours_interval
+            refresh_neighbours_interval=interval
         )
         port_handler = self.server.listen(self.port)
         self.server.set_port_handler(port_handler)
         self.server.bootstrap(bootstrap_nodes)
 
-    def _setup_data_transfer_client(self, config, passive_port,
+    def _setup_data_transfer_client(self, passive_port,
                                     passive_bind, node_type, nat_type):
-
-        result = self.sync_get_transport_info(add_unl=False)
 
         # Setup handlers for callbacks registered via the API.
         handlers = {
@@ -170,17 +166,16 @@ class Node(object):
                 debug=1,
                 passive_port=passive_port,
                 passive_bind=passive_bind,
-                wan_ip=result["wan"][0] if result else None
             ),
             self.bandwidth,
             wif=wif,
-            store_config=config["storage"],
+            store_config=self.config["storage"],
             handlers=handlers,
             api=self
         )
 
         # Setup success callback values.
-        self._data_transfer.success_value = result
+        self._data_transfer.success_value = True
         self.process_data_transfers()
 
     def stop(self):
@@ -430,7 +425,6 @@ class Node(object):
 
         # Make data request when we have their UNL.
         def on_success(peer_unl):
-            print(peer_unl)
             return self.bandwidth_test.start(peer_unl)
 
         def on_error(err):

@@ -11,8 +11,8 @@ else
   WHEEL_INSTALL_ARGS := --use-wheel --no-index --find-links=$(WHEEL_DIR)
 endif
 export PYCOIN_NATIVE=openssl
-export STORJNODE_QUERY_TIMEOUT=0.3
-#export STORJNODE_ENABLE_GLOBAL_LOGGER=1
+#export STORJNODE_QUERY_TIMEOUT=0.3
+export STORJNODE_LOGGING_NOISY=1
 
 
 help:
@@ -69,8 +69,8 @@ install: setup
 
 test_script: install
 	#$(PY) examples/network/map_network.py --debug
-	$(PY) -m unittest --verbose tests.network.node.TestNode
-	#env/bin/storjnode --wallet=L3NrSTxMCwAsLXnBjESvU5LnCKwcmMXKutKzNnVpPevXeSMfB1zx farm
+	#$(PY) -m unittest --verbose 
+	env/bin/storjnode --wallet=L3NrSTxMCwAsLXnBjESvU5LnCKwcmMXKutKzNnVpPevXeSMfB1zx farm
 	#env/bin/storjnode_bootstrap_only --wallet=L3NrSTxMCwAsLXnBjESvU5LnCKwcmMXKutKzNnVpPevXeSMfB1zx --port=1337
 
 
@@ -79,11 +79,11 @@ shell: install
 
 
 test: setup
-	#$(PEP8) storjnode
-	#$(PEP8) examples
-	#$(PEP8) tests
-	$(COVERAGE) run --source="storjnode" -m unittest --quiet tests
-	#$(COVERAGE) report --fail-under=85
+	$(PEP8) storjnode
+	$(PEP8) examples
+	$(PEP8) tests
+	$(COVERAGE) run --source="storjnode" -m unittest --verbose tests
+	$(COVERAGE) report --fail-under=85
 
 
 publish: test

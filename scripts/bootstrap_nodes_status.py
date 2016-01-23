@@ -30,6 +30,7 @@ def parse_args():
     parser.add_argument('--debug', action='store_true')
     parser.add_argument('--verbose', action='store_true')
     parser.add_argument('--quiet', action='store_true')
+    parser.add_argument('--noisy', action='store_true')
     return vars(parser.parse_args())
 
 
