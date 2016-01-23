@@ -109,6 +109,7 @@ def render(network_map, path=None):
 def make_config():
     config = storjnode.config.create()
     config["network"]["disable_data_transfer"] = True
+    config["network"]["refresh_neighbours_interval"] = 0
     config["network"]["monitor"]["enable_crawler"] = False
     config["network"]["monitor"]["enable_responses"] = False
     storjnode.config.validate(config)
@@ -123,8 +124,7 @@ if __name__ == "__main__":
         # setup node
         key = btctxstore.BtcTxStore().create_key()
         config = make_config()
-        node = storjnode.network.Node(key, config=config,
-                                      refresh_neighbours_interval=0)
+        node = storjnode.network.Node(key, config=config)
 
         # shitty wait for network stabilization
         log.info("Shitty wait for network stabilization.")

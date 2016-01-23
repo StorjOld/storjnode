@@ -500,7 +500,6 @@ def process_transfers(client):
 
         # Check contract id.
         if contract_id not in client.contracts:
-            import pdb; pdb.set_trace()
             _log.debug("Contract ID not found")
             continue
 
