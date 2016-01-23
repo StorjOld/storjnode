@@ -1,4 +1,5 @@
 import os
+import re
 import six
 import btctxstore
 import decimal
@@ -105,7 +106,9 @@ def node_id_to_address(node_id):
 
 def full_path(path):
     """Resolves, sym links, rel paths, variables, and tilds to abs paths."""
-    return os.path.realpath(os.path.expandvars(os.path.expanduser(path)))
+    prefix = "/" if path.startswith("/") else ""
+    normalized = prefix + os.path.join(*re.findall(r"[^\\|^/]+", path))
+    return os.path.abspath(os.path.expandvars(os.path.expanduser(normalized)))
 
 
 def default_defered(defered, default):

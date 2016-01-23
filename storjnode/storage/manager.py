@@ -47,13 +47,11 @@ def setup(store_config):
         attributes = attributes or {}  # None allowed
 
         # check path
-        path = os.path.realpath(path)
+        path = storjnode.util.full_path(path)
         storjnode.util.ensure_path_exists(path)
 
         # check limit
         limit = storjnode.util.byte_count(attributes.get("limit", 0))
-        assert(isinstance(limit, int) or isinstance(limit, long))
-        assert(limit >= 0)
         free = storjnode.util.get_free_space(path)
         used = storjnode.util.get_folder_size(path)
         available = (free + used)
