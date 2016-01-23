@@ -424,7 +424,6 @@ def process_transfers(client):
 
     # Process latency tests.
     if client.latency_tests.enabled:
-        p = request_priority_execution()
         did_latency_tests = False
         future = time.time() + 10
         while client.latency_tests.are_running() and time.time() < future:
@@ -445,8 +444,6 @@ def process_transfers(client):
                             contract = latency_test.contracts.get()
                             client.schedule_transfers(contract, con)
                             is_finished = 1
-
-        release_priority_execution(p)
 
     # Process DHT messages.
     process_dht_messages(client)
@@ -503,6 +500,7 @@ def process_transfers(client):
 
         # Check contract id.
         if contract_id not in client.contracts:
+            import pdb; pdb.set_trace()
             _log.debug("Contract ID not found")
             con.close()
             continue

@@ -52,7 +52,7 @@ def _test_config(storage_path):
 
 
 class TestBandwidthTestWithDHT(unittest.TestCase):
-    @unittest.skip("Too slow / unneeded")
+    # @unittest.skip("Too slow / unneeded")
     def test_bandwidth_test_with_dht(self):
         # isolate swarm
         import btctxstore
@@ -63,8 +63,6 @@ class TestBandwidthTestWithDHT(unittest.TestCase):
             config = _test_config(storage_path)
             node = storjnode.network.Node(
                 btctxstore.create_wallet(), port=(PORT + i), ksize=KSIZE,
-                bootstrap_nodes=bootstrap_nodes,
-                refresh_neighbours_interval=0.0,
                 config=config,
                 nat_type="preserving",
                 node_type="passive",
@@ -112,6 +110,7 @@ class TestBandwidthTestWithDHT(unittest.TestCase):
             node.refresh_neighbours()
 
         time.sleep(WALK_TIMEOUT)
+
 
         def show_bandwidth(results):
             print(results)

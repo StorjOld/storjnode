@@ -161,11 +161,13 @@ def success_wrapper(client, contract_id, host_unl):
 
         # Return new connection.
         if con not in client.cons:
-            client.cons.append(con)
+            # Schedule latency test.
             if client.latency_tests.enabled:
                 their_unl = client.get_their_unl(contract)
                 is_master = client.net.unl.is_master(their_unl)
                 client.latency_tests.register(con, is_master, contract)
+
+            client.cons.append(con)
         else:
             _log.debug("Log: in success - reusing con")
             if client.latency_tests.enabled:
@@ -182,6 +184,7 @@ def success_wrapper(client, contract_id, host_unl):
 
 def process_syn(client, msg, enable_accept_handlers=ENABLE_ACCEPT_HANDLERS):
     # Check syn is valid.
+    _log.debug("In process syn")
     if is_valid_syn(client, msg) != 1:
         _log.debug("SYN: invalid syn.")
         return -1
@@ -292,6 +295,7 @@ def process_syn(client, msg, enable_accept_handlers=ENABLE_ACCEPT_HANDLERS):
 
 def process_syn_ack(client, msg):
     # Valid syn-ack?
+    _log.debug("In process syn_ack")
     if u"syn" not in msg:
         _log.debug("SYN-ACK: syn not in msg.")
         return -1
@@ -409,6 +413,7 @@ def process_ack(client, msg):
     """
 
     # Valid ack.
+    _log.debug("In process ack")
     if u"syn_ack" not in msg:
         _log.debug("ACK: syn_ack not in msg.")
         return -1
