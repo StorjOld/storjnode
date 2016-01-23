@@ -254,39 +254,30 @@ class TestNode(unittest.TestCase):
         time.sleep(QUERY_TIMEOUT)  # wait until relayed
 
     def test_relay_message_full_duplex(self):
-        alice_node = storjnode.network.Node(
-            self.__class__.btctxstore.create_key(),
-            config=_test_config(STORAGE_DIR, [["240.0.0.0", 1337]]),
-            nat_type="preserving",
-            node_type="passive",
-            disable_data_transfer=True
-        )
+        alice_node = self.swarm[0]
+        bob_node = self.swarm[SWARM_SIZE - 1]
         alice_received = threading.Event()
-        alice_node.add_message_handler(lambda n, m: alice_received.set())
-
-        bob_node = storjnode.network.Node(
-            self.__class__.btctxstore.create_key(),
-            config=_test_config(STORAGE_DIR, [["127.0.0.1", alice_node.port]]),
-            nat_type="preserving",
-            node_type="passive",
-            disable_data_transfer=True
-        )
         bob_received = threading.Event()
-        bob_node.add_message_handler(lambda n, m: bob_received.set())
 
-        time.sleep(QUERY_TIMEOUT)
-        # wait until network overlay stable, 2 peers
+        def alice_handler(node, message):
+            alice_received.set()
+
+        def bob_handler(node, message):
+            bob_received.set()
+
+        alice_node.add_message_handler(alice_handler)
+        bob_node.add_message_handler(bob_handler)
+        alice_node.relay_message(bob_node.get_id(), "hi bob")
+        bob_node.relay_message(alice_node.get_id(), "hi alice")
+        bob_received.wait(timeout=QUERY_TIMEOUT)
+        alice_received.wait(timeout=QUERY_TIMEOUT)
 
         try:
-            alice_node.relay_message(bob_node.get_id(), "hi bob")
-            bob_node.relay_message(alice_node.get_id(), "hi alice")
-            bob_received.wait(timeout=QUERY_TIMEOUT)
-            alice_received.wait(timeout=QUERY_TIMEOUT)
             self.assertTrue(bob_received.isSet())
             self.assertTrue(alice_received.isSet())
         finally:
-            alice_node.stop()
-            bob_node.stop()
+            alice_node.remove_message_handler(alice_handler)
+            bob_node.remove_message_handler(bob_handler)
 
     @unittest.skip("not implemented")
     def test_receive_invavid_hop_limit(self):
