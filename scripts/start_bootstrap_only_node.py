@@ -30,7 +30,7 @@ def parse_args():
     return vars(parser.parse_args())
 
 
-def make_config(port, testgroupb):
+def make_config(port):
     config = storjnode.config.create()
     config["network"]["port"] = port
     config["network"]["disable_data_transfer"] = True
@@ -42,7 +42,7 @@ def make_config(port, testgroupb):
 
 def main():
     args = parse_args()
-    config = make_config(args["port"], args["testgroupb"])
+    config = make_config(args["port"])
     wallet = btctxstore.BtcTxStore().create_wallet()
     node = None
     try:
