@@ -1,20 +1,11 @@
-import os
-import json
-import cProfile
-from pstats import Stats
 import signal
-import threading
 import tempfile
 import time
-import shutil
-import binascii
-import random
 import unittest
-import btctxstore
 import storjnode
+import btctxstore
 from pyp2p.lib import parse_exception
-from kademlia.node import Node as KademliaNode
-from storjnode.network.server import QUERY_TIMEOUT, WALK_TIMEOUT
+from storjnode.network.server import WALK_TIMEOUT
 from storjnode.network.file_transfer import enable_unl_requests
 from collections import OrderedDict
 from crochet import setup
@@ -28,22 +19,21 @@ signal.signal(signal.SIGINT, signal.default_int_handler)
 _log = storjnode.log.getLogger(__name__)
 
 PROFILE = False
-SWARM_SIZE = 4
-KSIZE = SWARM_SIZE / 2 if SWARM_SIZE / 2 < 20 else 20
 PORT = storjnode.util.get_unused_port()
 STORAGE_DIR = tempfile.mkdtemp()
 
 print("Storage dir: " + str(STORAGE_DIR))
 
-LAN_IP = storjnode.util.get_inet_facing_ip()
 swarm = []
 
 # Show bandwidth.
 still_running = 1
 
 
-def _test_config(storage_path):
+def _test_config(storage_path, bootstrap_nodes):
     config = storjnode.config.create()
+    config["network"]["refresh_neighbours_interval"] = 0
+    config["network"]["bootstrap_nodes"] = bootstrap_nodes
     config["storage"] = {
         storage_path: {"limit": "5G", "use_folder_tree": False}
     }
@@ -52,25 +42,24 @@ def _test_config(storage_path):
 
 
 class TestBandwidthTestWithDHT(unittest.TestCase):
-    # @unittest.skip("Too slow / unneeded")
+    @unittest.skip("Already tested in node.py")
     def test_bandwidth_test_with_dht(self):
-        # isolate swarm
-        import btctxstore
-        btctxstore = btctxstore.BtcTxStore(testnet=False)
-        for i in range(0, 2):
-            bootstrap_nodes = [(LAN_IP, PORT + x) for x in range(i)][-20:]
+        bootstrap_nodes = [["127.0.0.1", PORT + x] for x in range(1)]
+        for i in range(2):
+            wallet = btctxstore.BtcTxStore().create_wallet()
             storage_path = "{0}/peer_{1}".format(STORAGE_DIR, i)
-            config = _test_config(storage_path)
+            config = _test_config(storage_path, bootstrap_nodes)
             node = storjnode.network.Node(
-                btctxstore.create_wallet(), port=(PORT + i), ksize=KSIZE,
+                wallet,
+                port=(PORT + i),
                 config=config,
                 nat_type="preserving",
                 node_type="passive",
                 disable_data_transfer=False,
                 max_messages=1024
             )
-            print(node._data_transfer.net.passive_port)
-            print(node._data_transfer.net.unl.value)
+            _log.info(node._data_transfer.net.passive_port)
+            _log.info(node._data_transfer.net.unl.value)
             ONE_MB = node.bandwidth_test.ONE_MB = 1024 * 1024
             node.bandwidth_test.__init__(
                 node.get_key(),
@@ -86,7 +75,6 @@ class TestBandwidthTestWithDHT(unittest.TestCase):
                 [4 * ONE_MB, 6 * ONE_MB],
                 [6 * ONE_MB, 6 * ONE_MB]
             ])
-            print()
 
             assert(node._data_transfer is not None)
             # node.repeat_relay.thread_running = False
@@ -98,7 +86,7 @@ class TestBandwidthTestWithDHT(unittest.TestCase):
             swarm.append(node)
 
         # stabalize network overlay
-        print("TEST: stabalize network overlay")
+        _log.info("TEST: stabalize network overlay")
         time.sleep(WALK_TIMEOUT)
 
         for node in swarm:
@@ -110,7 +98,6 @@ class TestBandwidthTestWithDHT(unittest.TestCase):
             node.refresh_neighbours()
 
         time.sleep(WALK_TIMEOUT)
-
 
         def show_bandwidth(results):
             print(results)

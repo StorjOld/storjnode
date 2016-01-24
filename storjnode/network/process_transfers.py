@@ -427,8 +427,7 @@ def process_transfers(client):
         did_latency_tests = False
         future = time.time() + 10
         while client.latency_tests.are_running() and time.time() < future:
-            did_latency_tests = True
-            for con in client.cons:
+            for con in list(client.latency_tests.tests):
                 latency_test = client.latency_tests.by_con(con)
                 is_finished = 0
                 while not is_finished:
@@ -439,11 +438,13 @@ def process_transfers(client):
                             _log.debug(str(msg))
                             latency_test.process_msg(msg)
                     else:
-                        if not latency_test.contracts.empty():
+                        # Todo: test while.
+                        while not latency_test.contracts.empty():
                             _log.debug("Latency test finished")
                             contract = latency_test.contracts.get()
                             client.schedule_transfers(contract, con)
-                            is_finished = 1
+
+                        is_finished = 1
 
     # Process DHT messages.
     process_dht_messages(client)
@@ -465,6 +466,11 @@ def process_transfers(client):
 
     # Process connections.
     for con in client.cons:
+        # Con not ready.
+        if con.nonce is None:
+            # This should never happen but sanity check anyway.
+            continue
+
         # Socket has hung ungracefully.
         duration = time.time() - con.alive
         if duration >= CON_TIMEOUT:
@@ -500,9 +506,8 @@ def process_transfers(client):
 
         # Check contract id.
         if contract_id not in client.contracts:
-            import pdb; pdb.set_trace()
+            _log.debug(contract_id)
             _log.debug("Contract ID not found")
-            con.close()
             continue
 
         # Reached end of transfer queue.
@@ -567,6 +572,8 @@ def process_transfers(client):
         if transfer_complete == 1:
             _log.debug("Transfer completed" + str(con))
             complete_transfer(client, contract_id, con)
+        else:
+            _log.debug(str(transfer_complete))
 
     # Process connection callbacks.
     process_con_callbacks(client)

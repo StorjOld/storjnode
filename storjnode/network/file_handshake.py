@@ -165,12 +165,13 @@ def success_wrapper(client, contract_id, host_unl):
             if client.latency_tests.enabled:
                 their_unl = client.get_their_unl(contract)
                 is_master = client.net.unl.is_master(their_unl)
+                assert(contract is not None)
                 client.latency_tests.register(con, is_master, contract)
 
             client.cons.append(con)
         else:
             _log.debug("Log: in success - reusing con")
-            if client.latency_tests.enabled:
+            if client.latency_tests.enabled and not start_transfers:
                 client.schedule_transfers(contract, con)
 
     def queue_success(con):

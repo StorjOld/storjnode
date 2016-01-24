@@ -69,8 +69,8 @@ install: setup
 
 test_script: install
 	#$(PY) examples/network/map_network.py --debug
-	#$(PY) -m unittest --verbose 
-	env/bin/storjnode --wallet=L3NrSTxMCwAsLXnBjESvU5LnCKwcmMXKutKzNnVpPevXeSMfB1zx farm
+	$(PY) -m unittest --verbose tests.network.bandwidth_test_with_dht
+	#env/bin/storjnode --wallet=L3NrSTxMCwAsLXnBjESvU5LnCKwcmMXKutKzNnVpPevXeSMfB1zx farm
 	#env/bin/storjnode_bootstrap_only --wallet=L3NrSTxMCwAsLXnBjESvU5LnCKwcmMXKutKzNnVpPevXeSMfB1zx --port=1337
 
 
