@@ -12,6 +12,7 @@ from storjnode.network.messages.peers import read as read_peers
 from storjnode.network.messages.peers import request as request_peers
 from storjnode.network.messages.info import read as read_info
 from storjnode.network.messages.info import request as request_info
+from crochet import TimeoutError
 
 
 _log = storjnode.log.getLogger(__name__)
@@ -337,8 +338,13 @@ def find_next_free_dataset_num(node):
     # wrapper to find used slots
     class CompareObject(object):
         def __gt__(bisect_self, index):
-            # FIXME handle timeout error
-            return node[predictable_key(node, index)] is not None
+            key = predictable_key(node, index)
+            while True:
+                try:
+                    return node[key] is not None
+                except TimeoutError:
+                    txt = "TimeoutError when getting key: {0}"
+                    _log.warning(txt.format(key))
 
     # A list where the value is the index + lower_bound: [3, 4, 5, 6 ...]
     class ListObject(object):
@@ -434,7 +440,13 @@ class Monitor(object):
 
             # add store predictable id to dht
             key = predictable_key(self.node, self.dataset_num)
-            self.node[key] = shardid  # FIXME handle timeout
+            while True:
+                try:
+                    self.node[key] = shardid
+                    break
+                except TimeoutError:
+                    txt = "TimeoutError when saving key: {0}"
+                    _log.warning(txt.format(key))
             _log.info("Added DHT entry {0} => {1}".format(key, shardid))
 
             # call handler if given
