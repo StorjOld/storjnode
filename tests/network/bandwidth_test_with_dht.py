@@ -42,7 +42,7 @@ def _test_config(storage_path, bootstrap_nodes):
 
 
 class TestBandwidthTestWithDHT(unittest.TestCase):
-
+    @unittest.skip("Already tested in node.py")
     def test_bandwidth_test_with_dht(self):
         bootstrap_nodes = [["127.0.0.1", PORT + x] for x in range(1)]
         for i in range(2):
