@@ -27,10 +27,17 @@ class TestStorage(unittest.TestCase):
         self.assertEqual(store.get("baz"), "baz")
 
     def test_max_entry_size(self):
+
+        under_limit = 508 * "x"  # - 3 byte msgpack overhead
+        at_limit = 509 * "x"  # - 3 byte msgpack overhead
+        over_limit = 510 * "x"  # - 3 byte msgpack overhead
         store = Storage(max_entry_size=512)
-        store["under_limit"] = 511 * "x"
-        store["at_limit"] = 512 * "x"
-        store["over_limit"] = 513 * "x"
+        store["under_limit"] = under_limit
+        store["at_limit"] = at_limit
+        store["over_limit"] = over_limit
+        self.assertEqual(store.get("under_limit"), under_limit)
+        self.assertEqual(store.get("at_limit"), at_limit)
+        self.assertEqual(store.get("over_limit"), None)
 
 
 if __name__ == "__main__":
