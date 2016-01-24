@@ -38,7 +38,7 @@ class Node(object):
                  dht_storage=None, max_messages=1024,
 
                  # data transfer args
-                 disable_data_transfer=True,  # FIXME remove and get from config
+                 disable_data_transfer=True,  # FIXME get from config instead
                  config=None,
                  passive_port=None,
                  passive_bind=None,  # FIXME use utils.get_inet_facing_ip ?
