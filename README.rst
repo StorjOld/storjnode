@@ -45,6 +45,7 @@ Install client
 
 ::
 
+    $ sudo apt-get install python-dev gcc
     $ sudo pip install storjnode
     $ storjnode --help
 
