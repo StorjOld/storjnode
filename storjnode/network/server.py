@@ -8,7 +8,6 @@ import storjnode
 from storjnode.util import safe_log_var
 from storjnode.common import THREAD_SLEEP
 from kademlia.network import Server as KademliaServer
-from kademlia.storage import ForgetfulStorage
 from kademlia.node import Node as KademliaNode
 from kademlia.routing import TableTraverser
 from storjnode.network.protocol import Protocol
@@ -16,6 +15,7 @@ from twisted.internet import defer
 from twisted.internet.task import LoopingCall
 from crochet import run_in_reactor
 from storjnode.network.messages.base import MAX_MESSAGE_DATA
+from storjnode.storage.dht import Storage
 
 
 if os.environ.get("STORJNODE_QUERY_TIMEOUT"):
@@ -124,7 +124,7 @@ class Server(KademliaServer):
         if not storjnode.log.NOISY:
             self.log.setLevel(storjnode.log.LEVEL_QUIET)
 
-        self.storage = storage or ForgetfulStorage()
+        self.storage = storage or Storage()
         self.node = KademliaNode(self.get_id())
         self.protocol = Protocol(
             self.node, self.storage, ksize, max_messages=max_messages,
