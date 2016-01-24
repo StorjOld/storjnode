@@ -9,7 +9,7 @@ DEFAULT = json.loads(r"""
         "port": "random",
         "bootstrap_nodes": [],
         "disable_data_transfer": false,
-        "refresh_neighbours_interval": 120,
+        "refresh_neighbours_interval": 0,
         "bandwidth_limits": {
             "sec": {
                 "upstream": 0,
