@@ -78,6 +78,7 @@ class Node(object):
         self._transfer_complete_handlers = set()
         self._transfer_start_handlers = set()
         self._data_transfer = None
+        self.latency_tests = None
 
         # validate port (randomish user port by default)
         port = util.get_unused_port(port)
@@ -107,6 +108,7 @@ class Node(object):
             self._setup_data_transfer_client(
                 passive_port, passive_bind, node_type, nat_type
             )
+            self.latency_tests = self._data_transfer.latency_tests
             self.bandwidth_test = BandwidthTest(
                 self.get_key(), self._data_transfer, self, 1
             )
@@ -620,7 +622,13 @@ class Node(object):
             # (Message-handler thread-safe
             # Process any file transfers.
             if self._data_transfer is not None:
-                process_transfers(self._data_transfer)
+                # Give latency test hooks chance to be enabled.
+                duration = time.time() - self._data_transfer.start_time
+
+                # If context switching or threading is especially unfavourable
+                # The algorithm won't be !@##ed.
+                if duration >= 5:
+                    process_transfers(self._data_transfer)
 
             time.sleep(THREAD_SLEEP)
 

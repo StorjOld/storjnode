@@ -8,6 +8,7 @@ from storjnode.network.file_transfer import FileTransfer
 from storjnode.util import address_to_node_id
 from btctxstore import BtcTxStore
 import unittest
+from threading import Thread
 from storjnode.network.bandwidth.test import BandwidthTest
 from storjnode.network.bandwidth.limit import BandwidthLimit
 from crochet import setup
@@ -41,6 +42,7 @@ class TestBandwidthTest(unittest.TestCase):
             wif=alice_wif,
             store_config={tempfile.mkdtemp(): None}
         )
+        alice_transfer.latency_tests.enable()
 
         _log.debug("Alice UNL")
         _log.debug(alice_transfer.net.unl.value)
@@ -67,6 +69,7 @@ class TestBandwidthTest(unittest.TestCase):
             wif=bob_wif,
             store_config={tempfile.mkdtemp(): None}
         )
+        bob_transfer.latency_tests.enable()
 
         # Link DHT nodes.
         alice_dht.add_relay_link(bob_dht)
@@ -103,11 +106,19 @@ class TestBandwidthTest(unittest.TestCase):
 
         # Main event loop.
         # and not test_success
-        end_time = time.time() + 60
-        while alice_test.active_test is not None and time.time() < end_time:
-            for client in [alice_transfer, bob_transfer]:
+        def main_loop(client):
+            end_time = time.time() + 60
+            while alice_test.active_test is not None\
+                    and time.time() < end_time:
                 process_transfers(client)
 
+                time.sleep(0.002)
+
+        Thread(target=main_loop, args=(alice_transfer,)).start()
+        Thread(target=main_loop, args=(bob_transfer,)).start()
+
+        end_time = time.time() + 60
+        while alice_test.active_test is not None and time.time() < end_time:
             time.sleep(0.002)
 
         # End net.

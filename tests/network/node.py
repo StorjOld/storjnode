@@ -86,6 +86,7 @@ class TestNode(unittest.TestCase):
                 1
             )
             node.bandwidth_test.enable()
+            node.latency_tests.enable()
             node.bandwidth_test.test_timeout = 20000
             node.bandwidth_test.increasing_tests = 0
             cls.swarm.append(node)

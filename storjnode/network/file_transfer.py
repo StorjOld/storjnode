@@ -16,6 +16,7 @@ from storjnode.util import list_to_ordered_dict
 from storjnode.network.message import verify_signature
 from storjnode.network.message import sign
 from storjnode.network.file_handshake import is_valid_syn
+from storjnode.network.latency import LatencyTests
 
 
 _log = storjnode.log.getLogger(__name__)
@@ -73,6 +74,9 @@ class FileTransfer:
 
         # Control bandwidth.
         self.bandwidth = bandwidth
+
+        # Latency tests.
+        self.latency_tests = LatencyTests()
 
         # Reference to Node / API object.
         self.api = api
@@ -132,6 +136,29 @@ class FileTransfer:
 
         # Processed SYNs.
         self.processed_syns = {}
+
+        # Used to give certain handlers chance to start.
+        # Before process_transfers is fired.
+        self.start_time = time.time()
+
+    def schedule_transfers(self, contract, con):
+        _log.debug("In schedule transfers")
+        their_unl = self.get_their_unl(contract)
+        is_master = self.net.unl.is_master(their_unl)
+        _log.debug("Is master = " + str(is_master))
+        if con not in self.con_transfer:
+            if is_master:
+                # A transfer to queue processing.
+                self.queue_next_transfer(con)
+            else:
+                # A transfer to receive (unknown.)
+                self.con_transfer[con] = u""
+        else:
+            if self.con_transfer[con] == u"0" * 64:
+                if is_master:
+                    self.queue_next_transfer(con)
+                else:
+                    self.con_transfer[con] = u""
 
     def add_handler(self, type, handler):
         # todo: change handler for when new data is transferred
