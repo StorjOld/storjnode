@@ -6,15 +6,17 @@ import os
 import sys
 from setuptools import setup, find_packages
 
-
 # Only load py2exe settings when its used, so we can install it first.
 options = {}
+cmdclass = {}
 if os.name == 'nt' and 'py2exe' in sys.argv:
     import py2exe  # NOQA
+    from py2exe_MediaCollector import MediaCollector
     options = {'py2exe': {
         "optimize": 2,
         "bundle_files": 2,  # This tells py2exe to bundle everything
     }}
+    cmdclass = {'py2exe': MediaCollector}
 
 
 # Only load py2app settings when its used, so we can install it first.
@@ -67,5 +69,6 @@ setup(
         # "Programming Language :: Python :: 3.4",
         "Topic :: Software Development :: Libraries :: Python Modules",
     ],
+    cmdclass=cmdclass,
     options=options
 )
