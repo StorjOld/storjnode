@@ -19,7 +19,7 @@ from collections import OrderedDict
 _log = storjnode.log.getLogger(__name__)
 
 
-SKIP_BANDWIDTH_TEST = False
+SKIP_BANDWIDTH_TEST = True
 
 
 DEFAULT_DATA = OrderedDict([
@@ -383,16 +383,16 @@ def create_shard(node, num, begin, end, processed):
         ("end", end),
         ("processed", encoded_processed),
     ]), indent=2)
-    key = self.node.get_key()
-    signature = self.node.server.btctxstore.sign_unicode(key, data)
+    key = node.get_key()
+    signature = node.server.btctxstore.sign_unicode(key, data)
 
     # write info to shard
-    shard = BytesIO(json.dumps(OrderedDict([
-        ("adress", node_address),
+    shard = BytesIO()
+    shard.write(json.dumps(OrderedDict([
+        ("address", node_address),
         ("data", data),
         ("signature", signature),
     ]), indent=2))
-    shard.write(data)
     return shard
 
 

@@ -404,9 +404,13 @@ class TestNode(unittest.TestCase):
         self.assertTrue(len(results), limit)
         shard = results["shard"]
         shard.seek(0)
-        crawl_data = json.loads(shard.read())
-        _log.info("CRAWLED DATA: {0}".format(repr(crawl_data)))
-        self.assertEqual(len(crawl_data["processed"]), limit)
+        shard_data = json.loads(shard.read())
+        monitor_data = json.loads(shard_data["data"])
+        _log.info("CRAWLED DATA: {0}".format(repr(shard_data)))
+        self.assertTrue(self.btctxstore.verify_signature_unicode(
+            shard_data["address"], shard_data["signature"], shard_data["data"]
+        ))
+        self.assertEqual(len(monitor_data["processed"]), limit)
 
     def test_find_next_free_dataset_num(self):
         peer = random.choice(self.swarm)
