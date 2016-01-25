@@ -19,7 +19,7 @@ from collections import OrderedDict
 _log = storjnode.log.getLogger(__name__)
 
 
-SKIP_BANDWIDTH_TEST = True
+SKIP_BANDWIDTH_TEST = False
 
 
 DEFAULT_DATA = OrderedDict([
@@ -216,8 +216,8 @@ class Crawler(object):  # will not scale but good for now
                 data["bandwidth"] = {
                     "send": results["upload"],
                     "receive": results["download"],
-                    "latency": results["latency"]
                 }
+                data["latency"]["direct"] = results["latency"]
 
                 # move peer to processed
                 self.pipeline_processed[nodeid] = data

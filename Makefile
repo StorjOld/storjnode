@@ -83,7 +83,7 @@ test: setup
 	$(PEP8) examples
 	$(PEP8) tests
 	$(COVERAGE) run --source="storjnode" -m unittest --verbose tests
-	$(COVERAGE) report --fail-under=80
+	$(COVERAGE) report --fail-under=85
 
 
 publish: test

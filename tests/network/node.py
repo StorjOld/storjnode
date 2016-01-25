@@ -406,7 +406,7 @@ class TestNode(unittest.TestCase):
         shard.seek(0)
         shard_data = json.loads(shard.read())
         monitor_data = json.loads(shard_data["data"])
-        _log.info("CRAWLED DATA: {0}".format(repr(shard_data)))
+        _log.info("CRAWLED DATA: {0}".format(shard_data["data"]))
         self.assertTrue(self.btctxstore.verify_signature_unicode(
             shard_data["address"], shard_data["signature"], shard_data["data"]
         ))

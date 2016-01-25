@@ -22,7 +22,7 @@ script:
   - pep8 examples
   - pep8 tests
   - travis_wait coverage run --source="storjnode" -m unittest --quiet tests
-  - coverage report --fail-under=80
+  - coverage report --fail-under=85
 
 after_success:
   - coveralls
