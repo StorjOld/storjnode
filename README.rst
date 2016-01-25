@@ -192,30 +192,169 @@ Accessing the json-rpc service from node.js
 API call list
 #############
 
-+-------------------+------------+--------------------------------------------------+
-| Command           | Arguments  | Description                                      |
-+===================+============+==================================================+
-| info              |            | Get node information.                            |
-+-------------------+------------+--------------------------------------------------+
-| farm              |            |                                                  |
-+-------------------+------------+--------------------------------------------------+
-| cfg_current       |            | Get the current config.                          |
-+-------------------+------------+--------------------------------------------------+
-| cfg_default       |            | Get the default storj config.                    |
-+-------------------+------------+--------------------------------------------------+
-| cfg_schema        |            | The jsonschema for config validation.            |
-+-------------------+------------+--------------------------------------------------+
-| dht_put           | key, value | Insert a key/value pair into the DHT.            |
-+-------------------+------------+--------------------------------------------------+
-| dht_get           | key        | Get value from the DHT for a given key.          |
-+-------------------+------------+--------------------------------------------------+
-| dht_dump          |            | Dump the contents of the nodes DHT storage.      |
-+-------------------+------------+--------------------------------------------------+
-| net_notify        | event      | Relay an event to a specific node.               |
-+-------------------+------------+--------------------------------------------------+
-| net_publish       | event      | Publish an event on the network.                 |
-+-------------------+------------+--------------------------------------------------+
-| net_supscribe     | schema     | Subscribe to matching events on the network.     |
-+-------------------+------------+--------------------------------------------------+
-| net_unsupscribe   | schema     | Unsubscribe from matching events on the network. |
-+-------------------+------------+--------------------------------------------------+
+
+Get node information
+--------------------
+
++---------------+-----------------------+
+| Description   | Get node information  |
++---------------+-----------------------+
+| Command       | info                  |
++---------------+-----------------------+
+| Arguments     |                       |
++---------------+-----------------------+
+| returns       | json                  |
++---------------+-----------------------+
+
+.. code:: python
+
+    # pip install python-jsonrpc
+    >>> import pyjsonrpc
+    >>> client = pyjsonrpc.HttpClient(url="http://localhost:8080")
+    >>> client.info()
+    # TODO add output
+
+
+Farm
+----
+
++---------------+-----------------------+
+| Command       | farm                  |
++---------------+-----------------------+
+| Arguments     | rpc=False             |
++---------------+-----------------------+
+| returns       |                       |
++---------------+-----------------------+
+
+.. code:: python
+
+    # pip install python-jsonrpc
+    >>> import pyjsonrpc
+    >>> client = pyjsonrpc.HttpClient(url="http://localhost:8080")
+    >>> client.farm()
+
+
+Config commands
+===============
+
+Get the current config.
+-----------------------
+
++---------------+-----------------------------------------------------------+
+| Command       | cfg_current                                               |
++---------------+-----------------------------------------------------------+
+| Arguments     |                                                           |
++---------------+-----------------------------------------------------------+
+| returns       | json                                                      |
++---------------+-----------------------------------------------------------+
+
+.. code:: python
+
+    # pip install python-jsonrpc
+    >>> import pyjsonrpc
+    >>> client = pyjsonrpc.HttpClient(url="http://localhost:8080")
+    >>> client.cfg_current()
+    # TODO add output
+
+
+Get the default config.
+-----------------------
+
++---------------+-----------------------------------------------------------+
+| Command       | cfg_default                                               |
++---------------+-----------------------------------------------------------+
+| Arguments     |                                                           |
++---------------+-----------------------------------------------------------+
+| returns       | json                                                      |
++---------------+-----------------------------------------------------------+
+
+.. code:: python
+
+    # pip install python-jsonrpc
+    >>> import pyjsonrpc
+    >>> client = pyjsonrpc.HttpClient(url="http://localhost:8080")
+    >>> client.cfg_default()
+    # TODO add output
+
+
+Get the jsonschema for config validation.
+-----------------------------------------
+
++---------------+-----------------------------------------------------------+
+| Command       | cfg_schema                                                |
++---------------+-----------------------------------------------------------+
+| Arguments     |                                                           |
++---------------+-----------------------------------------------------------+
+| returns       | json                                                      |
++---------------+-----------------------------------------------------------+
+
+.. code:: python
+
+    # pip install python-jsonrpc
+    >>> import pyjsonrpc
+    >>> client = pyjsonrpc.HttpClient(url="http://localhost:8080")
+    >>> client.cfg_schema()
+    # TODO add output
+
+
+DHT commands
+============
+
+Insert a key/value pair into the DHT.
+-------------------------------------
+
++---------------+-----------------------------------------------------------+
+| Command       | dht_put                                                   |
++---------------+-----------------------------------------------------------+
+| Arguments     | key, value                                                |
++---------------+-----------------------------------------------------------+
+| returns       | bool                                                      |
++---------------+-----------------------------------------------------------+
+
+.. code:: python
+
+    # pip install python-jsonrpc
+    >>> import pyjsonrpc
+    >>> client = pyjsonrpc.HttpClient(url="http://localhost:8080")
+    >>> client.dht_put("key", {"foo": "bar"})
+    True
+
+
+Get value from the DHT for a given key.
+---------------------------------------
+
++---------------+-----------------------------------------------------------+
+| Command       | dht_get                                                   |
++---------------+-----------------------------------------------------------+
+| Arguments     | key                                                       |
++---------------+-----------------------------------------------------------+
+| returns       | json                                                      |
++---------------+-----------------------------------------------------------+
+
+.. code:: python
+
+    # pip install python-jsonrpc
+    >>> import pyjsonrpc
+    >>> client = pyjsonrpc.HttpClient(url="http://localhost:8080")
+    >>> client.dht_get("key")
+    {"foo": "bar"}
+
+
+Dump the contents of the nodes DHT storage.
+-------------------------------------------
+
++---------------+-----------------------------------------------------------+
+| Command       | dht_dump                                                  |
++---------------+-----------------------------------------------------------+
+| Arguments     |                                                           |
++---------------+-----------------------------------------------------------+
+| returns       | json                                                      |
++---------------+-----------------------------------------------------------+
+
+.. code:: python
+
+    # pip install python-jsonrpc
+    >>> import pyjsonrpc
+    >>> client = pyjsonrpc.HttpClient(url="http://localhost:8080")
+    >>> client.dht_dump()
+    # TODO add output
