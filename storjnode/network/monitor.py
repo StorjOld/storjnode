@@ -48,10 +48,7 @@ DEFAULT_DATA = OrderedDict([
 
 class Crawler(object):  # will not scale but good for now
 
-    def __init__(self, node, limit=20, timeout=600, static_nodes=None):
-
-        # Static neighbours.
-        self.static_nodes = static_nodes
+    def __init__(self, node, limit=20, timeout=600):
 
         # CRAWLER PIPELINE
         self.pipeline_mutex = RLock()
@@ -397,9 +394,8 @@ def create_shard(node, num, begin, end, processed):
 class Monitor(object):
 
     def __init__(self, node, limit=20,
-                 interval=3600, on_crawl_complete=None, static_nodes=None):
+                 interval=3600, on_crawl_complete=None):
         self.on_crawl_complete = on_crawl_complete
-        self.static_nodes = static_nodes
         self.node = node
         self.limit = limit + 1  # + 1 because of initial node
         self.interval = interval

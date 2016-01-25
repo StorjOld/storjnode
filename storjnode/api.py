@@ -124,7 +124,7 @@ class StorjNode(apigen.Definition):
         if enable_crawler and not notransfer:
             _log.info("Starting monitor crawler.")
             self.monitor = storjnode.network.monitor.Monitor(
-                self._node, self._cfg, limit=limit, interval=interval,
+                self._node, limit=limit, interval=interval,
                 on_crawl_complete=self._on_crawl_complete
             )
 
