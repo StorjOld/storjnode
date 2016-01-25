@@ -171,16 +171,7 @@ class TestGetUnusedPort(unittest.TestCase):
         # XXX assumes ports are not in use
         self.assertEqual(storjnode.util.get_unused_port(1024), 1024)
         self.assertEqual(storjnode.util.get_unused_port(65535), 65535)
-
-    def test_value_out_of_range(self):
-
-        def callback():
-            storjnode.util.get_unused_port(1023)  # below lower limit
-        self.assertRaises(AssertionError, callback)
-
-        def callback():
-            storjnode.util.get_unused_port(65536)  # above upper limit
-        self.assertRaises(AssertionError, callback)
+        storjnode.util.get_unused_port()
 
     def test_already_used(self):
         s = socket.socket(socket.AF_INET, socket.SOCK_STREAM)
