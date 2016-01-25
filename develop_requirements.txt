@@ -1,3 +1,4 @@
 ipython
+restview
 yappi
 pudb

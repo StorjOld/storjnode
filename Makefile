@@ -77,6 +77,8 @@ test_script: install
 shell: install
 	env/bin/ipython
 
+view_readme: setup
+	env/bin/restview README.rst
 
 test: setup
 	$(PEP8) storjnode

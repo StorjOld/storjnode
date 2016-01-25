@@ -203,7 +203,7 @@ class StorjNode(apigen.Definition):
 
     @apigen.command(rpc=False)
     def farm(self, hostname="localhost", port=8080, rpc=False):
-        """Start the farmer and the json-rpc service."""
+        """Start the farmer and optionally the json rpc service."""
         self.monitor = None
         try:
             # start monitor handlers and crawler if needed
@@ -226,17 +226,17 @@ class StorjNode(apigen.Definition):
     ##########
 
     @apigen.command()
-    def cfg_current(self):
+    def cfg_get_current(self):
         """The current config."""
         return self._cfg
 
     @apigen.command()
-    def cfg_default(self):
+    def cfg_get_default(self):
         """The default storj config."""
         return storjnode.config.create()
 
     @apigen.command()
-    def cfg_schema(self):
+    def cfg_get_schema(self):
         """The jsonschema for config validation."""
         return storjnode.config.SCHEMA
 

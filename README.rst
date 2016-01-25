@@ -136,8 +136,8 @@ A custom config can be given if your are running more then one client.
     $ storjnode --config=/path/to/custom/config.json farm
 
 
-Using the json-rpc service
-##########################
+Using the API
+#############
 
 The storj protocol interface is be made available to other applications via a
 `standard json-rpc service <http://www.jsonrpc.org/specification>`_.
@@ -151,8 +151,8 @@ The rpc interface matches the cli interface exactly.
 For more information see https://github.com/F483/apigen
 
 
-Accessing the json-rpc service from python
-==========================================
+Using the API via the json-rpc service from python
+==================================================
 
 .. code:: python
 
@@ -162,8 +162,8 @@ Accessing the json-rpc service from python
     client.version()
 
 
-Accessing the json-rpc service from node.js
-===========================================
+Using the API via the json-rpc service from node.js
+===================================================
 
 .. code:: javascript
 
@@ -219,15 +219,18 @@ Get node information
     # TODO add output
 
 
-Farm
-----
+Start the farmer and optionally the json-rpc service.
+-----------------------------------------------------
+
+The call will not exit until a SIGINT signal is received, it is the only
+call not exposed via the json-rpc service as it is used to start it.
 
 +---------------+-----------------------------------------------------------+
 | Command       | farm                                                      |
 +---------------+-----------------------------------------------------------+
-| Arguments     | rpc=False (bool): TODO help text                          |
-|               | hostname="localhost" (string): TODO help text             |
-|               | port=8080 (integer): TODO help text                       |
+| Arguments     | - rpc=False (bool): Also start the json-rpc service.      |
+|               | - hostname="localhost" (string): Service interface.       |
+|               | - port=8080 (integer): Service port.                      |
 +---------------+-----------------------------------------------------------+
 | Returns       |                                                           |
 +---------------+-----------------------------------------------------------+
@@ -249,7 +252,7 @@ Get the current config.
 -----------------------
 
 +---------------+-----------------------------------------------------------+
-| Command       | cfg_current                                               |
+| Command       | cfg_get_current                                           |
 +---------------+-----------------------------------------------------------+
 | Arguments     |                                                           |
 +---------------+-----------------------------------------------------------+
@@ -263,7 +266,7 @@ Get the current config.
     # pip install python-jsonrpc
     >>> import pyjsonrpc
     >>> client = pyjsonrpc.HttpClient(url="http://localhost:8080")
-    >>> client.cfg_current()
+    >>> client.cfg_get_current()
     # TODO add output
 
 
@@ -271,7 +274,7 @@ Get the default config.
 -----------------------
 
 +---------------+-----------------------------------------------------------+
-| Command       | cfg_default                                               |
+| Command       | cfg_get_default                                           |
 +---------------+-----------------------------------------------------------+
 | Arguments     |                                                           |
 +---------------+-----------------------------------------------------------+
@@ -285,7 +288,7 @@ Get the default config.
     # pip install python-jsonrpc
     >>> import pyjsonrpc
     >>> client = pyjsonrpc.HttpClient(url="http://localhost:8080")
-    >>> client.cfg_default()
+    >>> client.cfg_get_default()
     # TODO add output
 
 
@@ -293,7 +296,7 @@ Get the jsonschema for config validation.
 -----------------------------------------
 
 +---------------+-----------------------------------------------------------+
-| Command       | cfg_schema                                                |
+| Command       | cfg_get_schema                                            |
 +---------------+-----------------------------------------------------------+
 | Arguments     |                                                           |
 +---------------+-----------------------------------------------------------+
@@ -307,7 +310,7 @@ Get the jsonschema for config validation.
     # pip install python-jsonrpc
     >>> import pyjsonrpc
     >>> client = pyjsonrpc.HttpClient(url="http://localhost:8080")
-    >>> client.cfg_schema()
+    >>> client.cfg_get_schema()
     # TODO add output
 
 
@@ -320,8 +323,8 @@ Insert a key/value pair into the DHT.
 +---------------+-----------------------------------------------------------+
 | Command       | dht_put                                                   |
 +---------------+-----------------------------------------------------------+
-| Arguments     | key (json): TODO help text                                |
-|               | value (json): TODO help text                              |
+| Arguments     | - key (json): TODO help text                              |
+|               | - value (json): TODO help text                            |
 +---------------+-----------------------------------------------------------+
 | Returns       | bool                                                      |
 +---------------+-----------------------------------------------------------+
@@ -343,7 +346,7 @@ Get value from the DHT for a given key.
 +---------------+-----------------------------------------------------------+
 | Command       | dht_get                                                   |
 +---------------+-----------------------------------------------------------+
-| Arguments     | key (json): TODO help text                                |
+| Arguments     | - key (json): TODO help text                              |
 +---------------+-----------------------------------------------------------+
 | Returns       | json                                                      |
 +---------------+-----------------------------------------------------------+
