@@ -2,7 +2,7 @@ import os
 
 # constants
 PROTOCOL_VERSION = 1
-THREAD_SLEEP = 0.001
+THREAD_SLEEP = 0.1
 MAX_PACKAGE_DATA = 548  # 576 MTU - 20 IPv4 Header - 8 UDP Header == 548
 
 # paths
