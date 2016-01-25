@@ -430,7 +430,6 @@ class Monitor(object):
             with self.mutex:
                 self.crawler = Crawler(
                     self.node, limit=self.limit, timeout=self.interval,
-                    static_nodes=self.static_nodes
                 )
             processed = self.crawler.crawl()
 
