@@ -112,8 +112,7 @@ class StorjNode(apigen.Definition):
         notransfer = self._cfg["network"]["disable_data_transfer"]
 
         # enable monitor responses
-        enable_responses = self._cfg["network"]["monitor"]["enable_responses"]
-        if enable_responses and not notransfer:
+        if self._cfg["network"]["monitor"]["enable_responses"]:
             _log.info("Enabling monitor responses.")
             self._enable_monitor_responses()
 
