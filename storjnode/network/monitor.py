@@ -189,8 +189,6 @@ class Crawler(object):  # will not scale but good for now
         data["request"]["tries"] = data["request"]["tries"] + 1
 
     def _handle_bandwidth_test_error(self, err):
-        import pdb
-        pdb.set_trace()
         with self.pipeline_mutex:
             _log.error(repr(err))
 
