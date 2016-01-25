@@ -13,6 +13,7 @@ from storjnode.network.messages.peers import request as request_peers
 from storjnode.network.messages.info import read as read_info
 from storjnode.network.messages.info import request as request_info
 from crochet import TimeoutError
+from collections import OrderedDict
 
 
 _log = storjnode.log.getLogger(__name__)
@@ -21,23 +22,28 @@ _log = storjnode.log.getLogger(__name__)
 SKIP_BANDWIDTH_TEST = False
 
 
-DEFAULT_DATA = {
-    "peers": None,      # [nodeid, ...]
-    "storage": None,    # {"total": int, "used": int, "free": int}
-    "network": None,    # {
-                        #     "transport": [ip, port],
-                        #     "unl": str "is_public": bool
-                        # }
-    "version": None,    # {"protocol: str, "storjnode": str}
-    "platform": None,   # {
-                        #   "system": str, "release": str,
-                        #   "version": str, "machine": str
-                        # }
-    "btcaddress": None,
-    "bandwidth": None,  # {"send": int, "receive": int}
-    "latency": {"info": None, "peers": None, "direct": None},  # TODO direct
-    "request": {"tries": 0, "last": 0},
-}
+DEFAULT_DATA = OrderedDict([
+    ("peers", None),        # [nodeid, ...]
+    ("storage", None),      # {"total": int, "used": int, "free": int}
+    ("network", None),      # {
+                            #     "transport": [ip, port],
+                            #     "unl": str "is_public": bool
+                            # }
+    ("version", None),      # {"protocol: str, "storjnode": str}
+    ("platform", None),     # {
+                            #   "system": str, "release": str,
+                            #   "version": str, "machine": str
+                            # }
+    ("btcaddress", None),
+    ("bandwidth", None),    # {"send": int, "receive": int}
+    ("latency", OrderedDict([
+        ("info", None),
+        ("peers", None),
+        ("direct", None),
+        # TODO add transfer latency
+    ])),
+    ("request", OrderedDict([("tries", 0), ("last", 0)])),
+])
 
 
 class Crawler(object):  # will not scale but good for now
@@ -118,10 +124,10 @@ class Crawler(object):  # will not scale but good for now
                 node_id_to_address(message.sender))
             )
             data["latency"]["info"] = received - data["latency"]["info"]
-            data["version"] = {
-                "protocol": message.version,
-                "storjnode": message.body.version
-            }
+            data["version"] = OrderedDict([
+                ("protocol", message.version),
+                ("storjnode", message.body.version),
+            ])
             data["storage"] = message.body.storage._asdict()
             data["network"] = message.body.network._asdict()
             data["platform"] = message.body.platform._asdict()
@@ -369,15 +375,24 @@ def create_shard(node, num, begin, end, processed):
             del data["request"]
             encoded_processed[node_address] = data
 
+    # sign data
+    node_address = node.get_address()
+    data = json.dumps(OrderedDict([
+        ("num", num),
+        ("begin", begin),
+        ("end", end),
+        ("processed", encoded_processed),
+    ]), indent=2)
+    key = self.node.get_key()
+    signature = self.node.server.btctxstore.sign_unicode(key, data)
+
     # write info to shard
-    shard = BytesIO()
-    shard.write(json.dumps({
-        "node": node.get_address(),
-        "num": num,
-        "begin": begin,
-        "end": end,
-        "processed": encoded_processed,
-    }, indent=2))
+    shard = BytesIO(json.dumps(OrderedDict([
+        ("adress", node_address),
+        ("data", data),
+        ("signature", signature),
+    ]), indent=2))
+    shard.write(data)
     return shard
 
 

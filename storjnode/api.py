@@ -41,8 +41,8 @@ class StorjNode(apigen.Definition):
         self._init_messages()
 
         # FIXME make this smarter by watching churn rate
-        print("Wait for network overlay to stabalize.")
-        time.sleep(60 * 5)
+        # print("Wait for network overlay to stabalize.")
+        # time.sleep(60 * 5)
 
     def _init_wallet(self, wallet):
 
