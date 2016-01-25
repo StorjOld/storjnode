@@ -192,6 +192,9 @@ Accessing the json-rpc service from node.js
 API call list
 #############
 
+Basic commands
+==============
+
 
 Get node information
 --------------------
@@ -358,3 +361,5 @@ Dump the contents of the nodes DHT storage.
     >>> client = pyjsonrpc.HttpClient(url="http://localhost:8080")
     >>> client.dht_dump()
     # TODO add output
+
+
