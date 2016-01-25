@@ -40,6 +40,10 @@ class StorjNode(apigen.Definition):
         self._init_node()
         self._init_messages()
 
+        # FIXME make this smarter by watching churn rate
+        print("Wait for network overlay to stabalize.")
+        time.sleep(60 * 5)
+
     def _init_wallet(self, wallet):
 
         # make sure a wallet or cold storage address was provided
@@ -258,6 +262,11 @@ class StorjNode(apigen.Definition):
         except crochet.TimeoutError:
             _log.warning("Timeout getting key/value in DHT.")
             return None
+
+    @apigen.command()
+    def dht_dump(self):
+        """Dump the contents of the nodes DHT storage."""
+        return self._node.get_storage_contents()
 
     ############
     # MESSAGES #

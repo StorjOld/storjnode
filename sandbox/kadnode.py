@@ -4,11 +4,13 @@ from twisted.python import log
 from kademlia.network import Server
 
 
-"""
 import heapq
 import operator
 from kademlia.routing import RoutingTable
 from kademlia.routing import TableTraverser
+from storjnode.storage.dht import Storage
+
+
 def _findNearest(self, node, k=None, exclude=None):
     k = k or self.ksize
     nodes = []
@@ -22,7 +24,6 @@ def _findNearest(self, node, k=None, exclude=None):
 
 
 RoutingTable.findNeighbors = _findNearest  # XXX monkey patch find neighbors
-"""
 
 
 log.startLogging(sys.stdout)
@@ -48,7 +49,7 @@ bootstrap_nodes = [
 ]
 
 
-server = Server()
+server = Server(storage=Storage())
 server.protocol.noisy = True
 server.listen(8469)
 server.bootstrap(bootstrap_nodes)

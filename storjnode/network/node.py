@@ -204,6 +204,10 @@ class Node(object):
     def get_neighbours(self):
         return self.server.get_neighbours()
 
+    def get_storage_contents(self):
+        """Returns the contents of this nodes DHT storage."""
+        return self.server.storage.iteritems()
+
     def get_key(self):
         """Returns Bitcoin wif for auth, encryption and node id"""
         return self.server.key
