@@ -203,7 +203,7 @@ class StorjNode(apigen.Definition):
         }
 
     @apigen.command(rpc=False)
-    def farm(self, hostname="localhost", port=8080, norpc=False):
+    def farm(self, hostname="localhost", port=8080, rpc=False):
         """Start the farmer and the json-rpc service."""
         self.monitor = None
         try:
@@ -211,7 +211,7 @@ class StorjNode(apigen.Definition):
             self._init_monitor()
 
             # start rpc service
-            if not norpc:
+            if rpc:
                 super(StorjNode, self).startserver(
                     hostname=hostname, port=port
                 )
