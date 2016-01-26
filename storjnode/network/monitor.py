@@ -200,6 +200,11 @@ class Crawler(object):  # will not scale but good for now
 
     def _request_peers(self, nodeid, data):
         with self.pipeline_mutex:
+
+            _log.info("Requesting peers/neighbours from {0}!".format(
+                node_id_to_address(nodeid))
+            )
+
             # get neighbours (old nodes don't respond to peers request)
             if data["network"] is not None and "transport" in data["network"]:
                 ip, port = data["network"]["transport"]
@@ -230,12 +235,18 @@ class Crawler(object):  # will not scale but good for now
 
             # request peers
             if data["peers"] is None:
+                _log.info("Requesting peers/neighbours from {0}!".format(
+                    node_id_to_address(nodeid))
+                )
                 self._request_peers(nodeid, data)
                 if data["latency"]["peers"] is None:
                     data["latency"]["peers"] = now
 
             # request info
             if data["network"] is None:
+                _log.info("Requesting info from {0}!".format(
+                    node_id_to_address(nodeid))
+                )
                 request_info(self.node, nodeid)
                 if data["latency"]["info"] is None:
                     data["latency"]["info"] = now
