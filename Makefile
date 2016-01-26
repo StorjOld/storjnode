@@ -12,7 +12,7 @@ else
 endif
 export PYCOIN_NATIVE=openssl
 export STORJNODE_QUERY_TIMEOUT=0.3
-export STORJNODE_LOGGING_NOISY=1
+#export STORJNODE_LOGGING_NOISY=1
 
 
 help:
@@ -69,7 +69,7 @@ install: setup
 
 test_script: install
 	#$(PY) examples/network/map_network.py --debug
-	$(PY) -m unittest --verbos tests.network.node.TestNode.test_network_monitor_service
+	$(PY) -m unittest --quiet tests.network.node.TestNode.test_network_monitor_service
 	#env/bin/storjnode --debug --wallet=L3NrSTxMCwAsLXnBjESvU5LnCKwcmMXKutKzNnVpPevXeSMfB1zx dht_dump
 	#env/bin/storjnode_bootstrap_only --wallet=L3NrSTxMCwAsLXnBjESvU5LnCKwcmMXKutKzNnVpPevXeSMfB1zx --port=1337
 

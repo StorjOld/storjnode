@@ -196,21 +196,17 @@ class Crawler(object):  # will not scale but good for now
             for nodeid, ip, port in neighbours:
                 self._add_peer_to_pipeline(nodeid, ip, port)
 
-            self._check_scan_complete(message.sender, data)
+            self._check_scan_complete(knode.id, data)
 
     def _request_peers(self, nodeid, data):
         with self.pipeline_mutex:
-
-            _log.info("Requesting peers/neighbours from {0}!".format(
-                node_id_to_address(nodeid))
-            )
 
             # get neighbours (old nodes don't respond to peers request)
             if data["network"] is not None and "transport" in data["network"]:
                 ip, port = data["network"]["transport"]
                 knode = KadNode(nodeid, ip, port)
                 defered = self.node.server.protocol.callFindNode(knode, knode)
-                defered = util.default_defered(defered, [])
+                defered = storjnode.util.default_defered(defered, [])
 
                 def _on_get_neighbours(neighbours):
                     self._handle_neighbours_message(knode, neighbours)

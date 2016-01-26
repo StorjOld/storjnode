@@ -76,7 +76,8 @@ class TestNode(unittest.TestCase):
                 max_messages=10000000000000
             )
             storjnode.network.messages.info.enable(node, config)
-            storjnode.network.messages.peers.enable(node)
+            if i % 2:
+                storjnode.network.messages.peers.enable(node)
             enable_unl_requests(node)
             node.bandwidth_test.__init__(
                 node.get_key(),
