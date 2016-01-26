@@ -49,7 +49,7 @@ class StorjNode(apigen.Definition):
         # make sure a wallet or cold storage address was provided
         if wallet is None and len(self._cfg["cold_storage"]) == 0:
             print(_NO_WALLET_AND_COLD_STORAGE)
-            exit(1)
+            sys.exit(1)
 
         # create wallet if needed and validate
         self.wallet = wallet or btctxstore.BtcTxStore().create_wallet()
@@ -164,7 +164,7 @@ class StorjNode(apigen.Definition):
         if direction == "receive":
             txt = "Completed push of shard {shardid} from {nodeid}"
             _log.critical(txt.format(shardid=shardid, nodeid=nodeid))
-            exit(1)
+            sys.exit(1)
         elif direction == "send":
             txt = "Completed pull of shard {shardid} from {nodeid}"
             _log.info(txt.format(shardid=shardid, nodeid=nodeid))
