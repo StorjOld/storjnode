@@ -24,19 +24,19 @@ SKIP_BANDWIDTH_TEST = False
 
 
 DEFAULT_DATA = OrderedDict([
-    ("peers", None),        # [nodeid, ...]
-    ("storage", None),      # {"total": int, "used": int, "free": int}
-    ("network", None),      # {
-                            #     "transport": [ip, port],
-                            #     "unl": str "is_public": bool
-                            # }
-    ("version", None),      # {"protocol: str, "storjnode": str}
-    ("platform", None),     # {
-                            #   "system": str, "release": str,
-                            #   "version": str, "machine": str
-                            # }
+    ("peers", None),                # [nodeid, ...]
+    ("storage", None),              # {"total": int, "used": int, "free": int}
+    ("network", OrderedDict()),     # {
+                                    #     "transport": [ip, port],
+                                    #     "unl": str "is_public": bool
+                                    # }
+    ("version", None),              # {"protocol: str, "storjnode": str}
+    ("platform", None),             # {
+                                    #   "system": str, "release": str,
+                                    #   "version": str, "machine": str
+                                    # }
     ("btcaddress", None),
-    ("bandwidth", None),    # {"send": int, "receive": int}
+    ("bandwidth", None),            # {"send": int, "receive": int}
     ("latency", OrderedDict([
         ("info", None),
         ("peers", None),
@@ -90,10 +90,8 @@ class Crawler(object):  # will not scale but good for now
 
             if scanning and ip is not None and port is not None:
                 data = self.pipeline_scanning[peerid]
-                if data["network"] is None:
-                    data["network"] = OrderedDict([
-                        ("transport", [ip, port]),
-                    ])
+                if "transport" not in data["network"]:
+                    data["network"]["transport"] = [ip, port]
 
     def _handle_peers_message(self, node, message):
         received = time.time()
@@ -137,16 +135,13 @@ class Crawler(object):  # will not scale but good for now
             data["storage"] = message.body.storage._asdict()
 
             # save network info we dont already have
-            if data["network"] is None:
-                data["network"] = message.body.network._asdict()
-            else:
-                network = message.body.network._asdict()
-                if "transport" not in data["network"]:
-                    data["network"]["transport"] = network["transport"]
-                if "unl" not in data["network"]:
-                    data["network"]["unl"] = network["unl"]
-                if "is_public" not in data["is_public"]:
-                    data["network"]["is_public"] = network["is_public"]
+            network = message.body.network._asdict()
+            if "transport" not in data["network"]:
+                data["network"]["transport"] = network["transport"]
+            if "unl" not in data["network"]:
+                data["network"]["unl"] = network["unl"]
+            if "is_public" not in data["network"]:
+                data["network"]["is_public"] = network["is_public"]
 
             data["platform"] = message.body.platform._asdict()
             data["btcaddress"] = storjnode.util.node_id_to_address(
@@ -202,7 +197,7 @@ class Crawler(object):  # will not scale but good for now
         with self.pipeline_mutex:
 
             # get neighbours (old nodes don't respond to peers request)
-            if data["network"] is not None and "transport" in data["network"]:
+            if "transport" in data["network"]:
                 ip, port = data["network"]["transport"]
                 knode = KadNode(nodeid, ip, port)
                 defered = self.node.server.protocol.callFindNode(knode, knode)
@@ -239,7 +234,7 @@ class Crawler(object):  # will not scale but good for now
                     data["latency"]["peers"] = now
 
             # request info
-            if data["network"] is None:
+            if data["version"] is None:
                 _log.info("Requesting info from {0}!".format(
                     node_id_to_address(nodeid))
                 )
