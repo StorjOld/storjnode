@@ -36,7 +36,7 @@ def make_config(port):
     config["network"]["refresh_neighbours_interval"] = 0
     config["network"]["disable_data_transfer"] = True
     config["network"]["monitor"]["enable_crawler"] = False
-    config["network"]["monitor"]["enable_responses"] = False
+    config["network"]["monitor"]["enable_responses"] = True
     storjnode.config.validate(config)
     return config
 
@@ -48,7 +48,7 @@ def main():
     node = None
     try:
         node = storjnode.api.StorjNode(wallet=wallet, config=config)
-        node.farm(norpc=True)
+        node.farm()
     except KeyboardInterrupt:
         pass
     finally:

@@ -112,8 +112,7 @@ class StorjNode(apigen.Definition):
         notransfer = self._cfg["network"]["disable_data_transfer"]
 
         # enable monitor responses
-        enable_responses = self._cfg["network"]["monitor"]["enable_responses"]
-        if enable_responses and not notransfer:
+        if self._cfg["network"]["monitor"]["enable_responses"]:
             _log.info("Enabling monitor responses.")
             self._enable_monitor_responses()
 
@@ -124,7 +123,7 @@ class StorjNode(apigen.Definition):
         if enable_crawler and not notransfer:
             _log.info("Starting monitor crawler.")
             self.monitor = storjnode.network.monitor.Monitor(
-                self._node, self._cfg, limit=limit, interval=interval,
+                self._node, limit=limit, interval=interval,
                 on_crawl_complete=self._on_crawl_complete
             )
 
@@ -203,7 +202,7 @@ class StorjNode(apigen.Definition):
         }
 
     @apigen.command(rpc=False)
-    def farm(self, hostname="localhost", port=8080, norpc=False):
+    def farm(self, hostname="localhost", port=8080, rpc=False):
         """Start the farmer and the json-rpc service."""
         self.monitor = None
         try:
@@ -211,7 +210,7 @@ class StorjNode(apigen.Definition):
             self._init_monitor()
 
             # start rpc service
-            if not norpc:
+            if rpc:
                 super(StorjNode, self).startserver(
                     hostname=hostname, port=port
                 )

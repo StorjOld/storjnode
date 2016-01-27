@@ -44,7 +44,8 @@ class Node(object):
                  passive_bind=None,  # FIXME use utils.get_inet_facing_ip ?
                  node_type="unknown",  # FIMME what is this ?
                  nat_type="unknown",  # FIXME what is this ?
-                 bandwidth=None
+                 bandwidth=None,
+                 wan_ip=None # Get it if it isn't set
                  ):
         """Create a blocking storjnode instance.
 
@@ -106,7 +107,7 @@ class Node(object):
         if not self.disable_data_transfer:
             self.bandwidth = bandwidth or BandwidthLimit(self.config)
             self._setup_data_transfer_client(
-                passive_port, passive_bind, node_type, nat_type
+                passive_port, passive_bind, node_type, nat_type, wan_ip
             )
             self.latency_tests = self._data_transfer.latency_tests
             self.bandwidth_test = BandwidthTest(
@@ -145,7 +146,7 @@ class Node(object):
         self.server.bootstrap(bootstrap_nodes)
 
     def _setup_data_transfer_client(self, passive_port,
-                                    passive_bind, node_type, nat_type):
+                                    passive_bind, node_type, nat_type, wan_ip):
 
         # Setup handlers for callbacks registered via the API.
         handlers = {
@@ -166,6 +167,7 @@ class Node(object):
                 debug=1,
                 passive_port=passive_port,
                 passive_bind=passive_bind,
+                wan_ip=wan_ip
             ),
             self.bandwidth,
             wif=wif,

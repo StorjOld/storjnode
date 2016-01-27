@@ -3,6 +3,7 @@
 
 from twisted.internet import protocol
 from twisted.internet import reactor
+from pyp2p.lib import get_lan_ip
 
 
 class Protocol(protocol.DatagramProtocol):
@@ -21,7 +22,7 @@ class Protocol(protocol.DatagramProtocol):
 
 alice = Protocol("alice")
 bob = Protocol("bob")
-reactor.listenUDP(4567, alice)
-reactor.listenUDP(5678, bob)
-alice.transport.write(str(0), ("127.0.0.1", 5678))
+reactor.listenUDP(4567, alice, get_lan_ip())
+reactor.listenUDP(5678, bob, get_lan_ip())
+alice.transport.write(str(0), (get_lan_ip(), 5678))
 reactor.run()
