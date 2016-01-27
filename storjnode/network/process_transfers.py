@@ -39,12 +39,9 @@ import storjnode
 
 
 _log = storjnode.log.getLogger(__name__)
-HANDSHAKE_TIMEOUT = 600
+HANDSHAKE_TIMEOUT = 300
 CON_TIMEOUT = 600
 BLOCKING_TIMEOUT = 60
-
-HANDSHAKE_TIMEOUT = 100000000000
-CON_TIMEOUT = 100000000000
 
 
 class TransferError(Exception):

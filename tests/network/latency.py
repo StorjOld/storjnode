@@ -94,8 +94,8 @@ class TestLatency(unittest.TestCase):
                         latency_test.process_msg(reply)
         """
 
-        # print(alice_latencies.by_con(alice_sock).latency)
-        # print(bob_latencies.by_con(bob_sock).latency)
+        print(alice_latencies.by_con(alice_sock).latency)
+        print(bob_latencies.by_con(bob_sock).latency)
 
         # Cleanup
         alice_sock.close()

@@ -152,7 +152,7 @@ def build_completion_handler(bt, req, accept_handler):
 
             # Find latency (if available.)
             con = bt.transfer.net.con_by_unl(bt.test_node_unl)
-            latency = 0
+            latency = None
             if con is not None:
                 latency_test = bt.transfer.latency_tests.by_con(con)
                 if latency_test is not None:
@@ -215,7 +215,7 @@ def handle_responses_builder(bt):
             return -1
 
         # Transfer already active.
-        if bt.test_node_unl is not None:
+        if bt.test_node_unl != msg[u"requestee"]:
             _log.debug("res: transfer already active")
             return -2
 
