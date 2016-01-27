@@ -247,7 +247,7 @@ class Crawler(object):  # will not scale but good for now
 
     def _handle_bandwidth_test_error(self, err):
         with self.pipeline_mutex:
-            _log.error(repr(err))
+            _log.error("Bandwidth test failed: {0}".format(repr(err)))
 
             # move to the back to scanned fifo and try again later
             nodeid, data = self.pipeline_bandwidth_test
@@ -261,6 +261,7 @@ class Crawler(object):  # will not scale but good for now
 
     def _handle_bandwidth_test_success(self, results):
         with self.pipeline_mutex:
+            _log.error("Bandwidth test successfull: {0}".format(repr(result)))
             nodeid, data = self.pipeline_bandwidth_test
 
             # free up bandwidth test for next peer
@@ -343,31 +344,43 @@ class Crawler(object):  # will not scale but good for now
 
         # done! because of timeout or stop flag
 
+    def _log_crawl_statistics(self):
+        _log.info("MONITOR POST CRAWL STATISTICS: {0}".format(json.dumps({
+            "scanning_info_and_peers": len(self.pipeline_scanning),
+            "waiting_for_bandwidth_test": len(self.pipeline_scanned_fifo),
+            "testing_bandwidth": self.pipeline_bandwidth_test is not None,
+            "successfully_processed": len(self.pipeline_processed)
+        }, indent=2)))
+
     def crawl(self):
 
-        # add info and peers message handlers
-        self.node.add_message_handler(self._handle_info_message)
-        self.node.add_message_handler(self._handle_peers_message)
+        with self.pipeline_mutex:
 
-        # skip self
-        self.pipeline_processed[self.node.get_id()] = None
+            # add info and peers message handlers
+            self.node.add_message_handler(self._handle_info_message)
+            self.node.add_message_handler(self._handle_peers_message)
 
-        # add initial peers
-        peers = self.node.get_neighbours()
-        for peer in peers:
-            self._add_peer_to_pipeline(peer.id, peer.ip, peer.port)
+            # skip self
+            self.pipeline_processed[self.node.get_id()] = None
 
-        # process pipeline until done
-        self._process_pipeline()
+            # add initial peers
+            peers = self.node.get_neighbours()
+            for peer in peers:
+                self._add_peer_to_pipeline(peer.id, peer.ip, peer.port)
 
-        # remove info and peers message handlers
-        self.node.remove_message_handler(self._handle_info_message)
-        self.node.remove_message_handler(self._handle_peers_message)
+            # process pipeline until done
+            self._process_pipeline()
 
-        # remove self from results
-        del self.pipeline_processed[self.node.get_id()]
+            # remove info and peers message handlers
+            self.node.remove_message_handler(self._handle_info_message)
+            self.node.remove_message_handler(self._handle_peers_message)
 
-        return self.pipeline_processed
+            # remove self from results
+            del self.pipeline_processed[self.node.get_id()]
+
+            self._log_crawl_statistics(self)
+
+            return self.pipeline_processed
 
 
 def crawl(node, limit=20, timeout=600):

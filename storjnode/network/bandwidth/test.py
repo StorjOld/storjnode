@@ -80,7 +80,7 @@ class BandwidthTest:
         self.start_time = time.time()
 
         # Timeout bandwidth test after N seconds.
-        self.test_timeout = 1000
+        self.test_timeout = 60 * 5
 
         # Based on passed tests.
         self.max_increase = self.ONE_MB
