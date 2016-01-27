@@ -45,7 +45,7 @@ class Node(object):
                  node_type="unknown",  # FIMME what is this ?
                  nat_type="unknown",  # FIXME what is this ?
                  bandwidth=None,
-                 wan_ip=None # Get it if it isn't set
+                 wan_ip=None  # Get it if it isn't set
                  ):
         """Create a blocking storjnode instance.
 

@@ -14,7 +14,7 @@ if os.name == 'nt' and 'py2exe' in sys.argv:
     from py2exe_MediaCollector import MediaCollector
     options = {'py2exe': {
         "optimize": 2,
-        "bundle_files": 2,  # This tells py2exe to bundle everything
+        "bundle_files": 3,  # This tells py2exe to bundle everything
     }}
     cmdclass = {'py2exe': MediaCollector}
 

@@ -199,9 +199,27 @@ def handle_requests_builder(bt):
             return -1
 
         # Drop request if test already active.
+        our_unl = bt.transfer.net.unl.value
+        src_node_id = parse_node_id_from_unl(msg[u"requester"])
         if bt.test_node_unl is not None:
             if bt.test_node_unl != msg[u"requester"]:
                 _log.debug("req: test already active")
+                # Build response.
+                res = OrderedDict([
+                    (u"type", u"test_bandwidth_rejection"),
+                    (u"timestamp", time.time()),
+                    (u"requestee", our_unl),
+                    (u"request", msg)
+                ])
+
+                # Sign response.
+                res = sign(res, bt.wif)
+
+                # Send response back.
+                res = ordered_dict_to_list(res)
+                res = zlib.compress(str(res))
+                bt.api.repeat_relay_message(src_node_id, res)
+
                 return -2
 
         # Check message id.
@@ -212,13 +230,11 @@ def handle_requests_builder(bt):
             return -5
 
         # Check they got our node unl right.
-        our_unl = bt.transfer.net.unl.value
         if our_unl != msg[u"test_node_unl"]:
             _log.debug("req: they got our node unl wrong")
             return -3
 
         # Check sig.
-        src_node_id = parse_node_id_from_unl(msg[u"requester"])
         if not verify_signature(msg, bt.wif, src_node_id):
             _log.debug("req: Invalid sig")
             return -4

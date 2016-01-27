@@ -17,6 +17,8 @@ from storjnode.network.bandwidth.do_requests \
     import handle_requests_builder
 from storjnode.network.bandwidth.do_responses \
     import handle_responses_builder
+from storjnode.network.bandwidth.do_rejections \
+    import handle_rejections_builder
 from storjnode.storage.shard import get_hash
 from storjnode.network.process_transfers import process_transfers
 from storjnode.network.file_transfer import FileTransfer
@@ -75,12 +77,13 @@ class BandwidthTest:
         # Listen for bandwidth requests + responses.
         self.handle_requests = handle_requests_builder(self)
         self.handle_responses = handle_responses_builder(self)
+        self.handle_rejections = handle_rejections_builder(self)
 
         # When was the test first started?
         self.start_time = time.time()
 
         # Timeout bandwidth test after N seconds.
-        self.test_timeout = 60 * 5
+        self.test_timeout = 60 * 10
 
         # Based on passed tests.
         self.max_increase = self.ONE_MB
@@ -136,12 +139,14 @@ class BandwidthTest:
     def enable(self):
         self.api.add_message_handler(self.handle_requests)
         self.api.add_message_handler(self.handle_responses)
+        self.api.add_message_handler(self.handle_rejections)
 
         return self
 
     def disable(self):
         self.api.remove_message_handler(self.handle_requests)
         self.api.remove_message_handler(self.handle_responses)
+        self.api.remove_message_handler(self.handle_rejections)
 
         return self
 
@@ -205,6 +210,9 @@ class BandwidthTest:
             "start": set()
         }
 
+        self.cleanup_test_shards()
+
+    def cleanup_test_shards(self):
         # Cleanup test shard.
         if self.data_id is not None:
             storjnode.storage.manager.remove(
@@ -279,15 +287,14 @@ class BandwidthTest:
             d = defer.Deferred()
             d.errback(Exception("Test already in progress"))
             return d
+        else:
+            self.test_node_unl = node_unl
 
         # Reset test state
         self.test_size = test_size or self.ONE_MB
 
         # Set timeout.
         self.test_timeout = timeout or self.test_timeout
-
-        # Reset deferred.
-        self.active_test = defer.Deferred()
 
         # Generate random file to upload.
         shard = generate_random_file(self.test_size)
@@ -296,6 +303,9 @@ class BandwidthTest:
         self.data_id = get_hash(shard).decode("utf-8")
         _log.debug("FINGER_log.debug HASH")
         _log.debug(self.data_id)
+
+        # Reset deferred.
+        self.active_test = defer.Deferred()
 
         # File meta data.
         meta = OrderedDict([
