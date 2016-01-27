@@ -8,14 +8,14 @@ from storjnode.network.file_transfer import FileTransfer
 from storjnode.util import address_to_node_id
 from btctxstore import BtcTxStore
 import unittest
-from threading import Thread
+from threading import Thread, Event
 from storjnode.network.bandwidth.test import BandwidthTest
 from storjnode.network.bandwidth.limit import BandwidthLimit
 from crochet import setup
 setup()
 
 _log = storjnode.log.getLogger(__name__)
-test_success = 0
+test_success = Event()
 
 
 class TestBandwidthTest(unittest.TestCase):
@@ -80,8 +80,7 @@ class TestBandwidthTest(unittest.TestCase):
 
         # Show bandwidth.
         def show_bandwidth(results):
-            global test_success
-            test_success = 1
+            test_success.set()
             _log.debug(results)
 
         # Test bandwidth between Alice and Bob.
@@ -117,15 +116,13 @@ class TestBandwidthTest(unittest.TestCase):
         Thread(target=main_loop, args=(alice_transfer,)).start()
         Thread(target=main_loop, args=(bob_transfer,)).start()
 
-        end_time = time.time() + 60
-        while alice_test.active_test is not None and time.time() < end_time:
-            time.sleep(0.002)
+        test_success.wait(60)
 
         # End net.
         for client in [alice_transfer, bob_transfer]:
             client.net.stop()
 
-        self.assertTrue(test_success == 1)
+        self.assertTrue(test_success.is_set())
 
 
 if __name__ == "__main__":

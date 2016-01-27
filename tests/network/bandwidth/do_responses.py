@@ -140,12 +140,12 @@ class TestSubBandwidthResponses(unittest.TestCase):
             req
         )
         self.assertTrue(res == -2)
-        self.alice_test.test_node_unl = None
 
         # Check our sig is valid.
         req = list_to_ordered_dict(copy.deepcopy(self.req))
         req[u"request"][u"something"] = u"invalidate our sig"
         msg_id = hashlib.sha256(str(req[u"request"])).hexdigest()
+        self.alice_test.test_node_unl = self.bob_test.transfer.net.unl.value
         self.alice_test.message_state[msg_id] = u"pending_response"
         req = ordered_dict_to_list(req)
         res = handle_responses(

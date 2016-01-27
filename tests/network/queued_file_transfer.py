@@ -7,6 +7,7 @@ from storjnode.network.file_transfer import FileTransfer
 from storjnode.network.process_transfers import process_transfers
 from btctxstore import BtcTxStore
 from storjnode.network.bandwidth.limit import BandwidthLimit
+from threading import Event
 import tempfile
 import time
 import os
@@ -16,7 +17,7 @@ import unittest
 _log = storjnode.log.getLogger(__name__)
 
 
-queue_succeeded = 0
+queue_succeeded = Event()
 
 
 def test_queued():
@@ -133,8 +134,7 @@ def test_queued():
             # Indicate Bob's download succeeded.
             def alice_callback(val):
                 _log.debug("Download succeeded")
-                global queue_succeeded
-                queue_succeeded = 1
+                queue_succeeded.set()
 
             def alice_errback(err):
                 _log.debug("Download failed! {0}".format(repr(err)))
@@ -154,7 +154,7 @@ def test_queued():
 
     # Main event loop.
     timeout = time.time() + 40
-    while not queue_succeeded and time.time() < timeout:
+    while time.time() < timeout and not queue_succeeded.is_set():
         for client in [alice, bob]:
             if client == alice:
                 _log.debug("Alice")
@@ -162,7 +162,7 @@ def test_queued():
                 _log.debug("Bob")
             process_transfers(client)
 
-        time.sleep(1)
+        queue_succeeded.wait(1)
 
     if not queue_succeeded:
         _log.debug("\a")
@@ -170,7 +170,7 @@ def test_queued():
     for client in [alice, bob]:
         client.net.stop()
 
-    assert(queue_succeeded == 1)
+    assert(queue_succeeded.is_set())
 
 
 class TestQueuedTransfers(unittest.TestCase):
