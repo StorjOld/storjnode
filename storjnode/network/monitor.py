@@ -261,7 +261,7 @@ class Crawler(object):  # will not scale but good for now
 
     def _handle_bandwidth_test_success(self, results):
         with self.pipeline_mutex:
-            _log.error("Bandwidth test successfull: {0}".format(repr(result)))
+            _log.info("Bandwidth test successfull: {0}".format(repr(results)))
             nodeid, data = self.pipeline_bandwidth_test
 
             # free up bandwidth test for next peer
@@ -354,33 +354,31 @@ class Crawler(object):  # will not scale but good for now
 
     def crawl(self):
 
-        with self.pipeline_mutex:
+        # add info and peers message handlers
+        self.node.add_message_handler(self._handle_info_message)
+        self.node.add_message_handler(self._handle_peers_message)
 
-            # add info and peers message handlers
-            self.node.add_message_handler(self._handle_info_message)
-            self.node.add_message_handler(self._handle_peers_message)
+        # skip self
+        self.pipeline_processed[self.node.get_id()] = None
 
-            # skip self
-            self.pipeline_processed[self.node.get_id()] = None
+        # add initial peers
+        peers = self.node.get_neighbours()
+        for peer in peers:
+            self._add_peer_to_pipeline(peer.id, peer.ip, peer.port)
 
-            # add initial peers
-            peers = self.node.get_neighbours()
-            for peer in peers:
-                self._add_peer_to_pipeline(peer.id, peer.ip, peer.port)
+        # process pipeline until done
+        self._process_pipeline()
 
-            # process pipeline until done
-            self._process_pipeline()
+        # remove info and peers message handlers
+        self.node.remove_message_handler(self._handle_info_message)
+        self.node.remove_message_handler(self._handle_peers_message)
 
-            # remove info and peers message handlers
-            self.node.remove_message_handler(self._handle_info_message)
-            self.node.remove_message_handler(self._handle_peers_message)
+        # remove self from results
+        del self.pipeline_processed[self.node.get_id()]
 
-            # remove self from results
-            del self.pipeline_processed[self.node.get_id()]
+        self._log_crawl_statistics()
 
-            self._log_crawl_statistics(self)
-
-            return self.pipeline_processed
+        return self.pipeline_processed
 
 
 def crawl(node, limit=20, timeout=600):
