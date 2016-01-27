@@ -189,7 +189,7 @@ class Server(KademliaServer):
         if node is None:
             node = self.node
         nodes = []
-        for neighbor in TableTraverser(self.protcol.router, node):
+        for neighbor in TableTraverser(self.protocol.router, node):
             if exclude is None or not neighbor.sameHomeAs(exclude):
                 heapq.heappush(nodes, (node.distanceTo(neighbor), neighbor))
         return list(map(operator.itemgetter(1), nodes))
