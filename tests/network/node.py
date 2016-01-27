@@ -75,8 +75,9 @@ class TestNode(unittest.TestCase):
                 disable_data_transfer=False,
                 max_messages=10000000000000
             )
-            storjnode.network.messages.info.enable(node, config)
-            storjnode.network.messages.peers.enable(node)
+            if i % 2 == 1:  # every second node ignores info/peer requests
+                storjnode.network.messages.info.enable(node, config)
+                storjnode.network.messages.peers.enable(node)
             enable_unl_requests(node)
             node.bandwidth_test.__init__(
                 node.get_key(),
@@ -390,10 +391,10 @@ class TestNode(unittest.TestCase):
             # storjnode.storage.shard.copy(shard, sys.stdout)
             results.update(dict(key=key, shard=shard))
             crawled_event.set()
-        random_peer = random.choice(self.swarm)
+        node = self.swarm[0]
+        node = random.choice(self.swarm)
         monitor = storjnode.network.monitor.Monitor(
-            random_peer, limit=limit,
-            interval=interval, on_crawl_complete=handler
+            node, limit=limit, interval=interval, on_crawl_complete=handler
         )
 
         crawled_event.wait(timeout=(interval + 5))

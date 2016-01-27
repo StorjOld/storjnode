@@ -14,6 +14,7 @@ from crochet import wait_for
 from pycoin.encoding import a2b_hashed_base58, b2a_hashed_base58
 from collections import OrderedDict
 import storjnode
+from pyp2p.lib import get_unused_port
 
 
 _log = storjnode.log.getLogger(__name__)
@@ -265,23 +266,6 @@ def ensure_path_exists(path):
     if not os.path.exists(path):
         msg = "Creating path {0} failed!"  # pragma: no cover
         raise Exception(msg.format(path))  # pragma: no cover
-
-
-def get_unused_port(port=None):
-    """Checks if port is already in use."""
-    if port is None:
-        port = random.randint(1024, 65535)
-    assert(1024 <= port <= 65535)
-    while True:
-        s = socket.socket(socket.AF_INET, socket.SOCK_STREAM)
-        try:
-            s.bind(('', port))  # Try to open port
-        except socket.error as e:
-            if e.errno in (98, 10048):  # 98, 10048 means address already bound
-                return get_unused_port(None)
-            raise e
-        s.close()
-        return port
 
 
 def validate_positive_integer(i):

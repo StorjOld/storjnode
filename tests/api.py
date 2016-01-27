@@ -65,19 +65,19 @@ class TestApi(unittest.TestCase):
     # CONFIG #
     ##########
 
-    def test_cfg_current(self):
+    def test_cfg_get_current(self):
         peer = random.choice(self.swarm)
-        current = peer.cfg_current()
+        current = peer.cfg_get_current()
         storjnode.config.validate(current)
 
-    def test_cfg_default(self):
+    def test_cfg_get_default(self):
         peer = random.choice(self.swarm)
-        default = peer.cfg_default()
+        default = peer.cfg_get_default()
         self.assertEqual(default, storjnode.config.create())
 
-    def test_cfg_schema(self):
+    def test_cfg_get_schema(self):
         peer = random.choice(self.swarm)
-        schema = peer.cfg_schema()
+        schema = peer.cfg_get_schema()
         self.assertEqual(schema, storjnode.config.SCHEMA)
 
     #######

@@ -4,6 +4,7 @@ import json
 import copy
 import storjnode
 from collections import OrderedDict
+from kademlia.node import Node as KadNode
 from io import BytesIO
 from threading import Thread, RLock
 from storjnode.common import THREAD_SLEEP
@@ -23,19 +24,19 @@ SKIP_BANDWIDTH_TEST = False
 
 
 DEFAULT_DATA = OrderedDict([
-    ("peers", None),        # [nodeid, ...]
-    ("storage", None),      # {"total": int, "used": int, "free": int}
-    ("network", None),      # {
-                            #     "transport": [ip, port],
-                            #     "unl": str "is_public": bool
-                            # }
-    ("version", None),      # {"protocol: str, "storjnode": str}
-    ("platform", None),     # {
-                            #   "system": str, "release": str,
-                            #   "version": str, "machine": str
-                            # }
+    ("peers", None),                # [nodeid, ...]
+    ("storage", None),              # {"total": int, "used": int, "free": int}
+    ("network", OrderedDict()),     # {
+                                    #     "transport": [ip, port],
+                                    #     "unl": str "is_public": bool
+                                    # }
+    ("version", None),              # {"protocol: str, "storjnode": str}
+    ("platform", None),             # {
+                                    #   "system": str, "release": str,
+                                    #   "version": str, "machine": str
+                                    # }
     ("btcaddress", None),
-    ("bandwidth", None),    # {"send": int, "receive": int}
+    ("bandwidth", None),            # {"send": int, "receive": int}
     ("latency", OrderedDict([
         ("info", None),
         ("peers", None),
@@ -75,17 +76,22 @@ class Crawler(object):  # will not scale but good for now
     def stop(self):
         self.stop_thread = True
 
-    def _add_peer_to_pipeline(self, peer):
+    def _add_peer_to_pipeline(self, peerid, ip, port):
         with self.pipeline_mutex:
-            scanning = peer in self.pipeline_scanning
-            scanned = peer in self.pipeline_scanned_fifo
-            processed = peer in self.pipeline_processed
+            scanning = peerid in self.pipeline_scanning
+            scanned = peerid in self.pipeline_scanned_fifo
+            processed = peerid in self.pipeline_processed
             testing_bandwidth = (
                 self.pipeline_bandwidth_test is not None and
-                peer == self.pipeline_bandwidth_test[0]
+                peerid == self.pipeline_bandwidth_test[0]
             )
             if not (scanning or scanned or processed or testing_bandwidth):
-                self.pipeline_scanning[peer] = copy.deepcopy(DEFAULT_DATA)
+                self.pipeline_scanning[peerid] = copy.deepcopy(DEFAULT_DATA)
+
+            if scanning and ip is not None and port is not None:
+                data = self.pipeline_scanning[peerid]
+                if "transport" not in data["network"]:
+                    data["network"]["transport"] = [ip, port]
 
     def _handle_peers_message(self, node, message):
         received = time.time()
@@ -94,17 +100,18 @@ class Crawler(object):  # will not scale but good for now
             return  # dont care about this message
         with self.pipeline_mutex:
             data = self.pipeline_scanning.get(message.sender)
-            if data is None:
-                return  # not being scanned
+            if data is None:  # not being scanned anymore
+                return
             _log.info("Received peers from {0}!".format(
                 node_id_to_address(message.sender))
             )
-            data["latency"]["peers"] = received - data["latency"]["peers"]
-            data["peers"] = storjnode.util.chunks(message.body, 20)
+            if data["peers"] is None:
+                data["latency"]["peers"] = received - data["latency"]["peers"]
+                data["peers"] = storjnode.util.chunks(message.body, 20)
 
-            # add previously unknown peers
+            # add to pipeline if needed
             for peer in data["peers"]:
-                self._add_peer_to_pipeline(peer)
+                self._add_peer_to_pipeline(peer, None, None)
 
             self._check_scan_complete(message.sender, data)
 
@@ -126,7 +133,16 @@ class Crawler(object):  # will not scale but good for now
                 ("storjnode", message.body.version),
             ])
             data["storage"] = message.body.storage._asdict()
-            data["network"] = message.body.network._asdict()
+
+            # save network info we dont already have
+            network = message.body.network._asdict()
+            if "transport" not in data["network"]:
+                data["network"]["transport"] = network["transport"]
+            if "unl" not in data["network"]:
+                data["network"]["unl"] = network["unl"]
+            if "is_public" not in data["network"]:
+                data["network"]["is_public"] = network["is_public"]
+
             data["platform"] = message.body.platform._asdict()
             data["btcaddress"] = storjnode.util.node_id_to_address(
                 message.body.btcaddress
@@ -138,7 +154,7 @@ class Crawler(object):  # will not scale but good for now
 
         if data["peers"] is None:
             return  # peers not yet received
-        if data["network"] is None:
+        if data["version"] is None:
             return  # info not yet received
 
         # move to scanned
@@ -157,37 +173,81 @@ class Crawler(object):  # will not scale but good for now
             len(self.pipeline_processed),
         ))
 
-    def _process_scanning(self, nodeid, data):
+    def _handle_neighbours_message(self, knode, neighbours):
+        received = time.time()
+        with self.pipeline_mutex:
+            data = self.pipeline_scanning.get(knode.id)
+            if data is None:  # not being scanned anymore
+                return
+            _log.info("Received neighbours from {0}!".format(
+                node_id_to_address(knode.id))
+            )
+            # add peers
+            if data["peers"] is None:
+                data["latency"]["peers"] = received - data["latency"]["peers"]
+                data["peers"] = [nodeid for nodeid, ip, port in neighbours]
 
-        # request with exponential backoff
-        now = time.time()
-        window = storjnode.network.WALK_TIMEOUT ** data["request"]["tries"]
-        if time.time() < data["request"]["last"] + window:
-            return  # wait for response
+            # add to pipeline if needed
+            for nodeid, ip, port in neighbours:
+                self._add_peer_to_pipeline(nodeid, ip, port)
 
-        _log.info("Requesting info/peers for {0}, try {1}!".format(
-            node_id_to_address(nodeid),
-            data["request"]["tries"]
-        ))
+            self._check_scan_complete(knode.id, data)
 
-        # request peers
-        if data["peers"] is None:
+    def _request_peers(self, nodeid, data):
+        with self.pipeline_mutex:
+
+            # get neighbours (old nodes don't respond to peers request)
+            if "transport" in data["network"]:
+                ip, port = data["network"]["transport"]
+                knode = KadNode(nodeid, ip, port)
+                defered = self.node.server.protocol.callFindNode(knode, knode)
+                defered = storjnode.util.default_defered(defered, [])
+
+                def _on_get_neighbours(neighbours):
+                    self._handle_neighbours_message(knode, neighbours)
+                defered.addCallback(_on_get_neighbours)
+
+            # send request peers message (for new nodes behind nat)
             request_peers(self.node, nodeid)
-            if data["latency"]["peers"] is None:
-                data["latency"]["peers"] = now
 
-        # request info
-        if data["network"] is None:
-            request_info(self.node, nodeid)
-            if data["latency"]["info"] is None:
-                data["latency"]["info"] = now
+    def _process_scanning(self, nodeid, data):
+        with self.pipeline_mutex:
 
-        data["request"]["last"] = now
-        data["request"]["tries"] = data["request"]["tries"] + 1
+            # request with exponential backoff
+            now = time.time()
+            window = storjnode.network.WALK_TIMEOUT ** data["request"]["tries"]
+            if time.time() < data["request"]["last"] + window:
+                return  # wait for response
+
+            _log.info("Requesting info/peers for {0}, try {1}!".format(
+                node_id_to_address(nodeid),
+                data["request"]["tries"]
+            ))
+
+            # request peers
+            if data["peers"] is None:
+                _log.info("Requesting peers/neighbours from {0}!".format(
+                    node_id_to_address(nodeid))
+                )
+                self._request_peers(nodeid, data)
+                if data["latency"]["peers"] is None:
+                    data["latency"]["peers"] = now
+
+            # request info
+            if data["version"] is None:
+                _log.info("Requesting info from {0}!".format(
+                    node_id_to_address(nodeid))
+                )
+                request_info(self.node, nodeid)
+                if data["latency"]["info"] is None:
+                    data["latency"]["info"] = now
+
+            data["request"]["last"] = now
+            data["request"]["tries"] = data["request"]["tries"] + 1
 
     def _handle_bandwidth_test_error(self, err):
         with self.pipeline_mutex:
-            _log.error(repr(err))
+            _log.error("Bandwidth test failed: {0}".format(repr(err)))
 
             # move to the back to scanned fifo and try again later
             nodeid, data = self.pipeline_bandwidth_test
@@ -201,6 +261,7 @@ class Crawler(object):  # will not scale but good for now
 
     def _handle_bandwidth_test_success(self, results):
         with self.pipeline_mutex:
+            _log.info("Bandwidth test successfull: {0}".format(repr(results)))
             nodeid, data = self.pipeline_bandwidth_test
 
             # free up bandwidth test for next peer
@@ -283,6 +344,14 @@ class Crawler(object):  # will not scale but good for now
 
         # done! because of timeout or stop flag
 
+    def _log_crawl_statistics(self):
+        _log.info("MONITOR POST CRAWL STATISTICS: {0}".format(json.dumps({
+            "scanning_info_and_peers": len(self.pipeline_scanning),
+            "waiting_for_bandwidth_test": len(self.pipeline_scanned_fifo),
+            "testing_bandwidth": self.pipeline_bandwidth_test is not None,
+            "successfully_processed": len(self.pipeline_processed)
+        }, indent=2)))
+
     def crawl(self):
 
         # add info and peers message handlers
@@ -295,7 +364,7 @@ class Crawler(object):  # will not scale but good for now
         # add initial peers
         peers = self.node.get_neighbours()
         for peer in peers:
-            self._add_peer_to_pipeline(peer.id)
+            self._add_peer_to_pipeline(peer.id, peer.ip, peer.port)
 
         # process pipeline until done
         self._process_pipeline()
@@ -306,6 +375,8 @@ class Crawler(object):  # will not scale but good for now
 
         # remove self from results
         del self.pipeline_processed[self.node.get_id()]
+
+        self._log_crawl_statistics()
 
         return self.pipeline_processed
 
