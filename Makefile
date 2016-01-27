@@ -69,9 +69,10 @@ install: setup
 
 test_script: install
 	#$(PY) examples/network/map_network.py --debug
-	$(PY) -m unittest --quiet tests.network.node.TestNode.test_network_monitor_service
+	#$(PY) -m unittest --quiet tests.network.node.TestNode.test_network_monitor_service
 	#env/bin/storjnode --debug --wallet=L3NrSTxMCwAsLXnBjESvU5LnCKwcmMXKutKzNnVpPevXeSMfB1zx dht_dump
 	#env/bin/storjnode_bootstrap_only --wallet=L3NrSTxMCwAsLXnBjESvU5LnCKwcmMXKutKzNnVpPevXeSMfB1zx --port=1337
+	$(PY) sandbox/prove_relaying.py
 
 
 shell: install
