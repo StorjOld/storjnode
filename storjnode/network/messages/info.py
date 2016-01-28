@@ -176,7 +176,8 @@ def _respond(node, receiver, config):
                      result["is_public"], btcaddress)
         return node.relay_message(receiver, msg)
 
-    deferred = node.async_get_transport_info()
+    add_unl = not config["network"]["disable_data_transfer"]
+    deferred = node.async_get_transport_info(add_unl=add_unl)
     return deferred.addCallback(on_success).addErrback(on_error)
 
 
