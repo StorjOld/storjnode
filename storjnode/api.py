@@ -171,7 +171,7 @@ class StorjNode(apigen.Definition):
             _log.info(txt.format(shardid=shardid, nodeid=nodeid))
 
     def _on_crawl_complete(self, key, shard):
-        _log.info("Crawl complete, {shardid} publshed at {key}".format(
+        _log.info("Crawl complete, {shardid} published at {key}".format(
             key=key, shardid=storjnode.storage.shard.get_id(shard)
         ))
 
