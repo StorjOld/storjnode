@@ -273,7 +273,8 @@ class FileTransfer:
         """
         The direction of a transfer is relative to the node.
         """
-        contract = contract or self.contracts[contract_id]
+        if contract_id is not None:
+            contract = self.contracts[contract_id]
         our_unl = self.net.unl
         host_unl = pyp2p.unl.UNL(value=contract[u"host_unl"])
         if our_unl == host_unl:

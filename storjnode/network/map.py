@@ -1,6 +1,6 @@
 import time
 import storjnode
-from kademlia.node import Node
+from storjkademlia.node import Node
 from crochet import TimeoutError
 from threading import Thread
 from threading import RLock

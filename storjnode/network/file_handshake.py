@@ -270,6 +270,15 @@ def process_syn(client, msg, enable_accept_handlers=ENABLE_ACCEPT_HANDLERS):
     else:
         client.processed_syns[msg_id] = 1
 
+    # Over monthly limit?
+    direction = client.get_direction(contract_id=None, contract=msg)
+    bw_type = {
+        "send": "upstream",
+        "receive": "downstream"
+    }[direction]
+    if client.bandwidth.is_over_monthly_limit(bw_type):
+        return -8
+
     # Save contract.
     client.save_contract(msg)
     client.handshake[contract_id] = {

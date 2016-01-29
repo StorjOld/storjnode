@@ -8,7 +8,7 @@ try:
 except ImportError:
     from queue import Queue, Full  # py3
 import threading
-from rpcudp.protocol import RPCProtocol
+from storjrpcudp.protocol import RPCProtocol
 from twisted.internet import reactor
 from crochet import setup
 

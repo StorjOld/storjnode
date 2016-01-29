@@ -17,7 +17,7 @@ import operator
 from itertools import takewhile
 from collections import OrderedDict
 from zope.interface import implementer
-from kademlia.storage import IStorage
+from storjkademlia.storage import IStorage
 from threading import RLock
 
 

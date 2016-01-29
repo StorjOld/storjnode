@@ -39,10 +39,10 @@ import unittest
 import btctxstore
 import storjnode
 import sys
-from kademlia.node import Node as KademliaNode
-from kademlia.protocol import KademliaProtocol
-from kademlia.routing import RoutingTable
-from kademlia.routing import TableTraverser
+from storjkademlia.node import Node as KademliaNode
+from storjkademlia.protocol import KademliaProtocol
+from storjkademlia.routing import RoutingTable
+from storjkademlia.routing import TableTraverser
 from storjnode.network.server import QUERY_TIMEOUT, WALK_TIMEOUT
 from storjnode.network.file_transfer import enable_unl_requests
 import storjnode.network.process_transfers

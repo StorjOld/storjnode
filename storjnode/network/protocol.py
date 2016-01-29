@@ -4,10 +4,10 @@ try:
     from Queue import Queue, Full  # py2
 except ImportError:
     from queue import Queue, Full  # py3
-from kademlia.protocol import KademliaProtocol
-from kademlia.routing import RoutingTable
-from kademlia.routing import TableTraverser
-from kademlia.node import Node
+from storjkademlia.protocol import KademliaProtocol
+from storjkademlia.routing import RoutingTable
+from storjkademlia.routing import TableTraverser
+from storjkademlia.node import Node
 import storjnode
 
 

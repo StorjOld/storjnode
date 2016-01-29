@@ -9,9 +9,9 @@ import btctxstore
 import storjnode
 from storjnode.util import safe_log_var
 from storjnode.common import THREAD_SLEEP
-from kademlia.network import Server as KademliaServer
-from kademlia.node import Node as KademliaNode
-from kademlia.routing import TableTraverser
+from storjkademlia.network import Server as KademliaServer
+from storjkademlia.node import Node as KademliaNode
+from storjkademlia.routing import TableTraverser
 from storjnode.network.protocol import Protocol
 from twisted.internet import defer
 from twisted.internet.task import LoopingCall
