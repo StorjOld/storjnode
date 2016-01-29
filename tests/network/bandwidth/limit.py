@@ -2,6 +2,7 @@ import unittest
 import storjnode
 import time
 from storjnode.network.bandwidth.limit import BandwidthLimit
+from storjnode.network.bandwidth.limit import MONTHLY_USAGE_PATH
 
 _log = storjnode.log.getLogger(__name__)
 timed_out = 0
@@ -155,25 +156,24 @@ class TestLimit(unittest.TestCase):
         used = self.bandwidth.info["sec"]["upstream"]["used"]
         self.assertTrue(expected == used)
 
-    @unittest.skip("broken")
     def test_save_load_limits(self):
+        # Test save load.
         bl = BandwidthLimit(storjnode.config.create())
-        assert(bl.info["sec"]["upstream"]["limit"] == 1337)
-        bw_limit = bl.info["sec"]["upstream"]["limit"] + 1
-        bl.limit(
-            bw_limit,
-            "sec",
-            "upstream"
-        )
-        assert(bl.info["sec"]["upstream"]["limit"] == bw_limit)
+        bl.clear_monthly_usage()
+        used = 1337133713371337
+        bl.info["month"]["upstream"]["used"] = used
+        bl.save_monthly_usage()
+        bl = BandwidthLimit(storjnode.config.create())
+        assert(bl.info["month"]["upstream"]["used"] == used)
 
-        # bl.info["sec"]["upstream"]["limit"] = 0
-        bl.load()
+        # Test rotate next month.
+        old_next_month = bl.next_month
+        bl.next_month = time.time() - 10000
+        next_next_month = bl.next_month
+        bl.request("upstream")
+        bl = BandwidthLimit(storjnode.config.create())
+        assert(bl.next_month != next_next_month)
 
-        print(bl.info["sec"]["upstream"]["limit"])
-        return
-
-        assert(bl.info["sec"]["upstream"]["limit"] == bw_limit)
 
 if __name__ == "__main__":
     unittest.main()
