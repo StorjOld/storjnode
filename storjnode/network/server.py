@@ -1,3 +1,5 @@
+import heapq
+import operator
 import os
 import time
 import umsgpack
@@ -22,7 +24,7 @@ if os.environ.get("STORJNODE_QUERY_TIMEOUT"):
     QUERY_TIMEOUT = float(os.environ.get("STORJNODE_QUERY_TIMEOUT"))
 else:
     QUERY_TIMEOUT = 5.0  # default seconds
-WALK_TIMEOUT = QUERY_TIMEOUT * 24.0
+WALK_TIMEOUT = QUERY_TIMEOUT * 12.0
 
 
 _log = storjnode.log.getLogger(__name__)
@@ -40,6 +42,7 @@ class MessageRelayer(object):
 
     @run_in_reactor
     def start(self):
+        # self.nearest = self.server.get_known_peers(self.dest)
         self.nearest = self.server.protocol.router.findNeighbors(
             self.dest, exclude=self.server.node
         )
@@ -177,9 +180,19 @@ class Server(KademliaServer):
         self._cached_address = self.btctxstore.get_address(self.key)
         return self._cached_address
 
-    def get_known_peers(self):
-        """Returns list of known node."""
-        return TableTraverser(self.protocol.router, self.node)
+    def get_known_peers(self, node=None, exclude=None):
+        """Returns list of known node.
+
+        Args:
+            node: peers will be ordered according to this node
+        """
+        if node is None:
+            node = self.node
+        nodes = []
+        for neighbor in TableTraverser(self.protocol.router, node):
+            if exclude is None or not neighbor.sameHomeAs(exclude):
+                heapq.heappush(nodes, (node.distanceTo(neighbor), neighbor))
+        return list(map(operator.itemgetter(1), nodes))
 
     def get_neighbours(self):
         return self.protocol.router.findNeighbors(self.node, exclude=self.node)

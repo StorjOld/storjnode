@@ -1,4 +1,5 @@
 ipython
 restview
 yappi
+pympler
 pudb

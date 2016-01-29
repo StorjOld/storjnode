@@ -1,3 +1,4 @@
+import unittest
 from . shard import *  # NOQA
 from . manager import *  # NOQA
 from . dht import *  # NOQA
