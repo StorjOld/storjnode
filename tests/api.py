@@ -59,7 +59,7 @@ class TestApi(unittest.TestCase):
         peer = random.choice(self.swarm)
         info = peer.info()
         # FIXME use schema to check format
-        self.assertEqual(len(info["network"]["peers"]), SWARM_SIZE)
+        self.assertEqual(len(info["network"]["peers"]), SWARM_SIZE - 1)
 
     ##########
     # CONFIG #

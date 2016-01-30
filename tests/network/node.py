@@ -205,29 +205,33 @@ class TestNode(unittest.TestCase):
     def _test_relay_message(self, sender, receiver, success_expected):
         testmessage = binascii.hexlify(os.urandom(32))
         receiver_id = receiver.get_id()
-        sender.relay_message(receiver_id, testmessage)
 
+        received = []
         received_event = threading.Event()
 
         def handler(node, message):
-            received.append(message)
-            received_event.set()
-        received = []
+            if message == testmessage:
+                received.append(message)
+                received_event.set()
         receiver.add_message_handler(handler)
+        sender.relay_message(receiver_id, testmessage)
 
-        if not success_expected:
-            time.sleep(WALK_TIMEOUT)  # wait until relayed
-            self.assertEqual(len(received), 0)
+        try:
+            if not success_expected:
+                time.sleep(WALK_TIMEOUT)  # wait until relayed
+                self.assertEqual(len(received), 0)
 
-        else:  # success expected
-            received_event.wait(timeout=WALK_TIMEOUT)
+            else:  # success expected
+                received_event.wait(timeout=WALK_TIMEOUT)
 
-            # check one message received
-            self.assertEqual(len(received), 1)
+                # check one message received
+                self.assertEqual(len(received), 1)
 
-            # check if correct message received
-            message = received[0]
-            self.assertEqual(testmessage, message)
+                # check if correct message received
+                message = received[0]
+                self.assertEqual(testmessage, message)
+        finally:
+            receiver.remove_message_handler(handler)
 
     def test_relay_messaging_success(self):
         sender = self.swarm[0]

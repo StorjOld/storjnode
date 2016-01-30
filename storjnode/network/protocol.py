@@ -1,4 +1,6 @@
 import heapq
+import umsgpack
+import hashlib
 import operator
 try:
     from Queue import Queue, Full  # py2
@@ -7,7 +9,6 @@ except ImportError:
 from kademlia.protocol import KademliaProtocol
 from kademlia.routing import RoutingTable
 from kademlia.routing import TableTraverser
-from kademlia.node import Node
 import storjnode
 
 
@@ -18,7 +19,8 @@ def _findNearest(self, node, k=None, exclude=None):
     k = k or self.ksize
     nodes = []
     for neighbor in TableTraverser(self, node):
-        if exclude is None or not neighbor.sameHomeAs(exclude):
+        if exclude is None or not (neighbor.id == exclude.id or
+                                   neighbor.sameHomeAs(exclude)):
             heapq.heappush(nodes, (node.distanceTo(neighbor), neighbor))
         if len(nodes) == k:
             break
@@ -32,10 +34,12 @@ RoutingTable.findNeighbors = _findNearest  # XXX monkey patch find neighbors
 class Protocol(KademliaProtocol):
 
     def __init__(self, *args, **kwargs):
+        self.messages_history_limit = kwargs.pop("messages_history_limit")
         max_messages = kwargs.pop("max_messages")
         self.max_hop_limit = kwargs.pop("max_hop_limit")
         self.messages_relay = Queue(maxsize=max_messages)
         self.messages_received = Queue(maxsize=max_messages)
+        self.messages_history = []
         KademliaProtocol.__init__(self, *args, **kwargs)
         self.log = storjnode.log.getLogger("kademlia.protocol")
         if not storjnode.log.NOISY:
@@ -66,6 +70,22 @@ class Protocol(KademliaProtocol):
             self.log.warning("Received message queue full, dropping message.")
             return False
 
+    def already_received(self, dest_id, message):
+        msghash = self.message_hash(dest_id, message)
+        return msghash in self.messages_history
+
+    def message_hash(self, dest_id, message):
+        return hashlib.sha256(umsgpack.packb([dest_id, message])).digest()
+
+    def add_to_history(self, dest_id, message):
+        msghash = self.message_hash(dest_id, message)
+        self.messages_history.append(msghash)
+        self.cull_history()
+
+    def cull_history(self):
+        while len(self.messages_history) > self.messages_history_limit:
+            self.messages_history.pop(0)  # remove oldest
+
     def rpc_relay_message(self, sender, sender_id,
                           dest_id, hop_limit, message):
         # FIXME self.welcomeIfNewNode(Node(sender_id, sender[0], sender[1]))
@@ -74,6 +94,12 @@ class Protocol(KademliaProtocol):
                    storjnode.util.node_id_to_address(dest_id), hop_limit)
         msg = "Got relay message from {1} at {0} for {2} with limit {3}."
         self.log.debug(msg.format(*logargs))
+
+        # drop if we already received
+        if self.already_received(dest_id, message):
+            self.log.debug("Dropping relay message, already received.")
+            return None
+        self.add_to_history(dest_id, message)
 
         # message is for this node
         if dest_id == self.sourceNode.id:
@@ -84,13 +110,6 @@ class Protocol(KademliaProtocol):
         if not (0 < hop_limit <= self.max_hop_limit):
             msg = "Dropping relay message, bad hop limit {0}."
             self.log.debug(msg.format(hop_limit))
-            return None
-
-        # do not relay away from dest
-        sender_distance = Node(sender_id).distanceTo(Node(dest_id))
-        our_distance = self.sourceNode.distanceTo(Node(dest_id))
-        if our_distance >= sender_distance:
-            self.log.debug("Dropping relay message, self not closer to dest.")
             return None
 
         # add to relay queue

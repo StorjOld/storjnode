@@ -69,11 +69,13 @@ install: setup
 
 test_script: install
 	#$(PY) examples/network/map_network.py --debug
-	#$(PY) -m unittest --quiet tests.network.node.TestNode.test_network_monitor_service
+	#$(PY) -m unittest --quiet tests.network.node.TestNode.test_relay_messaging
+	$(PY) -m unittest --quiet tests.api.TestApi.test_info
+	#$(PY) -m unittest --quiet tests.network.node.TestNode.test_relay_messaging_success
 	#env/bin/storjnode --debug --wallet=L3NrSTxMCwAsLXnBjESvU5LnCKwcmMXKutKzNnVpPevXeSMfB1zx dht_dump
 	#env/bin/storjnode_bootstrap_only --wallet=L3NrSTxMCwAsLXnBjESvU5LnCKwcmMXKutKzNnVpPevXeSMfB1zx --port=1337
 	#$(PY) sandbox/prove_relaying.py
-	$(PY) scripts/start_bootstrap_only_node.py --port=1337
+	#$(PY) scripts/start_bootstrap_only_node.py --port=1337
 
 
 shell: install
@@ -86,7 +88,7 @@ test: setup
 	$(PEP8) storjnode
 	$(PEP8) examples
 	$(PEP8) tests
-	$(COVERAGE) run --source="storjnode" -m unittest --verbose tests
+	$(COVERAGE) run --source="storjnode" -m unittest -v tests
 	$(COVERAGE) report --fail-under=85
 
 

@@ -30,71 +30,10 @@ WALK_TIMEOUT = QUERY_TIMEOUT * 12.0
 _log = storjnode.log.getLogger(__name__)
 
 
-class MessageRelayer(object):
-
-    def __init__(self, server, dest, hop_limit, message):
-        self.server = server
-        self.node = self.server.node
-        self.dest = KademliaNode(dest)
-        self.hop_limit = hop_limit
-        self.message = message
-        self.nearest = None
-
-    @run_in_reactor
-    def start(self):
-        # self.nearest = self.server.get_known_peers(self.dest)
-        self.nearest = self.server.protocol.router.findNeighbors(
-            self.dest, exclude=self.server.node
-        )
-        txt = "{1}: Relaying to nearest peers: {0}"
-        _log.debug(txt.format(repr(self.nearest), self.server.get_address()))
-        self.nearest.reverse()  # reverse so you can pop the next
-        self.attempt_relay([True, None])
-
-    def __call__(self, result):
-        self.attempt_relay(result)
-
-    def attempt_relay(self, result):
-        success = bool(result[0] and result[1])
-        dest_address = storjnode.util.node_id_to_address(self.dest.id)
-
-        if success:
-            txt = "{1}: Successfully relayed message for {0}"
-            _log.debug(txt.format(dest_address, self.server.get_address()))
-            return  # relay only to nearest peer, avoid amplification attacks!
-
-        elif not self.nearest:
-            txt = "{1}: Failed to relay message for {0}"
-            _log.debug(txt.format(dest_address, self.server.get_address()))
-            return
-
-        relay_node = self.nearest.pop()
-        address = storjnode.util.node_id_to_address(relay_node.id)
-
-        # do not relay away from node
-        dist_to_self = self.dest.distanceTo(self.node)
-        dist_to_relay = self.dest.distanceTo(relay_node)
-        if dist_to_self <= dist_to_relay:
-            txt = "{1}: Aborting relay attempt, {0} farther then self."
-            _log.warning(txt.format(address, self.server.get_address()))
-            return
-
-        def on_error(err):
-            _log.error(repr(err))
-            return err
-
-        # attempt to relay message
-        txt = "{1}: Attempting to relay message for {0}"
-        _log.debug(txt.format(address, self.server.get_address()))
-        self.server.protocol.callRelayMessage(
-            relay_node, self.dest.id, self.hop_limit, self.message
-        ).addCallback(self).addErrback(on_error)
-
-
 class Server(KademliaServer):
 
     def __init__(self, key, port, ksize=20, alpha=3, storage=None,
-                 max_messages=1024, default_hop_limit=64,
+                 max_messages=1024, default_hop_limit=20,
                  refresh_neighbours_interval=WALK_TIMEOUT):
         """
         Create a server instance.  This will start listening on the given port.
@@ -131,7 +70,8 @@ class Server(KademliaServer):
         self.node = KademliaNode(self.get_id())
         self.protocol = Protocol(
             self.node, self.storage, ksize, max_messages=max_messages,
-            max_hop_limit=self._default_hop_limit
+            max_hop_limit=self._default_hop_limit,
+            messages_history_limit=65536
         )
         self.refreshLoop = LoopingCall(self.refreshTable).start(3600)
 
@@ -233,7 +173,9 @@ class Server(KademliaServer):
 
         if nodeid == self.node.id:
             _log.debug("Adding message to self to received queue!.")
-            return self.protocol.queue_received_message(message)
+            self.protocol.add_to_history(nodeid, message)
+            result = self.protocol.queue_received_message(message)
+            return result
         else:
             txt = "Queuing relay messaging for %s: %s"
             address = storjnode.util.node_id_to_address(nodeid)
@@ -256,12 +198,25 @@ class Server(KademliaServer):
                 last_refresh = datetime.datetime.now()
             time.sleep(THREAD_SLEEP)
 
+    def _relay_message(self, dest, hop_limit, message):
+        txt = "{0}: Relaying to nearest peers."
+        _log.debug(txt.format(self.get_address()))
+
+        nearest = self.get_neighbours()
+        for relay_node in nearest:
+            assert(relay_node.id != self.node.id)
+            address = storjnode.util.node_id_to_address(relay_node.id)
+            txt = "{1}: Attempting to relay message to {0}"
+            _log.debug(txt.format(address, self.get_address()))
+            self.protocol.callRelayMessage(
+                relay_node, dest, hop_limit, message
+            )
+
     def _relay_loop(self):
         while not self._relay_thread_stop:
             q = self.protocol.messages_relay
             for entry in storjnode.util.empty_queue(q):
-                message_relayer = MessageRelayer(self, **entry)
-                message_relayer.start()
+                self._relay_message(**entry)
             time.sleep(THREAD_SLEEP)
 
     def get_transport_info(self, unl=None):
