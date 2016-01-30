@@ -95,9 +95,9 @@ class StorjNode(apigen.Definition):
         storjnode.network.messages.info.enable(self._node, self._cfg)
         storjnode.network.messages.peers.enable(self._node)
         if not self._cfg["network"]["disable_data_transfer"]:
+            storjnode.network.file_transfer.enable_unl_requests(self._node)
             self._node.bandwidth_test.enable()
             self._node.latency_tests.enable()
-            storjnode.network.file_transfer.enable_unl_requests(self._node)
 
     def _on_message(self, node, message):
         with self._messages_mutex:
