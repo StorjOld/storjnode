@@ -205,9 +205,9 @@ class Server(KademliaServer):
         nearest = self.get_neighbours()
         for relay_node in nearest:
             assert(relay_node.id != self.node.id)
-            address = storjnode.util.node_id_to_address(relay_node.id)
-            txt = "{1}: Attempting to relay message to {0}"
-            _log.debug(txt.format(address, self.get_address()))
+            # address = storjnode.util.node_id_to_address(relay_node.id)
+            # txt = "{1}: Attempting to relay message to {0}"
+            # _log.debug(txt.format(address, self.get_address()))
             self.protocol.callRelayMessage(
                 relay_node, dest, hop_limit, message
             )
