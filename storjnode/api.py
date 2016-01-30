@@ -240,6 +240,7 @@ class StorjNode(apigen.Definition):
                         txt = "Excessive memory usage {0} > {1}!"
                         _log.fatal(txt.format(rss, 100 * 1024 * 1024))
                         memory_dump()
+                        import pdb; pdb.set_trace()
                         os.abort()
 
                     time.sleep(storjnode.common.THREAD_SLEEP)

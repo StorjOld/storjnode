@@ -17,7 +17,6 @@ def handle_rejections_builder(bt):
     # Handle bandwidth rejections.
     def handle_rejections(node, msg):
         _log.debug("In handle Rejections")
-        print("\a")
 
         # Check message type.
         if type(msg) in [type(b"")]:

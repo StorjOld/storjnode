@@ -90,9 +90,7 @@ class TestFileHandshake(unittest.TestCase):
 
         # Bypass sending messages for client.
         def send_msg(dict_obj, unl):
-            print("Skipped sending message in test")
-            print(dict_obj)
-            print(unl)
+            pass
 
         # Install send msg hooks.
         self.alice.send_msg = send_msg
@@ -100,9 +98,7 @@ class TestFileHandshake(unittest.TestCase):
 
         # Bypass sending relay messages for clients.
         def relay_msg(node_id, msg):
-            print("Skipping relay message in test")
-            print(node_id)
-            print(msg)
+            pass
 
         # Install relay msg hooks.
         if self.alice.net.dht_node is not None:
@@ -114,17 +110,7 @@ class TestFileHandshake(unittest.TestCase):
         # Bypass UNL.connect for clients.
         def unl_connect(their_unl, events, force_master=1, hairpin=1,
                         nonce="0" * 64):
-            print("Skipping UNL.connect!")
-            print("Their unl = ")
-            print(their_unl)
-            print("Events = ")
-            print(events)
-            print("Force master = ")
-            print(force_master)
-            print("Hairpin = ")
-            print(hairpin)
-            print("Nonce = ")
-            print(nonce)
+            pass
 
         # Install UNL connect hooks.
         self.alice.net.unl.connect = unl_connect
@@ -169,10 +155,6 @@ class TestFileHandshake(unittest.TestCase):
         syn = self.alice.contracts[contract_id]
         self.assertIsInstance(syn, OrderedDict)
 
-        print(self.alice.net.unl.value)
-        print(self.bob.net.unl.value)
-        print(syn)
-
         # Bob: process SYN, build SYN-ACK.
         syn_ack = process_syn(self.bob, syn)
         self.assertIsInstance(syn_ack, OrderedDict)
@@ -211,11 +193,7 @@ class TestFileHandshake(unittest.TestCase):
 
         syn = copy.deepcopy(self.syn)
         signed_syn = self.alice.sign_contract(syn)
-        print(signed_syn)
-
-        print(self.alice.is_valid_contract_sig(signed_syn))
         node_id = self.alice.net.dht_node.get_id()
-        print(node_id)
         self.assertEqual(
             self.alice.is_valid_contract_sig(signed_syn, node_id), 1
         )
@@ -223,15 +201,10 @@ class TestFileHandshake(unittest.TestCase):
         self.assertEqual(
             self.alice.is_valid_contract_sig(signed_syn, node_id), 1
         )
-        print(node_id)
 
         self.assertTrue(syn[u"src_unl"] == self.alice.net.unl.value)
 
-        print("Bob's perspective")
         assert(self.bob.is_valid_contract_sig(signed_syn, node_id))
-
-        print("----")
-        print(signed_syn)
 
         print("")
         print("End sign syn")
@@ -371,8 +344,6 @@ class TestFileHandshake(unittest.TestCase):
         syn_ack_2 = copy.deepcopy(syn_ack)
         self.alice.handshake = {}
         ret = process_syn_ack(self.alice, syn_ack_2)
-        print("ERror 1")
-        print(ret)
         self.assertTrue(ret == -7)
         self.alice.handshake[contract_id] = {
             u"state": u"ACK",
@@ -391,7 +362,6 @@ class TestFileHandshake(unittest.TestCase):
         contract_id = self.alice.contract_id(syn_ack_2[u"syn"])
         self.alice.contracts[contract_id] = syn_ack_2[u"syn"]
         ret = process_syn_ack(self.alice, syn_ack_2)
-        print(ret)
         self.assertIsInstance(ret, OrderedDict)
 
         print("")
@@ -458,7 +428,6 @@ class TestFileHandshake(unittest.TestCase):
             u"timestamp": time.time()
         }
         ret = process_ack(self.bob, ack_2)
-        print(ret)
 
         self.assertTrue(ret == 1)
 
