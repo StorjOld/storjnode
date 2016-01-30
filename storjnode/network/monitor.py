@@ -400,9 +400,17 @@ def predictable_key(node, num):
 
 def find_next_free_dataset_num(node):
 
+    def _get_value(key):
+        while True:
+            try:
+                return node[key]
+            except TimeoutError:
+                txt = "TimeoutError when getting key: {0}"
+                _log.warning(txt.format(key))
+
     # probe for free slots with exponentially increasing steps
     lower_bound, upper_bound, exponant = 0, 0, 0
-    while node[predictable_key(node, upper_bound)] is not None:
+    while _get_value(predictable_key(node, upper_bound)) is not None:
         lower_bound = upper_bound
         upper_bound = 2 ** exponant
         exponant += 1
@@ -411,12 +419,7 @@ def find_next_free_dataset_num(node):
     class CompareObject(object):
         def __gt__(bisect_self, index):
             key = predictable_key(node, index)
-            while True:
-                try:
-                    return node[key] is not None
-                except TimeoutError:
-                    txt = "TimeoutError when getting key: {0}"
-                    _log.warning(txt.format(key))
+            return _get_value(key) is not None
 
     # A list where the value is the index + lower_bound: [3, 4, 5, 6 ...]
     class ListObject(object):
