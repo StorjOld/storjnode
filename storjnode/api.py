@@ -210,6 +210,18 @@ class StorjNode(apigen.Definition):
     @apigen.command(rpc=False)
     def farm(self, hostname="localhost", port=8080, rpc=False):
         """Start the farmer and optionally the json rpc service."""
+
+        time.sleep(WALK_TIMEOUT)
+        print("refreshing peers")
+        self._node.refresh_neighbours()
+        time.sleep(WALK_TIMEOUT)
+        print("refreshing peers")
+        self._node.refresh_neighbours()
+        time.sleep(WALK_TIMEOUT)
+        print("refreshing peers")
+        self._node.refresh_neighbours()
+        time.sleep(WALK_TIMEOUT)
+
         self.monitor = None
         try:
             # start monitor handlers and crawler if needed
