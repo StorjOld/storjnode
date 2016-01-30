@@ -33,7 +33,7 @@ _log = storjnode.log.getLogger(__name__)
 class Server(KademliaServer):
 
     def __init__(self, key, port, ksize=20, alpha=3, storage=None,
-                 max_messages=1024, default_hop_limit=20,
+                 max_messages=1024, default_hop_limit=64,
                  refresh_neighbours_interval=WALK_TIMEOUT):
         """
         Create a server instance.  This will start listening on the given port.
