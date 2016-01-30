@@ -10,6 +10,7 @@ import btctxstore
 import storjnode
 import crochet
 from threading import RLock
+from storjnode.network.server import WALK_TIMEOUT
 
 
 __version__ = storjnode.__version__  # for auto generated version command
