@@ -4,7 +4,7 @@ import json
 import copy
 import storjnode
 from collections import OrderedDict
-from kademlia.node import Node as KadNode
+from storjkademlia.node import Node as KadNode
 from io import BytesIO
 from threading import Thread, RLock
 from storjnode.common import THREAD_SLEEP

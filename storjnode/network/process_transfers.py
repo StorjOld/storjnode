@@ -138,6 +138,8 @@ def do_upload(client, con, contract, con_info, contract_id):
     )
     _log.debug("Bandwidth allocation for upload = " + str(allocation))
     if not allocation:
+        if client.bandwidth.is_over_monthly_limit("upstream"):
+            con.close()
         return 0
 
     # Get next chunk from file.
@@ -218,6 +220,8 @@ def do_download(client, con, contract, con_info, contract_id):
     )
     _log.debug("Bandwidth allocation for download " + str(allocation))
     if not allocation:
+        if client.bandwidth.is_over_monthly_limit("downstream"):
+            con.close()
         return -6
 
     # Download.

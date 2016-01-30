@@ -1,13 +1,13 @@
 import sys
 from twisted.internet import reactor
 from twisted.python import log
-from kademlia.network import Server
+from storjkademlia.network import Server
 
 
 import heapq
 import operator
-from kademlia.routing import RoutingTable
-from kademlia.routing import TableTraverser
+from storjkademlia.routing import RoutingTable
+from storjkademlia.routing import TableTraverser
 from storjnode.storage.dht import Storage
 
 

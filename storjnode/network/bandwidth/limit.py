@@ -41,7 +41,12 @@ in the future.
 import time
 import datetime
 import calendar
+import os
+import json
 from storjnode.util import byte_count
+from storjnode.common import STORJ_HOME
+
+MONTHLY_USAGE_PATH = os.path.join(STORJ_HOME, "monthly_usage")
 
 
 class BandwidthLimit:
@@ -80,13 +85,74 @@ class BandwidthLimit:
 
         # What % of sec limit is (initially) reserved for file transfers.
         # The remaining % is for small protocol headers + other.
-        self.cake_scale = 0.95
+        # Todo: add bandwidth limits to all other networking stuff
+        # Todo: then when that's done decrease this slightly
+        # Todo: based on how much bandwidth they have
+        self.cake_scale = 1
+
+        # Calculate future time for next month.
+        self.next_month = self.calculate_next_month()
 
         # Load bandwidth limits.
         self.load()
 
-        # Calculate future time for next month.
-        self.next_month = self.calculate_next_month()
+    def is_over_monthly_limit(self, bw_type):
+        monthly_used = self.info["month"][bw_type]["used"]
+        monthly_limit = self.info["month"][bw_type]["limit"]
+        if monthly_used >= monthly_limit:
+            return True
+
+        return False
+
+    def clear_monthly_usage(self):
+        if os.path.isfile(MONTHLY_USAGE_PATH):
+            os.remove(MONTHLY_USAGE_PATH)
+
+    def save_monthly_usage(self):
+        # Create Storj home directory if needed.
+        if not os.path.exists(STORJ_HOME):
+            os.makedirs(STORJ_HOME)
+
+        # Save monthly usage. Create file if needed.
+        with open(MONTHLY_USAGE_PATH, "w") as fp:
+            as_dict = {
+                "next_month": self.next_month,
+                "usage": {
+                    "upstream": self.info["month"]["upstream"]["used"],
+                    "downstream": self.info["month"]["downstream"]["used"]
+                }
+            }
+
+            as_json = json.dumps(as_dict)
+            fp.write(as_json)
+
+    def load_monthly_usage(self):
+        if not os.path.isfile(MONTHLY_USAGE_PATH):
+            return
+
+        # Get file contents.
+        content = ""
+        with open(MONTHLY_USAGE_PATH, "r") as fp:
+            content = fp.read()
+
+        # Convert contents to JSON + validate.
+        as_dict = None
+        try:
+            temp = json.loads(content)
+            temp["next_month"] = int(temp["next_month"])
+            temp["usage"]["upstream"] = int(temp["usage"]["upstream"])
+            temp["usage"]["downstream"] = int(temp["usage"]["downstream"])
+            as_dict = temp
+        except (KeyError, ValueError):
+            pass
+
+        # Validation successful. Load it.
+        if as_dict is not None:
+            self.next_month = as_dict["next_month"]
+            self.info["month"]["downstream"]["used"] = \
+                as_dict["usage"]["downstream"]
+            self.info["month"]["upstream"]["used"] = \
+                as_dict["usage"]["upstream"]
 
     def get_fresh_second(self):
         while 1:
@@ -189,6 +255,9 @@ class BandwidthLimit:
                 bwl = byte_count(bwl[time_frame][bw_type])
                 self.info[time_frame][bw_type]["limit"] = bwl
 
+        # Load monthly usage from file.
+        self.load_monthly_usage()
+
     def update(self, bw_type, increment, contract_id=None):
         """
         This function updates the amount transferred so that averages
@@ -223,6 +292,9 @@ class BandwidthLimit:
         # Increase bandwidth usage.
         sec["used"] += increment
         month["used"] += increment
+
+        # Save monthly usage to file.
+        self.save_monthly_usage()
 
     def limit(self, amount, time_frame=None, bw_type=None, skip=0):
         """
@@ -274,6 +346,7 @@ class BandwidthLimit:
             if time.time() >= self.next_month:
                 self.next_month = self.calculate_next_month()
                 month["used"] = 0
+                self.save_monthly_usage()
 
         # Check monthly limit.
         if month["limit"]:
@@ -295,7 +368,7 @@ class BandwidthLimit:
         # Bake a new cake if we need to.
         if cake["no"] != cake_no:
             # Calculate cake size.
-            # 5% of bandwidth reserved for control messages / misc.
+            # n% of bandwidth reserved for control messages / misc.
             cake_size = int(sec["limit"] * self.cake_scale)
             if not cake_size:
                 return 0

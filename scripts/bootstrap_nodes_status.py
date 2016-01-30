@@ -15,7 +15,7 @@ import btctxstore  # NOQA
 from twisted.internet import defer  # NOQA
 from crochet import setup  # NOQA
 from storjnode.common import DEFAULT_BOOTSTRAP_NODES  # NOQA
-from kademlia.node import Node  # NOQA
+from storjkademlia.node import Node  # NOQA
 from crochet import wait_for  # NOQA
 
 

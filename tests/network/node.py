@@ -13,7 +13,7 @@ import random
 import unittest
 import btctxstore
 import storjnode
-from kademlia.node import Node as KademliaNode
+from storjkademlia.node import Node as KademliaNode
 from storjnode.network.server import QUERY_TIMEOUT, WALK_TIMEOUT
 from storjnode.network.file_transfer import enable_unl_requests
 import storjnode.network.process_transfers
