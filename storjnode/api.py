@@ -134,13 +134,13 @@ class StorjNode(apigen.Definition):
                 on_crawl_complete=self._on_crawl_complete
             )
 
-        #if not notransfer:
-        #    self._node.add_transfer_request_handler(
-        #        self._on_transfer_request
-        #    )
-        #    self._node.add_transfer_complete_handler(
-        #        self._on_transfer_complete
-        #    )
+        # if not notransfer:
+        #     self._node.add_transfer_request_handler(
+        #         self._on_transfer_request
+        #     )
+        #     self._node.add_transfer_complete_handler(
+        #         self._on_transfer_complete
+        #     )
 
     def _on_transfer_request(self, nodeid, shardid, direction, file_size):
 
