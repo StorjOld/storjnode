@@ -1,7 +1,3 @@
-import gc
-import os
-import cPickle
-import psutil
 import sys
 import traceback
 import time
@@ -234,27 +230,6 @@ class StorjNode(apigen.Definition):
                 )
             else:
                 while True:
-                    def memory_dump():
-                        dump = open("memory.pickle", 'w')
-                        for obj in gc.get_objects():
-                            i = id(obj)
-                            size = sys.getsizeof(obj, 0)
-                            referents = [id(o) for o in gc.get_referents(obj)
-                                         if hasattr(o, '__class__')]
-                            if hasattr(obj, '__class__'):
-                                cls = str(obj.__class__)
-                                cPickle.dump({'id': i, 'class': cls,
-                                              'size': size,
-                                              'referents': referents}, dump)
-
-                    # Dump variables if using more than 100MB of memory
-                    rss = psutil.Process(os.getpid()).memory_info().rss
-                    if rss > 100 * 1024 * 1024:
-                        txt = "Excessive memory usage {0} > {1}!"
-                        _log.fatal(txt.format(rss, 100 * 1024 * 1024))
-                        memory_dump()
-                        os.abort()
-
                     time.sleep(storjnode.common.THREAD_SLEEP)
         finally:
             if self.monitor is not None:
