@@ -29,7 +29,7 @@ class MediaCollector(build_exe):
       # to the list of compiled files so it will be included in the zipfile.
       for f in glob.glob(data_path):
          name = os.path.basename(f)
-         self.copy_file(file_name, os.path.join(full, name))
+         self.copy_file(f, os.path.join(full, name))
          self.compiled_files.append(os.path.join(media, name))
 
       # lib2to3 files Grammar.txt and PatternGrammar.txt
