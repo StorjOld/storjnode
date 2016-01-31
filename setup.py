@@ -13,6 +13,7 @@ if os.name == 'nt' and 'py2exe' in sys.argv:
     import py2exe  # NOQA
     from py2exe_MediaCollector import MediaCollector
     options = {'py2exe': {
+        "skip_archive": True,
         "optimize": 2,
         "bundle_files": 3,  # This tells py2exe to bundle everything
     }}
