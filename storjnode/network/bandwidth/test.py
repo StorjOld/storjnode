@@ -28,6 +28,7 @@ from storjnode.util import generate_random_file, ordered_dict_to_list
 from twisted.internet import defer
 from btctxstore import BtcTxStore
 from twisted.internet.task import LoopingCall
+from storjnode.util import get_nonce
 
 
 _log = storjnode.log.getLogger(__name__)
@@ -130,7 +131,7 @@ class BandwidthTest:
         if duration >= self.test_timeout:
             _log.debug("ERROR: bandwidth test timed out!")
             if self.active_test is not None:
-                _log.debug("active bandwiwdth test timeout!")
+                _log.debug("active bandwidth test timeout!")
                 self.active_test.errback(Exception("Timed out"))
 
             self.reset_state()
@@ -265,7 +266,7 @@ class BandwidthTest:
                 return 0
 
             if not end_time:
-                _log.debug("invalid end time")
+                _log.debug("Invalid end time")
                 return 0
 
             duration = end_time - start_time
@@ -333,6 +334,7 @@ class BandwidthTest:
         req = OrderedDict([
             (u"type", u"test_bandwidth_request"),
             (u"timestamp", int(time.time())),
+            (u"nonce", get_nonce()),
             (u"requester", self.transfer.net.unl.value),
             (u"test_node_unl", node_unl),
             (u"data_id", self.data_id),
