@@ -31,8 +31,9 @@ def get_nonce(nonce_len=8):
 
     return nonce_buf[:nonce_len]
 
-# Converts unprintable strings to printable hex (if needed.)
+
 def safe_log_var(v):
+    # Converts unprintable strings to printable hex (if needed.)
     try:
         v.encode("ascii")
         return v.decode("utf-8") + u" (ascii)"
