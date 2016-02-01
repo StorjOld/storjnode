@@ -1,4 +1,5 @@
 import binascii
+import time
 import base64
 import umsgpack
 from collections import namedtuple
@@ -11,11 +12,12 @@ MAX_MESSAGE_DATA = MAX_PACKAGE_DATA - 29  # max data - message call overhead
 
 
 Message = namedtuple('Message', [
-    'sender',   # 20 byte node id
-    'version',  # protocol version of storjnode
-    'token',    # to identify a specific message or message type
-    'body',     # the message body
-    'rawsig'    # 65 byte unencoded signature
+    'sender',     # 20 byte node id
+    'version',    # protocol version of storjnode
+    'timestamp',  # time the message was created
+    'token',      # to identify a specific message or message type
+    'body',       # the message body
+    'rawsig'      # 65 byte unencoded signature
 ])
 
 
@@ -27,14 +29,18 @@ def create(btctxstore, node_wif, token, body):
 
     # FIXME make sure body does not contain dicts
 
+    timestamp = time.time()
+
     # sign message data (version + token + body)
-    data = binascii.hexlify(umsgpack.packb([PROTOCOL_VERSION, token, body]))
+    data = binascii.hexlify(umsgpack.packb([
+        PROTOCOL_VERSION, timestamp, token, body
+    ]))
     signature = btctxstore.sign_data(node_wif, data)
 
     # use compact unencoded data to conserve package bytes
     nodeid = address_to_node_id(btctxstore.get_address(node_wif))
     rawsig = base64.b64decode(signature)
-    message = Message(nodeid, PROTOCOL_VERSION, token, body, rawsig)
+    message = Message(nodeid, PROTOCOL_VERSION, timestamp, token, body, rawsig)
 
     # check if message to large
     packed_message = umsgpack.packb(message)
@@ -52,12 +58,14 @@ def read(btctxstore, message):
 
     if not isinstance(message, list):
         return None
-    if len(message) != 5:
+    if len(message) != 6:
         return None
     msg = Message(*message)
     if not isinstance(msg.sender, bytes):
         return None
     if len(msg.sender) != 20:
+        return None
+    if not isinstance(msg.timestamp, float):
         return None
     if not isinstance(msg.version, int):
         return None
@@ -72,7 +80,9 @@ def read(btctxstore, message):
     # verify signature
     address = node_id_to_address(msg.sender)
     signature = base64.b64encode(msg.rawsig)
-    data = binascii.hexlify(umsgpack.packb([msg.version, msg.token, msg.body]))
+    data = binascii.hexlify(umsgpack.packb([
+        msg.version, msg.timestamp, msg.token, msg.body
+    ]))
     if btctxstore.verify_signature(address, signature, data):
         return msg
     return None

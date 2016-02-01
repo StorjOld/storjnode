@@ -69,13 +69,23 @@ class TestNetworkMessagesBase(unittest.TestCase):
 
         self.assertIsNone(base.read(self.btctxstore, repacked))
 
+    def test_read_invalid_timestamp_value(self):
+        created = base.create(self.btctxstore, self.wif, None, None)
+
+        # repack to eliminate namedtuples and simulate io
+        repacked = umsgpack.unpackb(umsgpack.packb(created))
+
+        repacked[2] = None
+
+        self.assertIsNone(base.read(self.btctxstore, repacked))
+
     def test_read_invalid_signature_type(self):
         created = base.create(self.btctxstore, self.wif, None, None)
 
         # repack to eliminate namedtuples and simulate io
         repacked = umsgpack.unpackb(umsgpack.packb(created))
 
-        repacked[4] = None
+        repacked[5] = None
 
         self.assertIsNone(base.read(self.btctxstore, repacked))
 
@@ -85,7 +95,7 @@ class TestNetworkMessagesBase(unittest.TestCase):
         # repack to eliminate namedtuples and simulate io
         repacked = umsgpack.unpackb(umsgpack.packb(created))
 
-        repacked[4] = "invalidsignaturelen"
+        repacked[5] = "invalidsignaturelen"
 
         self.assertIsNone(base.read(self.btctxstore, repacked))
 
@@ -95,7 +105,7 @@ class TestNetworkMessagesBase(unittest.TestCase):
         # repack to eliminate namedtuples and simulate io
         repacked = umsgpack.unpackb(umsgpack.packb(created))
 
-        repacked[4] = "x" * 65
+        repacked[5] = "x" * 65
 
         self.assertIsNone(base.read(self.btctxstore, repacked))
 

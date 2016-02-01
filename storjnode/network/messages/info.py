@@ -121,11 +121,11 @@ def read(btctxstore, msg):
         return None
 
     # check token
-    if msg[2] != "info":
+    if msg[3] != "info":
         return None
 
     # check info given
-    info = msg[3]
+    info = msg[4]
     if not isinstance(info, list):
         return None
     if len(info) != 5:
@@ -143,7 +143,7 @@ def read(btctxstore, msg):
     if not _validate_btcaddress(btcaddress):
         return None
 
-    msg[3] = Info(version, Storage(*storage),
+    msg[4] = Info(version, Storage(*storage),
                   Network(*network), Platform(*plat), btcaddress)
     return base.Message(*msg)
 

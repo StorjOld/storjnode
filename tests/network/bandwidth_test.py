@@ -14,6 +14,7 @@ from storjnode.network.bandwidth.limit import BandwidthLimit
 from crochet import setup
 setup()
 
+
 _log = storjnode.log.getLogger(__name__)
 test_success = Event()
 
