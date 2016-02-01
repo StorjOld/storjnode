@@ -166,6 +166,7 @@ class Server(KademliaServer):
         # check max message size
         packed_message = umsgpack.packb(message)
         if len(packed_message) > MAX_MESSAGE_DATA:
+            _log.debug("Message too large")
             raise Exception("Message to large {0} > {1}: {2}".format(
                 len(packed_message), MAX_MESSAGE_DATA, repr(message)
             ))
