@@ -261,6 +261,9 @@ def handle_responses_builder(bt):
         # Set active node ID.
         bt.test_node_unl = msg[u"requestee"]
 
+        # Clear response timeout.
+        bt.response_timeout = None
+
         # Register accept handler.
         accept_handler = build_accept_handler(bt, req)
         bt.add_handler("accept", accept_handler)

@@ -92,6 +92,9 @@ class BandwidthTest:
         # Protocol state.
         self.message_state = {}
 
+        # Response timeout.
+        self.response_timeout = None
+
         # Increase table for MB transfer size.
         self.increases = OrderedDict([
             [1 * self.ONE_MB, 4 * self.ONE_MB],
@@ -127,8 +130,16 @@ class BandwidthTest:
 
     # Handle timeouts.
     def handle_timeout(self):
+        # Response timed out.
+        response_timeout = False
+        if self.response_timeout is not None:
+            if time.time() >= self.response_timeout:
+                _log.debug("Response timeout = true")
+                response_timeout = True
+
+        # Test has been running too long - some other error occurred.
         duration = time.time() - self.start_time
-        if duration >= self.test_timeout:
+        if duration >= self.test_timeout or response_timeout:
             _log.debug("ERROR: bandwidth test timed out!")
             if self.active_test is not None:
                 _log.debug("active bandwidth test timeout!")
@@ -202,6 +213,7 @@ class BandwidthTest:
         # Reset init state.
         self.test_size = self.ONE_MB
         self.active_test = None
+        self.response_timeout = None
         self.results = self.setup_results()
         self.test_node_unl = None
         self.start_time = time.time()
@@ -356,6 +368,9 @@ class BandwidthTest:
 
         # Set start time.
         self.start_time = time.time()
+
+        # Set response timeout time.
+        self.response_timeout = time.time() + 10
 
         # Return deferred.
         return self.active_test
