@@ -130,7 +130,7 @@ class BandwidthTest:
         if duration >= self.test_timeout:
             _log.debug("ERROR: bandwidth test timed out!")
             if self.active_test is not None:
-                _log.debug("active bandwiwdth test timeout!")
+                _log.debug("active bandwidth test timeout!")
                 self.active_test.errback(Exception("Timed out"))
 
             self.reset_state()
@@ -265,7 +265,7 @@ class BandwidthTest:
                 return 0
 
             if not end_time:
-                _log.debug("invalid end time")
+                _log.debug("Invalid end time")
                 return 0
 
             duration = end_time - start_time
