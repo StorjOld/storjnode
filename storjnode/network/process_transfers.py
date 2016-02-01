@@ -484,7 +484,6 @@ def process_transfers(client):
         if not client.is_queued(con):
             if time.time() >= future_queue:
                 _log.debug("nothing queued")
-                _log.debug(str(client.contracts))
                 future_queue = time.time() + 5
 
             continue

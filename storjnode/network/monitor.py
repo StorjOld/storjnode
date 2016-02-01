@@ -305,6 +305,7 @@ class Crawler(object):  # will not scale but good for now
 
             # skip bandwidth test
             if SKIP_BANDWIDTH_TEST:
+                _log.info("Skipping bandwidth test")
                 self.pipeline_processed[nodeid] = data
                 return
 

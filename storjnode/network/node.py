@@ -329,11 +329,19 @@ class Node(object):
         # Sign UNL request.
         unl_req = sign(unl_req, self.get_key())
 
+        # Record start time.
+        future_timeout = time.time() + 5
+
         # Handle responses for this request.
         def handler_builder(self, d, their_node_id, wif):
             def handler(node, msg):
                 # Is this a response to our request?
                 remove_handler = 0
+
+                # Has this request timed out?
+                if time.time() >= future_timeout:
+                    remove_handler = 1
+                    d.errback(Exception("Get unl request timed out"))
                 try:
                     if type(msg) in [type(b"")]:
                         msg = literal_eval(zlib.decompress(msg))
@@ -441,12 +449,8 @@ class Node(object):
         def on_success(peer_unl):
             return self.bandwidth_test.start(peer_unl)
 
-        def on_error(err):
-            _log.error(repr(err))
-            return err
-
         # Add callback to UNL deferred.
-        d.addCallback(on_success).addErrback(on_error)
+        d.addCallback(on_success)
 
         # Return deferred.
         return d
