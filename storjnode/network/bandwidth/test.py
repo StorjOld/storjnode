@@ -370,7 +370,7 @@ class BandwidthTest:
         self.start_time = time.time()
 
         # Set response timeout time.
-        self.response_timeout = time.time() + 10
+        self.response_timeout = time.time() + 30
 
         # Return deferred.
         return self.active_test

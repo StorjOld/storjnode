@@ -16,6 +16,7 @@ from storjnode.network.repeat_relay import RepeatRelay
 from storjnode.network.message import sign, verify_signature
 from storjnode.network.server import Server, QUERY_TIMEOUT, WALK_TIMEOUT
 from pyp2p.unl import UNL
+from twisted.internet.task import LoopingCall
 
 
 # File transfer.
@@ -337,11 +338,6 @@ class Node(object):
             def handler(node, msg):
                 # Is this a response to our request?
                 remove_handler = 0
-
-                # Has this request timed out?
-                if time.time() >= future_timeout:
-                    remove_handler = 1
-                    d.errback(Exception("Get unl request timed out"))
                 try:
                     if type(msg) in [type(b"")]:
                         msg = literal_eval(zlib.decompress(msg))
@@ -380,6 +376,16 @@ class Node(object):
         # Build message handler.
         d = defer.Deferred()
         handler = handler_builder(self, d, nodeid, self.get_key())
+
+        # Expire this request.
+        def expire_old_unl_request():
+            _log.debug("Get unl request timed out")
+            if time.time() >= future_timeout:
+                d.errback(Exception("Get unl request timed out"))
+
+            return defer.Deferred()
+
+        LoopingCall(expire_old_unl_request).start(30, now=False)
 
         # Register new handler for this UNL request.
         self.add_message_handler(handler)
