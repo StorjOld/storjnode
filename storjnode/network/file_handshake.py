@@ -42,7 +42,8 @@ def is_valid_syn(client, msg):
         u"host_unl",
         u"dest_unl",
         u"src_unl",
-        u"signature"
+        u"signature",
+        u"nonce"
     )
 
     # Check all fields exist.

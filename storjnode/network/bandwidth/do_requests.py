@@ -10,6 +10,7 @@ from collections import OrderedDict
 from storjnode.util import parse_node_id_from_unl
 from storjnode.util import ordered_dict_to_list
 from storjnode.util import list_to_ordered_dict
+from storjnode.util import get_nonce
 from storjnode.network.message import sign, verify_signature
 import zlib
 from ast import literal_eval
@@ -208,6 +209,7 @@ def handle_requests_builder(bt):
                 res = OrderedDict([
                     (u"type", u"test_bandwidth_rejection"),
                     (u"timestamp", time.time()),
+                    (u"nonce", get_nonce()),
                     (u"requestee", our_unl),
                     (u"request", msg)
                 ])
@@ -248,6 +250,7 @@ def handle_requests_builder(bt):
         res = OrderedDict([
             (u"type", u"test_bandwidth_response"),
             (u"timestamp", time.time()),
+            (u"nonce", get_nonce()),
             (u"requestee", our_unl),
             (u"request", msg)
         ])

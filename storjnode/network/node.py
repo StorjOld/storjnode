@@ -1,12 +1,17 @@
 import time
 import threading
 import traceback
+import uuid
+import hashlib
+import zlib
+from ast import literal_eval
 import storjnode
 from storjnode.common import THREAD_SLEEP
 from twisted.internet import defer
 from collections import OrderedDict
 from crochet import wait_for, run_in_reactor
 from storjnode import util
+from storjnode.util import get_nonce
 from storjnode.network.repeat_relay import RepeatRelay
 from storjnode.network.message import sign, verify_signature
 from storjnode.network.server import Server, QUERY_TIMEOUT, WALK_TIMEOUT
@@ -317,6 +322,7 @@ class Node(object):
         _log.debug("In get UNL by node id")
         unl_req = OrderedDict([
             (u"type", u"unl_request"),
+            (u"nonce", get_nonce()),
             (u"requester", self.get_address())
         ])
 
@@ -329,6 +335,8 @@ class Node(object):
                 # Is this a response to our request?
                 remove_handler = 0
                 try:
+                    if type(msg) in [type(b"")]:
+                        msg = literal_eval(zlib.decompress(msg))
                     msg = util.list_to_ordered_dict(msg)
 
                     # Not a UNL response.
@@ -627,6 +635,7 @@ class Node(object):
 
             # (Message-handler thread-safe
             # Process any file transfers.
+            speed_up = False
             if self._data_transfer is not None:
                 # Give latency test hooks chance to be enabled.
                 duration = time.time() - self._data_transfer.start_time
@@ -636,7 +645,16 @@ class Node(object):
                 if duration >= 5:
                     process_transfers(self._data_transfer)
 
-            time.sleep(THREAD_SLEEP)
+                # Speed up if transfers are running.
+                speed_up = self._data_transfer.are_running()
+
+            if speed_up:
+                duration = time.time() - self._data_transfer.last_loop
+                if duration >= 1:
+                    self._data_transfer.last_loop = time.time()
+                    time.sleep(0.001)
+            else:
+                time.sleep(THREAD_SLEEP)
 
     def add_message_handler(self, handler):
         """Add message handler to be call when a message is received.

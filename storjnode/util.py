@@ -9,6 +9,8 @@ import pyp2p
 import tempfile
 import binascii
 import sys
+import uuid
+import hashlib
 import random
 from crochet import wait_for
 from pycoin.encoding import a2b_hashed_base58, b2a_hashed_base58
@@ -19,6 +21,15 @@ from pyp2p.lib import get_unused_port
 
 _log = storjnode.log.getLogger(__name__)
 
+
+def get_nonce(nonce_len=8):
+    nonce_buf = b""
+    while len(nonce_buf) < nonce_len:
+        nonce = str(uuid.uuid4()).encode("ascii")
+        nonce = hashlib.sha256(nonce).digest()
+        nonce_buf += nonce
+
+    return nonce_buf[:nonce_len]
 
 # Converts unprintable strings to printable hex (if needed.)
 def safe_log_var(v):

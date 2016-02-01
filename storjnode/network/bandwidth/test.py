@@ -28,6 +28,7 @@ from storjnode.util import generate_random_file, ordered_dict_to_list
 from twisted.internet import defer
 from btctxstore import BtcTxStore
 from twisted.internet.task import LoopingCall
+from storjnode.util import get_nonce
 
 
 _log = storjnode.log.getLogger(__name__)
@@ -333,6 +334,7 @@ class BandwidthTest:
         req = OrderedDict([
             (u"type", u"test_bandwidth_request"),
             (u"timestamp", int(time.time())),
+            (u"nonce", get_nonce()),
             (u"requester", self.transfer.net.unl.value),
             (u"test_node_unl", node_unl),
             (u"data_id", self.data_id),

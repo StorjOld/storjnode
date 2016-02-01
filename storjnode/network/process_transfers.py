@@ -126,7 +126,7 @@ def do_upload(client, con, contract, con_info, contract_id):
     _log.debug("Remaining = " + str(con_info["remaining"]))
 
     # Calculate chunk size.
-    chunk_size = 8192
+    chunk_size = 65536
     if con_info["remaining"] < chunk_size:
         chunk_size = con_info["remaining"]
 
@@ -208,7 +208,7 @@ def do_download(client, con, contract, con_info, contract_id):
     _log.debug("Remaining = " + str(con_info["remaining"]))
 
     # Calculate chunk size.
-    chunk_size = 8192
+    chunk_size = 65536
     if con_info["remaining"] < chunk_size:
         chunk_size = con_info["remaining"]
 

@@ -13,6 +13,7 @@ from twisted.internet import defer
 from storjnode.util import address_to_node_id
 from storjnode.util import ordered_dict_to_list
 from storjnode.util import list_to_ordered_dict
+from storjnode.util import get_nonce
 from storjnode.network.message import verify_signature
 from storjnode.network.message import sign
 from storjnode.network.file_handshake import is_valid_syn
@@ -42,16 +43,16 @@ def process_unl_requests(node, msg):
             return
 
         # Response.
-        response = sign(OrderedDict(
-            {
-                u"type": u"unl_response",
-                u"requestee": node.get_address(),
-                u"unl": unl
-            }
-        ), node.get_key())
+        response = sign(OrderedDict([
+            (u"type", u"unl_response"),
+            (u"nonce", get_nonce()),
+            (u"requestee", node.get_address()),
+            (u"unl", unl)
+        ]), node.get_key())
 
         # Send response.
         response = ordered_dict_to_list(response)
+        response = zlib.compress(str(response))
         node.repeat_relay_message(their_node_id, response)
 
     except (ValueError, KeyError):
@@ -140,6 +141,19 @@ class FileTransfer:
         # Used to give certain handlers chance to start.
         # Before process_transfers is fired.
         self.start_time = time.time()
+
+        # Time at the start of the last loop.
+        self.last_loop = time.time()
+
+    def are_running(self):
+        for con in list(self.con_info):
+            con_info = self.con_info[con]
+            for contract_id in list(con_info):
+                contract = self.con_info[con][contract_id]
+                if contract["remaining"] and contract["file_size"]:
+                    return True
+
+        return False
 
     def schedule_transfers(self, contract, con):
         _log.debug("In schedule transfers")
@@ -331,7 +345,8 @@ class FileTransfer:
             (u"file_size", file_size),
             (u"host_unl", host_unl),
             (u"dest_unl", node_unl),
-            (u"src_unl", self.net.unl.value)
+            (u"src_unl", self.net.unl.value),
+            (u"nonce", get_nonce())
         ])
 
         # Sign contract.
