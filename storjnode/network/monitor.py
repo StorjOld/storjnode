@@ -1,4 +1,5 @@
 import time
+import os
 import bisect
 import json
 import copy
@@ -14,13 +15,16 @@ from storjnode.network.messages.peers import request as request_peers
 from storjnode.network.messages.info import read as read_info
 from storjnode.network.messages.info import request as request_info
 from crochet import TimeoutError
-from collections import OrderedDict
 
 
 _log = storjnode.log.getLogger(__name__)
 
 
 SKIP_BANDWIDTH_TEST = False
+if os.environ.get("STORJNODE_MONITOR_MAX_TRIES"):
+    MAX_TRIES = int(os.environ.get("STORJNODE_MONITOR_MAX_TRIES"))
+else:
+    MAX_TRIES = 0
 
 
 DEFAULT_DATA = OrderedDict([
@@ -321,6 +325,16 @@ class Crawler(object):  # will not scale but good for now
             deferred.addCallback(on_success)
             deferred.addErrback(on_error)
 
+    def _scanning_complete(self):
+        with self.pipeline_mutex:
+            scanning = self.pipeline_scanning.copy()
+            if MAX_TRIES > 0:
+                for nodeid, data in scanning.copy().items():
+                    if data["request"]["tries"] >= MAX_TRIES:
+                        del scanning[nodeid]
+
+            return len(scanning) == 0
+
     def _process_pipeline(self):
         while not self.stop_thread and time.time() < self.timeout:
             time.sleep(THREAD_SLEEP)
@@ -328,7 +342,7 @@ class Crawler(object):  # will not scale but good for now
             with self.pipeline_mutex:
 
                 # exit condition pipeline empty
-                if (len(self.pipeline_scanning) == 0 and
+                if (self._scanning_complete() and
                         len(self.pipeline_scanned_fifo) == 0 and
                         self.pipeline_bandwidth_test is None):
                     return

@@ -11,7 +11,8 @@ else
   WHEEL_INSTALL_ARGS := --use-wheel --no-index --find-links=$(WHEEL_DIR)
 endif
 export PYCOIN_NATIVE=openssl
-export STORJNODE_QUERY_TIMEOUT=0.3
+#export STORJNODE_QUERY_TIMEOUT=0.3
+export STORJNODE_MONITOR_MAX_TRIES=2
 #export STORJNODE_LOGGING_NOISY=1
 
 
@@ -69,8 +70,8 @@ install: setup
 
 test_script: install
 	#$(PY) examples/network/map_network.py --debug
-	$(PY) -m unittest --quiet tests.network.messages
-	#env/bin/storjnode --debug --wallet=L3NrSTxMCwAsLXnBjESvU5LnCKwcmMXKutKzNnVpPevXeSMfB1zx dht_dump
+	#$(PY) -m unittest --quiet tests.network.messages
+	env/bin/storjnode --debug --wallet=L3NrSTxMCwAsLXnBjESvU5LnCKwcmMXKutKzNnVpPevXeSMfB1zx farm
 	#env/bin/storjnode_bootstrap_only --wallet=L3NrSTxMCwAsLXnBjESvU5LnCKwcmMXKutKzNnVpPevXeSMfB1zx --port=1337
 	#$(PY) sandbox/prove_relaying.py
 	#$(PY) scripts/start_bootstrap_only_node.py --port=1337
