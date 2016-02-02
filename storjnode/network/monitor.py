@@ -5,6 +5,7 @@ import bisect
 import json
 import copy
 import storjnode
+import struct
 from collections import OrderedDict
 from storjkademlia.node import Node as KadNode
 from io import BytesIO
@@ -311,6 +312,14 @@ class Crawler(object):  # will not scale but good for now
             # skip bandwidth test
             if SKIP_BANDWIDTH_TEST:
                 _log.info("Skipping bandwidth test")
+                self.pipeline_processed[nodeid] = data
+                return
+
+            # Other person tests.
+            int_our_node_id = struct.unpack("<L", self.node.get_id())[0]
+            int_their_node_id = struct.unpack("<L", nodeid)[0]
+            if int_our_node_id < int_their_node_id:
+                _log.info("Skipping: They will do the bandwidth test")
                 self.pipeline_processed[nodeid] = data
                 return
 

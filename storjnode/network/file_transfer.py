@@ -9,6 +9,7 @@ import time
 import hashlib
 import sys
 import Queue
+from ast import literal_eval
 from twisted.internet import defer
 from storjnode.util import address_to_node_id
 from storjnode.util import ordered_dict_to_list
@@ -28,6 +29,8 @@ def process_unl_requests(node, msg):
     unl = node._data_transfer.net.unl.value
     _log.debug(unl)
     try:
+        if type(msg) in [type(b"")]:
+            msg = literal_eval(zlib.decompress(msg))
         msg = list_to_ordered_dict(msg)
 
         # Not a UNL request.
@@ -47,6 +50,7 @@ def process_unl_requests(node, msg):
             (u"type", u"unl_response"),
             (u"nonce", get_nonce()),
             (u"requestee", node.get_address()),
+            (u"request", msg),
             (u"unl", unl)
         ]), node.get_key())
 

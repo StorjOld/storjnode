@@ -343,6 +343,10 @@ class Node(object):
                         msg = literal_eval(zlib.decompress(msg))
                     msg = util.list_to_ordered_dict(msg)
 
+                    # Not a response to our request.
+                    if msg[u"request"] != unl_req:
+                        return
+
                     # Not a UNL response.
                     if msg[u"type"] != u"unl_response":
                         _log.debug("unl response: type !=")
@@ -391,8 +395,9 @@ class Node(object):
         self.add_message_handler(handler)
 
         # Send our get UNL request to node.
-        unl_req = util.ordered_dict_to_list(unl_req)
-        self.repeat_relay_message(nodeid, unl_req)
+        msg = util.ordered_dict_to_list(unl_req)
+        msg = zlib.compress(str(msg))
+        self.repeat_relay_message(nodeid, msg)
 
         # Return a new deferred.
         return d
