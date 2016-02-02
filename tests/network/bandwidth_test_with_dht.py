@@ -42,7 +42,7 @@ def _test_config(storage_path, bootstrap_nodes):
 
 
 class TestBandwidthTestWithDHT(unittest.TestCase):
-    @unittest.skip("Already tested in node.py")
+    # @unittest.skip("Already tested in node.py")
     def test_bandwidth_test_with_dht(self):
         bootstrap_nodes = [["127.0.0.1", PORT + x] for x in range(3)]
         for i in range(3):
@@ -85,20 +85,6 @@ class TestBandwidthTestWithDHT(unittest.TestCase):
             node.latency_tests.enable()
             swarm.append(node)
 
-        # stabalize network overlay
-        _log.info("TEST: stabalize network overlay")
-        time.sleep(WALK_TIMEOUT)
-
-        for node in swarm:
-            node.refresh_neighbours()
-
-        time.sleep(WALK_TIMEOUT)
-
-        for node in swarm:
-            node.refresh_neighbours()
-
-        time.sleep(WALK_TIMEOUT)
-
         def show_bandwidth(results):
             print(results)
             global test_success
@@ -134,21 +120,21 @@ class TestBandwidthTestWithDHT(unittest.TestCase):
                 print(parse_exception(e))
                 exit()
 
-        print(swarm)
+        swarm[0].relay_message(swarm[1].get_id(), "Test message")
+
+
+        time.sleep(50)
         d = swarm[0].test_bandwidth(swarm[1].get_id())
         d.addCallback(show_bandwidth)
-        print("Stablised")
-
-        time.sleep(10)
 
         def rejection_results(ret):
             print("Bandwidth rejection received")
             print("\a")
             print(ret)
 
-        d = swarm[2].test_bandwidth(swarm[1].get_id())
+        #d = swarm[2].test_bandwidth(swarm[1].get_id())
         # assert(swarm[2].bandwidth_test.test_node_unl is not None)
-        d.addErrback(rejection_results)
+        #d.addErrback(rejection_results)
 
         time.sleep(20)
 

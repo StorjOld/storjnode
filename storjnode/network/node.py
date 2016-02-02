@@ -16,6 +16,7 @@ from storjnode.network.repeat_relay import RepeatRelay
 from storjnode.network.message import sign, verify_signature
 from storjnode.network.server import Server, QUERY_TIMEOUT, WALK_TIMEOUT
 from pyp2p.unl import UNL
+from pyp2p.dht_msg import DHT as SimDHT
 from twisted.internet.task import LoopingCall
 
 
@@ -112,6 +113,8 @@ class Node(object):
 
         if not self.disable_data_transfer:
             self.bandwidth = bandwidth or BandwidthLimit(self.config)
+            self.sim_dht = SimDHT(node_id=self.get_id())
+            self.sim_dht.hook_queue(self.server.protocol.messages_received)
             self._setup_data_transfer_client(
                 passive_port, passive_bind, node_type, nat_type, wan_ip
             )
@@ -611,6 +614,7 @@ class Node(object):
     #######################
 
     def repeat_relay_message(self, nodeid, message):
+        return self.sim_dht.relay_message(nodeid, message)
         return self.repeat_relay.relay(nodeid, message)
 
     def relay_message(self, nodeid, message):
@@ -633,6 +637,7 @@ class Node(object):
             True if message was added to relay queue, otherwise False.
         """
 
+        return self.sim_dht.relay_message(nodeid, message)
         return self.server.relay_message(nodeid, message)
 
     def _dispatch_message(self, message, handler):
@@ -645,6 +650,7 @@ class Node(object):
     def _message_dispatcher_loop(self):
         while not self._message_dispatcher_thread_stop:
             for message in self.server.get_messages():
+                print(message)
                 for handler in self._message_handlers.copy():
                     self._dispatch_message(message, handler)
 
