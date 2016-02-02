@@ -44,7 +44,7 @@ def _test_config(storage_path, bootstrap_nodes):
 class TestBandwidthTestWithDHT(unittest.TestCase):
     @unittest.skip("Already tested in node.py")
     def test_bandwidth_test_with_dht(self):
-        bootstrap_nodes = [["127.0.0.1", PORT + x] for x in range(1)]
+        bootstrap_nodes = [["127.0.0.1", PORT + x] for x in range(3)]
         for i in range(3):
             wallet = btctxstore.BtcTxStore().create_wallet()
             storage_path = "{0}/peer_{1}".format(STORAGE_DIR, i)
@@ -143,6 +143,7 @@ class TestBandwidthTestWithDHT(unittest.TestCase):
 
         def rejection_results(ret):
             print("Bandwidth rejection received")
+            print("\a")
             print(ret)
 
         d = swarm[2].test_bandwidth(swarm[1].get_id())

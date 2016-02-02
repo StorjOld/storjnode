@@ -4,7 +4,7 @@ import logging
 import storjnode
 
 _log = storjnode.log.getLogger(__name__)
-ENABLE_REPEAT = True
+ENABLE_REPEAT = False
 
 
 class RepeatRelay:

@@ -17,6 +17,7 @@ def handle_rejections_builder(bt):
     # Handle bandwidth rejections.
     def handle_rejections(node, msg):
         _log.debug("In handle Rejections")
+        _log.debug("In handle Rejections")
 
         # Check message type.
         if type(msg) in [type(b"")]:
@@ -60,6 +61,7 @@ def handle_rejections_builder(bt):
         # Reset test state and call errback.
         if bt.active_test is not None:
             msg = "Bandwidth request was rejected"
+            _log.debug(msg)
             bt.active_test.errback(Exception(msg))
             bt.reset_state()
 
