@@ -1,4 +1,5 @@
 import time
+import random
 import os
 import bisect
 import json
@@ -318,6 +319,7 @@ class Crawler(object):  # will not scale but good for now
             )
 
             # start bandwidth test (timeout after 5min)
+            time.sleep(random.randint(0, 10))
             self.pipeline_bandwidth_test = (nodeid, data)
             on_success = self._handle_bandwidth_test_success
             on_error = self._handle_bandwidth_test_error
