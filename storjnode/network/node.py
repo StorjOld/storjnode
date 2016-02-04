@@ -658,8 +658,9 @@ class Node(object):
         return self.server.relay_message(nodeid, message)
 
     def _dispatch_message(self, message, handler):
+        return handler(self, message)
         try:
-            return handler(self, message)
+            pass
         except Exception as e:
             txt = """Message handler raised exception: {0}\n\n{1}"""
             _log.error(txt.format(repr(e), traceback.format_exc()))
