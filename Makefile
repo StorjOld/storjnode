@@ -11,7 +11,7 @@ else
   WHEEL_INSTALL_ARGS := --use-wheel --no-index --find-links=$(WHEEL_DIR)
 endif
 export PYCOIN_NATIVE=openssl
-#export STORJNODE_QUERY_TIMEOUT=0.3
+export STORJNODE_QUERY_TIMEOUT=0.3
 export STORJNODE_MONITOR_MAX_TRIES=2
 #export STORJNODE_LOGGING_NOISY=1
 

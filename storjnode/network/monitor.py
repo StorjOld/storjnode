@@ -5,7 +5,6 @@ import bisect
 import json
 import copy
 import storjnode
-import struct
 from collections import OrderedDict
 from storjkademlia.node import Node as KadNode
 from io import BytesIO
@@ -22,7 +21,7 @@ from crochet import TimeoutError
 _log = storjnode.log.getLogger(__name__)
 
 
-SKIP_BANDWIDTH_TEST = True
+SKIP_BANDWIDTH_TEST = False
 if os.environ.get("STORJNODE_MONITOR_MAX_TRIES"):
     MAX_TRIES = int(os.environ.get("STORJNODE_MONITOR_MAX_TRIES"))
 else:
@@ -316,9 +315,9 @@ class Crawler(object):  # will not scale but good for now
                 return
 
             # Other person tests.
-            int_our_node_id = struct.unpack("<L", self.node.get_id())[0]
-            int_their_node_id = struct.unpack("<L", nodeid)[0]
-            if int_our_node_id < int_their_node_id:
+            long_our_node_id = long(self.node.get_id().encode('hex'), 16)
+            long_their_node_id = long(nodeid.encode('hex'), 16)
+            if long_our_node_id < long_their_node_id:
                 _log.info("Skipping: They will do the bandwidth test")
                 self.pipeline_processed[nodeid] = data
                 return
