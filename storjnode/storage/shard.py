@@ -45,7 +45,7 @@ def get_hash(shard, salt=None, limit=None):
         else:
             return max_chunk_size
 
-    while 1:
+    while True:
         chunk_size = get_chunk_size(remaining, max_chunk_size)
         chunk = shard.read(chunk_size)
         if chunk == b"":
@@ -72,7 +72,11 @@ def copy(src_shard, dest_fobj):
         dest_fobj: A file like object to copy the shard to.
     """
     src_shard.seek(0)
-    dest_fobj.write(src_shard.read())
+    while True:
+        data = src_shard.read(4096)
+        if not data:
+            break
+        dest_fobj.write(data)
 
 
 def save(shard, path):
