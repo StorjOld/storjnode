@@ -52,7 +52,8 @@ class Node(object):
                  node_type="unknown",  # FIMME what is this ?
                  nat_type="unknown",  # FIXME what is this ?
                  bandwidth=None,
-                 wan_ip=None  # Get it if it isn't set
+                 wan_ip=None,  # Get it if it isn't set
+                 network_id="default"
                  ):
         """Create a blocking storjnode instance.
 
@@ -80,6 +81,7 @@ class Node(object):
             raise Exception("Config required")
         self.config = config
 
+        self.network_id = network_id
         self.bandwidth = None
         self.disable_data_transfer = bool(disable_data_transfer)
         self._transfer_request_handlers = set()
@@ -114,7 +116,11 @@ class Node(object):
 
         if not self.disable_data_transfer:
             self.bandwidth = bandwidth or BandwidthLimit(self.config)
-            self.sim_dht = SimDHT(node_id=self.get_id(), port=self.port)
+            self.sim_dht = SimDHT(
+                node_id=self.get_id(),
+                port=self.port,
+                network_id=self.network_id
+            )
             self.sim_dht.hook_queue(self.server.protocol.messages_received)
             assert(self.server.protocol.messages_received == self.sim_dht.protocol.messages_received)
 
@@ -671,6 +677,7 @@ class Node(object):
                 assert(self.server.protocol.messages_received == self.sim_dht.protocol.messages_received)
                 #import pdb; pdb.set_trace()
             for message in self.server.get_messages():
+                print("In dispatcher loop" + str(message))
                 for handler in self._message_handlers.copy():
                     self._dispatch_message(message, handler)
 

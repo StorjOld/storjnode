@@ -3,6 +3,7 @@ import os
 import json
 import cProfile
 from pstats import Stats
+import hashlib
 import signal
 import threading
 import tempfile
@@ -62,6 +63,9 @@ class TestNode(unittest.TestCase):
         _log.info("TEST: creating swarm")
         cls.btctxstore = btctxstore.BtcTxStore(testnet=False)
         cls.swarm = []
+        cls.network_id = hashlib.sha256(
+            str(time.time()).encode("ascii")
+        ).hexdigest()[0:16]
         for i in range(SWARM_SIZE):
 
             # create node
@@ -73,7 +77,8 @@ class TestNode(unittest.TestCase):
                 nat_type="preserving",
                 node_type="passive",
                 disable_data_transfer=False,
-                max_messages=10000000000000
+                max_messages=10000000000000,
+                network_id=cls.network_id
             )
             if i % 2 == 1:  # every second node ignores info/peer requests
                 storjnode.network.messages.info.enable(node, config)
@@ -395,8 +400,17 @@ class TestNode(unittest.TestCase):
             # storjnode.storage.shard.copy(shard, sys.stdout)
             results.update(dict(key=key, shard=shard))
             crawled_event.set()
-        node = self.swarm[0]
-        node = random.choice(self.swarm)
+
+        print(self.swarm)
+        self.swarm.reverse()
+        for n in self.swarm:
+            if not n.sim_dht.has_mutex:
+                node = n
+                break
+
+        # Todo: figure out how to choose node that has mutex
+        # and how to make it so it has more neighbours than other
+        # mutex nodes
         monitor = storjnode.network.monitor.Monitor(
             node, limit=limit, interval=interval, on_crawl_complete=handler
         )

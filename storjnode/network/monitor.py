@@ -100,6 +100,7 @@ class Crawler(object):  # will not scale but good for now
                     data["network"]["transport"] = [ip, port]
 
     def _handle_peers_message(self, node, message):
+        print("In handle peers message" + str(message))
         received = time.time()
         message = read_peers(node.server.btctxstore, message)
         if message is None:
@@ -122,6 +123,7 @@ class Crawler(object):  # will not scale but good for now
             self._check_scan_complete(message.sender, data)
 
     def _handle_info_message(self, node, message):
+        print("In handle info message" + str(message))
         received = time.time()
         message = read_info(node.server.btctxstore, message)
         if message is None:
@@ -379,6 +381,7 @@ class Crawler(object):  # will not scale but good for now
         }, indent=2)))
 
     def crawl(self):
+        print("In crawl function")
 
         # add info and peers message handlers
         self.node.add_message_handler(self._handle_info_message)
@@ -389,6 +392,7 @@ class Crawler(object):  # will not scale but good for now
 
         # add initial peers
         peers = self.node.get_neighbours()
+        print("initial peers = " + str(peers))
         for peer in peers:
             self._add_peer_to_pipeline(peer.id, peer.ip, peer.port)
 
@@ -398,6 +402,8 @@ class Crawler(object):  # will not scale but good for now
         # remove info and peers message handlers
         self.node.remove_message_handler(self._handle_info_message)
         self.node.remove_message_handler(self._handle_peers_message)
+
+        print("Removed message info handlers")
 
         # remove self from results
         del self.pipeline_processed[self.node.get_id()]
