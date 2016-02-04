@@ -1,4 +1,5 @@
 import sys
+import binascii
 import os
 import psutil
 import traceback
@@ -236,7 +237,9 @@ class StorjNode(apigen.Definition):
                     time.sleep(storjnode.common.THREAD_SLEEP)
                     rss = psutil.Process(os.getpid()).memory_info().rss
                     if rss > (1024 * 1024 * 100):
-                        scanner.dump_all_objects('memdump.json')
+                        scanner.dump_all_objects('memdump_{0}.json'.format(
+                            binascii.hexlify(os.urandom(32))
+                        ))
                         _log.fatal("Excessive memory usage!")
                         exit()
         finally:

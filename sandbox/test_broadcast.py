@@ -1,14 +1,16 @@
 import os
-import psutil
-import time
-import threading
-import binascii
-import signal
-import storjnode
-import btctxstore
-from crochet import setup
-from storjnode.network.server import WALK_TIMEOUT
-from meliae import scanner
+os.environ["PYCOIN_NATIVE"] = "openssl"
+
+import psutil  # NOQA
+import time  # NOQA
+import threading  # NOQA
+import binascii  # NOQA
+import signal  # NOQA
+import storjnode  # NOQA
+import btctxstore  # NOQA
+from crochet import setup  # NOQA
+from storjnode.network.server import WALK_TIMEOUT  # NOQA
+from meliae import scanner  # NOQA
 
 
 # start twisted via crochet and remove twisted handler
@@ -16,9 +18,9 @@ setup()
 signal.signal(signal.SIGINT, signal.default_int_handler)
 
 
-SIMULATE = True
+SIMULATE = False
 PORT = 6000
-SWARM_SIZE = 32
+SWARM_SIZE = 128
 BOOTSTRAP_NODES = [["127.0.0.1", PORT + i] for i in range(SWARM_SIZE)]
 
 
