@@ -106,6 +106,7 @@ class Node(object):
         self._setup_server(key, ksize, dht_storage, max_messages)
 
         # Process incoming messages.
+        self.sim_dht = None
         self._setup_message_dispatcher()
 
         # Rebroadcast relay messages.
@@ -113,8 +114,10 @@ class Node(object):
 
         if not self.disable_data_transfer:
             self.bandwidth = bandwidth or BandwidthLimit(self.config)
-            self.sim_dht = SimDHT(node_id=self.get_id())
+            self.sim_dht = SimDHT(node_id=self.get_id(), port=self.port)
             self.sim_dht.hook_queue(self.server.protocol.messages_received)
+            assert(self.server.protocol.messages_received == self.sim_dht.protocol.messages_received)
+
             self._setup_data_transfer_client(
                 passive_port, passive_bind, node_type, nat_type, wan_ip
             )
@@ -195,6 +198,9 @@ class Node(object):
         self._message_dispatcher_thread.join()
         self.server.stop()
         self.repeat_relay.stop()
+        if self.sim_dht is not None:
+            self.sim_dht.stop()
+
         if not self.disable_data_transfer:
             self._data_transfer.net.stop()
 
@@ -213,6 +219,13 @@ class Node(object):
         return self.server.get_known_peers()
 
     def get_neighbours(self):
+        if self.sim_dht is not None:
+            neighbours = self.sim_dht.get_neighbours()
+            for neighbour in neighbours:
+                self.server.protocol.router.addContact(neighbour)
+
+            return neighbours
+
         return self.server.get_neighbours()
 
     def get_storage_contents(self):
@@ -370,7 +383,7 @@ class Node(object):
 
                     # Everything passed: fire callback.
                     d.callback(msg[u"unl"])
-                except (ValueError, KeyError):
+                except (ValueError, KeyError, zlib.error):
                     _log.debug("unl response:val or key er")
                     pass  # not a unl response
                 finally:
@@ -614,7 +627,9 @@ class Node(object):
     #######################
 
     def repeat_relay_message(self, nodeid, message):
-        return self.sim_dht.relay_message(nodeid, message)
+        if self.sim_dht is not None:
+            return self.sim_dht.relay_message(nodeid, message)
+
         return self.repeat_relay.relay(nodeid, message)
 
     def relay_message(self, nodeid, message):
@@ -637,7 +652,9 @@ class Node(object):
             True if message was added to relay queue, otherwise False.
         """
 
-        return self.sim_dht.relay_message(nodeid, message)
+        if self.sim_dht is not None:
+            return self.sim_dht.relay_message(nodeid, message)
+
         return self.server.relay_message(nodeid, message)
 
     def _dispatch_message(self, message, handler):
@@ -649,8 +666,10 @@ class Node(object):
 
     def _message_dispatcher_loop(self):
         while not self._message_dispatcher_thread_stop:
+            if self.sim_dht is not None:
+                assert(self.server.protocol.messages_received == self.sim_dht.protocol.messages_received)
+                #import pdb; pdb.set_trace()
             for message in self.server.get_messages():
-                print(message)
                 for handler in self._message_handlers.copy():
                     self._dispatch_message(message, handler)
 

@@ -123,7 +123,7 @@ class TestBandwidthTestWithDHT(unittest.TestCase):
         swarm[0].relay_message(swarm[1].get_id(), "Test message")
 
 
-        time.sleep(50)
+        # time.sleep(50)
         d = swarm[0].test_bandwidth(swarm[1].get_id())
         d.addCallback(show_bandwidth)
 
@@ -136,10 +136,10 @@ class TestBandwidthTestWithDHT(unittest.TestCase):
         # assert(swarm[2].bandwidth_test.test_node_unl is not None)
         #d.addErrback(rejection_results)
 
-        time.sleep(20)
-
         while still_running:
             time.sleep(0.1)
+
+        print("Still running done")
 
         for node in swarm:
             node.stop()

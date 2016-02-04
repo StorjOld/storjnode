@@ -59,7 +59,7 @@ def process_unl_requests(node, msg):
         response = zlib.compress(str(response))
         node.repeat_relay_message(their_node_id, response)
 
-    except (ValueError, KeyError):
+    except (ValueError, KeyError, zlib.error):
         pass  # not a unl request
 
 
