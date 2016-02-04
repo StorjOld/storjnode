@@ -1,4 +1,5 @@
 import os
+import psutil
 import time
 import threading
 import binascii
@@ -7,6 +8,7 @@ import storjnode
 import btctxstore
 from crochet import setup
 from storjnode.network.server import WALK_TIMEOUT
+from meliae import scanner
 
 
 # start twisted via crochet and remove twisted handler
@@ -14,7 +16,7 @@ setup()
 signal.signal(signal.SIGINT, signal.default_int_handler)
 
 
-SIMULATE = False
+SIMULATE = True
 PORT = 6000
 SWARM_SIZE = 32
 BOOTSTRAP_NODES = [["127.0.0.1", PORT + i] for i in range(SWARM_SIZE)]
@@ -88,8 +90,9 @@ if __name__ == "__main__":
     successes_duration = 0.0
     failures = 0
     try:
-        _create_swarm(swarm, SWARM_SIZE)
-        _organize_overlay(swarm)
+        swarm = _create_swarm(swarm, SWARM_SIZE)
+        if not SIMULATE:
+            _organize_overlay(swarm)
         numtests = len(swarm) ** 2
         for sender in swarm:
             for receiver in swarm:
@@ -99,18 +102,28 @@ if __name__ == "__main__":
                         sender.get_address(), receiver.get_address()
                     ))
 
+                    rss = psutil.Process(os.getpid()).memory_info().rss
+                    if rss > (1024 * 1024 * 100):
+                        scanner.dump_all_objects('memdump.json')
+                        exit()
+
                     start = time.time()
                     _test_relay(sender, receiver)
                     successes_duration += (time.time() - start)
                     successes += 1
                 except AssertionError:
                     failures += 1
+                except KeyboardInterrupt:
+                    scanner.dump_all_objects('memdump.json')
+                    raise
     finally:
         for node in swarm:
             node.stop()
         total = successes + failures
         print("SUCCESSFULL: {0}".format(successes))
-        print("AVG SUCCESS TIME: {0}".format(successes_duration / successes))
+        if successes > 0:
+            avg_success = successes_duration / successes
+            print("AVG SUCCESS TIME: {0}".format(avg_success))
         print("FAILURES: {0}".format(failures))
         if total > 0:
             print("RESULT: {0}%".format(

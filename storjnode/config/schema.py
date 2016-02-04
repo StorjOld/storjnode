@@ -80,7 +80,7 @@ SCHEMA = json.loads(r"""
             "type": "array",
             "items": [
               {"type": "string", "format": "ipv4"},
-              {"type": "number", "minimum": 1024, "maximum": 65535}
+              {"type": "integer", "minimum": 1024, "maximum": 65535}
             ]
           }
         },

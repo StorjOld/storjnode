@@ -62,6 +62,7 @@ setup: virtualenv
 	$(PIP) install $(WHEEL_INSTALL_ARGS) -r requirements.txt
 	$(PIP) install $(WHEEL_INSTALL_ARGS) -r test_requirements.txt
 	$(PIP) install $(WHEEL_INSTALL_ARGS) -r develop_requirements.txt
+	$(PIP) install meliae
 
 
 install: setup
@@ -71,9 +72,9 @@ install: setup
 test_script: install
 	#$(PY) examples/network/map_network.py --debug
 	#$(PY) -m unittest --quiet tests.network.messages
-	env/bin/storjnode --debug --wallet=L3NrSTxMCwAsLXnBjESvU5LnCKwcmMXKutKzNnVpPevXeSMfB1zx farm
+	#env/bin/storjnode --debug --wallet=L3NrSTxMCwAsLXnBjESvU5LnCKwcmMXKutKzNnVpPevXeSMfB1zx farm
 	#env/bin/storjnode_bootstrap_only --wallet=L3NrSTxMCwAsLXnBjESvU5LnCKwcmMXKutKzNnVpPevXeSMfB1zx --port=1337
-	#$(PY) sandbox/prove_relaying.py
+	$(PY) sandbox/test_broadcast.py
 	#$(PY) scripts/start_bootstrap_only_node.py --port=1337
 
 
@@ -88,12 +89,15 @@ test: setup
 	$(PEP8) examples
 	$(PEP8) tests
 	$(COVERAGE) run --source="storjnode" -m unittest -v tests
-	$(COVERAGE) report --fail-under=85
+	$(COVERAGE) report --fail-under=80
 
 
 publish: test
 	$(PY) setup.py register bdist_wheel upload
 
+
+# for profiling
+# http://www.vrplumber.com/programming/runsnakerun/
 
 # Break in case of bug!
 # import pudb; pu.db
