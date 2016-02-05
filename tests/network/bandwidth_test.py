@@ -3,6 +3,7 @@ import time
 import tempfile
 import pyp2p
 import storjnode
+import Queue
 from storjnode.network.process_transfers import process_transfers
 from storjnode.network.file_transfer import FileTransfer
 from storjnode.util import address_to_node_id
@@ -34,7 +35,7 @@ class TestBandwidthTest(unittest.TestCase):
                 net_type="direct",
                 node_type="passive",
                 nat_type="preserving",
-                passive_port=63600,
+                passive_port=0,
                 debug=1,
                 wan_ip="8.8.8.8",
                 dht_node=alice_dht,
@@ -61,7 +62,7 @@ class TestBandwidthTest(unittest.TestCase):
                 net_type="direct",
                 node_type="passive",
                 nat_type="preserving",
-                passive_port=63601,
+                passive_port=0,
                 debug=1,
                 wan_ip="8.8.8.8",
                 dht_node=bob_dht
@@ -75,6 +76,8 @@ class TestBandwidthTest(unittest.TestCase):
         # Link DHT nodes.
         alice_dht.add_relay_link(bob_dht)
         bob_dht.add_relay_link(alice_dht)
+        alice_dht.protocol.messages_received = Queue.Queue()
+        bob_dht.protocol.messages_received = Queue.Queue()
 
         _log.debug("Bob UNL")
         _log.debug(bob_transfer.net.unl.value)

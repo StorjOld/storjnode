@@ -2,6 +2,7 @@ import pyp2p.unl
 import pyp2p.net
 import pyp2p.dht_msg
 import storjnode
+import Queue
 from storjnode.util import address_to_node_id
 from storjnode.network.file_transfer import FileTransfer
 from storjnode.network.process_transfers import process_transfers
@@ -73,6 +74,8 @@ def test_queued():
     # Simulate Alice + Bob "connecting"
     alice_dht.add_relay_link(bob_dht)
     bob_dht.add_relay_link(alice_dht)
+    alice_dht.protocol.messages_received = Queue.Queue()
+    bob_dht.protocol.messages_received = Queue.Queue()
 
     # Accept all transfers.
     def accept_handler(contract_id, src_unl, data_id, file_size):
