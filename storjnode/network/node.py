@@ -382,16 +382,16 @@ class Node(object):
         handler = handler_builder(self, d, nodeid, self.get_key())
 
         # Expire this request.
-        def expire_old_unl_request():
-            _log.debug("Get unl request timed out")
+        def expire_old_unl_request(node, msg):
             if time.time() >= future_timeout:
-                d.errback(Exception("Get unl request timed out"))
-
-            return defer.Deferred()
-
-        LoopingCall(expire_old_unl_request).start(30, now=False)
+                _log.debug("Get unl request timed out")
+                node.remove_message_handler(expire_old_unl_request)
+                if handler in self._message_handlers:
+                    node.remove_message_handler(handler)
+                    d.errback(Exception("Get unl request timed out"))
 
         # Register new handler for this UNL request.
+        self.add_message_handler(expire_old_unl_request)
         self.add_message_handler(handler)
 
         # Send our get UNL request to node.
