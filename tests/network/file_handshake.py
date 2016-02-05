@@ -125,7 +125,8 @@ class TestFileHandshake(unittest.TestCase):
             (u"file_size", 100),
             (u"host_unl", self.alice.net.unl.value),
             (u"dest_unl", self.bob.net.unl.value),
-            (u"src_unl", self.alice.net.unl.value)
+            (u"src_unl", self.alice.net.unl.value),
+            (u"nonce", b"test")
         ])
 
     def tearDown(self):

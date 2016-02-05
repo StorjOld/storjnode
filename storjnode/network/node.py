@@ -228,6 +228,9 @@ class Node(object):
         if self.sim_dht is not None:
             neighbours = self.sim_dht.get_neighbours()
             for neighbour in neighbours:
+                if neighbour.id == self.get_id():
+                    continue
+
                 self.server.protocol.router.addContact(neighbour)
 
             return neighbours
@@ -664,9 +667,8 @@ class Node(object):
         return self.server.relay_message(nodeid, message)
 
     def _dispatch_message(self, message, handler):
-        return handler(self, message)
         try:
-            pass
+            return handler(self, message)
         except Exception as e:
             txt = """Message handler raised exception: {0}\n\n{1}"""
             _log.error(txt.format(repr(e), traceback.format_exc()))
@@ -679,6 +681,7 @@ class Node(object):
             for message in self.server.get_messages():
                 print("In dispatcher loop" + str(message))
                 for handler in self._message_handlers.copy():
+                    print()
                     self._dispatch_message(message, handler)
 
             # (Message-handler thread-safe
@@ -742,6 +745,9 @@ class Node(object):
             None if not found, the value otherwise.
         """
         # FIXME return default if not found (add to kademlia)
+        if self.sim_dht is not None:
+            return self.sim_dht.async_dht_get(key)
+
         return self.server.get(key)
 
     def async_set(self, key, value):
@@ -750,13 +756,27 @@ class Node(object):
         Returns:
             A twisted.internet.defer.Deferred that resloves when set.
         """
+        if self.sim_dht is not None:
+            print("in async_set")
+            def set_local_key(ret):
+                self.server.storage[key] = value
+                d = defer.Deferred()
+                d.callback(ret)
+
+                return d
+
+            d = self.sim_dht.async_dht_put(key, value)
+            d.addCallback(set_local_key)
+
+            return d
+
         return self.server.set(key, value)
 
     ###############################
     # blocking DHT dict interface #
     ###############################
 
-    @wait_for(timeout=WALK_TIMEOUT)
+    @wait_for(timeout=10)
     def get(self, key, default=None):
         """D.get(k[,d]) -> D[k] if k in D, else d.  d defaults to None.
 
@@ -765,7 +785,7 @@ class Node(object):
         """
         return self.async_get(key, default=default)
 
-    @wait_for(timeout=WALK_TIMEOUT)
+    @wait_for(timeout=10)
     def put(self, key, value):
         """Insert a key value pair into the DHT.
 

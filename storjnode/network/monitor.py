@@ -55,7 +55,7 @@ DEFAULT_DATA = OrderedDict([
 
 class Crawler(object):  # will not scale but good for now
 
-    def __init__(self, node, limit=20, timeout=600):
+    def __init__(self, node, limit=5, timeout=600):
 
         # CRAWLER PIPELINE
         self.pipeline_mutex = RLock()
@@ -104,6 +104,7 @@ class Crawler(object):  # will not scale but good for now
         received = time.time()
         message = read_peers(node.server.btctxstore, message)
         if message is None:
+            print("Handle peers error!")
             return  # dont care about this message
         with self.pipeline_mutex:
             data = self.pipeline_scanning.get(message.sender)
@@ -312,7 +313,11 @@ class Crawler(object):  # will not scale but good for now
             assert(nodeid != self.node.get_id())
 
             # skip bandwidth test
-            if SKIP_BANDWIDTH_TEST:
+            skip_bandwidth_test = SKIP_BANDWIDTH_TEST
+            if self.node.sim_dht is not None:
+                if not self.node.sim_dht.has_mutex:
+                    skip_bandwidth_test = True
+            if skip_bandwidth_test:
                 _log.info("Skipping bandwidth test")
                 self.pipeline_processed[nodeid] = data
                 return
@@ -394,6 +399,9 @@ class Crawler(object):  # will not scale but good for now
         peers = self.node.get_neighbours()
         print("initial peers = " + str(peers))
         for peer in peers:
+            if peer.id == self.node.get_id():
+                continue
+
             self._add_peer_to_pipeline(peer.id, peer.ip, peer.port)
 
         # process pipeline until done

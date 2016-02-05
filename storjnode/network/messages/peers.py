@@ -39,9 +39,14 @@ def request(node, receiver):
 
 def enable(node):
     def handler(node, msg):
+        print("In peers respond" + str(msg))
+
         request = signal.read(node.server.btctxstore, msg, "request_peers")
         if request is not None:
             peers = list(map(lambda n: n.id, node.get_neighbours()))
             msg = create(node.server.btctxstore, node.get_key(), peers)
             node.relay_message(request.sender, msg)
+        else:
+            print("peer respond is none!")
+
     return node.add_message_handler(handler)

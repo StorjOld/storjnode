@@ -2,6 +2,7 @@ import logging
 import time
 import tempfile
 import pyp2p
+import Queue
 import storjnode
 from storjnode.network.process_transfers import process_transfers
 from storjnode.network.file_transfer import FileTransfer
@@ -75,6 +76,8 @@ class TestBandwidthTest(unittest.TestCase):
         # Link DHT nodes.
         alice_dht.add_relay_link(bob_dht)
         bob_dht.add_relay_link(alice_dht)
+        alice_dht.protocol.messages_received = Queue.Queue()
+        bob_dht.protocol.messages_received = Queue.Queue()
 
         _log.debug("Bob UNL")
         _log.debug(bob_transfer.net.unl.value)

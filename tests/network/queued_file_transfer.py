@@ -12,6 +12,7 @@ import tempfile
 import time
 import os
 import unittest
+import Queue
 
 
 _log = storjnode.log.getLogger(__name__)
@@ -73,6 +74,8 @@ def test_queued():
     # Simulate Alice + Bob "connecting"
     alice_dht.add_relay_link(bob_dht)
     bob_dht.add_relay_link(alice_dht)
+    alice_dht.protocol.messages_received = Queue.Queue()
+    bob_dht.protocol.messages_received = Queue.Queue()
 
     # Accept all transfers.
     def accept_handler(contract_id, src_unl, data_id, file_size):
