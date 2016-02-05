@@ -71,10 +71,10 @@ install: setup
 
 test_script: install
 	#$(PY) examples/network/map_network.py --debug
-	#$(PY) -m unittest --quiet tests.network.messages
+	$(PY) -m unittest --quiet tests.storage.shard
 	#env/bin/storjnode --debug --wallet=L3NrSTxMCwAsLXnBjESvU5LnCKwcmMXKutKzNnVpPevXeSMfB1zx farm
 	#env/bin/storjnode_bootstrap_only --wallet=L3NrSTxMCwAsLXnBjESvU5LnCKwcmMXKutKzNnVpPevXeSMfB1zx --port=1337
-	$(PY) sandbox/test_broadcast.py
+	#$(PY) sandbox/test_broadcast.py
 	#$(PY) scripts/start_bootstrap_only_node.py --port=1337
 
 
