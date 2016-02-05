@@ -35,7 +35,7 @@ class TestBandwidthTest(unittest.TestCase):
                 net_type="direct",
                 node_type="passive",
                 nat_type="preserving",
-                passive_port=63600,
+                passive_port=0,
                 debug=1,
                 wan_ip="8.8.8.8",
                 dht_node=alice_dht,
@@ -62,7 +62,7 @@ class TestBandwidthTest(unittest.TestCase):
                 net_type="direct",
                 node_type="passive",
                 nat_type="preserving",
-                passive_port=63601,
+                passive_port=0,
                 debug=1,
                 wan_ip="8.8.8.8",
                 dht_node=bob_dht
