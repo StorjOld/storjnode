@@ -21,7 +21,7 @@ from crochet import TimeoutError
 _log = storjnode.log.getLogger(__name__)
 
 
-SKIP_BANDWIDTH_TEST = True
+SKIP_BANDWIDTH_TEST = False
 if os.environ.get("STORJNODE_MONITOR_MAX_TRIES"):
     MAX_TRIES = int(os.environ.get("STORJNODE_MONITOR_MAX_TRIES"))
 else:
