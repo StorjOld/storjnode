@@ -50,7 +50,6 @@ class Protocol(KademliaProtocol):
         return not self.messages_received.empty()
 
     def get_messages(self):
-        #print("In protocol get messages")
         ret = storjnode.util.empty_queue(self.messages_received)
         return ret
 

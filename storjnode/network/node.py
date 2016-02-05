@@ -122,7 +122,6 @@ class Node(object):
                 network_id=self.network_id
             )
             self.sim_dht.hook_queue(self.server.protocol.messages_received)
-            assert(self.server.protocol.messages_received == self.sim_dht.protocol.messages_received)
 
             self._setup_data_transfer_client(
                 passive_port, passive_bind, node_type, nat_type, wan_ip
@@ -675,13 +674,8 @@ class Node(object):
 
     def _message_dispatcher_loop(self):
         while not self._message_dispatcher_thread_stop:
-            if self.sim_dht is not None:
-                assert(self.server.protocol.messages_received == self.sim_dht.protocol.messages_received)
-                #import pdb; pdb.set_trace()
             for message in self.server.get_messages():
-                print("In dispatcher loop" + str(message))
                 for handler in self._message_handlers.copy():
-                    print()
                     self._dispatch_message(message, handler)
 
             # (Message-handler thread-safe
@@ -757,7 +751,6 @@ class Node(object):
             A twisted.internet.defer.Deferred that resloves when set.
         """
         if self.sim_dht is not None:
-            print("in async_set")
             def set_local_key(ret):
                 self.server.storage[key] = value
                 d = defer.Deferred()

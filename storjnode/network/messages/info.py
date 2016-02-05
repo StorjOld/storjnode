@@ -154,16 +154,11 @@ def request(node, receiver):
 
 
 def _respond(node, receiver, config):
-    print("In info respond")
-
     def on_error(err):
-        print("In info respond unable to get transport info")
         _log.error(repr(err))
         return err
 
     def on_success(result):
-        print("Info respond success: " + str(result))
-
         if not result:
             _log.warning("Couldn't get info for requested info message!")
             return
@@ -196,7 +191,5 @@ def enable(node, config):
             request = signal.read(node.server.btctxstore, msg, "request_info")
             if request is not None:
                 _respond(node, request.sender, self.config)
-            else:
-                print("request info is none")
 
     return node.add_message_handler(_Handler(config))

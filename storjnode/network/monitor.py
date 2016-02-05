@@ -100,11 +100,9 @@ class Crawler(object):  # will not scale but good for now
                     data["network"]["transport"] = [ip, port]
 
     def _handle_peers_message(self, node, message):
-        print("In handle peers message" + str(message))
         received = time.time()
         message = read_peers(node.server.btctxstore, message)
         if message is None:
-            print("Handle peers error!")
             return  # dont care about this message
         with self.pipeline_mutex:
             data = self.pipeline_scanning.get(message.sender)
@@ -124,7 +122,6 @@ class Crawler(object):  # will not scale but good for now
             self._check_scan_complete(message.sender, data)
 
     def _handle_info_message(self, node, message):
-        print("In handle info message" + str(message))
         received = time.time()
         message = read_info(node.server.btctxstore, message)
         if message is None:
@@ -316,7 +313,8 @@ class Crawler(object):  # will not scale but good for now
             skip_bandwidth_test = SKIP_BANDWIDTH_TEST
             if self.node.sim_dht is not None:
                 if not self.node.sim_dht.has_mutex:
-                    skip_bandwidth_test = True
+                    if not self.node.sim_dht.can_test_knode(nodeid):
+                        skip_bandwidth_test = True
             if skip_bandwidth_test:
                 _log.info("Skipping bandwidth test")
                 self.pipeline_processed[nodeid] = data
@@ -386,8 +384,6 @@ class Crawler(object):  # will not scale but good for now
         }, indent=2)))
 
     def crawl(self):
-        print("In crawl function")
-
         # add info and peers message handlers
         self.node.add_message_handler(self._handle_info_message)
         self.node.add_message_handler(self._handle_peers_message)
@@ -397,7 +393,6 @@ class Crawler(object):  # will not scale but good for now
 
         # add initial peers
         peers = self.node.get_neighbours()
-        print("initial peers = " + str(peers))
         for peer in peers:
             if peer.id == self.node.get_id():
                 continue
@@ -410,8 +405,6 @@ class Crawler(object):  # will not scale but good for now
         # remove info and peers message handlers
         self.node.remove_message_handler(self._handle_info_message)
         self.node.remove_message_handler(self._handle_peers_message)
-
-        print("Removed message info handlers")
 
         # remove self from results
         del self.pipeline_processed[self.node.get_id()]

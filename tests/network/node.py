@@ -400,7 +400,6 @@ class TestNode(unittest.TestCase):
             results.update(dict(key=key, shard=shard))
             crawled_event.set()
 
-        print(self.swarm)
         self.swarm.reverse()
         for n in self.swarm:
             if not n.sim_dht.has_mutex:
