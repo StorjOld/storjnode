@@ -320,14 +320,6 @@ class Crawler(object):  # will not scale but good for now
                 self.pipeline_processed[nodeid] = data
                 return
 
-            # Other person tests.
-            int_our_node_id = struct.unpack("<L", self.node.get_id())[0]
-            int_their_node_id = struct.unpack("<L", nodeid)[0]
-            if int_our_node_id < int_their_node_id:
-                _log.info("Skipping: They will do the bandwidth test")
-                self.pipeline_processed[nodeid] = data
-                return
-
             _log.info("Starting bandwidth test for: {0}".format(
                 node_id_to_address(nodeid))
             )
