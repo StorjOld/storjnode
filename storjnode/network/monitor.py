@@ -22,7 +22,7 @@ from crochet import TimeoutError
 _log = storjnode.log.getLogger(__name__)
 
 
-SKIP_BANDWIDTH_TEST = True
+SKIP_BANDWIDTH_TEST = False
 if os.environ.get("STORJNODE_MONITOR_MAX_TRIES"):
     MAX_TRIES = int(os.environ.get("STORJNODE_MONITOR_MAX_TRIES"))
 else:
@@ -313,6 +313,8 @@ class Crawler(object):  # will not scale but good for now
             skip_bandwidth_test = SKIP_BANDWIDTH_TEST
             if self.node.sim_dht is not None:
                 if not self.node.sim_dht.has_mutex:
+                    skip_bandwidth_test = True
+                else:
                     if not self.node.sim_dht.can_test_knode(nodeid):
                         skip_bandwidth_test = True
             if skip_bandwidth_test:
@@ -385,7 +387,15 @@ class Crawler(object):  # will not scale but good for now
 
         # add initial peers
         peers = self.node.get_neighbours()
+        x = []
+        y = []
         for peer in peers:
+            if peer.can_test:
+                x.append(peer)
+            else:
+                y.append(peer)
+
+        for peer in x + y:
             if peer.id == self.node.get_id():
                 continue
 

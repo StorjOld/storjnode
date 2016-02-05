@@ -390,7 +390,7 @@ class TestNode(unittest.TestCase):
     ########################
 
     def test_network_monitor_service(self):
-        limit = 2
+        limit = 1
         interval = 60 * 15
         crawled_event = threading.Event()
         results = {}
@@ -401,10 +401,12 @@ class TestNode(unittest.TestCase):
             crawled_event.set()
 
         self.swarm.reverse()
+        node = self.swarm[-1]
         for n in self.swarm:
-            if not n.sim_dht.has_mutex:
-                node = n
-                break
+            if n.sim_dht.has_mutex:
+                if n.sim_dht.has_testable_neighbours():
+                    node = n
+                    break
 
         # Todo: figure out how to choose node that has mutex
         # and how to make it so it has more neighbours than other
