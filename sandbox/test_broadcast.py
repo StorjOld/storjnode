@@ -105,8 +105,10 @@ if __name__ == "__main__":
                     ))
 
                     rss = psutil.Process(os.getpid()).memory_info().rss
-                    if rss > (1024 * 1024 * 100):
-                        scanner.dump_all_objects('memdump.json')
+                    if rss > (1024 * 1024 * 200):
+                        scanner.dump_all_objects('memdump_{0}.json'.format(
+                            binascii.hexlify(os.urandom(32))
+                        ))
                         exit()
 
                     start = time.time()
@@ -116,7 +118,9 @@ if __name__ == "__main__":
                 except AssertionError:
                     failures += 1
                 except KeyboardInterrupt:
-                    scanner.dump_all_objects('memdump.json')
+                    scanner.dump_all_objects('memdump_{0}.json'.format(
+                        binascii.hexlify(os.urandom(32))
+                    ))
                     raise
     finally:
         for node in swarm:

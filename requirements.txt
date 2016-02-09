@@ -11,4 +11,3 @@ requests >= 2.8.1
 pyp2p >= 0.7.5
 jsonschema >= 2.5.1
 apigen >= 1.4.1
-Cython
