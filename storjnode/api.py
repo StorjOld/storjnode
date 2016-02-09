@@ -1,14 +1,10 @@
 import sys
-import binascii
-import os
-import psutil
 import traceback
 import time
 import apigen
 import btctxstore
 import storjnode
 import crochet
-from meliae import scanner
 from threading import RLock
 from storjnode.network.server import WALK_TIMEOUT
 
@@ -235,13 +231,6 @@ class StorjNode(apigen.Definition):
             else:
                 while True:
                     time.sleep(storjnode.common.THREAD_SLEEP)
-                    rss = psutil.Process(os.getpid()).memory_info().rss
-                    if rss > (1024 * 1024 * 100):
-                        scanner.dump_all_objects('memdump_{0}.json'.format(
-                            binascii.hexlify(os.urandom(32))
-                        ))
-                        _log.fatal("Excessive memory usage!")
-                        exit()
         finally:
             if self.monitor is not None:
                 self.monitor.stop()
