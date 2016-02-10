@@ -14,6 +14,7 @@ if os.name == 'nt' and 'py2exe' in sys.argv:
     from py2exe_MediaCollector import MediaCollector
     options = {'py2exe': {
         "skip_archive": True,
+        "dll_excludes": ['IPHLPAPI.DLL', 'WTSAPI32.dll', 'CRYPT32.dll', 'PSAPI.DLL', 'MSVCR100.dll'],
         "optimize": 2,
         "bundle_files": 3,  # This tells py2exe to bundle everything
     }}

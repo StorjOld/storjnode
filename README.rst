@@ -2,16 +2,22 @@
 storjnode
 #########
 
-|BuildLink|_ |CoverageLink|_ |BuildLink2|_ |CoverageLink2|_ |LicenseLink|_
+|BuildLink|_ |TestLink|_ |CoverageLink|_ |BuildLink2|_ |TestLink2|_ |CoverageLink2|_ |LicenseLink|_
 
-.. |BuildLink| image:: https://img.shields.io/travis/Storj/storjnode/master.svg?label=Build-Master
-.. _BuildLink: https://travis-ci.org/Storj/storjnode
+.. |BuildLink| image:: https://img.shields.io/appveyor/ci/Storj/storjnode/master.svg?label=Build-Master
+.. _BuildLink: https://ci.appveyor.com/project/littleskunk/storjnode/branch/master
+
+.. |TestLink| image:: https://img.shields.io/travis/Storj/storjnode/master.svg?label=Test-Master
+.. _TestLink: https://travis-ci.org/Storj/storjnode
 
 .. |CoverageLink| image:: https://img.shields.io/coveralls/Storj/storjnode/master.svg?label=Coverage-Master
 .. _CoverageLink: https://coveralls.io/r/Storj/storjnode
 
-.. |BuildLink2| image:: https://img.shields.io/travis/Storj/storjnode/develop.svg?label=Build-Develop
-.. _BuildLink2: https://travis-ci.org/Storj/storjnode
+.. |BuildLink2| image:: https://img.shields.io/appveyor/ci/Storj/storjnode/develop.svg?label=Build-Develop
+.. _BuildLink2: https://ci.appveyor.com/project/littleskunk/storjnode/branch/develop
+
+.. |TestLink2| image:: https://img.shields.io/travis/Storj/storjnode/develop.svg?label=Test-Develop
+.. _TestLink2: https://travis-ci.org/Storj/storjnode
 
 .. |CoverageLink2| image:: https://img.shields.io/coveralls/Storj/storjnode/develop.svg?label=Coverage-Develop
 .. _CoverageLink2: https://coveralls.io/r/Storj/storjnode
