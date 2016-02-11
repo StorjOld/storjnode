@@ -22,6 +22,8 @@ from twisted.internet.task import LoopingCall
 # File transfer.
 from storjnode.network.file_transfer import FileTransfer
 from storjnode.network.process_transfers import process_transfers
+from storjnode.network.process_transfers import do_upkeep
+from storjnode.network.process_transfers import process_dht_messages
 from storjnode.network.bandwidth.test import BandwidthTest
 from storjnode.network.bandwidth.limit import BandwidthLimit
 from storjnode.common import DEFAULT_BOOTSTRAP_NODES
@@ -643,33 +645,72 @@ class Node(object):
             _log.error(txt.format(repr(e), traceback.format_exc()))
 
     def _message_dispatcher_loop(self):
+        count_a = 0
+        count_b = 0
+        count_c = 0
+        sleep_time = 0.0001
+        timestamp = time.time()
+        one_sec = 1 / sleep_time
+        five_sec = 5 / sleep_time
+        one_hundred_ms = 0.1 / sleep_time
         while not self._message_dispatcher_thread_stop:
             for message in self.server.get_messages():
                 for handler in self._message_handlers.copy():
                     self._dispatch_message(message, handler)
+
+            # Synchronize
+            if count_c >= five_sec:
+                if self._data_transfer is not None:
+                    pass
+
+                count_c = 0
+
+            # Process new DHT messages.
+            if count_a >= one_hundred_ms:
+                if self._data_transfer is not None:
+                    process_dht_messages(self._data_transfer)
+
+                count_a = 0
+
+            # Reset count and do upkeep.
+            if count_b >= one_sec:
+                if self._data_transfer is not None:
+                    do_upkeep(self._data_transfer, timestamp)
+                count_b = 0
+                timestamp = time.time()
 
             # (Message-handler thread-safe
             # Process any file transfers.
             speed_up = False
             if self._data_transfer is not None:
                 # Give latency test hooks chance to be enabled.
-                duration = time.time() - self._data_transfer.start_time
+                duration = timestamp - self._data_transfer.start_time
 
-                # If context switching or threading is especially unfavourable
+                # If context switching or threading is
+                # especially unfavourable
                 # The algorithm won't be !@##ed.
                 if duration >= 5:
-                    process_transfers(self._data_transfer)
+                    # Get which sockets send / recv.
+                    alive = process_transfers(
+                        self._data_transfer,
+                        timestamp
+                    )
 
-                # Speed up if transfers are running.
-                speed_up = self._data_transfer.are_running()
+                    # Update alive time.
+                    for con in list(alive):
+                        if alive[con]:
+                            con.alive = timestamp
 
-            if speed_up:
-                duration = time.time() - self._data_transfer.last_loop
-                if duration >= 1:
-                    self._data_transfer.last_loop = time.time()
-                    time.sleep(0.001)
-            else:
-                time.sleep(THREAD_SLEEP)
+                    # Speed up.
+                    # if self._data_transfer.are_running():
+                    #    speed_up = True
+
+            # if not speed_up:
+            #    time.sleep(THREAD_SLEEP)
+            time.sleep(sleep_time)
+            count_a += 1
+            count_b += 1
+            count_c += 1
 
     def add_message_handler(self, handler):
         """Add message handler to be call when a message is received.

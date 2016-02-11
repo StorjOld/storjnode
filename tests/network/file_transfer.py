@@ -205,7 +205,7 @@ class TestFileTransfer(unittest.TestCase):
         duration = 40
         timeout = time.time() + duration
         while time.time() <= timeout or self.client.is_queued():
-            process_transfers(self.client)
+            process_transfers(self.client, time.time())
             time.sleep(0.002)
 
         # Check upload exists.
@@ -236,7 +236,7 @@ class TestFileTransfer(unittest.TestCase):
         duration = 40
         timeout = time.time() + duration
         while time.time() <= timeout or self.client.is_queued():
-            process_transfers(self.client)
+            process_transfers(self.client, time.time())
             time.sleep(0.002)
 
         # Check we received this file.

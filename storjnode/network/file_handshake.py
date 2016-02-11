@@ -148,6 +148,12 @@ def success_wrapper(client, contract_id, host_unl):
         else:
             # Set initial upload for this con.
             _log.debug("Success: upload")
+            path = storjnode.storage.manager.find(
+                client.store_config,
+                data_id
+            )
+
+            client.uploading[data_id] = path
 
         # Reserve bandwidth slice for this transfer.
         _log.debug(str(client.bandwidth.transfers))

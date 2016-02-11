@@ -17,6 +17,7 @@ import storjnode.storage.manager
 from storjnode.network.message import verify_signature
 from storjnode.util import parse_node_id_from_unl
 from storjnode.util import list_to_ordered_dict
+from timeit import default_timer as timer
 
 _log = storjnode.log.getLogger(__name__)
 
@@ -81,7 +82,7 @@ def build_start_handler(bt, req):
             test = "download"
 
         # Set start time.
-        bt.results[test]["start_time"] = time.time()
+        bt.results[test]["start_time"] = timer()
         _log.debug(bt.results)
 
         return 1
@@ -135,7 +136,7 @@ def build_completion_handler(bt, req, accept_handler):
 
             _log.debug("Alice download")
 
-        bt.results[test]["end_time"] = time.time()
+        bt.results[test]["end_time"] = timer()
         bt.results[test]["transferred"] = req[u"file_size"]
         _log.debug(bt.results)
 
@@ -273,6 +274,7 @@ def handle_responses_builder(bt):
         bt.add_handler("start", start_handler)
 
         # Send upload request to remote host!
+        bt.transfer.bandwidth_tests[req[u"data_id"]] = 1
         contract_id = bt.transfer.data_request(
             "download",
             req[u"data_id"],

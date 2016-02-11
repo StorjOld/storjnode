@@ -163,7 +163,7 @@ def test_queued():
                 _log.debug("Alice")
             else:
                 _log.debug("Bob")
-            process_transfers(client)
+            process_transfers(client, time.time())
 
         queue_succeeded.wait(1)
 
