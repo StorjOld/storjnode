@@ -14,6 +14,7 @@ from storjnode.util import get_nonce
 from storjnode.network.message import sign, verify_signature
 import zlib
 from ast import literal_eval
+from timeit import default_timer as timer
 
 _log = storjnode.log.getLogger(__name__)
 
@@ -45,7 +46,7 @@ def build_start_handler(bt, msg):
             test = "download"
 
         # Set start time.
-        bt.results[test]["start_time"] = time.time()
+        bt.results[test]["start_time"] = timer()
 
         _log.debug(test)
         _log.debug("Downlaod start handler")
@@ -83,6 +84,7 @@ def build_completion_handler(bt, msg, accept_handler):
                 return -4
 
             # Send download request to remote host!
+            bt.transfer.bandwidth_tests[msg[u"data_id"]] = 1
             contract_id = bt.transfer.data_request(
                 "download",
                 msg[u"data_id"],
@@ -111,7 +113,7 @@ def build_completion_handler(bt, msg, accept_handler):
                 # bt.transfer.defers[contract_id].addCallback(success)
 
         test_data_size = bt.test_size
-        bt.results[test]["end_time"] = time.time()
+        bt.results[test]["end_time"] = timer()
         bt.results[test]["transferred"] = test_data_size
 
         if test == "upload":
@@ -273,7 +275,7 @@ def handle_requests_builder(bt):
         bt.add_handler("start", start_handler)
 
         # Set start time.
-        bt.start_time = time.time()
+        bt.start_time = timer()
 
         # Save data id.
         bt.data_id = msg[u"data_id"]

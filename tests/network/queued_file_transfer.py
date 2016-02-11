@@ -2,6 +2,7 @@ import pyp2p.unl
 import pyp2p.net
 import pyp2p.dht_msg
 import storjnode
+import Queue
 from storjnode.util import address_to_node_id
 from storjnode.network.file_transfer import FileTransfer
 from storjnode.network.process_transfers import process_transfers
@@ -163,7 +164,7 @@ def test_queued():
                 _log.debug("Alice")
             else:
                 _log.debug("Bob")
-            process_transfers(client)
+            process_transfers(client, time.time())
 
         queue_succeeded.wait(1)
 

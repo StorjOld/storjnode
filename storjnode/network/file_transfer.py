@@ -19,6 +19,7 @@ from storjnode.network.message import verify_signature
 from storjnode.network.message import sign
 from storjnode.network.file_handshake import is_valid_syn
 from storjnode.network.latency import LatencyTests
+from storjnode.network.file_stream import FileStream
 
 
 _log = storjnode.log.getLogger(__name__)
@@ -132,9 +133,12 @@ class FileTransfer:
         # [con] > contract_id
         self.con_transfer = {}
 
-        # List of active downloads.
+        # List of active download paths.
         # (Never try to download multiple copies of the same thing at once.)
         self.downloading = {}
+
+        # List of active upload paths.
+        self.uploading = {}
 
         # Success callbacks
         self.con_callback_queue = Queue.Queue()
@@ -148,6 +152,12 @@ class FileTransfer:
 
         # Time at the start of the last loop.
         self.last_loop = time.time()
+
+        # Stream bandwidth tests from memory.
+        self.file_stream = FileStream()
+
+        # Bandwidth tests data_ids.
+        self.bandwidth_tests = {}
 
     def are_running(self):
         for con in list(self.con_info):
@@ -400,22 +410,26 @@ class FileTransfer:
             }
 
     def get_data_chunk(self, data_id, position, chunk_size=1048576):
-        path = storjnode.storage.manager.find(self.store_config, data_id)
-        if path is None:
-            return None
+        path = self.uploading[data_id]
+        if data_id in self.bandwidth_tests:
+            self.file_stream.open(path)
+            buf = self.file_stream.read(path, position)
+        else:
+            buf = b""
+            with open(path, "rb") as fp:
+                fp.seek(position, 0)
+                buf = fp.read(chunk_size)
 
-        buf = b""
-        with open(path, "rb") as fp:
-            fp.seek(position, 0)
-            buf = fp.read(chunk_size)
-
-            return buf
+        return buf
 
     def save_data_chunk(self, data_id, chunk):
         assert(data_id in self.downloading)
 
         # Find temp file path.
         path = self.downloading[data_id]
-
-        with open(path, "ab") as fp:
-            fp.write(chunk)
+        if data_id in self.bandwidth_tests:
+            self.file_stream.open(path)
+            self.file_stream.write(path, chunk)
+        else:
+            with open(path, "ab") as fp:
+                fp.write(chunk)

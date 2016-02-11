@@ -5,7 +5,6 @@ import bisect
 import json
 import copy
 import storjnode
-import struct
 from collections import OrderedDict
 from storjkademlia.node import Node as KadNode
 from io import BytesIO

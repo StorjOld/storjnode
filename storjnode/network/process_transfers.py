@@ -71,13 +71,13 @@ def cleanup_cons(client):
         client.cons.remove(con)
 
 
-def expire_handshakes(client):
+def expire_handshakes(client, timestamp):
     # Deletes handshakes that don't have a response
     # after N seconds.
     for contract_id in list(client.contracts):
         if contract_id in client.handshake:
             handshake = client.handshake[contract_id]
-            elapsed = time.time() - handshake["timestamp"]
+            elapsed = timestamp - handshake["timestamp"]
             if elapsed >= HANDSHAKE_TIMEOUT:
                 if contract_id in client.defers:
                     _log.debug("Expiring handshake")
@@ -86,7 +86,7 @@ def expire_handshakes(client):
                     del client.defers[contract_id]
 
 
-def do_upload(client, con, contract, con_info, contract_id):
+def do_upload(client, con, contract, con_info, contract_id, timestamp):
     _log.debug("Upload")
 
     # Send file size.
@@ -125,6 +125,12 @@ def do_upload(client, con, contract, con_info, contract_id):
         return 1
     _log.debug("Remaining = " + str(con_info["remaining"]))
 
+    # Any streamed data ready to upload?
+    data_id = client.uploading[contract["data_id"]]
+    if not client.file_stream.can_read(data_id):
+        _log.debug("Nothing ready to stream [upload]")
+        return 0
+
     # Calculate chunk size.
     chunk_size = 65536
     if con_info["remaining"] < chunk_size:
@@ -159,7 +165,7 @@ def do_upload(client, con, contract, con_info, contract_id):
     bytes_sent = con.send(data_chunk)
     if bytes_sent:
         con_info["remaining"] -= bytes_sent
-        con_info["last_update"] = time.time()
+        con_info["last_update"] = timestamp
         client.bandwidth.update(
             "upstream",
             bytes_sent,
@@ -176,7 +182,7 @@ def do_upload(client, con, contract, con_info, contract_id):
     return 0
 
 
-def do_download(client, con, contract, con_info, contract_id):
+def do_download(client, con, contract, con_info, contract_id, timestamp):
     _log.debug("download")
 
     # Get file size.
@@ -207,6 +213,12 @@ def do_download(client, con, contract, con_info, contract_id):
         return 1
     _log.debug("Remaining = " + str(con_info["remaining"]))
 
+    # Any streamed data ready to upload?
+    data_id = client.downloading[contract["data_id"]]
+    if not client.file_stream.can_write(data_id):
+        _log.debug("Nothing ready to stream [download]")
+        return 0
+
     # Calculate chunk size.
     chunk_size = 65536
     if con_info["remaining"] < chunk_size:
@@ -233,7 +245,7 @@ def do_download(client, con, contract, con_info, contract_id):
     bytes_recv = len(data)
     if bytes_recv:
         con_info["remaining"] -= len(data)
-        con_info["last_update"] = time.time()
+        con_info["last_update"] = timestamp
         client.save_data_chunk(contract["data_id"], data)
         client.bandwidth.update(
             "downstream",
@@ -404,10 +416,6 @@ def process_dht_messages(client):
             client.net.dht_messages.remove(msg)
 
 
-future_tran = time.time() + 5
-future_queue = time.time() + 5
-
-
 def process_con_callbacks(client):
     # Process con success callbacks from UNL.connect.
     while not client.con_callback_queue.empty():
@@ -417,17 +425,12 @@ def process_con_callbacks(client):
 
         client.con_callback_queue.get()(start_transfers)
 
-
-def process_transfers(client):
-    # Indicate whether we're still in this.
-    global future_tran
-    global future_queue
-
+def process_latency_tests(client, timestamp):
     # Process latency tests.
     if client.latency_tests.enabled:
         did_latency_tests = False
-        future = time.time() + 10
-        while client.latency_tests.are_running() and time.time() < future:
+        future = timestamp + 10
+        while client.latency_tests.are_running() and timestamp < future:
             for con in list(client.latency_tests.tests):
                 latency_test = client.latency_tests.by_con(con)
                 is_finished = 0
@@ -447,17 +450,13 @@ def process_transfers(client):
 
                         is_finished = 1
 
-    # Process DHT messages.
-    process_dht_messages(client)
 
-    # Process and accept connections.
-    client.net.synchronize()
-
+def do_upkeep(client, timestamp):
     # Raise appropriate async callbacks for errors.
     cleanup_cons(client)
 
     # Expired handshakes and call any errbacks for errors.
-    expire_handshakes(client)
+    expire_handshakes(client, timestamp)
 
     # Handle bandwidth test timeouts.
     if client.api is not None:
@@ -465,15 +464,24 @@ def process_transfers(client):
         if hasattr(client.api, "bandwidth_test"):
             client.api.bandwidth_test.handle_timeout()
 
+
+def process_transfers(client, timestamp=time.time()):
+    # Process latency tests.
+    process_latency_tests(client, timestamp)
+
     # Process connections.
+    alive = {}
     for con in client.cons:
+        # Table for updating last active time for sockets.
+        alive[con] = False
+
         # Con not ready.
         if con.nonce is None:
             # This should never happen but sanity check anyway.
             continue
 
         # Socket has hung ungracefully.
-        duration = time.time() - con.alive
+        duration = timestamp - con.alive
         if duration >= CON_TIMEOUT:
             _log.debug(duration)
             _log.debug("Ungraceful socket close")
@@ -482,10 +490,6 @@ def process_transfers(client):
 
         # Wait until there's new transfers to process.
         if not client.is_queued(con):
-            if time.time() >= future_queue:
-                _log.debug("nothing queued")
-                future_queue = time.time() + 5
-
             continue
 
         # Get active contract ID (if we're not master.)
@@ -540,10 +544,10 @@ def process_transfers(client):
                     client.handlers["start"].remove(handler)
 
             # Initialise update time.
-            con_info["last_update"] = time.time()
+            con_info["last_update"] = timestamp
 
         # Has the other side run into some error?
-        elapsed = time.time() - con_info["last_update"]
+        elapsed = timestamp - con_info["last_update"]
         if elapsed >= BLOCKING_TIMEOUT:
             _log.debug("Detected infinite blocking in transfer loop")
             interrupt_transfer(client, contract_id, con)
@@ -551,13 +555,15 @@ def process_transfers(client):
 
         # Transfer data.
         contract = client.contracts[contract_id]
+        remaining = con_info["remaining"]
         if client.get_direction(contract_id) == u"send":
             transfer_complete = do_upload(
                 client,
                 con,
                 contract,
                 con_info,
-                contract_id
+                contract_id,
+                timestamp
             )
         else:
             transfer_complete = do_download(
@@ -565,7 +571,8 @@ def process_transfers(client):
                 con,
                 contract,
                 con_info,
-                contract_id
+                contract_id,
+                timestamp
             )
 
         # Run any callbacks and schedule next transfer.
@@ -575,10 +582,12 @@ def process_transfers(client):
         else:
             _log.debug(str(transfer_complete))
 
+        # Update socket alive.
+        if con_info["remaining"] != remaining:
+            alive[con] = True
+
     # Process connection callbacks.
     process_con_callbacks(client)
 
-    # Only reschedule the Looping call when this is done.
-    d = defer.Deferred()
-    d.callback(None)
-    return d
+    # Return which sockets are active.
+    return alive

@@ -4,6 +4,7 @@ import tempfile
 import pyp2p
 import Queue
 import storjnode
+import Queue
 from storjnode.network.process_transfers import process_transfers
 from storjnode.network.file_transfer import FileTransfer
 from storjnode.util import address_to_node_id
@@ -86,6 +87,7 @@ class TestBandwidthTest(unittest.TestCase):
         def show_bandwidth(results):
             test_success.set()
             _log.debug(results)
+            print(results)
 
         # Test bandwidth between Alice and Bob.
         bob_test = BandwidthTest(
@@ -113,7 +115,7 @@ class TestBandwidthTest(unittest.TestCase):
             end_time = time.time() + 60
             while alice_test.active_test is not None\
                     and time.time() < end_time:
-                process_transfers(client)
+                process_transfers(client, time.time())
 
                 time.sleep(0.002)
 
