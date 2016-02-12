@@ -5,7 +5,7 @@ storjnode
 |BuildLink|_ |TestLink|_ |CoverageLink|_ |BuildLink2|_ |TestLink2|_ |CoverageLink2|_ |LicenseLink|_
 
 .. |BuildLink| image:: https://img.shields.io/appveyor/ci/Storj/storjnode/master.svg?label=Build-Master
-.. _BuildLink: https://ci.appveyor.com/project/littleskunk/storjnode/branch/master
+.. _BuildLink: https://ci.appveyor.com/project/Storj/storjnode/branch/master
 
 .. |TestLink| image:: https://img.shields.io/travis/Storj/storjnode/master.svg?label=Test-Master
 .. _TestLink: https://travis-ci.org/Storj/storjnode
@@ -14,7 +14,7 @@ storjnode
 .. _CoverageLink: https://coveralls.io/r/Storj/storjnode
 
 .. |BuildLink2| image:: https://img.shields.io/appveyor/ci/Storj/storjnode/develop.svg?label=Build-Develop
-.. _BuildLink2: https://ci.appveyor.com/project/littleskunk/storjnode/branch/develop
+.. _BuildLink2: https://ci.appveyor.com/project/Storj/storjnode/branch/develop
 
 .. |TestLink2| image:: https://img.shields.io/travis/Storj/storjnode/develop.svg?label=Test-Develop
 .. _TestLink2: https://travis-ci.org/Storj/storjnode
