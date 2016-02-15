@@ -1,5 +1,6 @@
 import re
 import hashlib
+import time
 
 
 def valid_id(shard_id):
@@ -34,7 +35,7 @@ def get_hash(shard, salt=None, limit=None):
 
     # Don't read whole file into memory.
     remaining = limit
-    max_chunk_size = 4096
+    max_chunk_size = 1024 * 1024 * 100
 
     def get_chunk_size(remaining, max_chunk_size):
         if remaining is not None:
@@ -46,14 +47,17 @@ def get_hash(shard, salt=None, limit=None):
             return max_chunk_size
 
     while True:
-        chunk_size = get_chunk_size(remaining, max_chunk_size)
-        chunk = shard.read(chunk_size)
-        if chunk == b"":
-            break
+        try:
+            chunk_size = get_chunk_size(remaining, max_chunk_size)
+            chunk = shard.read(chunk_size)
+            if chunk == b"":
+                break
 
-        hasher.update(chunk)
-        if remaining is not None:
-            remaining -= chunk_size
+            hasher.update(chunk)
+            if remaining is not None:
+                remaining -= chunk_size
+        except IOError:
+            time.sleep(1)
 
     shard.seek(0)
     return hasher.hexdigest()

@@ -105,6 +105,7 @@ class LatencyTests:
     def __init__(self):
         self.probe_no = 10
         self.tests = {}
+        self.finished = {}
         self.enabled = False
 
     def enable(self):
@@ -127,8 +128,11 @@ class LatencyTests:
     def by_con(self, con):
         if con in self.tests:
             return self.tests[con]
-        else:
-            return None
+
+        if con in self.finished:
+            return self.finished[con]
+
+        return None
 
     def are_running(self):
         for con in list(self.tests):

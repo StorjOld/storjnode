@@ -33,14 +33,15 @@ import pyp2p.dht_msg
 from pyp2p.dht_msg import DHT
 from pyp2p.lib import request_priority_execution
 from pyp2p.lib import release_priority_execution
+from threading import Thread
 import re
 import sys
 import storjnode
 
 
 _log = storjnode.log.getLogger(__name__)
-HANDSHAKE_TIMEOUT = 300
-CON_TIMEOUT = 600
+HANDSHAKE_TIMEOUT = 30000000000 # 300
+CON_TIMEOUT = 1000000000 # 600
 BLOCKING_TIMEOUT = 60
 
 
@@ -129,57 +130,55 @@ def do_upload(client, con, contract, con_info, contract_id, timestamp):
     data_id = client.uploading[contract["data_id"]]
     if not client.file_stream.can_read(data_id):
         _log.debug("Nothing ready to stream [upload]")
-        return 0
+        pass
 
-    # Calculate chunk size.
-    chunk_size = 65536
-    if con_info["remaining"] < chunk_size:
-        chunk_size = con_info["remaining"]
+    while con_info["remaining"]:
+        # Calculate chunk size.
+        chunk_size = 65536
+        if con_info["remaining"] < chunk_size:
+            chunk_size = con_info["remaining"]
 
-    # Request bandwidth for transfer.
-    allocation = client.bandwidth.request(
-        "upstream",
-        contract_id,
-        chunk_size
-    )
-    _log.debug("Bandwidth allocation for upload = " + str(allocation))
-    if not allocation:
-        if client.bandwidth.is_over_monthly_limit("upstream"):
-            con.close()
-        return 0
-
-    # Get next chunk from file.
-    position = con_info["file_size"] - con_info["remaining"]
-    data_chunk = client.get_data_chunk(
-        contract["data_id"],
-        position,
-        allocation
-    )
-
-    # Check data chunk.
-    if data_chunk is None:
-        interrupt_transfer(client, contract_id, con)
-        return 0
-
-    # Upload chunk binary to socket.
-    bytes_sent = con.send(data_chunk)
-    if bytes_sent:
-        con_info["remaining"] -= bytes_sent
-        con_info["last_update"] = timestamp
-        client.bandwidth.update(
+        # Request bandwidth for transfer.
+        allocation = client.bandwidth.request(
             "upstream",
-            bytes_sent,
-            contract_id
+            contract_id,
+            chunk_size
+        )
+        #_log.debug("Bandwidth allocation for upload = " + str(allocation))
+        if not allocation:
+            if client.bandwidth.is_over_monthly_limit("upstream"):
+                con.close()
+            return 0
+
+        # Get next chunk from file.
+        position = con_info["file_size"] - con_info["remaining"]
+        data_chunk = client.get_data_chunk(
+            contract["data_id"],
+            position,
+            allocation
         )
 
-    _log.debug("Remaining = ")
-    _log.debug(con_info["remaining"])
+        # Check data chunk.
+        if data_chunk is None:
+            interrupt_transfer(client, contract_id, con)
+            return 0
 
-    # Everything uploaded.
-    if not con_info["remaining"]:
-        return 1
+        # Upload chunk binary to socket.
+        bytes_sent = con.send(data_chunk, encoding="ascii")
+        if bytes_sent:
+            con_info["remaining"] -= bytes_sent
+            con_info["last_update"] = timestamp
+            client.bandwidth.update(
+                "upstream",
+                bytes_sent,
+                contract_id
+            )
 
-    return 0
+        #_log.debug("Remaining = ")
+        #_log.debug(con_info["remaining"])
+
+    complete_transfer(client, contract_id, con)
+    del client.threads_running[con]
 
 
 def do_download(client, con, contract, con_info, contract_id, timestamp):
@@ -189,12 +188,14 @@ def do_download(client, con, contract, con_info, contract_id, timestamp):
     if not con_info["file_size"]:
         file_size_buf = con_info["file_size_buf"]
         if len(file_size_buf) < 20:
-            remaining = 20 - len(file_size_buf)
-            partial = con.recv(remaining)
-            if not len(partial):
-                return -1
+            while len(file_size_buf) != 20:
+                remaining = 20 - len(file_size_buf)
+                partial = con.recv(remaining, encoding="ascii")
+                if not len(partial):
+                    continue
 
-            file_size_buf += partial
+                file_size_buf += partial
+
             if len(file_size_buf) == 20:
                 if re.match(b"[0-9]+", file_size_buf) is None:
                     _log.debug("Invalid file size.")
@@ -213,48 +214,50 @@ def do_download(client, con, contract, con_info, contract_id, timestamp):
         return 1
     _log.debug("Remaining = " + str(con_info["remaining"]))
 
-    # Any streamed data ready to upload?
-    data_id = client.downloading[contract["data_id"]]
-    if not client.file_stream.can_write(data_id):
-        _log.debug("Nothing ready to stream [download]")
-        return 0
+    while con_info["remaining"]:
+        # Any streamed data ready to upload?
+        data_id = client.downloading[contract["data_id"]]
+        if not client.file_stream.can_write(data_id):
+            #_log.debug("Nothing ready to stream [download]")
+            time.sleep(0.001)
+            continue
 
-    # Calculate chunk size.
-    chunk_size = 65536
-    if con_info["remaining"] < chunk_size:
-        chunk_size = con_info["remaining"]
+        # Calculate chunk size.
+        chunk_size = 65536
+        if con_info["remaining"] < chunk_size:
+            chunk_size = con_info["remaining"]
 
-    # Request bandwidth for transfer.
-    allocation = client.bandwidth.request(
-        "downstream",
-        contract_id,
-        chunk_size
-    )
-    _log.debug("Bandwidth allocation for download " + str(allocation))
-    if not allocation:
-        if client.bandwidth.is_over_monthly_limit("downstream"):
-            con.close()
-        return -6
-
-    # Download.
-    data = con.recv(
-        allocation,
-        encoding="ascii"
-    )
-
-    bytes_recv = len(data)
-    if bytes_recv:
-        con_info["remaining"] -= len(data)
-        con_info["last_update"] = timestamp
-        client.save_data_chunk(contract["data_id"], data)
-        client.bandwidth.update(
+        # Request bandwidth for transfer.
+        allocation = client.bandwidth.request(
             "downstream",
-            bytes_recv,
-            contract_id
+            contract_id,
+            chunk_size
+        )
+        #_log.debug("Bandwidth allocation for download " + str(allocation))
+        if not allocation:
+            if client.bandwidth.is_over_monthly_limit("downstream"):
+                con.close()
+            return -6
+
+        # Download.
+        data = con.recv(
+            allocation,
+            encoding="ascii"
         )
 
-    _log.debug("Remaining = ")
-    _log.debug(con_info["remaining"])
+        bytes_recv = len(data)
+        if bytes_recv:
+            con_info["remaining"] -= len(data)
+            con_info["last_update"] = timestamp
+            client.save_data_chunk(contract["data_id"], data)
+            client.bandwidth.update(
+                "downstream",
+                bytes_recv,
+                contract_id
+            )
+
+        #_log.debug("Remaining = ")
+        #_log.debug(con_info["remaining"])
 
     # When done downloading close con.
     if not con_info["remaining"]:
@@ -286,6 +289,8 @@ def do_download(client, con, contract, con_info, contract_id, timestamp):
         del client.downloading[data_id]
 
         # Ready for a new transfer (if there are any.)
+        complete_transfer(client, contract_id, con)
+        del client.threads_running[con]
         return 1
 
     return -5
@@ -448,6 +453,8 @@ def process_latency_tests(client, timestamp):
                             contract = latency_test.contracts.get()
                             client.schedule_transfers(contract, con)
 
+                        client.latency_tests.finished[con] = latency_test
+                        del client.latency_tests.tests[con]
                         is_finished = 1
 
 
@@ -464,7 +471,6 @@ def do_upkeep(client, timestamp):
         if hasattr(client.api, "bandwidth_test"):
             client.api.bandwidth_test.handle_timeout()
 
-
 def process_transfers(client, timestamp=time.time()):
     # Process latency tests.
     process_latency_tests(client, timestamp)
@@ -472,6 +478,10 @@ def process_transfers(client, timestamp=time.time()):
     # Process connections.
     alive = {}
     for con in client.cons:
+        if con in client.threads_running:
+            continue
+
+
         # Table for updating last active time for sockets.
         alive[con] = False
 
@@ -557,7 +567,7 @@ def process_transfers(client, timestamp=time.time()):
         contract = client.contracts[contract_id]
         remaining = con_info["remaining"]
         if client.get_direction(contract_id) == u"send":
-            transfer_complete = do_upload(
+            args = (
                 client,
                 con,
                 contract,
@@ -565,8 +575,12 @@ def process_transfers(client, timestamp=time.time()):
                 contract_id,
                 timestamp
             )
+            t = Thread(target=do_upload, args=args)
+            t.setDaemon(True)
+            t.start()
+            client.threads_running[con] = t
         else:
-            transfer_complete = do_download(
+            args = (
                 client,
                 con,
                 contract,
@@ -574,17 +588,10 @@ def process_transfers(client, timestamp=time.time()):
                 contract_id,
                 timestamp
             )
-
-        # Run any callbacks and schedule next transfer.
-        if transfer_complete == 1:
-            _log.debug("Transfer completed" + str(con))
-            complete_transfer(client, contract_id, con)
-        else:
-            _log.debug(str(transfer_complete))
-
-        # Update socket alive.
-        if con_info["remaining"] != remaining:
-            alive[con] = True
+            t = Thread(target=do_download, args=args)
+            t.setDaemon(True)
+            t.start()
+            client.threads_running[con] = t
 
     # Process connection callbacks.
     process_con_callbacks(client)

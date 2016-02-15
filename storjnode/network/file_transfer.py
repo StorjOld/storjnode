@@ -159,6 +159,9 @@ class FileTransfer:
         # Bandwidth tests data_ids.
         self.bandwidth_tests = {}
 
+        # Threads running -- used to handle file transfer send/recv loop.
+        self.threads_running = {}
+
     def are_running(self):
         for con in list(self.con_info):
             con_info = self.con_info[con]
