@@ -10,7 +10,6 @@ import storjnode  # NOQA
 import btctxstore  # NOQA
 from crochet import setup  # NOQA
 from storjnode.network.server import WALK_TIMEOUT  # NOQA
-from meliae import scanner  # NOQA
 
 
 # start twisted via crochet and remove twisted handler
@@ -104,20 +103,12 @@ if __name__ == "__main__":
                         sender.get_address(), receiver.get_address()
                     ))
 
-                    rss = psutil.Process(os.getpid()).memory_info().rss
-                    if rss > (1024 * 1024 * 100):
-                        scanner.dump_all_objects('memdump.json')
-                        exit()
-
                     start = time.time()
                     _test_relay(sender, receiver)
                     successes_duration += (time.time() - start)
                     successes += 1
                 except AssertionError:
                     failures += 1
-                except KeyboardInterrupt:
-                    scanner.dump_all_objects('memdump.json')
-                    raise
     finally:
         for node in swarm:
             node.stop()
