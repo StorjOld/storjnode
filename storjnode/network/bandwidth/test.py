@@ -97,35 +97,16 @@ class BandwidthTest:
 
         # Increase table for MB transfer size.
         self.increases = OrderedDict([
-            [1 * self.ONE_MB, 4 * self.ONE_MB],
-            [4 * self.ONE_MB, 6 * self.ONE_MB],
-            [6 * self.ONE_MB, 10 * self.ONE_MB],
-            [10 * self.ONE_MB, 15 * self.ONE_MB],
-            [15 * self.ONE_MB, 20 * self.ONE_MB],
-            [20 * self.ONE_MB, 25 * self.ONE_MB],
-            [25 * self.ONE_MB, 30 * self.ONE_MB],
-            [30 * self.ONE_MB, 35 * self.ONE_MB],
-            [35 * self.ONE_MB, 40 * self.ONE_MB],
-            [40 * self.ONE_MB, 45 * self.ONE_MB],
-            [45 * self.ONE_MB, 50 * self.ONE_MB],
-            [50 * self.ONE_MB, 60 * self.ONE_MB],
-            [60 * self.ONE_MB, 70 * self.ONE_MB],
-            [70 * self.ONE_MB, 80 * self.ONE_MB],
-            [80 * self.ONE_MB, 90 * self.ONE_MB],
-            [90 * self.ONE_MB, 100 * self.ONE_MB],
-            [100 * self.ONE_MB, 120 * self.ONE_MB],
-            [120 * self.ONE_MB, 140 * self.ONE_MB],
-            [140 * self.ONE_MB, 200 * self.ONE_MB],
-            [200 * self.ONE_MB, 250 * self.ONE_MB],
-            [250 * self.ONE_MB, 300 * self.ONE_MB],
-            [300 * self.ONE_MB, 400 * self.ONE_MB],
-            [400 * self.ONE_MB, 500 * self.ONE_MB],
-            [500 * self.ONE_MB, 600 * self.ONE_MB],
-            [600 * self.ONE_MB, 700 * self.ONE_MB],
-            [700 * self.ONE_MB, 800 * self.ONE_MB],
-            [800 * self.ONE_MB, 900 * self.ONE_MB],
-            [900 * self.ONE_MB, 1000 * self.ONE_MB],
-            [1000 * self.ONE_MB, 1000 * self.ONE_MB]
+            [1 * self.ONE_MB, 5 * self.ONE_MB],
+            [5 * self.ONE_MB, 10 * self.ONE_MB],
+            [10 * self.ONE_MB, 20 * self.ONE_MB],
+            [20 * self.ONE_MB, 50 * self.ONE_MB],
+            [50 * self.ONE_MB, 100 * self.ONE_MB],
+            [100 * self.ONE_MB, 200 * self.ONE_MB],
+            [200 * self.ONE_MB, 512 * self.ONE_MB],
+            [512 * self.ONE_MB, 1000 * self.ONE_MB],
+            [1000 * self.ONE_MB, 10000 * self.ONE_MB],
+            [10000 * self.ONE_MB, 10000 * self.ONE_MB],
         ])
 
     # Handle timeouts.
@@ -165,6 +146,7 @@ class BandwidthTest:
     def increase_test_size(self):
         # Sanity check.
         if self.test_size not in self.increases:
+            print("NOT IN INCREASES" + str(self.test_size))
             return self.test_size
 
         return self.increases[self.test_size]
@@ -269,19 +251,22 @@ class BandwidthTest:
 
         return 0
 
-    def is_bad_test(self, threshold=15):
+    def is_bad_test(self, threshold=60):
         for test in list(self.results):
             start_time = self.results[test]["start_time"]
             end_time = self.results[test]["end_time"]
             if not start_time:
                 _log.debug("Invalid start time")
+                print("invalid start time !" + str(start_time))
                 return 0
 
             if not end_time:
                 _log.debug("Invalid end time")
+                print("invalid end time" + str(end_time))
                 return 0
 
             duration = end_time - start_time
+            print("Btest duration" + str(duration))
             if duration < threshold:
                 return 1
 
@@ -295,8 +280,12 @@ class BandwidthTest:
         :return: deferred with test results
         """
 
+        _log.debug("attempting to start btest")
+
         # Any tests currently in progress?
         if self.test_node_unl is not None:
+            print("test already in progress")
+            _log.debug("test already in progress")
             d = defer.Deferred()
             d.errback(Exception("Test already in progress"))
             return d
@@ -340,7 +329,12 @@ class BandwidthTest:
         _log.debug(sig)
 
         # Add file to storage.
-        storjnode.storage.manager.add(self.transfer.store_config, shard)
+        storjnode.storage.manager.add(
+            self.transfer.store_config,
+            shard,
+            self.data_id.encode("ascii"),
+            "move"
+        )
 
         # Build bandwidth test request.
         req = OrderedDict([
@@ -371,6 +365,8 @@ class BandwidthTest:
 
         # Set response timeout time.
         self.response_timeout = time.time() + 30
+
+        _log.debug("btest scheduled")
 
         # Return deferred.
         return self.active_test

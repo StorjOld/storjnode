@@ -122,9 +122,14 @@ class Node(object):
                 self.get_key(), self._data_transfer, self, 1
             )
 
+            threading.Thread(target=self.process_transfers_loop).start()
+
         _log.info("Started storjnode on port {0} with address {1}".format(
             self.port, self.get_address())
         )
+
+    def process_transfers_loop(self):
+        return
 
     def _setup_message_dispatcher(self):
         self._message_handlers = set()
@@ -648,16 +653,12 @@ class Node(object):
         count_a = 0
         count_b = 0
         count_c = 0
-        sleep_time = 0.0001
+        sleep_time = 0.1
         timestamp = time.time()
         one_sec = 1 / sleep_time
         five_sec = 5 / sleep_time
         one_hundred_ms = 0.1 / sleep_time
         while not self._message_dispatcher_thread_stop:
-            for message in self.server.get_messages():
-                for handler in self._message_handlers.copy():
-                    self._dispatch_message(message, handler)
-
             # Synchronize
             if count_c >= five_sec:
                 if self._data_transfer is not None:
@@ -667,6 +668,10 @@ class Node(object):
 
             # Process new DHT messages.
             if count_a >= one_hundred_ms:
+                for message in self.server.get_messages():
+                    for handler in self._message_handlers.copy():
+                        self._dispatch_message(message, handler)
+
                 if self._data_transfer is not None:
                     process_dht_messages(self._data_transfer)
 
@@ -675,35 +680,30 @@ class Node(object):
             # Reset count and do upkeep.
             if count_b >= one_sec:
                 if self._data_transfer is not None:
+                    # Give latency test hooks chance to be enabled.
+                    duration = timestamp - self._data_transfer.start_time
+
+                    self._data_transfer.net.synchronize()
+
+                    # If context switching or threading is
+                    # especially unfavourable
+                    # The algorithm won't be !@##ed.
+                    if duration >= 5:
+                        # Get which sockets send / recv.
+                        alive = process_transfers(
+                            self._data_transfer,
+                            timestamp
+                        )
+
+                        # Update alive time.
+                        for con in list(alive):
+                            if alive[con]:
+                                con.alive = timestamp
+
+                if self._data_transfer is not None:
                     do_upkeep(self._data_transfer, timestamp)
                 count_b = 0
                 timestamp = time.time()
-
-            # (Message-handler thread-safe
-            # Process any file transfers.
-            speed_up = False
-            if self._data_transfer is not None:
-                # Give latency test hooks chance to be enabled.
-                duration = timestamp - self._data_transfer.start_time
-
-                # If context switching or threading is
-                # especially unfavourable
-                # The algorithm won't be !@##ed.
-                if duration >= 5:
-                    # Get which sockets send / recv.
-                    alive = process_transfers(
-                        self._data_transfer,
-                        timestamp
-                    )
-
-                    # Update alive time.
-                    for con in list(alive):
-                        if alive[con]:
-                            con.alive = timestamp
-
-                    # Speed up.
-                    # if self._data_transfer.are_running():
-                    #    speed_up = True
 
             # if not speed_up:
             #    time.sleep(THREAD_SLEEP)

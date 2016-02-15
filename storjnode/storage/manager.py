@@ -1,6 +1,7 @@
 import os
 import random
 import storjnode
+import shutil
 from storjnode.common import STORJ_HOME
 
 
@@ -139,7 +140,7 @@ def capacity(store_config):  # FIXME require config instead
     return {"total": total, "used": used, "free": free}
 
 
-def add(store_config, shard):  # FIXME require config instead
+def add(store_config, shard, id=None, style="copy"):  # FIXME require config instead
     """ Add a shard to the storage.
 
     Args:
@@ -163,7 +164,7 @@ def add(store_config, shard):  # FIXME require config instead
             storjnode.storage.store.add(store_config, shard)
     """
     store_config = setup(store_config)  # setup if needed
-    shardid = storjnode.storage.shard.get_id(shard)
+    shardid = id or storjnode.storage.shard.get_id(shard)
     shard_size = storjnode.storage.shard.get_size(shard)
 
     # check if already in storage
@@ -200,7 +201,18 @@ def add(store_config, shard):  # FIXME require config instead
         use_folder_tree = attributes["use_folder_tree"]
         shard_path = _get_shard_path(store_path, shardid, use_folder_tree,
                                      create_needed_folders=True)
-        storjnode.storage.shard.save(shard, shard_path)
+        if style == "copy":
+            storjnode.storage.shard.save(shard, shard_path)
+        else:
+            # Get source path of shard.
+            src_path = os.path.join(
+                os.getcwd(),
+                shard.name
+            )
+
+            # Move shard to shard_path (don't copy src to dest.)
+            shutil.move(src_path, shard_path)
+
         return shard_path
 
     raise MemoryError("Not enough space to add {0}!".format(shardid))

@@ -15,7 +15,7 @@ from queue import Queue
 
 
 class FileStream:
-    def __init__(self, chunk_size=262144, queue_size=3000):
+    def __init__(self, chunk_size=1024 * 1024, queue_size=30000):
         # (chunk_size * queue_size) ~50 MB memory use
         self.chunk_size = chunk_size
         self.queue_size = queue_size
@@ -52,14 +52,14 @@ class FileStream:
                             break
 
                     stream["fp"].seek(stream["bytes_read"], 0)
-                    buf = stream["fp"].read(self.chunk_size)
+                    buf = memoryview(stream["fp"].read(self.chunk_size))
                     if buf == b"":
                         break
                     else:
                         stream["bytes_read"] += len(buf)
                         stream["read_queue"].put(buf)
 
-            time.sleep(0.0001)
+            time.sleep(0.00001)
 
     def open(self, path):
         if path in self.streams:
@@ -83,6 +83,7 @@ class FileStream:
         stream = self.streams[path]
         remainder = position % self.chunk_size
         if not remainder:
+            # Todo - don't get here if already got.
             stream["read_pointer"] = stream["read_queue"].get()
             return stream["read_pointer"]
         else:

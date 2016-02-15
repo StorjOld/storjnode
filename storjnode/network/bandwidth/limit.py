@@ -36,6 +36,8 @@ bandwidth, outside activity, and file transfer usage to determine
 whether file transfers are comparatively saturating their total
 available bandwidth. This is an optimisation which may be implemented
 in the future.
+
+Todo: improve speed of this.
 """
 
 import time
@@ -268,6 +270,7 @@ class BandwidthLimit:
         :param increment: Amount transferred.
         :return: None.
         """
+        return
 
         # No change to record.
         if not increment:
@@ -336,6 +339,7 @@ class BandwidthLimit:
         :param ceiling: Don't return anything larger than this.
         :return: number of bytes available for current second interval.
         """
+        return 16384
 
         # Get bandwidth details.
         sec = self.info["sec"][bw_type]

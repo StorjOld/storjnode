@@ -144,6 +144,7 @@ def build_completion_handler(bt, req, accept_handler):
             # Cleanup.
             _log.debug("TRANSFER ALL DONE!")
             _log.debug(bt.results)
+            print(bt.results)
 
             # Convert results to bytes per second.
             results = bt.interpret_results()
@@ -175,6 +176,7 @@ def build_completion_handler(bt, req, accept_handler):
             if bt.is_bad_test() and bt.increasing_tests:
                 # Calculate next test size.
                 new_size = bt.increase_test_size()
+                print("new size = " + str(new_size))
                 if new_size == bt.test_size:
                     # Avoid DoS / endless loop.
                     _log.debug("DoS")

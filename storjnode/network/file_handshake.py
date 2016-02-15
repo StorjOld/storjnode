@@ -175,6 +175,7 @@ def success_wrapper(client, contract_id, host_unl):
                 assert(contract is not None)
                 client.latency_tests.register(con, is_master, contract)
 
+            con.set_blocking(1)
             client.cons.append(con)
         else:
             _log.debug("Log: in success - reusing con")
@@ -386,13 +387,12 @@ def process_syn_ack(client, msg):
         # Otherwise the con could be torn down soon.
         elapsed = time.time() - con.alive
         _log.debug("Alive duration: " + str(elapsed))
-        if elapsed <= 40:
-            is_reliable_con = 1
-            success_wrapper(
-                client,
-                contract_id,
-                contract["host_unl"]
-            )(con)
+        is_reliable_con = 1
+        success_wrapper(
+            client,
+            contract_id,
+            contract["host_unl"]
+        )(con)
     else:
         _log.debug("con is not reliable.")
 
@@ -480,13 +480,12 @@ def process_ack(client, msg):
         # Otherwise the con could be torn down soon.
         elapsed = time.time() - con.alive
         _log.debug("Alive duration: " + str(elapsed))
-        if elapsed <= 40:
-            is_reliable_con = 1
-            success_wrapper(
-                client,
-                contract_id,
-                contract["host_unl"]
-            )(con)
+        is_reliable_con = 1
+        success_wrapper(
+            client,
+            contract_id,
+            contract["host_unl"]
+        )(con)
     else:
         _log.debug("con is not reliable")
 
