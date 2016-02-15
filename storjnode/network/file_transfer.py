@@ -415,7 +415,6 @@ class FileTransfer:
     def get_data_chunk(self, data_id, position, chunk_size=1048576):
         path = self.uploading[data_id]
         if data_id in self.bandwidth_tests:
-            self.file_stream.open(path)
             buf = self.file_stream.read(path, position)
         else:
             buf = b""
@@ -431,7 +430,6 @@ class FileTransfer:
         # Find temp file path.
         path = self.downloading[data_id]
         if data_id in self.bandwidth_tests:
-            self.file_stream.open(path)
             self.file_stream.write(path, chunk)
         else:
             with open(path, "ab") as fp:

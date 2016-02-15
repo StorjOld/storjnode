@@ -40,6 +40,7 @@ def _test_config(storage_path, bootstrap_nodes):
     storjnode.config.validate(config)
     return config
 
+
 def bandwidth_test_with_dht():
     bootstrap_nodes = [["127.0.0.1", PORT + x] for x in range(3)]
     for i in range(3):
@@ -67,10 +68,6 @@ def bandwidth_test_with_dht():
         )
         node.bandwidth_test.test_timeout = 1000000
         node.bandwidth_test.increasing_tests = 1
-        node.bandwidth_test.increases = OrderedDict([
-            [1 * ONE_MB, 100 * ONE_MB],
-            [100 * ONE_MB, 100 * ONE_MB],
-        ])
 
         assert(node._data_transfer is not None)
         # node.repeat_relay.thread_running = False
@@ -142,10 +139,9 @@ def bandwidth_test_with_dht():
 
 
 class TestBandwidthTestWithDHT(unittest.TestCase):
+    @unittest.skip("Too slow")
     def test_bandwidth_test_with_dht(self):
         bandwidth_test_with_dht()
-
-bandwidth_test_with_dht()
 
 if __name__ == "__main__":
     unittest.main()

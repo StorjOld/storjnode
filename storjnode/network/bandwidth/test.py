@@ -84,7 +84,7 @@ class BandwidthTest:
         self.start_time = time.time()
 
         # Timeout bandwidth test after N seconds.
-        self.test_timeout = 60 * 10
+        self.test_timeout = 60 * 60
 
         # Based on passed tests.
         self.max_increase = self.ONE_MB
@@ -105,7 +105,11 @@ class BandwidthTest:
             [100 * self.ONE_MB, 200 * self.ONE_MB],
             [200 * self.ONE_MB, 512 * self.ONE_MB],
             [512 * self.ONE_MB, 1000 * self.ONE_MB],
-            [1000 * self.ONE_MB, 10000 * self.ONE_MB],
+            [1000 * self.ONE_MB, 2000 * self.ONE_MB],
+            [2000 * self.ONE_MB, 3000 * self.ONE_MB],
+            [3000 * self.ONE_MB, 4000 * self.ONE_MB],
+            [4000 * self.ONE_MB, 5000 * self.ONE_MB],
+            [5000 * self.ONE_MB, 10000 * self.ONE_MB],
             [10000 * self.ONE_MB, 10000 * self.ONE_MB],
         ])
 

@@ -40,12 +40,14 @@ class TestLimit(unittest.TestCase):
         # Reset scale factor.
         self.bandwidth.cake_scale = 0.95
 
+    @unittest.skip("blimit disabled")
     def test_limit(self):
         self.bandwidth.limit(1025, "sec", "upstream")
         self.assertTrue(
             self.bandwidth.info["sec"]["upstream"]["limit"] == 1025
         )
 
+    @unittest.skip("blimit disabled")
     def test_slice_remainder(self):
         limit = 1025
         cake_size = int(limit * 0.95)
@@ -61,23 +63,27 @@ class TestLimit(unittest.TestCase):
         expected = int(cake_size / 2)
         self.assertTrue(allowance == expected)
 
+    @unittest.skip("blimit disabled")
     def test_monthly_limit(self):
         self.bandwidth.limit(2000, "month", "upstream")
         self.bandwidth.update("upstream", 2000)
         self.assertTrue(self.bandwidth.request("upstream") == 0)
 
+    @unittest.skip("blimit disabled")
     def test_bandwidth_overflow(self):
         self.bandwidth.limit(2000, "sec", "upstream")
         self.bandwidth.request("upstream")
         self.bandwidth.update("upstream", 4000)
         self.assertTrue(self.bandwidth.request("upstream") == 0)
 
+    @unittest.skip("blimit disabled")
     def test_monthly_time_works(self):
         self.bandwidth.info["month"]["upstream"]["limit"] = 100
         self.bandwidth.info["month"]["upstream"]["used"] = 100
         self.bandwidth.next_month = time.time() - 100
         self.assertTrue(self.bandwidth.request("upstream") != 0)
 
+    @unittest.skip("blimit disabled")
     def test_use_non_reserved_non_transfer(self):
         self.bandwidth.register_transfer("slice_1")
         self.bandwidth.limit(2000, "sec", "upstream")
@@ -93,6 +99,7 @@ class TestLimit(unittest.TestCase):
         self.bandwidth.update("upstream", 100, "slice_1")
         self.assertTrue(self.bandwidth.request("upstream", "slice_1") == 0)
 
+    @unittest.skip("blimit disabled")
     def test_decay(self):
         # Bake cake.
         self.bandwidth.limit(2000, "sec", "upstream")
@@ -116,6 +123,7 @@ class TestLimit(unittest.TestCase):
         used = self.bandwidth.info["sec"]["upstream"]["used"]
         self.assertTrue(expected == used)
 
+    @unittest.skip("blimit disabled")
     def test_gradual_decay(self):
         # Wait for new second.
         self.bandwidth.get_fresh_second()
@@ -135,6 +143,7 @@ class TestLimit(unittest.TestCase):
         c = self.bandwidth.request("upstream", "t1")
         self.assertTrue(b != c)
 
+    @unittest.skip("blimit disabled")
     def test_ceiling(self):
         self.bandwidth.limit(1025, "sec", "upstream")
         self.bandwidth.register_transfer("slice_1")
@@ -142,11 +151,13 @@ class TestLimit(unittest.TestCase):
         allowance = self.bandwidth.request("upstream", "slice_1", 100)
         self.assertTrue(allowance == 100)
 
+    @unittest.skip("blimit disabled")
     def test_non_transfer_bandwidth(self):
         self.bandwidth.limit(1025, "sec", "upstream")
         self.bandwidth.register_transfer("slice_1")
         self.assertTrue(self.bandwidth.request("upstream") == 52)
 
+    @unittest.skip("blimit disabled")
     def test_reallocation(self):
         self.bandwidth.limit(1025, "sec", "upstream")
         self.bandwidth.register_transfer("slice_1")
@@ -156,6 +167,7 @@ class TestLimit(unittest.TestCase):
         used = self.bandwidth.info["sec"]["upstream"]["used"]
         self.assertTrue(expected == used)
 
+    @unittest.skip("blimit disabled")
     def test_save_load_limits(self):
         # Test save load.
         bl = BandwidthLimit(storjnode.config.create())

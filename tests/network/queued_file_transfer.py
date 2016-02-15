@@ -6,6 +6,8 @@ import Queue
 from storjnode.util import address_to_node_id
 from storjnode.network.file_transfer import FileTransfer
 from storjnode.network.process_transfers import process_transfers
+from storjnode.network.process_transfers import do_upkeep
+from storjnode.network.process_transfers import process_dht_messages
 from btctxstore import BtcTxStore
 from storjnode.network.bandwidth.limit import BandwidthLimit
 from threading import Event
@@ -164,6 +166,10 @@ def test_queued():
                 _log.debug("Alice")
             else:
                 _log.debug("Bob")
+
+            client.net.synchronize()
+            do_upkeep(client, time.time())
+            process_dht_messages(client)
             process_transfers(client, time.time())
 
         queue_succeeded.wait(1)

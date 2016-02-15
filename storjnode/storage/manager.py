@@ -140,7 +140,8 @@ def capacity(store_config):  # FIXME require config instead
     return {"total": total, "used": used, "free": free}
 
 
-def add(store_config, shard, id=None, style="copy"):  # FIXME require config instead
+def add(store_config, shard, id=None, style="copy"):
+    # FIXME require config instead
     """ Add a shard to the storage.
 
     Args:

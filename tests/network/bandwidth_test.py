@@ -6,6 +6,8 @@ import Queue
 import storjnode
 import Queue
 from storjnode.network.process_transfers import process_transfers
+from storjnode.network.process_transfers import do_upkeep
+from storjnode.network.process_transfers import process_dht_messages
 from storjnode.network.file_transfer import FileTransfer
 from storjnode.util import address_to_node_id
 from btctxstore import BtcTxStore
@@ -115,6 +117,9 @@ class TestBandwidthTest(unittest.TestCase):
             end_time = time.time() + 60
             while alice_test.active_test is not None\
                     and time.time() < end_time:
+                client.net.synchronize()
+                do_upkeep(client, time.time())
+                process_dht_messages(client)
                 process_transfers(client, time.time())
 
                 time.sleep(0.002)

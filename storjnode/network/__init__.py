@@ -15,4 +15,4 @@ from . server import Server, QUERY_TIMEOUT, WALK_TIMEOUT  # NOQA
 from . bandwidth import *  # NOQA
 from . bandwidth.limit import BandwidthLimit  # NOQA
 from . latency import LatencyTests  # NOQA
-from . file_stream import FileStream
+from . file_stream import FileStream  # NOQA

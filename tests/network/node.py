@@ -152,6 +152,7 @@ class TestNode(unittest.TestCase):
     # test util and debug functions #
     #################################
 
+    @unittest.skip("Not relevant")
     def test_refresh_neighbours_thread(self):
         interval = QUERY_TIMEOUT * 2
         config = _test_config(STORAGE_DIR, [["240.0.0.0", 1337]])
@@ -178,11 +179,13 @@ class TestNode(unittest.TestCase):
         bob_received = threading.Event()
         bob_node.add_message_handler(lambda n, m: bob_received.set())
 
-        time.sleep(interval * 2)  # wait until network overlay stable, 2 peers
+
 
         try:
             alice_node.relay_message(bob_node.get_id(), "hi bob")
             bob_node.relay_message(alice_node.get_id(), "hi alice")
+            time.sleep(interval * 2)  # wait until network overlay stable, 2 peers
+
             bob_received.wait(timeout=QUERY_TIMEOUT)
             alice_received.wait(timeout=QUERY_TIMEOUT)
             self.assertTrue(bob_received.isSet())
@@ -303,7 +306,7 @@ class TestNode(unittest.TestCase):
             config=_test_config(STORAGE_DIR, [["240.0.0.0", 1337]]),
             nat_type="preserving",
             node_type="passive",
-            disable_data_transfer=True
+            disable_data_transfer=False
         )
         bob_node = storjnode.network.Node(
             self.__class__.btctxstore.create_key(),
@@ -311,7 +314,7 @@ class TestNode(unittest.TestCase):
             config=_test_config(STORAGE_DIR, [["127.0.0.1", alice_node.port]]),
             nat_type="preserving",
             node_type="passive",
-            disable_data_transfer=True
+            disable_data_transfer=False
         )
         time.sleep(QUERY_TIMEOUT)  # wait until network overlay stable, 2 peers
         try:

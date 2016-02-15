@@ -22,6 +22,7 @@ import logging
 import struct
 import time
 import os
+import copy
 from twisted.internet import defer
 import storjnode.storage as storage
 from pyp2p.lib import parse_exception
@@ -40,8 +41,8 @@ import storjnode
 
 
 _log = storjnode.log.getLogger(__name__)
-HANDSHAKE_TIMEOUT = 30000000000 # 300
-CON_TIMEOUT = 1000000000 # 600
+HANDSHAKE_TIMEOUT = 3600  # 300
+CON_TIMEOUT = 3600  # 600
 BLOCKING_TIMEOUT = 60
 
 
@@ -103,8 +104,8 @@ def do_upload(client, con, contract, con_info, contract_id, timestamp):
             return 0
 
         file_size = os.path.getsize(path)
-        con_info["file_size"] = file_size
-        con_info["remaining"] = file_size
+        con_info["file_size"] = copy.copy(file_size)
+        con_info["remaining"] = copy.copy(file_size)
 
         # Marshal file size for network.
         if sys.version_info >= (3, 0, 0):
@@ -120,6 +121,9 @@ def do_upload(client, con, contract, con_info, contract_id, timestamp):
 
         # Send file size.
         con.send(net_file_size, send_all=1)
+
+        # Open new stream.
+        client.file_stream.open(client.uploading[contract["data_id"]])
 
     # Transfer done.
     if not con_info["remaining"]:
@@ -144,7 +148,6 @@ def do_upload(client, con, contract, con_info, contract_id, timestamp):
             contract_id,
             chunk_size
         )
-        #_log.debug("Bandwidth allocation for upload = " + str(allocation))
         if not allocation:
             if client.bandwidth.is_over_monthly_limit("upstream"):
                 con.close()
@@ -152,11 +155,14 @@ def do_upload(client, con, contract, con_info, contract_id, timestamp):
 
         # Get next chunk from file.
         position = con_info["file_size"] - con_info["remaining"]
+        assert(position != con_info["file_size"])
+
         data_chunk = client.get_data_chunk(
             contract["data_id"],
             position,
             allocation
         )
+        assert(data_chunk != b"")
 
         # Check data chunk.
         if data_chunk is None:
@@ -168,15 +174,14 @@ def do_upload(client, con, contract, con_info, contract_id, timestamp):
         if bytes_sent:
             con_info["remaining"] -= bytes_sent
             con_info["last_update"] = timestamp
+            con.alive = timestamp
             client.bandwidth.update(
                 "upstream",
                 bytes_sent,
                 contract_id
             )
 
-        #_log.debug("Remaining = ")
-        #_log.debug(con_info["remaining"])
-
+    path = client.uploading[contract["data_id"]]
     complete_transfer(client, contract_id, con)
     del client.threads_running[con]
 
@@ -204,8 +209,12 @@ def do_download(client, con, contract, con_info, contract_id, timestamp):
 
                 file_size, = struct.unpack("<20s", file_size_buf)
                 file_size = int(file_size_buf.rstrip(b"\0"))
-                con_info["file_size"] = file_size
-                con_info["remaining"] = file_size
+                con_info["file_size"] = copy.copy(file_size)
+                con_info["remaining"] = copy.copy(file_size)
+                con.alive = timestamp
+                client.file_stream.open(
+                    client.downloading[contract["data_id"]]
+                )
             else:
                 return -3
 
@@ -218,7 +227,6 @@ def do_download(client, con, contract, con_info, contract_id, timestamp):
         # Any streamed data ready to upload?
         data_id = client.downloading[contract["data_id"]]
         if not client.file_stream.can_write(data_id):
-            #_log.debug("Nothing ready to stream [download]")
             time.sleep(0.001)
             continue
 
@@ -233,7 +241,6 @@ def do_download(client, con, contract, con_info, contract_id, timestamp):
             contract_id,
             chunk_size
         )
-        #_log.debug("Bandwidth allocation for download " + str(allocation))
         if not allocation:
             if client.bandwidth.is_over_monthly_limit("downstream"):
                 con.close()
@@ -256,14 +263,15 @@ def do_download(client, con, contract, con_info, contract_id, timestamp):
                 contract_id
             )
 
-        #_log.debug("Remaining = ")
-        #_log.debug(con_info["remaining"])
-
     # When done downloading close con.
     if not con_info["remaining"]:
-        # Check download.
+        # Wait for any outstanding data to be written to file.
         data_id = contract["data_id"]
         temp_path = client.downloading[data_id]
+        while client.file_stream.is_writing_data(temp_path):
+            time.sleep(0.0001)
+
+        # Check download.
         invalid_hash = False
         with open(temp_path, "rb+") as shard:
             # Delete file if it doesn't hash right!
@@ -430,6 +438,7 @@ def process_con_callbacks(client):
 
         client.con_callback_queue.get()(start_transfers)
 
+
 def process_latency_tests(client, timestamp):
     # Process latency tests.
     if client.latency_tests.enabled:
@@ -471,19 +480,15 @@ def do_upkeep(client, timestamp):
         if hasattr(client.api, "bandwidth_test"):
             client.api.bandwidth_test.handle_timeout()
 
+
 def process_transfers(client, timestamp=time.time()):
     # Process latency tests.
     process_latency_tests(client, timestamp)
 
     # Process connections.
-    alive = {}
     for con in client.cons:
         if con in client.threads_running:
             continue
-
-
-        # Table for updating last active time for sockets.
-        alive[con] = False
 
         # Con not ready.
         if con.nonce is None:
@@ -595,6 +600,3 @@ def process_transfers(client, timestamp=time.time()):
 
     # Process connection callbacks.
     process_con_callbacks(client)
-
-    # Return which sockets are active.
-    return alive

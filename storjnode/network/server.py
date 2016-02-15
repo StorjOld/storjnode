@@ -90,7 +90,7 @@ class Server(KademliaServer):
 
     def stop(self):
         self._relay_thread_stop = True
-        self._relay_thread.join()
+        # self._relay_thread.join()
 
         # disconnect from port and stop properly
         if self.port_handler is not None:

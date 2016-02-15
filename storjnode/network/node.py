@@ -362,7 +362,7 @@ class Node(object):
         unl_req = sign(unl_req, self.get_key())
 
         # Record start time.
-        future_timeout = time.time() + 30
+        future_timeout = time.time() + 60
 
         # Handle responses for this request.
         def handler_builder(self, d, their_node_id, wif):
@@ -714,15 +714,10 @@ class Node(object):
                     # The algorithm won't be !@##ed.
                     if duration >= 5:
                         # Get which sockets send / recv.
-                        alive = process_transfers(
+                        process_transfers(
                             self._data_transfer,
                             timestamp
                         )
-
-                        # Update alive time.
-                        for con in list(alive):
-                            if alive[con]:
-                                con.alive = timestamp
 
                 if self._data_transfer is not None:
                     do_upkeep(self._data_transfer, timestamp)
