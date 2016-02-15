@@ -179,12 +179,11 @@ class TestNode(unittest.TestCase):
         bob_received = threading.Event()
         bob_node.add_message_handler(lambda n, m: bob_received.set())
 
-
-
         try:
             alice_node.relay_message(bob_node.get_id(), "hi bob")
             bob_node.relay_message(alice_node.get_id(), "hi alice")
-            time.sleep(interval * 2)  # wait until network overlay stable, 2 peers
+            time.sleep(interval * 2)
+            # wait until network overlay stable, 2 peers
 
             bob_received.wait(timeout=QUERY_TIMEOUT)
             alice_received.wait(timeout=QUERY_TIMEOUT)
