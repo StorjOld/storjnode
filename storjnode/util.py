@@ -73,6 +73,9 @@ def list_to_ordered_dict(l):
 
 def generate_random_file(file_size):
     max_chunk_size = 1024 * 1024 * 100
+    if file_size < max_chunk_size:
+        max_chunk_size = file_size
+
     remaining = file_size
     junk, path = tempfile.mkstemp()
     fp = open(path, "ab+", 0)  # Unbuffered.
@@ -83,8 +86,6 @@ def generate_random_file(file_size):
         else:
             chunk_size = max_chunk_size
 
-        print("Generated " + str(len(chunk)) + " bytes")
-        print("Remaining" + str(remaining))
         fp.write(chunk[:chunk_size])
         remaining -= chunk_size
 

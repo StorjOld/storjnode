@@ -114,6 +114,7 @@ class TestSubBandwidthTest(unittest.TestCase):
 
         d = defer.Deferred()
         d.addErrback(show_error)
+        self.alice_test.test_timeout = 1
         self.alice_test.active_test = d
         self.alice_test.start_time = time.time() - 1000
         time.sleep(2)

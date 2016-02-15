@@ -1,6 +1,7 @@
 """
 Previous reads / writes for file transfers were done with blocking I/O.
-This meant waiting on calls to finish reading or writing data before control was passed back to the application = slow.
+This meant waiting on calls to finish reading or writing data before
+control was passed back to the application = slow.
 
 This class solves the problem by streaming the content. It uses queues to
 have content queued to be saved to files or read back. In this way -
@@ -12,10 +13,12 @@ so the main thread is never blocked.
 import time
 from threading import Thread
 from queue import Queue
+from storjnode.util import generate_random_file
+import os
 
 
 class FileStream:
-    def __init__(self, chunk_size=1024 * 1024, queue_size=30000):
+    def __init__(self, chunk_size=1024 * 1024, queue_size=50):
         # (chunk_size * queue_size) ~50 MB memory use
         self.chunk_size = chunk_size
         self.queue_size = queue_size
@@ -40,10 +43,20 @@ class FileStream:
 
                 # Process write.
                 while not stream["write_queue"].empty():
+                    # Point to end of stream.
                     stream["fp"].seek(stream["bytes_written"], 0)
-                    buf = stream["write_queue"].get()
-                    stream["fp"].write(buf)
+
+                    # Reference to queue item without popping.
+                    buf = stream["write_queue"].queue[0]
+                    try:
+                        stream["fp"].write(buf)
+                    except IOError:
+                        time.sleep(0.0001)
+                        continue
                     stream["bytes_written"] += len(buf)
+
+                    # Item is only removed when write is done!
+                    stream["write_queue"].get()
 
                 # Process read.
                 while stream["read_queue"].qsize() < self.queue_size:
@@ -52,14 +65,22 @@ class FileStream:
                             break
 
                     stream["fp"].seek(stream["bytes_read"], 0)
-                    buf = memoryview(stream["fp"].read(self.chunk_size))
-                    if buf == b"":
-                        break
-                    else:
-                        stream["bytes_read"] += len(buf)
-                        stream["read_queue"].put(buf)
+                    try:
+                        buf = memoryview(stream["fp"].read(self.chunk_size))
+                        if buf == b"":
+                            break
+                        else:
+                            stream["bytes_read"] += len(buf)
+                            stream["read_queue"].put(buf)
+                    except IOError:
+                        # Hard drive is busy.
+                        time.sleep(0.0001)
+                        pass
 
-            time.sleep(0.00001)
+            # 50 MB 10 times a second = 500 MB
+            # Max speed .:. = 3.9 gbs
+            # (Actual speed depends on hardware)
+            time.sleep(0.1)
 
     def open(self, path):
         if path in self.streams:
@@ -71,6 +92,7 @@ class FileStream:
             stream["bytes_read"] = 0
             stream["bytes_written"] = 0
             stream["read_pointer"] = b""
+            stream["read_offset"] = -1
             stream["fp"] = open(path, 'rb+', 0)  # Unbuffered.
             self.streams[path] = stream
 
@@ -80,11 +102,21 @@ class FileStream:
         del self.streams[path]
 
     def read(self, path, position):
+        # Get buf offset.
+        # print("Reading position " + str(position) + " " + str(path))
         stream = self.streams[path]
         remainder = position % self.chunk_size
+
+        # Reset stream offset.
+        if not position:
+            stream["read_offset"] = -1
+
+        # Get a new chunk or index existing chunk.
         if not remainder:
-            # Todo - don't get here if already got.
-            stream["read_pointer"] = stream["read_queue"].get()
+            if stream["read_offset"] != position:
+                stream["read_pointer"] = stream["read_queue"].get()
+                stream["read_offset"] = position
+
             return stream["read_pointer"]
         else:
             return stream["read_pointer"][remainder:]
@@ -94,32 +126,37 @@ class FileStream:
         stream["write_queue"].put(chunk)
 
     def can_write(self, path):
-        if path not in self.streams:
-            return True
-
         stream = self.streams[path]
         if stream["write_queue"].qsize() == self.queue_size:
             return False
 
         return True
 
-    def can_read(self, path):
-        if path not in self.streams:
-            return True
+    def is_writing_data(self, path):
+        stream = self.streams[path]
+        return not stream["write_queue"].empty()
 
+    def can_read(self, path):
         stream = self.streams[path]
         if len(stream["read_pointer"]):
             return True
         else:
             return not stream["read_queue"].empty()
 
-"""
-x = FileStream()
-path = "test"
-x.open(path)
-x.write(path, "a")
-time.sleep(1)
-y = FileStream()
-y.open(path)
-print(y.read(path))
-"""
+if __name__ == "__main__":
+    """
+    one_mb = 1024 * 1024
+    x = FileStream()
+    fp = generate_random_file(one_mb)
+    path = os.path.join(
+        os.getcwd(),
+        fp.name
+    )
+    fp.close()
+    x.open(path)
+    y = x.read(path, 1)
+    print(y)
+    x.stop()
+    print(len(y))
+    """
+    pass

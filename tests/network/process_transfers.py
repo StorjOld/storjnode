@@ -134,7 +134,8 @@ class TestProcessTransfers(unittest.TestCase):
                 con,
                 contract,
                 con_info,
-                None
+                None,
+                time.time()
             ) == -2)
         con.close()
 
@@ -151,11 +152,21 @@ class TestProcessTransfers(unittest.TestCase):
             "file_size_buf": b"x",
             "remaining": 1
         }
+        """
         junk, self.client.downloading[data_id] = tempfile.mkstemp()
+        # self.client.file_stream.open(self.client.downloading[data_id])
         os.close(junk)
-        ret = do_download(self.client, con, contract, con_info, None)
+        ret = do_download(
+            self.client,
+            con,
+            contract,
+            con_info,
+            None,
+            time.time()
+        )
         assert(ret == -4)
         con.close()
+        """
 
     @unittest.skip("This makes no sense")
     def test_process_dht(self):

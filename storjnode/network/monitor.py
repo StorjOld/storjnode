@@ -317,7 +317,9 @@ class Crawler(object):  # will not scale but good for now
             # Other person tests.
             long_our_node_id = long(self.node.get_id().encode('hex'), 16)
             long_their_node_id = long(nodeid.encode('hex'), 16)
-            if long_our_node_id < long_their_node_id:
+
+            # Disable this for now.
+            if long_our_node_id < long_their_node_id and 0:
                 _log.info("Skipping: They will do the bandwidth test")
                 self.pipeline_processed[nodeid] = data
                 return

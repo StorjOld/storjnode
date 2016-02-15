@@ -75,7 +75,7 @@ class Server(KademliaServer):
         )
         self.refreshLoop = LoopingCall(self.refreshTable).start(3600)
 
-        # self._start_threads()
+        self._start_threads()
 
     def _start_threads(self):
 
