@@ -18,7 +18,7 @@ import os
 
 
 class FileStream:
-    def __init__(self, chunk_size=1024 * 1024, queue_size=50):
+    def __init__(self, chunk_size=1024 * 1024, queue_size=250):
         # (chunk_size * queue_size) ~50 MB memory use
         self.chunk_size = chunk_size
         self.queue_size = queue_size
@@ -80,7 +80,7 @@ class FileStream:
             # 50 MB 10 times a second = 500 MB
             # Max speed .:. = 3.9 gbs
             # (Actual speed depends on hardware)
-            time.sleep(0.1)
+            time.sleep(0.001)
 
     def open(self, path):
         if path in self.streams:
@@ -93,6 +93,7 @@ class FileStream:
             stream["bytes_written"] = 0
             stream["read_pointer"] = b""
             stream["read_offset"] = -1
+            stream["write_pointer"] = b""
             stream["fp"] = open(path, 'rb+', 0)  # Unbuffered.
             self.streams[path] = stream
 
@@ -122,8 +123,18 @@ class FileStream:
             return stream["read_pointer"][remainder:]
 
     def write(self, path, chunk):
+        chunk = chunk
         stream = self.streams[path]
-        stream["write_queue"].put(chunk)
+        remainder = self.chunk_size - len(stream["write_pointer"])
+        if remainder:
+            stream["write_pointer"] += chunk[0:self.chunk_size]
+
+        # Queue this buffer and store the rest in a new buffer.
+        if len(stream["write_pointer"]) == self.chunk_size:
+            stream["write_queue"].put(stream["write_pointer"])
+            stream["write_pointer"] = b""
+            if len(chunk[self.chunk_size:]):
+                stream["write_pointer"] += chunk[self.chunk_size:]
 
     def can_write(self, path):
         stream = self.streams[path]
@@ -133,7 +144,15 @@ class FileStream:
         return True
 
     def is_writing_data(self, path):
+        # Find stream.
         stream = self.streams[path]
+
+        # Flush write pointer.
+        if len(stream["write_pointer"]):
+            stream["write_queue"].put(stream["write_pointer"])
+            stream["write_pointer"] = b""
+
+        # Return if queue has been processed.
         return not stream["write_queue"].empty()
 
     def can_read(self, path):

@@ -150,6 +150,7 @@ def do_upload(client, con, contract, con_info, contract_id, timestamp):
         )
         if not allocation:
             if client.bandwidth.is_over_monthly_limit("upstream"):
+                interrupt_bandwidth_test(client, contract["data_id"])
                 con.close()
             return 0
 
@@ -186,6 +187,16 @@ def do_upload(client, con, contract, con_info, contract_id, timestamp):
     del client.threads_running[con]
 
 
+def interrupt_bandwidth_test(client, data_id):
+    if client.api is not None:
+        bt = client.api.bandwidth_test
+        if data_id == bt.data_id:
+            if bt.active_test is not None:
+                bt.active_test.errback(Exception("Error: bt interrupt"))
+
+            client.api.bandwidth_test.reset_state()
+
+
 def do_download(client, con, contract, con_info, contract_id, timestamp):
     _log.debug("download")
 
@@ -200,6 +211,7 @@ def do_download(client, con, contract, con_info, contract_id, timestamp):
                     continue
 
                 file_size_buf += partial
+                time.sleep(0.0001)
 
             if len(file_size_buf) == 20:
                 if re.match(b"[0-9]+", file_size_buf) is None:
@@ -243,6 +255,7 @@ def do_download(client, con, contract, con_info, contract_id, timestamp):
         )
         if not allocation:
             if client.bandwidth.is_over_monthly_limit("downstream"):
+                interrupt_bandwidth_test(client, contract["data_id"])
                 con.close()
             return -6
 
@@ -272,26 +285,25 @@ def do_download(client, con, contract, con_info, contract_id, timestamp):
             time.sleep(0.0001)
 
         # Check download.
-        invalid_hash = False
         with open(temp_path, "rb+") as shard:
             # Delete file if it doesn't hash right!
             found_hash = storage.shard.get_id(shard)
             if found_hash != data_id:
-                invalid_hash = True
                 _log.debug(found_hash)
                 _log.debug(data_id)
                 _log.debug("Error: downloaded file doesn't hash right! \a")
+                interrupt_transfer(client, contract_id, con)
                 return -4
-
-            # Move shard to storage.
-            storage.manager.add(
-                client.store_config,
-                shard
-            )
-
-        # Remove corrupt file.
-        if invalid_hash:
-            os.remove(temp_path)
+            else:
+                # Move shard to storage.
+                try:
+                    storage.manager.add(
+                        client.store_config,
+                        shard
+                    )
+                except MemoryError:
+                    interrupt_transfer(client, contract_id, con)
+                    return -6
 
         # Remove that we're downloading this.
         del client.downloading[data_id]
@@ -333,8 +345,11 @@ def interrupt_transfer(client, contract_id, con):
     if contract_id in client.defers:
         client.defers[contract_id].errback(Exception("Transfer interupted"))
 
-    # Find who is master.
+    # Cleanup bandwidth tests (if active.)
     contract = client.contracts[contract_id]
+    interrupt_bandwidth_test(client, contract["data_id"])
+
+    # Find who is master.
     their_unl = client.get_their_unl(contract)
     is_master = client.net.unl.is_master(their_unl)
 
@@ -349,6 +364,9 @@ def interrupt_transfer(client, contract_id, con):
 
     # Cleanup transfer details.
     client.cleanup_transfers(None, contract_id)
+
+    # Release con lock.
+    del client.threads_running[con]
 
 
 def complete_transfer(client, contract_id, con):

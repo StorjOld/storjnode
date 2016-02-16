@@ -29,7 +29,7 @@ DEFAULT = json.loads(r"""
     },
     "storage": {
         "~/.storj/store": {
-            "limit": "5G",
+            "limit": "10G",
             "use_folder_tree": false
         }
     }
