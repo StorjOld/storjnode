@@ -261,7 +261,11 @@ def get_folder_size(start_path):  # source http://stackoverflow.com/a/1392549
     for dirpath, dirnames, filenames in os.walk(start_path):
         for f in filenames:
             fp = os.path.join(dirpath, f)
-            total_size += os.path.getsize(fp)
+            try:
+                total_size += os.path.getsize(fp)
+            except OSError:  # Skip protected files.
+                pass
+
     return total_size
 
 

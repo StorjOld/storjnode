@@ -333,12 +333,16 @@ class BandwidthTest:
         _log.debug(sig)
 
         # Add file to storage.
-        storjnode.storage.manager.add(
-            self.transfer.store_config,
-            shard,
-            self.data_id.encode("ascii"),
-            "move"
-        )
+        try:
+            storjnode.storage.manager.add(
+                self.transfer.store_config,
+                shard,
+                self.data_id.encode("ascii"),
+                "move"
+            )
+        except MemoryError:
+            self.reset_state()
+            return
 
         # Build bandwidth test request.
         req = OrderedDict([
@@ -368,7 +372,7 @@ class BandwidthTest:
         self.start_time = time.time()
 
         # Set response timeout time.
-        self.response_timeout = time.time() + 30
+        self.response_timeout = time.time() + 120
 
         _log.debug("btest scheduled")
 
