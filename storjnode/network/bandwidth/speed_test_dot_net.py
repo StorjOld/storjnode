@@ -599,6 +599,10 @@ def speedtest():
 
 
 def speed_test_cached():
+    # Make home if it doesn't exist.
+    if not os.path.exists(STORJ_HOME):
+        os.makedirs(STORJ_HOME)
+
     # Find cache file.
     cache_path = os.path.join(STORJ_HOME, "speed_test")
 
