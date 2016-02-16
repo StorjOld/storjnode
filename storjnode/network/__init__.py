@@ -14,5 +14,6 @@ from . protocol import Protocol  # NOQA
 from . server import Server, QUERY_TIMEOUT, WALK_TIMEOUT  # NOQA
 from . bandwidth import *  # NOQA
 from . bandwidth.limit import BandwidthLimit  # NOQA
+from . bandwidth.speed_test_dot_net import *
 from . latency import LatencyTests  # NOQA
 from . file_stream import FileStream  # NOQA
