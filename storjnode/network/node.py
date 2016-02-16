@@ -25,6 +25,7 @@ from storjnode.network.process_transfers import process_transfers
 from storjnode.network.process_transfers import do_upkeep
 from storjnode.network.process_transfers import process_dht_messages
 from storjnode.network.bandwidth.test import BandwidthTest
+from storjnode.network.bandwidth.speed_test_dot_net import speed_test_cached
 from storjnode.network.bandwidth.limit import BandwidthLimit
 from storjnode.common import DEFAULT_BOOTSTRAP_NODES
 import storjnode.network
@@ -112,12 +113,14 @@ class Node(object):
         # Rebroadcast relay messages.
         self.repeat_relay = RepeatRelay(self)
 
+        self.speed_test_dot_net = {}
         if not self.disable_data_transfer:
             self.bandwidth = bandwidth or BandwidthLimit(self.config)
             self._setup_data_transfer_client(
                 passive_port, passive_bind, node_type, nat_type, wan_ip
             )
             self.latency_tests = self._data_transfer.latency_tests
+            self.speed_test_dot_net = speed_test_cached()
             self.bandwidth_test = BandwidthTest(
                 self.get_key(), self._data_transfer, self, 1
             )

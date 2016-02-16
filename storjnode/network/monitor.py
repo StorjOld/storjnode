@@ -42,6 +42,7 @@ DEFAULT_DATA = OrderedDict([
                                     # }
     ("btcaddress", None),
     ("bandwidth", None),            # {"send": int, "receive": int}
+    ("speed_test", None),           # {"upload": int, "download": int}
     ("latency", OrderedDict([
         ("info", None),
         ("peers", None),
@@ -148,6 +149,7 @@ class Crawler(object):  # will not scale but good for now
             if "is_public" not in data["network"]:
                 data["network"]["is_public"] = network["is_public"]
 
+            data["speed_test"] = self.node.speed_test_dot_net
             data["platform"] = message.body.platform._asdict()
             data["btcaddress"] = storjnode.util.node_id_to_address(
                 message.body.btcaddress
