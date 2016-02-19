@@ -16,8 +16,8 @@ DEFAULT = json.loads(r"""
                 "downstream": 0
             },
             "month": {
-                "upstream": "5G",
-                "downstream": "5G"
+                "upstream": "50G",
+                "downstream": "50G"
             }
         },
         "monitor": {
@@ -29,7 +29,7 @@ DEFAULT = json.loads(r"""
     },
     "storage": {
         "~/.storj/store": {
-            "limit": "10G",
+            "limit": "100G",
             "use_folder_tree": false
         }
     }
