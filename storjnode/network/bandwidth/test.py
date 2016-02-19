@@ -256,7 +256,7 @@ class BandwidthTest:
 
         return 0
 
-    def is_bad_test(self, threshold=20):
+    def is_bad_test(self, threshold=40):
         for test in list(self.results):
             start_time = self.results[test]["start_time"]
             end_time = self.results[test]["end_time"]

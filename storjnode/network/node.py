@@ -686,7 +686,7 @@ class Node(object):
                     # Give latency test hooks chance to be enabled.
                     duration = timestamp - self._data_transfer.start_time
 
-                    self._data_transfer.net.synchronize()
+                    # self._data_transfer.net.synchronize()
 
                     # If context switching or threading is
                     # especially unfavourable
