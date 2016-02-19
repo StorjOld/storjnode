@@ -38,6 +38,7 @@ from threading import Thread
 import re
 import sys
 import storjnode
+from timeit import default_timer as timer
 
 
 _log = storjnode.log.getLogger(__name__)
@@ -89,105 +90,112 @@ def expire_handshakes(client, timestamp):
 
 
 def do_upload(client, con, contract, con_info, contract_id, timestamp):
-    _log.debug("Upload")
-
-    # Send file size.
-    if not con_info["file_size"]:
-        # Get file size.
-        path = storage.manager.find(
-            client.store_config,
-            contract["data_id"]
-        )
-        if path is None:
-            _log.debug("Error: we don't have this file!")
-            con.close()
-            return 0
-
-        file_size = os.path.getsize(path)
-        con_info["file_size"] = copy.copy(file_size)
-        con_info["remaining"] = copy.copy(file_size)
-
-        # Marshal file size for network.
-        if sys.version_info >= (3, 0, 0):
-            net_file_size = struct.pack(
-                "<20s",
-                str(file_size).encode("ascii")
-            )
-        else:
-            net_file_size = struct.pack(
-                "<20s",
-                str(file_size)
-            )
+    try:
+        _log.debug("Upload")
 
         # Send file size.
-        con.send(net_file_size, send_all=1)
-
-        # Open new stream.
-        client.file_stream.open(client.uploading[contract["data_id"]])
-
-    # Transfer done.
-    if not con_info["remaining"]:
-        return 1
-    _log.debug("Remaining = " + str(con_info["remaining"]))
-
-    # Any streamed data ready to upload?
-    data_id = client.uploading[contract["data_id"]]
-    if not client.file_stream.can_read(data_id):
-        _log.debug("Nothing ready to stream [upload]")
-        pass
-
-    while con_info["remaining"]:
-        # Calculate chunk size.
-        chunk_size = 65536
-        if con_info["remaining"] < chunk_size:
-            chunk_size = con_info["remaining"]
-
-        # Request bandwidth for transfer.
-        allocation = client.bandwidth.request(
-            "upstream",
-            contract_id,
-            chunk_size
-        )
-        if not allocation:
-            if client.bandwidth.is_over_monthly_limit("upstream"):
-                interrupt_bandwidth_test(client, contract["data_id"])
-                con.close()
-            return 0
-
-        # Get next chunk from file.
-        position = con_info["file_size"] - con_info["remaining"]
-        assert(position != con_info["file_size"])
-
-        data_chunk = client.get_data_chunk(
-            contract["data_id"],
-            position,
-            allocation
-        )
-        assert(data_chunk != b"")
-
-        # Check data chunk.
-        if data_chunk is None:
-            interrupt_transfer(client, contract_id, con)
-            return 0
-
-        # Upload chunk binary to socket.
-        bytes_sent = con.send(data_chunk, encoding="ascii")
-        if bytes_sent:
-            con_info["remaining"] -= bytes_sent
-            con_info["last_update"] = timestamp
-            con.alive = timestamp
-            client.bandwidth.update(
-                "upstream",
-                bytes_sent,
-                contract_id
+        if not con_info["file_size"]:
+            # Get file size.
+            path = storage.manager.find(
+                client.store_config,
+                contract["data_id"]
             )
+            if path is None:
+                _log.debug("Error: we don't have this file!")
+                con.close()
+                return 0
 
-    path = client.uploading[contract["data_id"]]
-    complete_transfer(client, contract_id, con)
-    del client.threads_running[con]
+            file_size = os.path.getsize(path)
+            con_info["file_size"] = copy.copy(file_size)
+            con_info["remaining"] = copy.copy(file_size)
+
+            # Marshal file size for network.
+            if sys.version_info >= (3, 0, 0):
+                net_file_size = struct.pack(
+                    "<20s",
+                    str(file_size).encode("ascii")
+                )
+            else:
+                net_file_size = struct.pack(
+                    "<20s",
+                    str(file_size)
+                )
+
+            # Send file size.
+            con.send(net_file_size, send_all=1)
+
+            # Open new stream.
+            client.file_stream.open(client.uploading[contract["data_id"]])
+
+        # Transfer done.
+        if not con_info["remaining"]:
+            return 1
+        _log.debug("Remaining = " + str(con_info["remaining"]))
+
+        # Any streamed data ready to upload?
+        data_id = client.uploading[contract["data_id"]]
+        if not client.file_stream.can_read(data_id):
+            _log.debug("Nothing ready to stream [upload]")
+            pass
+
+        while con_info["remaining"]:
+            # Calculate chunk size.
+            chunk_size = 65536
+            if con_info["remaining"] < chunk_size:
+                chunk_size = con_info["remaining"]
+
+            # Request bandwidth for transfer.
+            allocation = client.bandwidth.request(
+                "upstream",
+                contract_id,
+                chunk_size
+            )
+            if not allocation:
+                if client.bandwidth.is_over_monthly_limit("upstream"):
+                    interrupt_bandwidth_test(client, contract["data_id"])
+                    con.close()
+                return 0
+
+            # Get next chunk from file.
+            position = con_info["file_size"] - con_info["remaining"]
+            assert(position != con_info["file_size"])
+
+            data_chunk = client.get_data_chunk(
+                contract["data_id"],
+                position,
+                allocation
+            )
+            assert(data_chunk != b"")
+
+            # Check data chunk.
+            if data_chunk is None:
+                interrupt_transfer(client, contract_id, con)
+                return 0
+
+            # Upload chunk binary to socket.
+            bytes_sent = con.send(data_chunk, encoding="ascii")
+            if bytes_sent:
+                con_info["remaining"] -= bytes_sent
+                con_info["last_update"] = timestamp
+                con.alive = timestamp
+                client.bandwidth.update(
+                    "upstream",
+                    bytes_sent,
+                    contract_id
+                )
+
+        path = client.uploading[contract["data_id"]]
+        complete_transfer(client, contract_id, con)
+        del client.threads_running[con]
+    except Exception as e:
+        # Connections can be torn down during these operations.
+        # Catch them for this thread.
+        _log.debug(e)
+        _log.debug(parse_exception(e))
 
 
 def interrupt_bandwidth_test(client, data_id):
+    _log.debug("In interrupt bandwidth test")
     if client.api is not None:
         bt = client.api.bandwidth_test
         if data_id == bt.data_id:
@@ -198,122 +206,139 @@ def interrupt_bandwidth_test(client, data_id):
 
 
 def do_download(client, con, contract, con_info, contract_id, timestamp):
-    _log.debug("download")
+    try:
+        _log.debug("download")
 
-    # Get file size.
-    if not con_info["file_size"]:
-        file_size_buf = con_info["file_size_buf"]
-        if len(file_size_buf) < 20:
-            while len(file_size_buf) != 20:
-                remaining = 20 - len(file_size_buf)
-                partial = con.recv(remaining, encoding="ascii")
-                if not len(partial):
-                    continue
+        # Get file size.
+        if not con_info["file_size"]:
+            file_size_buf = con_info["file_size_buf"]
+            if len(file_size_buf) < 20:
+                while len(file_size_buf) != 20:
+                    remaining = 20 - len(file_size_buf)
+                    partial = con.recv(remaining, encoding="ascii")
+                    if not len(partial):
+                        continue
 
-                file_size_buf += partial
-                time.sleep(0.0001)
+                    file_size_buf += partial
+                    time.sleep(0.0001)
 
-            if len(file_size_buf) == 20:
-                if re.match(b"[0-9]+", file_size_buf) is None:
-                    _log.debug("Invalid file size.")
-                    con.close()
-                    return -2
+                if len(file_size_buf) == 20:
+                    if re.match(b"[0-9]+", file_size_buf) is None:
+                        _log.debug("Invalid file size.")
+                        con.close()
+                        return -2
 
-                file_size, = struct.unpack("<20s", file_size_buf)
-                file_size = int(file_size_buf.rstrip(b"\0"))
-                con_info["file_size"] = copy.copy(file_size)
-                con_info["remaining"] = copy.copy(file_size)
-                con.alive = timestamp
-                client.file_stream.open(
-                    client.downloading[contract["data_id"]]
-                )
-            else:
-                return -3
+                    file_size, = struct.unpack("<20s", file_size_buf)
+                    file_size = int(file_size_buf.rstrip(b"\0"))
+                    con_info["file_size"] = copy.copy(file_size)
+                    con_info["remaining"] = copy.copy(file_size)
+                    con.alive = timestamp
+                    client.file_stream.open(
+                        client.downloading[contract["data_id"]]
+                    )
+                else:
+                    return -3
 
-    # Transfer done.
-    if not con_info["remaining"]:
-        return 1
-    _log.debug("Remaining = " + str(con_info["remaining"]))
+        # Transfer done.
+        if not con_info["remaining"]:
+            return 1
+        _log.debug("Remaining = " + str(con_info["remaining"]))
 
-    while con_info["remaining"]:
-        # Any streamed data ready to upload?
-        data_id = client.downloading[contract["data_id"]]
-        if not client.file_stream.can_write(data_id):
-            time.sleep(0.001)
-            continue
+        while con_info["remaining"]:
+            # Any streamed data ready to upload?
+            data_id = client.downloading[contract["data_id"]]
+            if not client.file_stream.can_write(data_id):
+                time.sleep(0.001)
+                continue
 
-        # Calculate chunk size.
-        chunk_size = 65536
-        if con_info["remaining"] < chunk_size:
-            chunk_size = con_info["remaining"]
+            # Calculate chunk size.
+            chunk_size = 65536
+            if con_info["remaining"] < chunk_size:
+                chunk_size = con_info["remaining"]
 
-        # Request bandwidth for transfer.
-        allocation = client.bandwidth.request(
-            "downstream",
-            contract_id,
-            chunk_size
-        )
-        if not allocation:
-            if client.bandwidth.is_over_monthly_limit("downstream"):
-                interrupt_bandwidth_test(client, contract["data_id"])
-                con.close()
-            return -6
-
-        # Download.
-        data = con.recv(
-            allocation,
-            encoding="ascii"
-        )
-
-        bytes_recv = len(data)
-        if bytes_recv:
-            con_info["remaining"] -= len(data)
-            con_info["last_update"] = timestamp
-            client.save_data_chunk(contract["data_id"], data)
-            client.bandwidth.update(
+            # Request bandwidth for transfer.
+            allocation = client.bandwidth.request(
                 "downstream",
-                bytes_recv,
-                contract_id
+                contract_id,
+                chunk_size
+            )
+            if not allocation:
+                if client.bandwidth.is_over_monthly_limit("downstream"):
+                    interrupt_bandwidth_test(client, contract["data_id"])
+                    con.close()
+                return -6
+
+            # Download.
+            data = con.recv(
+                allocation,
+                encoding="ascii"
             )
 
-    # When done downloading close con.
-    if not con_info["remaining"]:
-        # Wait for any outstanding data to be written to file.
-        data_id = contract["data_id"]
-        temp_path = client.downloading[data_id]
-        while client.file_stream.is_writing_data(temp_path):
-            time.sleep(0.0001)
+            bytes_recv = len(data)
+            if bytes_recv:
+                con_info["remaining"] -= len(data)
+                con_info["last_update"] = timestamp
+                client.save_data_chunk(contract["data_id"], data)
+                client.bandwidth.update(
+                    "downstream",
+                    bytes_recv,
+                    contract_id
+                )
 
-        # Check download.
-        with open(temp_path, "rb+") as shard:
-            # Delete file if it doesn't hash right!
-            found_hash = storage.shard.get_id(shard)
-            if found_hash != data_id:
-                _log.debug(found_hash)
-                _log.debug(data_id)
-                _log.debug("Error: downloaded file doesn't hash right! \a")
-                interrupt_transfer(client, contract_id, con)
-                return -4
-            else:
-                # Move shard to storage.
-                try:
-                    storage.manager.add(
-                        client.store_config,
-                        shard
-                    )
-                except MemoryError:
+        # When done downloading close con.
+        start_time = timer()
+        if not con_info["remaining"]:
+            # Wait for any outstanding data to be written to file.
+            data_id = contract["data_id"]
+            temp_path = client.downloading[data_id]
+            while client.file_stream.is_writing_data(temp_path):
+                time.sleep(0.0001)
+
+            # Check download.
+            with open(temp_path, "rb+") as shard:
+                # Delete file if it doesn't hash right!
+                found_hash = storage.shard.get_id(shard)
+                if found_hash != data_id:
+                    _log.debug(found_hash)
+                    _log.debug(data_id)
+                    _log.debug("Error: downloaded file doesn't hash right! \a")
                     interrupt_transfer(client, contract_id, con)
-                    return -6
+                    return -4
+                else:
+                    # Move shard to storage.
+                    try:
+                        storage.manager.add(
+                            client.store_config,
+                            shard
+                        )
+                    except MemoryError:
+                        interrupt_transfer(client, contract_id, con)
+                        return -6
 
-        # Remove that we're downloading this.
-        del client.downloading[data_id]
+            # Remove that we're downloading this.
+            del client.downloading[data_id]
 
-        # Ready for a new transfer (if there are any.)
-        complete_transfer(client, contract_id, con)
-        del client.threads_running[con]
-        return 1
+            # Ready for a new transfer (if there are any.)
+            complete_transfer(client, contract_id, con)
+            del client.threads_running[con]
+            return 1
 
-    return -5
+        # Subtract time to hash file from b-test duration
+        # (Since this can take a long time and its not directly
+        # related to bandwidth test speed)
+        end_time = timer()
+        if client.api is not None:
+            if contract["data_id"] in client.bandwidth_tests:
+                bt = client.api.bandwidth_test
+                duration = end_time - start_time
+                bt.results["download"]["start_time"] += duration
+
+        return -5
+    except Exception as e:
+        # Connections can be torn down during these operations.
+        # Catch them for this thread.
+        _log.debug(e)
+        _log.debug(parse_exception(e))
 
 
 def get_contract_id(client, con, contract_id):

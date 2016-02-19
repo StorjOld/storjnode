@@ -164,7 +164,7 @@ def build_accept_handler(bt, msg):
         # Invalid file_size request size for test.
         _log.debug("Max increases = " + str(bt.max_increase))
         _log.debug("Increases = " + str(bt.increases))
-        max_test_size = bt.increases[bt.max_increase]
+        max_test_size = bt.increases[bt.increases[bt.max_increase]]
         if msg[u"file_size"] > max_test_size or not msg[u"file_size"]:
             _log.debug(str(msg[u"file_size"]))
             _log.debug(str(max_test_size))
@@ -279,6 +279,9 @@ def handle_requests_builder(bt):
 
         # Save data id.
         bt.data_id = msg[u"data_id"]
+
+        # Save monthly bandwidth usage.
+        bt.transfer.bandwidth.save_monthly_usage()
 
         # Send request back to source.
         res = ordered_dict_to_list(res)
