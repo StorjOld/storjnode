@@ -341,7 +341,6 @@ class BandwidthTest:
                 self.data_id.encode("ascii"),
                 "move"
             )
-            shard.close()
         except MemoryError:
             _log.debug("memory error")
             shard.close()

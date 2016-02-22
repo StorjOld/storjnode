@@ -211,6 +211,9 @@ def add(store_config, shard, id=None, style="copy"):
                 shard.name
             )
 
+            # Close shard.
+            shard.close()
+
             # Move shard to shard_path (don't copy src to dest.)
             shutil.move(src_path, shard_path)
 
