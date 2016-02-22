@@ -18,7 +18,7 @@ import os
 
 
 class FileStream:
-    def __init__(self, chunk_size=1024 * 1024, queue_size=250):
+    def __init__(self, chunk_size=512 * 1024, queue_size=120):
         # (chunk_size * queue_size) ~50 MB memory use
         self.chunk_size = chunk_size
         self.queue_size = queue_size
@@ -77,9 +77,6 @@ class FileStream:
                         time.sleep(0.0001)
                         pass
 
-            # 50 MB 10 times a second = 500 MB
-            # Max speed .:. = 3.9 gbs
-            # (Actual speed depends on hardware)
             time.sleep(0.001)
 
     def open(self, path):

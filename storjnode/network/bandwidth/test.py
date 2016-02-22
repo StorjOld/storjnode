@@ -210,6 +210,7 @@ class BandwidthTest:
         }
 
         self.cleanup_test_shards()
+        self.transfer.bandwidth.save_monthly_usage()
 
     def cleanup_test_shards(self):
         # Cleanup test shard.
@@ -255,7 +256,7 @@ class BandwidthTest:
 
         return 0
 
-    def is_bad_test(self, threshold=60):
+    def is_bad_test(self, threshold=40):
         for test in list(self.results):
             start_time = self.results[test]["start_time"]
             end_time = self.results[test]["end_time"]
@@ -341,6 +342,7 @@ class BandwidthTest:
                 "move"
             )
         except MemoryError:
+            _log.debug("memory error")
             self.reset_state()
             return
 

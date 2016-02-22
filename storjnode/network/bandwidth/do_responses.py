@@ -39,7 +39,7 @@ def build_accept_handler(bt, req):
             return -3
 
         # Invalid file_size request size for test.
-        max_test_size = bt.increases[bt.max_increase]
+        max_test_size = bt.increases[bt.increases[bt.max_increase]]
         if req[u"file_size"] > max_test_size or not req[u"file_size"]:
             _log.debug("file size != \a")
             return -4
@@ -164,6 +164,7 @@ def build_completion_handler(bt, req, accept_handler):
             active_test = bt.active_test
             bt.reset_state()
             results["latency"] = latency
+            bt.transfer.bandwidth.save_monthly_usage()
             active_test.callback(results)
 
         if test == "download":

@@ -173,6 +173,8 @@ class BandwidthLimit:
         if month == 12:
             year += 1
             month = 1
+        else:
+            month += 1
         next_month = datetime.datetime(year, month, 1)
 
         # Convert to unix timestamp.
@@ -270,7 +272,6 @@ class BandwidthLimit:
         :param increment: Amount transferred.
         :return: None.
         """
-        return
 
         # No change to record.
         if not increment:
@@ -295,9 +296,6 @@ class BandwidthLimit:
         # Increase bandwidth usage.
         sec["used"] += increment
         month["used"] += increment
-
-        # Save monthly usage to file.
-        self.save_monthly_usage()
 
     def limit(self, amount, time_frame=None, bw_type=None, skip=0):
         """
@@ -339,7 +337,6 @@ class BandwidthLimit:
         :param ceiling: Don't return anything larger than this.
         :return: number of bytes available for current second interval.
         """
-        return 16384
 
         # Get bandwidth details.
         sec = self.info["sec"][bw_type]
@@ -348,6 +345,8 @@ class BandwidthLimit:
         # Monthly period has expired.
         if self.next_month:
             if time.time() >= self.next_month:
+                print("save nxt month")
+                print(self.next_month)
                 self.next_month = self.calculate_next_month()
                 month["used"] = 0
                 self.save_monthly_usage()
