@@ -1,34 +1,11 @@
-import heapq
 import umsgpack
 import hashlib
-import operator
 try:
     from Queue import Queue, Full  # py2
 except ImportError:
     from queue import Queue, Full  # py3
 from storjkademlia.protocol import KademliaProtocol
-from storjkademlia.routing import RoutingTable
-from storjkademlia.routing import TableTraverser
 import storjnode
-
-
-_log = storjnode.log.getLogger(__name__)
-
-
-def _findNearest(self, node, k=None, exclude=None):
-    k = k or self.ksize
-    nodes = []
-    for neighbor in TableTraverser(self, node):
-        if exclude is None or not (neighbor.id == exclude.id or
-                                   neighbor.sameHomeAs(exclude)):
-            heapq.heappush(nodes, (node.distanceTo(neighbor), neighbor))
-        if len(nodes) == k:
-            break
-
-    return list(map(operator.itemgetter(1), heapq.nsmallest(k, nodes)))
-
-
-RoutingTable.findNeighbors = _findNearest  # XXX monkey patch find neighbors
 
 
 class Protocol(KademliaProtocol):
@@ -121,7 +98,7 @@ class Protocol(KademliaProtocol):
     def callRelayMessage(self, nodeToAsk, destid, hop_limit, message):
 
         def on_error(result):
-            _log.error(repr(result))
+            self.log.error(repr(result))
 
         address = (nodeToAsk.ip, nodeToAsk.port)
         self.log.debug("Sending relay message to {0}:{1}".format(*address))
