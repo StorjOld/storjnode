@@ -187,7 +187,6 @@ def do_upload(client, con, contract, con_info, contract_id, timestamp):
         path = client.uploading[contract["data_id"]]
         client.file_stream.close(path)
         complete_transfer(client, contract_id, con)
-        del client.threads_running[con]
     except Exception as e:
         # Connections can be torn down during these operations.
         # Catch them for this thread.
@@ -324,7 +323,6 @@ def do_download(client, con, contract, con_info, contract_id, timestamp):
 
             # Ready for a new transfer (if there are any.)
             complete_transfer(client, contract_id, con)
-            del client.threads_running[con]
             return 1
 
         # Subtract time to hash file from b-test duration
@@ -393,9 +391,6 @@ def interrupt_transfer(client, contract_id, con):
 
     # Cleanup transfer details.
     client.cleanup_transfers(None, contract_id)
-
-    # Release con lock.
-    del client.threads_running[con]
 
 
 def complete_transfer(client, contract_id, con):
@@ -534,9 +529,6 @@ def process_transfers(client, timestamp=time.time()):
 
     # Process connections.
     for con in client.cons:
-        if con in client.threads_running:
-            continue
-
         # Con not ready.
         if con.nonce is None:
             # This should never happen but sanity check anyway.
@@ -619,7 +611,7 @@ def process_transfers(client, timestamp=time.time()):
         contract = client.contracts[contract_id]
         remaining = con_info["remaining"]
         if client.get_direction(contract_id) == u"send":
-            args = (
+            do_upload(
                 client,
                 con,
                 contract,
@@ -627,12 +619,8 @@ def process_transfers(client, timestamp=time.time()):
                 contract_id,
                 timestamp
             )
-            t = Thread(target=do_upload, args=args)
-            t.setDaemon(True)
-            t.start()
-            client.threads_running[con] = t
         else:
-            args = (
+            do_download(
                 client,
                 con,
                 contract,
@@ -640,10 +628,6 @@ def process_transfers(client, timestamp=time.time()):
                 contract_id,
                 timestamp
             )
-            t = Thread(target=do_download, args=args)
-            t.setDaemon(True)
-            t.start()
-            client.threads_running[con] = t
 
     # Process connection callbacks.
     process_con_callbacks(client)
