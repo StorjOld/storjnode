@@ -121,14 +121,9 @@ class Node(object):
                 self.get_key(), self._data_transfer, self, 1
             )
 
-            threading.Thread(target=self.process_transfers_loop).start()
-
         _log.info("Started storjnode on port {0} with address {1}".format(
             self.port, self.get_address())
         )
-
-    def process_transfers_loop(self):
-        return
 
     def _setup_message_dispatcher(self):
         self._message_handlers = set()
