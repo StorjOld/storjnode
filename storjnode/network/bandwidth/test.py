@@ -343,10 +343,7 @@ class BandwidthTest:
             )
         except MemoryError:
             _log.debug("memory error")
-<<<<<<< HEAD
-=======
             shard.close()
->>>>>>> develop
             self.reset_state()
             return
 

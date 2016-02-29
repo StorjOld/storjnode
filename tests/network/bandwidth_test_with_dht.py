@@ -139,7 +139,7 @@ def bandwidth_test_with_dht():
 
 
 class TestBandwidthTestWithDHT(unittest.TestCase):
-    # @unittest.skip("Too slow")
+    @unittest.skip("Too slow")
     def test_bandwidth_test_with_dht(self):
         bandwidth_test_with_dht()
 
