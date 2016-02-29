@@ -34,7 +34,7 @@ import pyp2p.dht_msg
 from pyp2p.dht_msg import DHT
 from pyp2p.lib import request_priority_execution
 from pyp2p.lib import release_priority_execution
-from threading import Thread
+from threading import Thread, Lock
 import re
 import sys
 import storjnode
@@ -185,6 +185,7 @@ def do_upload(client, con, contract, con_info, contract_id, timestamp):
                 )
 
         path = client.uploading[contract["data_id"]]
+        client.file_stream.close(path)
         complete_transfer(client, contract_id, con)
         del client.threads_running[con]
     except Exception as e:
@@ -314,6 +315,9 @@ def do_download(client, con, contract, con_info, contract_id, timestamp):
                     except MemoryError:
                         interrupt_transfer(client, contract_id, con)
                         return -6
+
+            # Close file streaming.
+            client.file_stream.close(temp_path)
 
             # Remove that we're downloading this.
             del client.downloading[data_id]

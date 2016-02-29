@@ -1,12 +1,9 @@
 import time
 import threading
 import traceback
-import uuid
-import hashlib
 import zlib
 from ast import literal_eval
 import storjnode
-from storjnode.common import THREAD_SLEEP
 from twisted.internet import defer
 from collections import OrderedDict
 from crochet import wait_for, run_in_reactor
@@ -18,7 +15,6 @@ from storjnode.network.server import Server, QUERY_TIMEOUT, WALK_TIMEOUT
 from pyp2p.unl import UNL
 from pyp2p.dht_msg import DHT as SimDHT
 from twisted.internet.task import LoopingCall
-
 
 # File transfer.
 from storjnode.network.file_transfer import FileTransfer
@@ -94,12 +90,12 @@ class Node(object):
         self.latency_tests = None
 
         # validate port (randomish user port by default)
-        port = util.get_unused_port(port)
+        port = port or util.get_unused_port()
         assert(util.valid_port(port))
         self.port = port
 
         # passive port (randomish user port by default)
-        passive_port = util.get_unused_port(passive_port)
+        passive_port = passive_port or util.get_unused_port()
         assert(util.valid_port(passive_port))
 
         # passive bind

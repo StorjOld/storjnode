@@ -23,6 +23,7 @@ class FileStream:
         self.chunk_size = chunk_size
         self.queue_size = queue_size
         self.streams = {}  # "queue", "fp"
+        self.close_queue = Queue()
         self.is_running = False
         self.start()
 
@@ -37,6 +38,13 @@ class FileStream:
 
     def process_streams(self):
         while self.is_running:
+            # Process close queue:
+            while not self.close_queue.empty():
+                path = self.close_queue.get()
+                stream = self.streams[path]
+                stream["fp"].close()
+                del self.streams[path]
+
             for path in list(self.streams):
                 # Get stream.
                 stream = self.streams[path]
@@ -95,9 +103,7 @@ class FileStream:
             self.streams[path] = stream
 
     def close(self, path):
-        stream = self.streams[path]
-        stream["fp"].close()
-        del self.streams[path]
+        self.close_queue.put(path)
 
     def read(self, path, position):
         # Get buf offset.

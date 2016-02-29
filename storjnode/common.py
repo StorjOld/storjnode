@@ -10,8 +10,8 @@ STORJ_HOME = os.path.join(os.path.expanduser("~"), ".storj")
 CONFIG_PATH = os.path.join(STORJ_HOME, "cfg.json")
 
 DEFAULT_BOOTSTRAP_NODES = [
-    ["159.203.64.230", 10000],   # storj_useast01 (storj develop)
-    ["128.199.77.212", 10000],   # storj_uswest01
-    ["46.101.238.187", 10000],   # storj_eu01
-    ["128.199.187.182", 10000],  # storj_asia01
+    # TODO storj_uswest01
+    ["104.131.71.220", 10000],   # storj_useast01
+    ["46.101.102.239", 10000],   # storj_eu01
+    ["128.199.108.100", 10000],  # storj_asia01
 ]
