@@ -7,6 +7,7 @@ import os
 os.environ["PYCOIN_NATIVE"] = "openssl"
 
 
+import time # NOQA
 import shutil  # NOQA
 import tempfile  # NOQA
 import argparse  # NOQA
@@ -32,9 +33,7 @@ def make_config(port):
     path = tempfile.mkdtemp(prefix=STORE_PREFIX)  # unique store folder
     config = storjnode.config.create()
     config["network"]["port"] = port  # unique port
-    config["storage"][path] = {
-        "use_folder_tree": False, "limit": STORE_SIZE
-    }
+    config["storage"][path] = {"use_folder_tree": False, "limit": STORE_SIZE}
     storjnode.config.validate(config)
     return config
 
@@ -50,6 +49,10 @@ def main():
             thread = threading.Thread(target=node.farm)
             thread.start()
             threads.append(thread)
+
+        while True:
+            time.sleep(1)  # run forever
+
     except KeyboardInterrupt:
         pass
     finally:
