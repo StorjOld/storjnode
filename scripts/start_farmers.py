@@ -13,6 +13,7 @@ import argparse  # NOQA
 import signal  # NOQA
 import storjnode  # NOQA
 import btctxstore  # NOQA
+import threading  # NOQA
 from crochet import setup  # NOQA
 
 
@@ -24,12 +25,14 @@ signal.signal(signal.SIGINT, signal.default_int_handler)
 NUM_FARMERS = 10
 START_PORT = 5000
 STORE_SIZE = "1G"
+STORE_PREFIX = "farmer_"  # you may have to delete them yourself?
 
 
 def make_config(port):
+    path = tempfile.mkdtemp(prefix=STORE_PREFIX)  # unique store folder
     config = storjnode.config.create()
     config["network"]["port"] = port  # unique port
-    config["storage"][tempfile.mkdtemp()] = {  # unique store folder
+    config["storage"][path] = {
         "use_folder_tree": False, "limit": STORE_SIZE
     }
     storjnode.config.validate(config)
@@ -38,17 +41,19 @@ def make_config(port):
 
 def main():
     farmers = []
+    threads = []
     try:
         for i in range(NUM_FARMERS):
             config = make_config(START_PORT + i)  # unique config
             wallet = btctxstore.BtcTxStore().create_wallet()
             node = storjnode.api.StorjNode(wallet=wallet, config=config)
-            node.farm()
+            thread = threading.Thread(target=node.farm)
+            thread.start()
+            threads.append(thread)
     except KeyboardInterrupt:
         pass
     finally:
         for node in farmers:
-            node.stop()
             for path in node.cfg_get_current()["storage"].keys():
                 shutil.rmtree(path)  # delete store folder
 
