@@ -361,7 +361,7 @@ class Node(object):
         unl_req = sign(unl_req, self.get_key())
 
         # Record start time.
-        future_timeout = time.time() + 60
+        future_timeout = time.time() + 120
 
         # Handle responses for this request.
         def handler_builder(self, d, their_node_id, wif):

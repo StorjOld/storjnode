@@ -5,6 +5,7 @@ import apigen
 import btctxstore
 import storjnode
 import crochet
+import hashlib
 from threading import RLock
 from storjnode.network.server import WALK_TIMEOUT
 
@@ -69,11 +70,14 @@ class StorjNode(apigen.Definition):
         port = self._cfg["network"]["port"]
         notransfer = self._cfg["network"]["disable_data_transfer"]
         self._node = None
+        # network_id = hashlib.sha256(
+        #    str(time.time()).encode("ascii")
+        # ).hexdigest()[0:16]
         try:
             self._node = storjnode.network.Node(
                 self.wallet, disable_data_transfer=notransfer,
                 port=port if port != "random" else None,
-                config=self._cfg,
+                config=self._cfg
             )
         except Exception as e:
             _log.error(repr(e))
@@ -206,17 +210,6 @@ class StorjNode(apigen.Definition):
     @apigen.command(rpc=False)
     def farm(self, hostname="localhost", port=8080, rpc=False):
         """Start the farmer and optionally the json rpc service."""
-
-        time.sleep(WALK_TIMEOUT)
-        print("refreshing peers")
-        self._node.refresh_neighbours()
-        time.sleep(WALK_TIMEOUT)
-        print("refreshing peers")
-        self._node.refresh_neighbours()
-        time.sleep(WALK_TIMEOUT)
-        print("refreshing peers")
-        self._node.refresh_neighbours()
-        time.sleep(WALK_TIMEOUT)
 
         self.monitor = None
         try:
