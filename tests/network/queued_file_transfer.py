@@ -15,6 +15,7 @@ import tempfile
 import time
 import os
 import unittest
+import Queue
 
 
 _log = storjnode.log.getLogger(__name__)

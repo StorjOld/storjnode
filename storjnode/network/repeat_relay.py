@@ -71,7 +71,9 @@ class RepeatRelay:
             "rebroadcast": ENABLE_REPEAT
         }
 
-        self.relaying.append(relay_info)
+        if ENABLE_REPEAT:
+            self.relaying.append(relay_info)
+
         self.node.relay_message(node_id, msg)
 
         return None

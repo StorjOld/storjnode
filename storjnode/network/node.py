@@ -13,7 +13,8 @@ from storjnode.network.repeat_relay import RepeatRelay
 from storjnode.network.message import sign, verify_signature
 from storjnode.network.server import Server, QUERY_TIMEOUT, WALK_TIMEOUT
 from pyp2p.unl import UNL
-
+from pyp2p.dht_msg import DHT as SimDHT
+from twisted.internet.task import LoopingCall
 
 # File transfer.
 from storjnode.network.file_transfer import FileTransfer
@@ -50,7 +51,8 @@ class Node(object):
                  node_type="unknown",  # FIMME what is this ?
                  nat_type="unknown",  # FIXME what is this ?
                  bandwidth=None,
-                 wan_ip=None  # Get it if it isn't set
+                 wan_ip=None,  # Get it if it isn't set
+                 network_id="default"
                  ):
         """Create a blocking storjnode instance.
 
@@ -78,6 +80,7 @@ class Node(object):
             raise Exception("Config required")
         self.config = config
 
+        self.network_id = network_id
         self.bandwidth = None
         self.disable_data_transfer = bool(disable_data_transfer)
         self._transfer_request_handlers = set()
@@ -104,6 +107,7 @@ class Node(object):
         self._setup_server(key, ksize, dht_storage, max_messages)
 
         # Process incoming messages.
+        self.sim_dht = None
         self._setup_message_dispatcher()
 
         # Rebroadcast relay messages.
@@ -112,6 +116,13 @@ class Node(object):
         self.speed_test_dot_net = {}
         if not self.disable_data_transfer:
             self.bandwidth = bandwidth or BandwidthLimit(self.config)
+            self.sim_dht = SimDHT(
+                node_id=self.get_id(),
+                port=self.port,
+                network_id=self.network_id
+            )
+            self.sim_dht.hook_queue(self.server.protocol.messages_received)
+
             self._setup_data_transfer_client(
                 passive_port, passive_bind, node_type, nat_type, wan_ip
             )
@@ -193,6 +204,9 @@ class Node(object):
         self._message_dispatcher_thread.join()
         self.server.stop()
         self.repeat_relay.stop()
+        if self.sim_dht is not None:
+            self.sim_dht.stop()
+
         if not self.disable_data_transfer:
             self._data_transfer.net.stop()
 
@@ -211,6 +225,16 @@ class Node(object):
         return self.server.get_known_peers()
 
     def get_neighbours(self):
+        if self.sim_dht is not None:
+            neighbours = self.sim_dht.get_neighbours()
+            for neighbour in neighbours:
+                if neighbour.id == self.get_id():
+                    continue
+
+                self.server.protocol.router.addContact(neighbour)
+
+            return neighbours
+
         return self.server.get_neighbours()
 
     def get_storage_contents(self):
@@ -332,13 +356,12 @@ class Node(object):
         unl_req = sign(unl_req, self.get_key())
 
         # Record start time.
-        future_timeout = time.time() + 30
+        future_timeout = time.time() + 120
 
         # Handle responses for this request.
         def handler_builder(self, d, their_node_id, wif):
             def handler(node, msg):
                 # Is this a response to our request?
-                remove_handler = 0
                 try:
                     if type(msg) in [type(b"")]:
                         msg = literal_eval(zlib.decompress(msg))
@@ -364,17 +387,12 @@ class Node(object):
                         _log.debug("unl response: their sig")
                         return
 
-                    remove_handler = 1
-
                     # Everything passed: fire callback.
+                    node.remove_message_handler(handler)
                     d.callback(msg[u"unl"])
-                except (ValueError, KeyError):
+                except (ValueError, KeyError, zlib.error):
                     _log.debug("unl response:val or key er")
                     pass  # not a unl response
-                finally:
-                    if remove_handler:
-                        # Remove this callback.
-                        node.remove_message_handler(handler)
 
             return handler
 
@@ -612,6 +630,9 @@ class Node(object):
     #######################
 
     def repeat_relay_message(self, nodeid, message):
+        if self.sim_dht is not None:
+            return self.sim_dht.relay_message(nodeid, message)
+
         return self.repeat_relay.relay(nodeid, message)
 
     def relay_message(self, nodeid, message):
@@ -633,6 +654,9 @@ class Node(object):
         Returns:
             True if message was added to relay queue, otherwise False.
         """
+
+        if self.sim_dht is not None:
+            return self.sim_dht.relay_message(nodeid, message)
 
         return self.server.relay_message(nodeid, message)
 
@@ -739,6 +763,9 @@ class Node(object):
             None if not found, the value otherwise.
         """
         # FIXME return default if not found (add to kademlia)
+        if self.sim_dht is not None:
+            return self.sim_dht.async_dht_get(key)
+
         return self.server.get(key)
 
     def async_set(self, key, value):
@@ -747,13 +774,26 @@ class Node(object):
         Returns:
             A twisted.internet.defer.Deferred that resloves when set.
         """
+        if self.sim_dht is not None:
+            def set_local_key(ret):
+                self.server.storage[key] = value
+                d = defer.Deferred()
+                d.callback(ret)
+
+                return d
+
+            d = self.sim_dht.async_dht_put(key, value)
+            d.addCallback(set_local_key)
+
+            return d
+
         return self.server.set(key, value)
 
     ###############################
     # blocking DHT dict interface #
     ###############################
 
-    @wait_for(timeout=WALK_TIMEOUT)
+    @wait_for(timeout=10)
     def get(self, key, default=None):
         """D.get(k[,d]) -> D[k] if k in D, else d.  d defaults to None.
 
@@ -762,7 +802,7 @@ class Node(object):
         """
         return self.async_get(key, default=default)
 
-    @wait_for(timeout=WALK_TIMEOUT)
+    @wait_for(timeout=10)
     def put(self, key, value):
         """Insert a key value pair into the DHT.
 

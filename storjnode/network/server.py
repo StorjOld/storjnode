@@ -73,9 +73,9 @@ class Server(KademliaServer):
             max_hop_limit=self._default_hop_limit,
             messages_history_limit=65536
         )
-        self.refreshLoop = LoopingCall(self.refreshTable).start(3600)
+        # self.refreshLoop = LoopingCall(self.refreshTable).start(3600)
 
-        self._start_threads()
+        # self._start_threads()
 
     def _start_threads(self):
 
@@ -84,23 +84,13 @@ class Server(KademliaServer):
         self._relay_thread = threading.Thread(target=self._relay_loop)
         self._relay_thread.start()
 
-        # setup refresh neighbours thread
-        if self._refresh_neighbours_interval > 0.0:
-            self._refresh_thread_stop = False
-            self._refresh_thread = threading.Thread(target=self._refresh_loop)
-            self._refresh_thread.start()
-
     @run_in_reactor
     def set_port_handler(self, port_handler):
         self.port_handler = port_handler
 
     def stop(self):
-        if self._refresh_neighbours_interval > 0.0:
-            self._refresh_thread_stop = True
-            self._refresh_thread.join()
-
         self._relay_thread_stop = True
-        self._relay_thread.join()
+        # self._relay_thread.join()
 
         # disconnect from port and stop properly
         if self.port_handler is not None:

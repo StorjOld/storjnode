@@ -3,6 +3,7 @@ import os
 import json
 import cProfile
 from pstats import Stats
+import hashlib
 import signal
 import threading
 import tempfile
@@ -62,6 +63,9 @@ class TestNode(unittest.TestCase):
         _log.info("TEST: creating swarm")
         cls.btctxstore = btctxstore.BtcTxStore(testnet=False)
         cls.swarm = []
+        cls.network_id = hashlib.sha256(
+            str(time.time()).encode("ascii")
+        ).hexdigest()[0:16]
         for i in range(SWARM_SIZE):
 
             # create node
@@ -73,11 +77,11 @@ class TestNode(unittest.TestCase):
                 nat_type="preserving",
                 node_type="passive",
                 disable_data_transfer=False,
-                max_messages=10000000000000
+                max_messages=10000000000000,
+                network_id=cls.network_id
             )
-            if i % 2 == 1:  # every second node ignores info/peer requests
-                storjnode.network.messages.info.enable(node, config)
-                storjnode.network.messages.peers.enable(node)
+            storjnode.network.messages.info.enable(node, config)
+            storjnode.network.messages.peers.enable(node)
             enable_unl_requests(node)
             node.bandwidth_test.__init__(
                 node.get_key(),
@@ -148,6 +152,7 @@ class TestNode(unittest.TestCase):
     # test util and debug functions #
     #################################
 
+    @unittest.skip("Not relevant")
     def test_refresh_neighbours_thread(self):
         interval = QUERY_TIMEOUT * 2
         config = _test_config(STORAGE_DIR, [["240.0.0.0", 1337]])
@@ -174,11 +179,12 @@ class TestNode(unittest.TestCase):
         bob_received = threading.Event()
         bob_node.add_message_handler(lambda n, m: bob_received.set())
 
-        time.sleep(interval * 2)  # wait until network overlay stable, 2 peers
-
         try:
             alice_node.relay_message(bob_node.get_id(), "hi bob")
             bob_node.relay_message(alice_node.get_id(), "hi alice")
+            time.sleep(interval * 2)
+            # wait until network overlay stable, 2 peers
+
             bob_received.wait(timeout=QUERY_TIMEOUT)
             alice_received.wait(timeout=QUERY_TIMEOUT)
             self.assertTrue(bob_received.isSet())
@@ -299,7 +305,7 @@ class TestNode(unittest.TestCase):
             config=_test_config(STORAGE_DIR, [["240.0.0.0", 1337]]),
             nat_type="preserving",
             node_type="passive",
-            disable_data_transfer=True
+            disable_data_transfer=False
         )
         bob_node = storjnode.network.Node(
             self.__class__.btctxstore.create_key(),
@@ -307,7 +313,7 @@ class TestNode(unittest.TestCase):
             config=_test_config(STORAGE_DIR, [["127.0.0.1", alice_node.port]]),
             nat_type="preserving",
             node_type="passive",
-            disable_data_transfer=True
+            disable_data_transfer=False
         )
         time.sleep(QUERY_TIMEOUT)  # wait until network overlay stable, 2 peers
         try:
@@ -395,8 +401,18 @@ class TestNode(unittest.TestCase):
             # storjnode.storage.shard.copy(shard, sys.stdout)
             results.update(dict(key=key, shard=shard))
             crawled_event.set()
-        node = self.swarm[0]
-        node = random.choice(self.swarm)
+
+        self.swarm.reverse()
+        node = self.swarm[-1]
+        for n in self.swarm:
+            if n.sim_dht.has_mutex:
+                if n.sim_dht.has_testable_neighbours():
+                    node = n
+                    break
+
+        # Todo: figure out how to choose node that has mutex
+        # and how to make it so it has more neighbours than other
+        # mutex nodes
         monitor = storjnode.network.monitor.Monitor(
             node, limit=limit, interval=interval, on_crawl_complete=handler
         )

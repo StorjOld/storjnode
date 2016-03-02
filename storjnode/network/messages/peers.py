@@ -44,4 +44,5 @@ def enable(node):
             peers = list(map(lambda n: n.id, node.get_neighbours()))
             msg = create(node.server.btctxstore, node.get_key(), peers)
             node.relay_message(request.sender, msg)
+
     return node.add_message_handler(handler)

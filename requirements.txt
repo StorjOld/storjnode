@@ -8,6 +8,6 @@ ntplib >= 0.3.3
 twisted >= 15.4.0
 ipaddress >= 1.0.14
 requests >= 2.8.1
-pyp2p >= 0.7.5
+pyp2p >= 0.7.8
 jsonschema >= 2.5.1
 apigen >= 1.4.1

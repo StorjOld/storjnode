@@ -55,7 +55,7 @@ DEFAULT_DATA = OrderedDict([
 
 class Crawler(object):  # will not scale but good for now
 
-    def __init__(self, node, limit=20, timeout=600):
+    def __init__(self, node, limit=5, timeout=600):
 
         # CRAWLER PIPELINE
         self.pipeline_mutex = RLock()
@@ -311,18 +311,15 @@ class Crawler(object):  # will not scale but good for now
             assert(nodeid != self.node.get_id())
 
             # skip bandwidth test
-            if SKIP_BANDWIDTH_TEST:
+            skip_bandwidth_test = SKIP_BANDWIDTH_TEST
+            if self.node.sim_dht is not None:
+                if not self.node.sim_dht.has_mutex:
+                    skip_bandwidth_test = True
+                else:
+                    if not self.node.sim_dht.can_test_knode(nodeid):
+                        skip_bandwidth_test = True
+            if skip_bandwidth_test:
                 _log.info("Skipping bandwidth test")
-                self.pipeline_processed[nodeid] = data
-                return
-
-            # Other person tests.
-            long_our_node_id = long(self.node.get_id().encode('hex'), 16)
-            long_their_node_id = long(nodeid.encode('hex'), 16)
-
-            # Disable this for now.
-            if long_our_node_id < long_their_node_id and 0:
-                _log.info("Skipping: They will do the bandwidth test")
                 self.pipeline_processed[nodeid] = data
                 return
 
@@ -382,7 +379,6 @@ class Crawler(object):  # will not scale but good for now
         }, indent=2)))
 
     def crawl(self):
-
         # add info and peers message handlers
         self.node.add_message_handler(self._handle_info_message)
         self.node.add_message_handler(self._handle_peers_message)
@@ -392,7 +388,18 @@ class Crawler(object):  # will not scale but good for now
 
         # add initial peers
         peers = self.node.get_neighbours()
+        x = []
+        y = []
         for peer in peers:
+            if peer.can_test:
+                x.append(peer)
+            else:
+                y.append(peer)
+
+        for peer in x + y:
+            if peer.id == self.node.get_id():
+                continue
+
             self._add_peer_to_pipeline(peer.id, peer.ip, peer.port)
 
         # process pipeline until done

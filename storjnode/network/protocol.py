@@ -27,7 +27,8 @@ class Protocol(KademliaProtocol):
         return not self.messages_received.empty()
 
     def get_messages(self):
-        return storjnode.util.empty_queue(self.messages_received)
+        ret = storjnode.util.empty_queue(self.messages_received)
+        return ret
 
     def queue_relay_message(self, entry):
         try:

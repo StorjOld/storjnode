@@ -2,6 +2,7 @@ import logging
 import time
 import tempfile
 import pyp2p
+import Queue
 import storjnode
 import Queue
 from storjnode.network.process_transfers import process_transfers
