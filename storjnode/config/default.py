@@ -24,7 +24,7 @@ DEFAULT = json.loads(r"""
             "enable_crawler": true,
             "enable_responses": true,
             "crawler_limit": 20,
-            "crawler_interval": 600
+            "crawler_interval": 3600
         }
     },
     "storage": {
