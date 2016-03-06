@@ -52,6 +52,7 @@ Install client
 ::
 
     $ sudo apt-get install python-dev gcc
+    $ sudo pip install pip --upgrade
     $ sudo pip install storjnode
     $ storjnode --help
 
@@ -60,6 +61,7 @@ Update client
 
 ::
 
+    $ sudo pip install pip --upgrade
     $ sudo pip install storjnode --upgrade
     $ storjnode --help
 
@@ -73,6 +75,7 @@ Install client
 
     $ brew install python
     $ rehash
+    $ pip install pip --upgrade
     $ pip install storjnode
     $ storjnode --help
 
@@ -80,6 +83,7 @@ Update client
 
 ::
 
+    $ pip install pip --upgrade
     $ pip install storjnode --upgrade
     $ storjnode --help
 
