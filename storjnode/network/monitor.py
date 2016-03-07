@@ -25,7 +25,7 @@ SKIP_BANDWIDTH_TEST = False
 if os.environ.get("STORJNODE_MONITOR_MAX_TRIES"):
     MAX_TRIES = int(os.environ.get("STORJNODE_MONITOR_MAX_TRIES"))
 else:
-    MAX_TRIES = 0
+    MAX_TRIES = 2
 
 
 DEFAULT_DATA = OrderedDict([
