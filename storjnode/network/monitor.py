@@ -180,43 +180,6 @@ class Crawler(object):  # will not scale but good for now
             len(self.pipeline_processed),
         ))
 
-    def _handle_neighbours_message(self, knode, neighbours):
-        received = time.time()
-        with self.pipeline_mutex:
-            data = self.pipeline_scanning.get(knode.id)
-            if data is None:  # not being scanned anymore
-                return
-            _log.info("Received neighbours from {0}!".format(
-                node_id_to_address(knode.id))
-            )
-            # add peers
-            if data["peers"] is None:
-                data["latency"]["peers"] = received - data["latency"]["peers"]
-                data["peers"] = [nodeid for nodeid, ip, port in neighbours]
-
-            # add to pipeline if needed
-            for nodeid, ip, port in neighbours:
-                self._add_peer_to_pipeline(nodeid, ip, port)
-
-            self._check_scan_complete(knode.id, data)
-
-    def _request_peers(self, nodeid, data):
-        with self.pipeline_mutex:
-
-            # get neighbours (old nodes don't respond to peers request)
-            if "transport" in data["network"]:
-                ip, port = data["network"]["transport"]
-                knode = KadNode(nodeid, ip, port)
-                defered = self.node.server.protocol.callFindNode(knode, knode)
-                defered = storjnode.util.default_defered(defered, [])
-
-                def _on_get_neighbours(neighbours):
-                    self._handle_neighbours_message(knode, neighbours)
-                defered.addCallback(_on_get_neighbours)
-
-            # send request peers message (for new nodes behind nat)
-            request_peers(self.node, nodeid)
-
     def _process_scanning(self, nodeid, data):
         with self.pipeline_mutex:
 
@@ -236,7 +199,7 @@ class Crawler(object):  # will not scale but good for now
                 _log.info("Requesting peers/neighbours from {0}!".format(
                     node_id_to_address(nodeid))
                 )
-                self._request_peers(nodeid, data)
+                request_peers(self.node, nodeid)
                 if data["latency"]["peers"] is None:
                     data["latency"]["peers"] = now
 
