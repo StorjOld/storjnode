@@ -116,8 +116,8 @@ class Crawler(object):  # will not scale but good for now
                 data["peers"] = storjnode.util.chunks(message.body, 20)
 
             # add to pipeline if needed
-            for peer in data["peers"]:
-                self._add_peer_to_pipeline(peer, None, None)
+            # for peer in data["peers"]:
+            #     self._add_peer_to_pipeline(peer, None, None)
 
             self._check_scan_complete(message.sender, data)
 
@@ -195,8 +195,8 @@ class Crawler(object):  # will not scale but good for now
                 data["peers"] = [nodeid for nodeid, ip, port in neighbours]
 
             # add to pipeline if needed
-            for nodeid, ip, port in neighbours:
-                self._add_peer_to_pipeline(nodeid, ip, port)
+            # for nodeid, ip, port in neighbours:
+            #     self._add_peer_to_pipeline(nodeid, ip, port)
 
             self._check_scan_complete(knode.id, data)
 
@@ -223,7 +223,7 @@ class Crawler(object):  # will not scale but good for now
             # request with exponential backoff
             now = time.time()
             window = storjnode.network.WALK_TIMEOUT ** data["request"]["tries"]
-            if time.time() < data["request"]["last"] + window:
+            if data["request"]["tries"]:
                 return  # wait for response
 
             _log.info("Requesting info/peers for {0}, try {1}!".format(

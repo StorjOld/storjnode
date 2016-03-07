@@ -23,7 +23,7 @@ setup()
 signal.signal(signal.SIGINT, signal.default_int_handler)
 
 
-NUM_FARMERS = 10
+NUM_FARMERS = 3
 START_PORT = 5000
 STORE_SIZE = "100G"
 STORE_PREFIX = "farmer_"  # you may have to delete them yourself?

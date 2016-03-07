@@ -18,6 +18,7 @@ from twisted.internet.task import LoopingCall
 from crochet import run_in_reactor
 from storjnode.network.messages.base import MAX_MESSAGE_DATA
 from storjnode.storage.dht import Storage
+from pyp2p.lib import get_wan_ip
 
 
 if os.environ.get("STORJNODE_QUERY_TIMEOUT"):
@@ -211,20 +212,8 @@ class Server(KademliaServer):
             time.sleep(THREAD_SLEEP)
 
     def get_transport_info(self, unl=None):
-        def handle(results):
-            results = filter(lambda r: r[0], results)  # filter successful
-            if not results:
-                _log.warning("No successful stun!")
-                return None
-
-            # FIXME check all entries as some nodes may be on the local net
-            result = results[0][1]
-
-            if not result:
-                _log.warning("No stun result!")
-                return None
-
-            wan = (result[0], result[1])
+        def handle():
+            wan = (get_wan_ip(), self.port)
             lan = (storjnode.util.get_inet_facing_ip(), self.port)
             transport_info = {
                 "wan": wan, "lan": lan, "unl": unl, "is_public": wan == lan
@@ -235,7 +224,7 @@ class Server(KademliaServer):
             _log.error(repr(err))
             return err
 
-        ds = []
-        for neighbor in self.bootstrappableNeighbors():
-            ds.append(self.protocol.stun(neighbor))
-        return defer.gatherResults(ds).addCallback(handle).addErrback(on_error)
+        d = defer.Deferred()
+        d.addErrback(on_error)
+        d.callback(handle())
+        return d
