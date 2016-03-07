@@ -160,8 +160,15 @@ def _respond(node, receiver, config):
 
     def on_success(result):
         if not result:
-            _log.warning("Couldn't get info for requested info message!")
-            return
+            _log.warning("Couldn't get transport info for info message!")
+            wan = None
+            unl = None
+            is_public = None
+        else:
+            wan = result["wan"]
+            unl = result["unl"]
+            is_public = result["is_public"]
+
         capacity = manager.capacity(config["storage"])
 
         # get btcaddress
@@ -171,8 +178,7 @@ def _respond(node, receiver, config):
             btcaddress = node.get_address()
 
         msg = create(node.server.btctxstore, node.get_key(),
-                     capacity, result["wan"], result["unl"],
-                     result["is_public"], btcaddress)
+                     capacity, wan, unl, is_public, btcaddress)
         return node.relay_message(receiver, msg)
 
     add_unl = not config["network"]["disable_data_transfer"]
