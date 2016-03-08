@@ -93,6 +93,9 @@ class Crawler(object):  # will not scale but good for now
             )
             if not (scanning or scanned or processed or testing_bandwidth):
                 self.pipeline_scanning[peerid] = copy.deepcopy(DEFAULT_DATA)
+                _log.info("Added peer to pipeline {0}!".format(
+                    node_id_to_address(peerid))
+                )
 
             if scanning and ip is not None and port is not None:
                 data = self.pipeline_scanning[peerid]
