@@ -9,6 +9,7 @@ from storjnode.network.messages import signal
 from storjnode.storage import manager
 from storjnode import __version__
 from storjnode.log import getLogger
+from storjnode.util import node_id_to_address
 
 
 _log = getLogger(__name__)
@@ -155,12 +156,16 @@ def request(node, receiver):
 
 def _respond(node, receiver, config):
     def on_error(err):
-        _log.error(repr(err))
+        _log.info("{0} failed to send info respones to {1}: {2}".format(
+            node.get_address(), node_id_to_address(receiver), repr(err)
+        ))
         return err
 
     def on_success(result):
         if not result:
-            _log.warning("Couldn't get transport info for info message!")
+            _log.warning("{0} couldn't get transport info!".format(
+                node.get_address()
+            ))
             wan = None
             unl = None
             is_public = None
@@ -179,6 +184,9 @@ def _respond(node, receiver, config):
 
         msg = create(node.server.btctxstore, node.get_key(),
                      capacity, wan, unl, is_public, btcaddress)
+        _log.info("{0} sending info respones to {1}".format(
+            node.get_address(), node_id_to_address(receiver)
+        ))
         return node.relay_message(receiver, msg)
 
     add_unl = not config["network"]["disable_data_transfer"]
@@ -196,6 +204,9 @@ def enable(node, config):
         def __call__(self, node, msg):
             request = signal.read(node.server.btctxstore, msg, "request_info")
             if request is not None:
+                _log.info("{0} got info request from {1}".format(
+                    node.get_address(), node_id_to_address(request.sender)
+                ))
                 _respond(node, request.sender, self.config)
 
     return node.add_message_handler(_Handler(config))

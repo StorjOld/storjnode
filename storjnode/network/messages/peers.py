@@ -1,5 +1,10 @@
 from storjnode.network.messages import base
 from storjnode.network.messages import signal
+from storjnode.log import getLogger
+from storjnode.util import node_id_to_address
+
+
+_log = getLogger(__name__)
 
 
 def create(btctxstore, node_wif, peers):
@@ -41,8 +46,14 @@ def enable(node):
     def handler(node, msg):
         request = signal.read(node.server.btctxstore, msg, "request_peers")
         if request is not None:
+            _log.info("{0} got peers request from {1}".format(
+                node.get_address(), node_id_to_address(request.sender)
+            ))
             peers = list(map(lambda n: n.id, node.get_neighbours()))
             msg = create(node.server.btctxstore, node.get_key(), peers)
+            _log.info("{0} sending peers respones to {1}".format(
+                node.get_address(), node_id_to_address(request.sender)
+            ))
             node.relay_message(request.sender, msg)
 
     return node.add_message_handler(handler)

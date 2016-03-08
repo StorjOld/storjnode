@@ -18,6 +18,9 @@ import threading  # NOQA
 from crochet import setup  # NOQA
 
 
+log = storjnode.log.getLogger(__name__)
+
+
 # start twisted via crochet and remove twisted handler
 setup()
 signal.signal(signal.SIGINT, signal.default_int_handler)
@@ -47,7 +50,6 @@ def main():
     threads = []
     try:
         for i in range(NUM_FARMERS):
-            print("Starting farmer")
             config = make_config(START_PORT + i)  # unique config
             wallet = btctxstore.BtcTxStore().create_wallet()
             node = storjnode.api.StorjNode(wallet=wallet, config=config)
@@ -55,6 +57,11 @@ def main():
             thread.start()
             threads.append(thread)
             time.sleep(2)
+            log.info("Starting farmer {0} on port {1} with store '{2}'".format(
+                node.info()["network"]["address"],
+                START_PORT + i,
+                repr(config["storage"].keys())
+            ))
         while True:
             time.sleep(1)  # run forever
 

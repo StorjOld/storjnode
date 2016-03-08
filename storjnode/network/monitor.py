@@ -25,7 +25,7 @@ SKIP_BANDWIDTH_TEST = False
 if os.environ.get("STORJNODE_MONITOR_MAX_TRIES"):
     MAX_TRIES = int(os.environ.get("STORJNODE_MONITOR_MAX_TRIES"))
 else:
-    MAX_TRIES = 2
+    MAX_TRIES = 0
 
 
 DEFAULT_DATA = OrderedDict([
@@ -93,7 +93,8 @@ class Crawler(object):  # will not scale but good for now
             )
             if not (scanning or scanned or processed or testing_bandwidth):
                 self.pipeline_scanning[peerid] = copy.deepcopy(DEFAULT_DATA)
-                _log.info("Added peer to pipeline {0}!".format(
+                _log.info("{0} added peer {1} to pipeline!".format(
+                    self.node.get_address(),
                     node_id_to_address(peerid))
                 )
 
@@ -111,7 +112,8 @@ class Crawler(object):  # will not scale but good for now
             data = self.pipeline_scanning.get(message.sender)
             if data is None:  # not being scanned anymore
                 return
-            _log.info("Received peers from {0}!".format(
+            _log.info("{0} received peers from {1}!".format(
+                self.node.get_address(),
                 node_id_to_address(message.sender))
             )
             if data["peers"] is None:
@@ -133,7 +135,8 @@ class Crawler(object):  # will not scale but good for now
             data = self.pipeline_scanning.get(message.sender)
             if data is None:
                 return  # not being scanned
-            _log.info("Received info from {0}!".format(
+            _log.info("{0} received info from {1}!".format(
+                self.node.get_address(),
                 node_id_to_address(message.sender))
             )
             data["latency"]["info"] = received - data["latency"]["info"]
@@ -199,8 +202,8 @@ class Crawler(object):  # will not scale but good for now
 
             # request peers
             if data["peers"] is None:
-                _log.info("Requesting peers/neighbours from {0}!".format(
-                    node_id_to_address(nodeid))
+                _log.info("{0} requesting peers/neighbours from {1}!".format(
+                    self.node.get_address(), node_id_to_address(nodeid))
                 )
                 request_peers(self.node, nodeid)
                 if data["latency"]["peers"] is None:
@@ -208,8 +211,8 @@ class Crawler(object):  # will not scale but good for now
 
             # request info
             if data["version"] is None:
-                _log.info("Requesting info from {0}!".format(
-                    node_id_to_address(nodeid))
+                _log.info("{0} requesting info from {1}!".format(
+                    self.node.get_address(), node_id_to_address(nodeid))
                 )
                 request_info(self.node, nodeid)
                 if data["latency"]["info"] is None:
@@ -220,7 +223,9 @@ class Crawler(object):  # will not scale but good for now
 
     def _handle_bandwidth_test_error(self, err):
         with self.pipeline_mutex:
-            _log.error("Bandwidth test failed: {0}".format(repr(err)))
+            _log.error("{0} bandwidth test failed: {1}".format(
+                self.node.get_address(), repr(err))
+            )
 
             # move to the back to scanned fifo and try again later
             nodeid, data = self.pipeline_bandwidth_test
@@ -234,7 +239,9 @@ class Crawler(object):  # will not scale but good for now
 
     def _handle_bandwidth_test_success(self, results):
         with self.pipeline_mutex:
-            _log.info("Bandwidth test successfull: {0}".format(repr(results)))
+            _log.info("{0} bandwidth test successfull: {1}".format(
+                self.node.get_address(), repr(results))
+            )
             nodeid, data = self.pipeline_bandwidth_test
 
             # free up bandwidth test for next peer
@@ -289,8 +296,8 @@ class Crawler(object):  # will not scale but good for now
                 self.pipeline_processed[nodeid] = data
                 return
 
-            _log.info("Starting bandwidth test for: {0}".format(
-                node_id_to_address(nodeid))
+            _log.info("{0} starting bandwidth test for: {1}".format(
+                self.node.get_address(), node_id_to_address(nodeid))
             )
 
             # start bandwidth test (timeout after 5min)
@@ -369,6 +376,9 @@ class Crawler(object):  # will not scale but good for now
             self._add_peer_to_pipeline(peer.id, peer.ip, peer.port)
 
         # process pipeline until done
+        _log.info("{0} starting crawl pipeline.".format(
+            self.node.get_address())
+        )
         self._process_pipeline()
 
         # remove info and peers message handlers
